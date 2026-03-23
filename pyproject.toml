@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "lycan"
+version = "0.1.0"
+description = "Recursive people intelligence platform"
+python = "^3.12"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115"
+uvicorn = {extras = ["standard"], version = "^0.32"}
+sqlalchemy = {extras = ["asyncio"], version = "^2.0"}
+asyncpg = "^0.30"
+alembic = "^1.14"
+pydantic = "^2.10"
+pydantic-settings = "^2.7"
+redis = "^5.2"
+stem = "^1.8"
+phonenumbers = "^8.13"
+spacy = "^3.8"
+networkx = "^3.4"
+httpx = "^0.28"
+playwright = "^1.49"
+scrapy = "^2.12"
+python-jose = {extras = ["cryptography"], version = "^3.3"}
+passlib = "^1.7"
+python-multipart = "^0.0.20"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.3"
+pytest-asyncio = "^0.24"
+pytest-cov = "^6.0"
+anyio = "^4.7"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

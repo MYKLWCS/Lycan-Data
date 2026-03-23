@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lycan}
+      POSTGRES_USER: ${POSTGRES_USER:-lycan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lycan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    ulimits:
+      memlock: -1
+    volumes:
+      - dragonfly_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+    volumes:
+      - meili_data:/meili_data
+    ports:
+      - "7700:7700"
+
+  tor-1:
+    image: dperson/torproxy:latest
+    environment:
+      TOR_CONTROL_PORT: "9051"
+      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD}
+    ports:
+      - "9050:9050"
+      - "9051:9051"
+
+  tor-2:
+    image: dperson/torproxy:latest
+    environment:
+      TOR_CONTROL_PORT: "9053"
+      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD}
+    ports:
+      - "9052:9050"
+      - "9053:9051"
+
+  tor-3:
+    image: dperson/torproxy:latest
+    environment:
+      TOR_CONTROL_PORT: "9055"
+      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD}
+    ports:
+      - "9054:9050"
+      - "9055:9051"
+
+volumes:
+  postgres_data:
+  dragonfly_data:
+  meili_data:
