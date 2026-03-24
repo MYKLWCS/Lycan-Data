@@ -58,6 +58,18 @@ async def lifespan(app: FastAPI):
         await meili_indexer.setup_index()
     except Exception:
         pass
+    # Initialize rate limiter and circuit breaker with shared Redis client
+    try:
+        from shared.rate_limiter import init_rate_limiter
+        from shared.circuit_breaker import init_circuit_breaker
+        redis = event_bus.redis if event_bus.is_connected else None
+        init_rate_limiter(redis)
+        init_circuit_breaker(redis)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Rate limiter / circuit breaker init skipped (no Redis)"
+        )
     yield
     try:
         await event_bus.disconnect()
