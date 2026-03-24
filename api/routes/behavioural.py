@@ -3,6 +3,7 @@ import uuid
 import logging
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import DbDep
 from shared.models.behavioural import BehaviouralProfile, BehaviouralSignal
 
@@ -10,7 +11,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/{person_id}")
-async def get_behavioural_profile(person_id: uuid.UUID, db: DbDep):
+async def get_behavioural_profile(person_id: uuid.UUID, db: AsyncSession = DbDep):
     row = await db.scalar(select(BehaviouralProfile).where(BehaviouralProfile.person_id == person_id))
     if not row:
         raise HTTPException(status_code=404, detail="No behavioural profile found")

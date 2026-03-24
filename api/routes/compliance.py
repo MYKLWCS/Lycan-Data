@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import DbDep
 from shared.models.opt_out import OptOut
 
@@ -17,7 +18,7 @@ class OptOutRequest(BaseModel):
     request_type: str = "erasure"  # erasure, access, portability, objection
 
 @router.post("/opt-out")
-async def submit_opt_out(req: OptOutRequest, db: DbDep):
+async def submit_opt_out(req: OptOutRequest, db: AsyncSession = DbDep):
     if not req.person_id and not req.email:
         raise HTTPException(status_code=422, detail="person_id or email required")
     record = OptOut(person_id=req.person_id, email=req.email, request_type=req.request_type)
@@ -27,7 +28,7 @@ async def submit_opt_out(req: OptOutRequest, db: DbDep):
     return {"id": str(record.id), "status": record.status, "request_type": record.request_type}
 
 @router.get("/opt-outs")
-async def list_opt_outs(db: DbDep, status: str | None = None):
+async def list_opt_outs(db: AsyncSession = DbDep, status: str | None = None):
     q = select(OptOut).order_by(OptOut.created_at.desc())
     if status:
         q = q.where(OptOut.status == status)
@@ -38,7 +39,7 @@ async def list_opt_outs(db: DbDep, status: str | None = None):
             "count": len(rows)}
 
 @router.post("/opt-outs/{opt_out_id}/process")
-async def process_opt_out(opt_out_id: uuid.UUID, db: DbDep):
+async def process_opt_out(opt_out_id: uuid.UUID, db: AsyncSession = DbDep):
     row = await db.get(OptOut, opt_out_id)
     if not row:
         raise HTTPException(status_code=404, detail="Opt-out not found")

@@ -3,6 +3,7 @@ import uuid
 import logging
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import DbDep
 from shared.models.watchlist import WatchlistMatch
 
@@ -10,7 +11,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/{person_id}")
-async def get_watchlist_matches(person_id: uuid.UUID, db: DbDep, confirmed_only: bool = False):
+async def get_watchlist_matches(person_id: uuid.UUID, db: AsyncSession = DbDep, confirmed_only: bool = False):
     q = select(WatchlistMatch).where(WatchlistMatch.person_id == person_id)
     if confirmed_only:
         q = q.where(WatchlistMatch.is_confirmed == True)
@@ -23,7 +24,7 @@ async def get_watchlist_matches(person_id: uuid.UUID, db: DbDep, confirmed_only:
             "count": len(rows)}
 
 @router.post("/{match_id}/confirm")
-async def confirm_match(match_id: uuid.UUID, db: DbDep):
+async def confirm_match(match_id: uuid.UUID, db: AsyncSession = DbDep):
     row = await db.get(WatchlistMatch, match_id)
     if not row:
         raise HTTPException(status_code=404, detail="Match not found")

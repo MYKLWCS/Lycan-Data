@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import DbDep
 from shared.models.person import Person, Alias
 from shared.models.identifier import Identifier
@@ -16,7 +17,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/{person_id}/json")
-async def export_person_json(person_id: uuid.UUID, db: DbDep):
+async def export_person_json(person_id: uuid.UUID, db: AsyncSession = DbDep):
     person = await db.get(Person, person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
@@ -35,7 +36,7 @@ async def export_person_json(person_id: uuid.UUID, db: DbDep):
                              headers={"Content-Disposition": f"attachment; filename=person_{person_id}.json"})
 
 @router.get("/{person_id}/csv")
-async def export_person_csv(person_id: uuid.UUID, db: DbDep):
+async def export_person_csv(person_id: uuid.UUID, db: AsyncSession = DbDep):
     person = await db.get(Person, person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
