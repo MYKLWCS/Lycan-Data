@@ -267,8 +267,8 @@ def _score_recent_mover(
         a for a in addresses
         if a.updated_at and a.updated_at >= cutoff
     ]
+    addr_score = 0.7 if recent_addrs else 0.0
     if recent_addrs:
-        score += 0.8
         reasons.append(f"{len(recent_addrs)} address record(s) updated in last 90 days")
 
     # Identifier history proxy — address-type identifiers recently updated
@@ -276,11 +276,12 @@ def _score_recent_mover(
         i for i in identifiers
         if "address" in i.type.lower() and i.updated_at and i.updated_at >= cutoff
     ]
+    id_score = 0.3 if recent_id_addrs else 0.0
     if recent_id_addrs:
-        score += 0.2
         reasons.append(f"{len(recent_id_addrs)} address-type identifier(s) updated in last 90 days")
 
-    return _clamp(score), reasons
+    confidence = max(addr_score, id_score)
+    return _clamp(confidence), reasons
 
 
 def _score_luxury_buyer(
@@ -297,7 +298,7 @@ def _score_luxury_buyer(
 
     current_jobs = [e for e in employment if e.is_current and e.job_title]
     for job in current_jobs:
-        title_lower = (job.job_title or "").lower()
+        title_lower = job.job_title.lower()
         if any(kw in title_lower for kw in _HIGH_INCOME_TITLES):
             score += 0.3
             reasons.append(f"high-income job title: {job.job_title}")
@@ -325,10 +326,11 @@ def _score_retiring_soon(
     long_tenure = [
         e for e in employment
         if e.is_current and e.started_at and
-        (date.today() - e.started_at).days >= 365 * 15
+        (date.today() - (e.started_at.date() if isinstance(e.started_at, datetime) else e.started_at)).days >= 365 * 15
     ]
     if long_tenure:
-        years = round((date.today() - long_tenure[0].started_at).days / 365, 1)
+        started = long_tenure[0].started_at.date() if isinstance(long_tenure[0].started_at, datetime) else long_tenure[0].started_at
+        years = round((date.today() - started).days / 365, 1)
         score += 0.3
         reasons.append(f"long employment tenure: {years} years at {long_tenure[0].employer_name or 'current employer'}")
 
@@ -416,7 +418,8 @@ class HighInterestBorrowerScorer:
         else:
             for emp in current:
                 if emp.started_at:
-                    tenure_years = (date.today() - emp.started_at).days / 365
+                    started = emp.started_at.date() if isinstance(emp.started_at, datetime) else emp.started_at
+                    tenure_years = (date.today() - started).days / 365
                     if tenure_years < 1:
                         raw -= 10
                         signals.append(f"short employment tenure: {tenure_years:.1f} years")
@@ -540,6 +543,15 @@ class MarketingTagsEngine:
                     reasoning=reasoning,
                     scored_at=now,
                 ))
+
+        # Borrower profile — scored independently and appended as a tier tag
+        borrower_profile = self._borrower_scorer.score(criminals, addresses, employment, wealth)
+        results.append(TagResult(
+            tag=f"borrower:{borrower_profile.tier}",
+            confidence=round(borrower_profile.score / 100, 4),
+            reasoning=borrower_profile.signals or [f"borrower tier: {borrower_profile.tier}"],
+            scored_at=now,
+        ))
 
         try:
             await event_bus.publish("enrichment", {
