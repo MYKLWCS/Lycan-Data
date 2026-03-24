@@ -339,8 +339,8 @@ async def test_handle_court_records_raises_alert():
     await _handle_court_records(session, result, uuid.uuid4())
 
     added = [c.args[0] for c in session.add.call_args_list]
-    assert len(added) == 1
-    alert = added[0]
+    assert len(added) == 3  # 2 CriminalRecords + 1 Alert
+    alert = next(a for a in added if isinstance(a, Alert))
     assert isinstance(alert, Alert)
     assert alert.alert_type == "criminal_signal"
 

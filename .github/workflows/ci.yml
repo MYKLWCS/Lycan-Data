@@ -65,6 +65,8 @@ jobs:
         run: |
           docker exec osnit-postgres-1 psql -U lycan -c "ALTER USER lycan WITH PASSWORD 'lycan';" 2>/dev/null || true
           docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan lycan_test -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
           python -m alembic upgrade head 2>/dev/null || true
 
       - name: Run tests with coverage

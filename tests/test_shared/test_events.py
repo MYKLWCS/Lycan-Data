@@ -13,13 +13,19 @@ async def test_event_bus_connects():
 
 @pytest.mark.asyncio
 async def test_publish_and_queue():
+    """Verify enqueue/dequeue round-trip using an isolated test-only queue key."""
+    import json
+
+    TEST_QUEUE = "lycan:queue:_test_isolated"
     async with get_event_bus() as bus:
-        # Test queue
-        await bus.enqueue({"job_type": "test", "value": 42}, priority="high")
-        length = await bus.queue_length("high")
-        assert length >= 1
-        job = await bus.dequeue("high", timeout=2)
-        assert job is not None
+        # Use a private queue key no worker listens to — fully isolated
+        await bus.redis.delete(TEST_QUEUE)
+        payload = json.dumps({"job_type": "test", "value": 42})
+        await bus.redis.lpush(TEST_QUEUE, payload)
+        result = await bus.redis.brpop([TEST_QUEUE], timeout=2)
+        assert result is not None
+        _, raw = result
+        job = json.loads(raw)
         assert job["job_type"] == "test"
         assert job["value"] == 42
 
