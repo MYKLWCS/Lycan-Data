@@ -334,6 +334,10 @@ a:hover { color: #5599ff; }
     <a href="#/persons" class="nav-item" id="nav-persons">⬡ Persons</a>
     <a href="#/region" class="nav-item" id="nav-region">⬡ Region Grow</a>
     <a href="#/deduplicate" class="nav-item" id="nav-deduplicate">⬡ Deduplicator</a>
+    <div class="nav-label">INTELLIGENCE</div>
+    <a href="#/financial" class="nav-item" id="nav-financial">⬡ Financial</a>
+    <a href="#/marketing" class="nav-item" id="nav-marketing">⬡ Marketing</a>
+    <a href="#/graph" class="nav-item" id="nav-graph">⬡ Knowledge Graph</a>
     <div class="nav-label">SYSTEM</div>
     <a href="#/activity" class="nav-item" id="nav-activity">⬡ Activity</a>
     <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
@@ -562,6 +566,9 @@ const App = {
     else if (hash === '#/region')      { document.getElementById('nav-region')?.classList.add('active');      this.renderRegion(); }
     else if (hash === '#/deduplicate') { document.getElementById('nav-deduplicate')?.classList.add('active'); this.renderDeduplicate(); }
     else if (hash === '#/activity')    { document.getElementById('nav-activity')?.classList.add('active');    this.renderActivity(); }
+    else if (hash === '#/financial')  { document.getElementById('nav-financial')?.classList.add('active');  this.renderFinancial(); }
+    else if (hash === '#/marketing')  { document.getElementById('nav-marketing')?.classList.add('active');  this.renderMarketing(); }
+    else if (hash === '#/graph')      { document.getElementById('nav-graph')?.classList.add('active');      this.renderGraph(); }
     else if (hash.startsWith('#/person/')) {
       document.getElementById('nav-persons')?.classList.add('active');
       this.renderPerson(hash.split('/')[2]);
@@ -1895,6 +1902,361 @@ const App = {
       body.textContent='';
       body.appendChild(div('red-txt','Error: '+e.message));
     }
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // FINANCIAL INTELLIGENCE
+  // ──────────────────────────────────────────────────────────────────
+  async renderFinancial() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Financial Intelligence'), div('page-sub','Credit scoring, AML screening, fraud detection'));
+    hdr.appendChild(left);
+    this.root.appendChild(hdr);
+
+    // Input form
+    const formCard = div('card');
+    const formHdr = div('card-header'); formHdr.appendChild(span('card-title','⬡ Score Person'));
+    const formBody = div('card-body');
+    const filterBar = div('filter-bar');
+    const pidInp = el('input','filter-input'); pidInp.placeholder='Person ID…'; pidInp.style.minWidth='280px';
+    const scoreBtn = el('button','btn primary','Score');
+    filterBar.append(pidInp, scoreBtn);
+    formBody.appendChild(filterBar);
+    formCard.append(formHdr, formBody);
+    this.root.appendChild(formCard);
+
+    const resultsDiv = div(''); this.root.appendChild(resultsDiv);
+
+    const run = async () => {
+      const pid = pidInp.value.trim(); if (!pid) return;
+      scoreBtn.disabled=true; scoreBtn.textContent='Scoring…';
+      resultsDiv.textContent='';
+      resultsDiv.appendChild(div('dim',''));
+      const spin = span('spinner'); resultsDiv.appendChild(spin);
+      try {
+        const s = await apiPost('/financial/'+pid+'/score', {});
+        resultsDiv.textContent='';
+
+        // Score card
+        const sc = div('card');
+        const scHdr = div('card-header'); scHdr.appendChild(span('card-title','⬡ Scores'));
+        const scBody = div('card-body');
+        const riskGrid = div('risk-grid');
+
+        const tierColor = t => ({'PREFERRED':'var(--green)','LOW':'var(--green)','MEDIUM':'var(--yellow)','HIGH':'var(--red)','DNL':'var(--red)'}[t]||'var(--text-dim)');
+
+        const dialItems = [
+          {label:'Credit Score', score:(s.credit_score||0)/1000, extra:s.credit_tier||riskTier(s.credit_score/1000||0)},
+          {label:'AML Risk',     score:s.aml_risk_score||0,      extra:s.is_pep?'PEP':'CLEAR'},
+          {label:'Fraud Score',  score:s.fraud_score||0,          extra:s.fraud_tier||riskTier(s.fraud_score||0)},
+          {label:'Darkweb',      score:s.darkweb_mentions>0?Math.min(1,(s.darkweb_mentions||0)/10):0, extra:(s.darkweb_mentions||0)+' mentions'},
+        ];
+        dialItems.forEach(d => {
+          const item = div('risk-item');
+          const dialEl = div('risk-dial'); item.appendChild(dialEl);
+          const lbl = div('risk-label', d.label); item.appendChild(lbl);
+          const extEl = div(''); extEl.style.cssText='font-size:10px;font-weight:600;margin-top:3px;text-align:center';
+          extEl.style.color = tierColor(d.extra);
+          extEl.textContent = d.extra;
+          item.appendChild(extEl);
+          riskGrid.appendChild(item);
+          requestAnimationFrame(() => drawRiskDial(dialEl, d.score, riskColor(d.score)));
+        });
+
+        scBody.appendChild(riskGrid);
+        sc.append(scHdr, scBody);
+        resultsDiv.appendChild(sc);
+
+        // AML matches (async)
+        (async () => {
+          try {
+            const aml = await apiGet('/financial/'+pid+'/aml');
+            if (!aml.matches || aml.matches.length===0) return;
+            const amlCard = div('card'); amlCard.style.marginTop='16px';
+            const amlHdr = div('card-header');
+            amlHdr.append(span('card-title','⬡ AML Matches'), span('card-badge red-txt', aml.matches.length));
+            const amlBody = div('card-body');
+            const tbl = el('table','data-table');
+            const thead = el('tr','');
+            ['Source','Name','List','Match Score','Date'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+            tbl.appendChild(thead);
+            aml.matches.forEach(m => {
+              const row=el('tr','');
+              [m.source||'—', m.matched_name||'—', m.list_name||'—',
+               Math.round((m.match_score||0)*100)+'%', fmtDate(m.listed_date)].forEach(v => {
+                const td=el('td',''); td.textContent=v; row.appendChild(td);
+              });
+              tbl.appendChild(row);
+            });
+            amlBody.appendChild(tbl);
+            amlCard.append(amlHdr, amlBody);
+            resultsDiv.appendChild(amlCard);
+          } catch(_) {}
+        })();
+      } catch(e) {
+        resultsDiv.textContent='';
+        resultsDiv.appendChild(div('red-txt','Score failed: '+e.message));
+      } finally {
+        scoreBtn.disabled=false; scoreBtn.textContent='Score';
+      }
+    };
+
+    scoreBtn.addEventListener('click', run);
+    pidInp.addEventListener('keydown', e => { if(e.key==='Enter') run(); });
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // MARKETING INTELLIGENCE
+  // ──────────────────────────────────────────────────────────────────
+  async renderMarketing() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Marketing Intelligence'), div('page-sub','Audience tagging and segment discovery'));
+    hdr.appendChild(left);
+    this.root.appendChild(hdr);
+
+    // Section 1 — Tag a Person
+    const tagCard = div('card');
+    const tagHdr = div('card-header'); tagHdr.appendChild(span('card-title','⬡ Tag a Person'));
+    const tagBody = div('card-body');
+    const tagBar = div('filter-bar');
+    const tagPidInp = el('input','filter-input'); tagPidInp.placeholder='Person ID…'; tagPidInp.style.minWidth='280px';
+    const tagBtn = el('button','btn primary','Tag');
+    tagBar.append(tagPidInp, tagBtn);
+    const tagResults = div(''); tagResults.style.marginTop='12px';
+    tagBody.append(tagBar, tagResults);
+    tagCard.append(tagHdr, tagBody);
+    this.root.appendChild(tagCard);
+
+    const confColor = c => c>=0.8 ? 'green' : c>=0.6 ? 'yellow' : 'muted';
+
+    tagBtn.addEventListener('click', async () => {
+      const pid = tagPidInp.value.trim(); if (!pid) return;
+      tagBtn.disabled=true; tagBtn.textContent='Tagging…';
+      tagResults.textContent=''; tagResults.appendChild(span('spinner'));
+      try {
+        const d = await apiPost('/marketing/'+pid+'/tag', {});
+        tagResults.textContent='';
+        const row = div('tag-row');
+        (d.tags||[]).forEach(t => {
+          const badge = span('tag '+confColor(t.confidence||0));
+          badge.textContent = (t.tag||t.name||t) + (t.confidence!=null ? ' '+Math.round(t.confidence*100)+'%' : '');
+          row.appendChild(badge);
+        });
+        if (!row.children.length) row.appendChild(span('dim','No tags returned'));
+        tagResults.appendChild(row);
+      } catch(e) {
+        tagResults.textContent=''; tagResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { tagBtn.disabled=false; tagBtn.textContent='Tag'; }
+    });
+
+    // Section 2 — Find by Tag
+    const findCard = div('card'); findCard.style.marginTop='16px';
+    const findHdr = div('card-header'); findHdr.appendChild(span('card-title','⬡ Find by Tag'));
+    const findBody = div('card-body');
+    const findBar = div('filter-bar');
+    const tagNameInp = el('input','filter-input'); tagNameInp.placeholder='Tag name…';
+    const threshLabel = span('filter-label','Min confidence');
+    const threshInp = el('input','filter-input'); threshInp.type='range'; threshInp.min='0'; threshInp.max='1'; threshInp.step='0.05'; threshInp.value='0.6'; threshInp.style.cssText='width:100px;padding:0;border:none;background:none;cursor:pointer';
+    const threshVal = span('dim','0.60');
+    threshInp.addEventListener('input', () => { threshVal.textContent=parseFloat(threshInp.value).toFixed(2); });
+    const findBtn = el('button','btn primary','Search');
+    findBar.append(tagNameInp, threshLabel, threshInp, threshVal, findBtn);
+    const findResults = div(''); findResults.style.marginTop='12px';
+    findBody.append(findBar, findResults);
+    findCard.append(findHdr, findBody);
+    this.root.appendChild(findCard);
+
+    const doFind = async () => {
+      const tag = tagNameInp.value.trim(); if (!tag) return;
+      const t = threshInp.value;
+      findBtn.disabled=true; findBtn.textContent='Searching…';
+      findResults.textContent=''; findResults.appendChild(span('spinner'));
+      try {
+        const d = await apiGet('/marketing/tags/by-tag/'+encodeURIComponent(tag)+'?threshold='+t);
+        findResults.textContent='';
+        if (!d.results || d.results.length===0) {
+          findResults.appendChild(div('dim','No results found'));
+          return;
+        }
+        const tbl = el('table','data-table');
+        const thead = el('tr','');
+        ['Name','Person ID','Confidence'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+        tbl.appendChild(thead);
+        d.results.forEach(r => {
+          const row=el('tr','');
+          const nameCell=el('td',''); nameCell.textContent=r.name||r.full_name||'—';
+          const idCell=el('td','');
+          const idLink=el('a','',r.person_id||'—'); idLink.href='#/person/'+(r.person_id||'');
+          idCell.appendChild(idLink);
+          const confCell=el('td','');
+          const badge=span('tag '+confColor(r.confidence||0)); badge.textContent=Math.round((r.confidence||0)*100)+'%';
+          confCell.appendChild(badge);
+          row.append(nameCell, idCell, confCell);
+          tbl.appendChild(row);
+        });
+        findResults.appendChild(tbl);
+      } catch(e) {
+        findResults.textContent=''; findResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { findBtn.disabled=false; findBtn.textContent='Search'; }
+    };
+
+    findBtn.addEventListener('click', doFind);
+    tagNameInp.addEventListener('keydown', e => { if(e.key==='Enter') doFind(); });
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // KNOWLEDGE GRAPH
+  // ──────────────────────────────────────────────────────────────────
+  async renderGraph() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Knowledge Graph'), div('page-sub','Company search, person networks, fraud ring detection'));
+    hdr.appendChild(left);
+    this.root.appendChild(hdr);
+
+    // Section 1 — Company Search
+    const coCard = div('card');
+    const coHdr = div('card-header'); coHdr.appendChild(span('card-title','⬡ Company Search'));
+    const coBody = div('card-body');
+    const coBar = div('filter-bar');
+    const coNameInp = el('input','filter-input'); coNameInp.placeholder='Company name…'; coNameInp.style.minWidth='220px';
+    const coStateInp = el('input','filter-input'); coStateInp.placeholder='State (optional)…'; coStateInp.style.minWidth='140px';
+    const coBtn = el('button','btn primary','Search');
+    coBar.append(coNameInp, coStateInp, coBtn);
+    const coResults = div(''); coResults.style.marginTop='12px';
+    coBody.append(coBar, coResults);
+    coCard.append(coHdr, coBody);
+    this.root.appendChild(coCard);
+
+    const doCoSearch = async () => {
+      const name = coNameInp.value.trim(); if (!name) return;
+      coBtn.disabled=true; coBtn.textContent='Searching…';
+      coResults.textContent=''; coResults.appendChild(span('spinner'));
+      try {
+        const d = await apiGet('/graph/company/search?name='+encodeURIComponent(name)+(coStateInp.value.trim()?'&state='+encodeURIComponent(coStateInp.value.trim()):''));
+        coResults.textContent='';
+        if (!d.companies || d.companies.length===0) { coResults.appendChild(div('dim','No companies found')); return; }
+        d.companies.forEach(c => {
+          const card2 = div('card'); card2.style.marginBottom='10px';
+          const body2 = div('card-body');
+          const titleRow = div(''); titleRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px';
+          const nm = div('page-title'); nm.style.fontSize='14px'; nm.textContent=c.legal_name||'—';
+          const stBadge = span('status-pill '+(c.status==='ACTIVE'?'done':'failed'), (c.status||'—').toUpperCase());
+          titleRow.append(nm, stBadge);
+          const kv = div('kv-grid');
+          [['State',c.state||'—'],['Confidence',Math.round((c.confidence||0)*100)+'%'],['Officers',(c.officer_count||0)+' officers']].forEach(([k,v]) => {
+            const row2=div('kv-row'); const key=span('kv-key',k); const val=span('kv-val',v);
+            row2.append(key,val); kv.appendChild(row2);
+          });
+          body2.append(titleRow, kv);
+          card2.appendChild(body2);
+          coResults.appendChild(card2);
+        });
+      } catch(e) {
+        coResults.textContent=''; coResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { coBtn.disabled=false; coBtn.textContent='Search'; }
+    };
+    coBtn.addEventListener('click', doCoSearch);
+    coNameInp.addEventListener('keydown', e => { if(e.key==='Enter') doCoSearch(); });
+
+    // Section 2 — Person Network
+    const netCard = div('card'); netCard.style.marginTop='16px';
+    const netHdr = div('card-header'); netHdr.appendChild(span('card-title','⬡ Person Network'));
+    const netBody = div('card-body');
+    const netBar = div('filter-bar');
+    const netPidInp = el('input','filter-input'); netPidInp.placeholder='Person ID…'; netPidInp.style.minWidth='260px';
+    const depthSel = el('select','filter-sel');
+    [['1','Depth 1'],['2','Depth 2'],['3','Depth 3']].forEach(([v,l]) => { const o=el('option','',l); o.value=v; depthSel.appendChild(o); });
+    const netBtn = el('button','btn primary','Build Graph');
+    netBar.append(netPidInp, span('filter-label','Depth'), depthSel, netBtn);
+    const netResults = div(''); netResults.style.marginTop='12px';
+    netBody.append(netBar, netResults);
+    netCard.append(netHdr, netBody);
+    this.root.appendChild(netCard);
+
+    netBtn.addEventListener('click', async () => {
+      const pid = netPidInp.value.trim(); if (!pid) return;
+      netBtn.disabled=true; netBtn.textContent='Building…';
+      netResults.textContent=''; netResults.appendChild(span('spinner'));
+      try {
+        const d = await apiGet('/graph/person/'+pid+'/network?depth='+depthSel.value);
+        netResults.textContent='';
+        const meta = div(''); meta.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
+        meta.textContent = (d.node_count||0)+' nodes · '+(d.edge_count||0)+' edges';
+        netResults.appendChild(meta);
+        const persons = (d.nodes||[]).filter(n => n.type==='person');
+        if (persons.length) {
+          const tbl=el('table','data-table');
+          const thead=el('tr','');
+          ['Name','Type','Risk Score'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+          tbl.appendChild(thead);
+          persons.forEach(n => {
+            const row=el('tr','');
+            const nm=el('td',''); nm.textContent=n.name||'—';
+            const tp=el('td',''); const tpTag=span('tag muted',(n.type||'—').toUpperCase()); tp.appendChild(tpTag);
+            const rs=el('td',''); rs.style.color=riskColor(n.risk_score||0); rs.textContent=n.risk_score!=null?Math.round(n.risk_score*100)+'%':'—';
+            row.append(nm,tp,rs); tbl.appendChild(row);
+          });
+          netResults.appendChild(tbl);
+        } else {
+          netResults.appendChild(div('dim','No person nodes in network'));
+        }
+      } catch(e) {
+        netResults.textContent=''; netResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { netBtn.disabled=false; netBtn.textContent='Build Graph'; }
+    });
+
+    // Section 3 — Fraud Ring Detection
+    const frCard = div('card'); frCard.style.marginTop='16px';
+    const frHdr = div('card-header'); frHdr.appendChild(span('card-title','⬡ Fraud Ring Detection'));
+    const frBody = div('card-body');
+    const frBar = div('filter-bar');
+    const minConnSel = el('select','filter-sel');
+    for (let i=2;i<=10;i++) { const o=el('option','',i+' min connections'); o.value=i; minConnSel.appendChild(o); }
+    const frBtn = el('button','btn primary','Detect');
+    frBar.append(span('filter-label','Min connections'), minConnSel, frBtn);
+    const frResults = div(''); frResults.style.marginTop='12px';
+    frBody.append(frBar, frResults);
+    frCard.append(frHdr, frBody);
+    this.root.appendChild(frCard);
+
+    frBtn.addEventListener('click', async () => {
+      frBtn.disabled=true; frBtn.textContent='Detecting…';
+      frResults.textContent=''; frResults.appendChild(span('spinner'));
+      try {
+        const d = await apiPost('/graph/fraud-rings', {min_connections:parseInt(minConnSel.value,10)});
+        frResults.textContent='';
+        const rings = d.rings||d.fraud_rings||[];
+        const meta = div(''); meta.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
+        meta.textContent = rings.length+' ring'+(rings.length!==1?'s':'')+' detected';
+        frResults.appendChild(meta);
+        rings.forEach((ring, i) => {
+          const rc = div('card'); rc.style.marginBottom='10px';
+          const rb = div('card-body');
+          const rl = div(''); rl.style.cssText='font-size:11px;font-weight:600;color:var(--red);margin-bottom:6px';
+          rl.textContent='Ring '+(i+1)+' · '+(ring.members||ring.nodes||[]).length+' members';
+          rb.appendChild(rl);
+          const row2 = div('tag-row');
+          (ring.members||ring.nodes||[]).forEach(m => {
+            const badge=span('tag red'); badge.textContent=m.name||m.person_id||String(m); row2.appendChild(badge);
+          });
+          rb.appendChild(row2);
+          rc.appendChild(rb);
+          frResults.appendChild(rc);
+        });
+        if (!rings.length) frResults.appendChild(div('dim','No fraud rings detected at this threshold'));
+      } catch(e) {
+        frResults.textContent=''; frResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { frBtn.disabled=false; frBtn.textContent='Detect'; }
+    });
   },
 };
 
