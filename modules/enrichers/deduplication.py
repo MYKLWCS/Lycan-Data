@@ -763,6 +763,7 @@ except ImportError:
     sa_text = None  # type: ignore[assignment]
 
 import uuid as _uuid_mod
+_SAFE_TABLE_RE = re.compile(r'^[a-z_][a-z0-9_]{1,62}$')
 
 
 class AsyncMergeExecutor:
@@ -813,8 +814,8 @@ class AsyncMergeExecutor:
 
         try:
             for table in self.REASSIGN_TABLES:
-                if table not in self.REASSIGN_TABLES:
-                    logger.warning("AsyncMergeExecutor: skipping unknown table %r", table)
+                if not _SAFE_TABLE_RE.match(table):
+                    logger.warning("AsyncMergeExecutor: skipping unsafe table name %r", table)
                     continue
                 stmt = sa_text(
                     f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup"
