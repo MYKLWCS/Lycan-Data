@@ -18,6 +18,10 @@ from shared.models.darkweb import DarkwebMention, CryptoWallet, CryptoTransactio
 from shared.models.credit_risk import CreditRiskAssessment
 from shared.models.wealth import WealthAssessment
 from shared.models.quality import DataQualityLog, FreshnessQueue
+from shared.models.marketing import MarketingTag, ConsumerSegment, TicketSize
+from shared.models.audit import AuditLog
+from shared.models.progress import SearchProgress
+from shared.models.opt_out import OptOut
 
 __all__ = [
     "Base", "TimestampMixin", "DataQualityMixin",
@@ -40,4 +44,8 @@ __all__ = [
     "CreditRiskAssessment",
     "WealthAssessment",
     "DataQualityLog", "FreshnessQueue",
+    "MarketingTag", "ConsumerSegment", "TicketSize",
+    "AuditLog",
+    "SearchProgress",
+    "OptOut",
 ]
