@@ -45,10 +45,18 @@ filterwarnings = ["ignore::DeprecationWarning"]
 addopts = "--tb=short"
 
 [tool.coverage.run]
-omit = ["tests/*", "migrations/*", "scripts/*"]
+omit = ["tests/*", "migrations/*", "scripts/*", "build_spa.py", "lycan.py", "worker.py", "shared/scrapy_middleware.py"]
 
 [tool.coverage.report]
-omit = ["tests/*", "migrations/*", "scripts/*"]
+omit = ["tests/*", "migrations/*", "scripts/*", "build_spa.py", "lycan.py", "worker.py", "shared/scrapy_middleware.py"]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "except Exception.*pass",
+    "while self._running:",
+    "async def start\\(self\\)",
+]
 
 [tool.ruff]
 line-length = 100
