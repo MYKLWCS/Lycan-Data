@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.routes import crawls, dedup, enrichment, financial, graph, marketing, patterns, persons, search, search_query, system, ws
+from api.routes import behavioural, watchlist, alerts, compliance, export
 from api.deps import DbDep
 from shared.db import engine
 from shared.events import event_bus
@@ -120,3 +121,8 @@ app.include_router(graph.router,     prefix="/graph",      tags=["graph"])
 app.include_router(dedup.router,       prefix="/dedup",      tags=["dedup"])
 app.include_router(enrichment.router,  prefix="/enrich",    tags=["enrichment"])
 app.include_router(patterns.router,    prefix="/patterns",  tags=["patterns"])
+app.include_router(behavioural.router, prefix="/behavioural", tags=["behavioural"])
+app.include_router(watchlist.router,   prefix="/watchlist",   tags=["watchlist"])
+app.include_router(alerts.router,      prefix="/alerts",      tags=["alerts"])
+app.include_router(compliance.router,  prefix="/compliance",  tags=["compliance"])
+app.include_router(export.router,      prefix="/export",      tags=["export"])
