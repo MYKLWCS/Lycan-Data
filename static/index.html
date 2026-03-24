@@ -339,6 +339,7 @@ a:hover { color: #5599ff; }
     <a href="#/marketing" class="nav-item" id="nav-marketing">⬡ Marketing</a>
     <a href="#/graph" class="nav-item" id="nav-graph">⬡ Knowledge Graph</a>
     <a href="#/dedup" class="nav-item" id="nav-dedup">⬡ Deduplication</a>
+    <a href="#/patterns" class="nav-item" id="nav-patterns">⬡ Patterns</a>
     <div class="nav-label">SYSTEM</div>
     <a href="#/activity" class="nav-item" id="nav-activity">⬡ Activity</a>
     <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
@@ -571,6 +572,7 @@ const App = {
     else if (hash === '#/marketing')  { document.getElementById('nav-marketing')?.classList.add('active');  this.renderMarketing(); }
     else if (hash === '#/graph')      { document.getElementById('nav-graph')?.classList.add('active');      this.renderGraph(); }
     else if (hash === '#/dedup')      { document.getElementById('nav-dedup')?.classList.add('active');      this.renderDedup(); }
+    else if (hash === '#/patterns')   { document.getElementById('nav-patterns')?.classList.add('active');   this.renderPatterns(); }
     else if (hash.startsWith('#/person/')) {
       document.getElementById('nav-persons')?.classList.add('active');
       this.renderPerson(hash.split('/')[2]);
@@ -2401,6 +2403,177 @@ const App = {
 
     mergeBtn.addEventListener('click', doMerge);
     dupInp.addEventListener('keydown', e => { if(e.key==='Enter') doMerge(); });
+  },
+
+  async renderPatterns() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Pattern Detection'), div('page-sub','Statistical anomaly detection, temporal analysis, and risk correlation'));
+    hdr.appendChild(left);
+    this.root.appendChild(hdr);
+
+    // ── Section 1: Co-occurring Risk Flags ─────────────────────────
+    const riskCard = div('card');
+    const riskHdr = div('card-header'); riskHdr.appendChild(span('card-title','⬡ Co-occurring Risk Flags'));
+    const riskBody = div('card-body');
+    const riskBar = div('filter-bar');
+    const riskLimitInp = el('input','filter-input'); riskLimitInp.type='number'; riskLimitInp.value='50'; riskLimitInp.min='1'; riskLimitInp.max='200'; riskLimitInp.style.width='100px'; riskLimitInp.placeholder='Limit…';
+    const riskBtn = el('button','btn primary','Load Risk Flags');
+    riskBar.append(riskLimitInp, riskBtn);
+    const riskResults = div(''); riskResults.style.marginTop='14px';
+    riskBody.append(riskBar, riskResults);
+    riskCard.append(riskHdr, riskBody);
+    this.root.appendChild(riskCard);
+
+    const doRisk = async () => {
+      const limit = parseInt(riskLimitInp.value)||50;
+      riskBtn.disabled=true; riskBtn.textContent='Loading…';
+      riskResults.textContent=''; riskResults.appendChild(span('spinner'));
+      try {
+        const d = await apiGet('/patterns/risk/co-occurring-flags?limit='+limit);
+        riskResults.textContent='';
+        const summary = div(''); summary.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
+        summary.textContent = (d.count||0) + ' high-risk person' + (d.count!==1?'s':'') + ' found';
+        riskResults.appendChild(summary);
+        if (!d.high_risk_persons || d.high_risk_persons.length===0) {
+          const empty = div('empty-state');
+          empty.append(div('empty-state-icon','✓'), div('empty-state-title','No co-occurring flags found'), div('empty-state-sub','No persons matched 2+ risk tables'));
+          riskResults.appendChild(empty);
+          return;
+        }
+        const tbl = el('table','data-table');
+        const thead = el('tr','');
+        ['Person ID','Name','Watchlist','Dark Web','Breach','Total Flags'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+        tbl.appendChild(thead);
+        d.high_risk_persons.forEach(r => {
+          const row = el('tr','');
+          const tdId = el('td',''); tdId.style.fontFamily='var(--mono)'; tdId.style.fontSize='11px';
+          const lnk = el('a','',(r.person_id||'').substring(0,12)+'…'); lnk.href='#/person/'+r.person_id; tdId.appendChild(lnk);
+          const tdName = el('td',''); tdName.textContent=r.full_name||'—';
+          const tdWl = el('td',''); tdWl.style.fontFamily='var(--mono)'; tdWl.style.color=(r.watchlist_hits>0?'var(--red)':'var(--text-dim)'); tdWl.textContent=r.watchlist_hits||0;
+          const tdDw = el('td',''); tdDw.style.fontFamily='var(--mono)'; tdDw.style.color=(r.darkweb_hits>0?'var(--red)':'var(--text-dim)'); tdDw.textContent=r.darkweb_hits||0;
+          const tdBr = el('td',''); tdBr.style.fontFamily='var(--mono)'; tdBr.style.color=(r.breach_hits>0?'var(--yellow)':'var(--text-dim)'); tdBr.textContent=r.breach_hits||0;
+          const tdTotal = el('td','');
+          const totalBadge = span(''); totalBadge.style.cssText='font-family:var(--mono);font-weight:700;font-size:13px;color:'+(r.total_flags>=5?'var(--red)':r.total_flags>=3?'var(--yellow)':'var(--text)');
+          totalBadge.textContent=r.total_flags||0; tdTotal.appendChild(totalBadge);
+          row.append(tdId,tdName,tdWl,tdDw,tdBr,tdTotal);
+          tbl.appendChild(row);
+        });
+        riskResults.appendChild(tbl);
+      } catch(e) {
+        riskResults.textContent=''; riskResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { riskBtn.disabled=false; riskBtn.textContent='Load Risk Flags'; }
+    };
+    riskBtn.addEventListener('click', doRisk);
+
+    // ── Section 2: Address Patterns ────────────────────────────────
+    const addrCard = div('card'); addrCard.style.marginTop='16px';
+    const addrHdr = div('card-header'); addrHdr.appendChild(span('card-title','⬡ Address Patterns'));
+    const addrBody = div('card-body');
+    const addrBar = div('filter-bar');
+    const addrMinInp = el('input','filter-input'); addrMinInp.type='number'; addrMinInp.value='3'; addrMinInp.min='2'; addrMinInp.max='50'; addrMinInp.style.width='130px'; addrMinInp.placeholder='Min changes…';
+    const addrLimitInp = el('input','filter-input'); addrLimitInp.type='number'; addrLimitInp.value='50'; addrLimitInp.min='1'; addrLimitInp.max='200'; addrLimitInp.style.width='100px'; addrLimitInp.placeholder='Limit…';
+    const addrBtn = el('button','btn primary','Load Address Patterns');
+    const addrMinLabel = span('filter-label','Min changes'); addrBar.append(addrMinLabel, addrMinInp, addrLimitInp, addrBtn);
+    const addrResults = div(''); addrResults.style.marginTop='14px';
+    addrBody.append(addrBar, addrResults);
+    addrCard.append(addrHdr, addrBody);
+    this.root.appendChild(addrCard);
+
+    const doAddr = async () => {
+      const minC = parseInt(addrMinInp.value)||3;
+      const limit = parseInt(addrLimitInp.value)||50;
+      addrBtn.disabled=true; addrBtn.textContent='Loading…';
+      addrResults.textContent=''; addrResults.appendChild(span('spinner'));
+      try {
+        const d = await apiGet('/patterns/temporal/address-patterns?min_changes='+minC+'&limit='+limit);
+        addrResults.textContent='';
+        const summary = div(''); summary.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
+        summary.textContent = (d.count||0) + ' person' + (d.count!==1?'s':'') + ' with high address churn';
+        addrResults.appendChild(summary);
+        if (!d.patterns || d.patterns.length===0) {
+          const empty = div('empty-state');
+          empty.append(div('empty-state-icon','✓'), div('empty-state-title','No address anomalies found'), div('empty-state-sub','No persons exceeded the minimum address threshold'));
+          addrResults.appendChild(empty);
+          return;
+        }
+        const tbl = el('table','data-table');
+        const thead = el('tr','');
+        ['Person ID','Address Count','Distinct Cities','Distinct States','First Seen','Last Seen'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+        tbl.appendChild(thead);
+        d.patterns.forEach(r => {
+          const row = el('tr','');
+          const tdId = el('td',''); tdId.style.fontFamily='var(--mono)'; tdId.style.fontSize='11px';
+          const lnk = el('a','',(r.person_id||'').substring(0,12)+'…'); lnk.href='#/person/'+r.person_id; tdId.appendChild(lnk);
+          const tdCount = el('td',''); tdCount.style.fontFamily='var(--mono)'; tdCount.style.color=(r.address_count>=10?'var(--red)':r.address_count>=5?'var(--yellow)':'var(--text)'); tdCount.textContent=r.address_count||0;
+          const tdCities = el('td',''); tdCities.style.fontFamily='var(--mono)'; tdCities.textContent=r.distinct_cities||0;
+          const tdStates = el('td',''); tdStates.style.fontFamily='var(--mono)'; tdStates.textContent=r.distinct_states||0;
+          const tdFirst = el('td','dim'); tdFirst.textContent=fmtDate(r.first_seen);
+          const tdLast  = el('td','dim'); tdLast.textContent=fmtDate(r.last_seen);
+          row.append(tdId,tdCount,tdCities,tdStates,tdFirst,tdLast);
+          tbl.appendChild(row);
+        });
+        addrResults.appendChild(tbl);
+      } catch(e) {
+        addrResults.textContent=''; addrResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { addrBtn.disabled=false; addrBtn.textContent='Load Address Patterns'; }
+    };
+    addrBtn.addEventListener('click', doAddr);
+
+    // ── Section 3: Network Anomalies ───────────────────────────────
+    const netCard = div('card'); netCard.style.marginTop='16px';
+    const netHdr = div('card-header'); netHdr.appendChild(span('card-title','⬡ Network Anomalies'));
+    const netBody = div('card-body');
+    const netBar = div('filter-bar');
+    const netMinInp = el('input','filter-input'); netMinInp.type='number'; netMinInp.value='10'; netMinInp.min='3'; netMinInp.max='500'; netMinInp.style.width='150px'; netMinInp.placeholder='Min connections…';
+    const netLimitInp = el('input','filter-input'); netLimitInp.type='number'; netLimitInp.value='50'; netLimitInp.min='1'; netLimitInp.max='200'; netLimitInp.style.width='100px'; netLimitInp.placeholder='Limit…';
+    const netBtn = el('button','btn primary','Load Network Anomalies');
+    const netMinLabel = span('filter-label','Min connections'); netBar.append(netMinLabel, netMinInp, netLimitInp, netBtn);
+    const netResults = div(''); netResults.style.marginTop='14px';
+    netBody.append(netBar, netResults);
+    netCard.append(netHdr, netBody);
+    this.root.appendChild(netCard);
+
+    const doNet = async () => {
+      const minC = parseInt(netMinInp.value)||10;
+      const limit = parseInt(netLimitInp.value)||50;
+      netBtn.disabled=true; netBtn.textContent='Loading…';
+      netResults.textContent=''; netResults.appendChild(span('spinner'));
+      try {
+        const d = await apiGet('/patterns/risk/network-anomalies?min_connections='+minC+'&limit='+limit);
+        netResults.textContent='';
+        const summary = div(''); summary.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
+        summary.textContent = (d.count||0) + ' network hub' + (d.count!==1?'s':'') + ' detected';
+        netResults.appendChild(summary);
+        if (!d.network_hubs || d.network_hubs.length===0) {
+          const empty = div('empty-state');
+          empty.append(div('empty-state-icon','✓'), div('empty-state-title','No network anomalies found'), div('empty-state-sub','No persons exceeded the minimum connection threshold'));
+          netResults.appendChild(empty);
+          return;
+        }
+        const tbl = el('table','data-table');
+        const thead = el('tr','');
+        ['Person ID','Connection Count','Relationship Types'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+        tbl.appendChild(thead);
+        d.network_hubs.forEach(r => {
+          const row = el('tr','');
+          const tdId = el('td',''); tdId.style.fontFamily='var(--mono)'; tdId.style.fontSize='11px';
+          const lnk = el('a','',(r.person_id||'').substring(0,12)+'…'); lnk.href='#/person/'+r.person_id; tdId.appendChild(lnk);
+          const tdConn = el('td','');
+          const connBadge = span(''); connBadge.style.cssText='font-family:var(--mono);font-weight:700;font-size:13px;color:'+(r.connection_count>=100?'var(--red)':r.connection_count>=50?'var(--yellow)':'var(--text)');
+          connBadge.textContent=r.connection_count||0; tdConn.appendChild(connBadge);
+          const tdTypes = el('td',''); tdTypes.style.fontFamily='var(--mono)'; tdTypes.textContent=r.relationship_types||0;
+          row.append(tdId,tdConn,tdTypes);
+          tbl.appendChild(row);
+        });
+        netResults.appendChild(tbl);
+      } catch(e) {
+        netResults.textContent=''; netResults.appendChild(span('red-txt','Failed: '+e.message));
+      } finally { netBtn.disabled=false; netBtn.textContent='Load Network Anomalies'; }
+    };
+    netBtn.addEventListener('click', doNet);
   },
 };
 
