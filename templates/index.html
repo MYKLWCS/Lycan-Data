@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lycan OSINT</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">LYCAN</span>
+    </div>
+    <div class="nav-label">INTELLIGENCE</div>
+    <a href="/" class="nav-item active">⬡ Search</a>
+    <a href="/ui/persons" class="nav-item">⬡ Persons</a>
+    <div class="nav-label">SYSTEM</div>
+    <a href="/ui/activity" class="nav-item">⬡ Activity</a>
+    <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
+    <div class="sidebar-bottom">
+      <div class="status-row" id="sys-status">
+        <span class="dot green"></span><span>System Online</span>
+      </div>
+      <div class="status-row" id="crawler-count">
+        <span class="dot blue"></span><span id="crawler-num">—</span> crawlers
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="hero">
+      <div class="hero-title">Intelligence Search</div>
+      <div class="hero-sub">Search any identifier — name, username, phone, email, domain, VIN, crypto wallet</div>
+
+      <div class="search-box">
+        <div class="search-type-row">
+          <button class="type-btn active" data-type="auto">Auto</button>
+          <button class="type-btn" data-type="full_name">Name</button>
+          <button class="type-btn" data-type="username">Username</button>
+          <button class="type-btn" data-type="phone">Phone</button>
+          <button class="type-btn" data-type="email">Email</button>
+          <button class="type-btn" data-type="domain">Domain</button>
+          <button class="type-btn" data-type="vin">VIN</button>
+          <button class="type-btn" data-type="crypto_wallet">Crypto</button>
+        </div>
+        <div class="search-row">
+          <input id="query" class="search-input" type="text"
+            placeholder="Enter name, username, phone number, email address..."
+            autocomplete="off" autofocus>
+          <select id="context-sel" class="context-sel">
+            <option value="general">General</option>
+            <option value="risk">Risk Assessment</option>
+            <option value="wealth">Wealth</option>
+            <option value="identity">Identity</option>
+          </select>
+          <button id="search-btn" class="search-btn">Search</button>
+        </div>
+      </div>
+
+      <!-- Recent searches -->
+      <div class="recent" id="recent-block" style="display:none">
+        <div class="recent-label">RECENT</div>
+        <div id="recent-list" class="recent-list"></div>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num" id="stat-persons">—</div>
+        <div class="stat-label">Persons Indexed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-crawlers">59</div>
+        <div class="stat-label">Active Scrapers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-sources">40+</div>
+        <div class="stat-label">Data Sources</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-tor">3</div>
+        <div class="stat-label">Tor Circuits</div>
+      </div>
+    </div>
+
+    <!-- Quick search examples -->
+    <div class="examples">
+      <div class="examples-label">TRY AN EXAMPLE</div>
+      <div class="example-chips">
+        <span class="chip" data-val="Elon Musk" data-type="full_name">Elon Musk</span>
+        <span class="chip" data-val="elonmusk" data-type="username">@elonmusk</span>
+        <span class="chip" data-val="+12025551234" data-type="phone">+1 202 555 1234</span>
+        <span class="chip" data-val="1HGBH41JXMN109186" data-type="vin">VIN lookup</span>
+        <span class="chip" data-val="tesla.com" data-type="domain">tesla.com</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+// Load system status
+fetch('/system/health').then(r=>r.json()).then(d=>{
+  document.getElementById('crawler-num').textContent = d.crawlers_registered;
+}).catch(()=>{});
+
+fetch('/persons').then(r=>r.json()).then(d=>{
+  document.getElementById('stat-persons').textContent = d.total ?? '—';
+}).catch(()=>{});
+
+// Type buttons
+document.querySelectorAll('.type-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// Example chips
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    document.getElementById('query').value = chip.dataset.val;
+    document.querySelectorAll('.type-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.type === chip.dataset.type);
+    });
+  });
+});
+
+// Search
+document.getElementById('search-btn').addEventListener('click', doSearch);
+document.getElementById('query').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+function doSearch(){
+  const q = document.getElementById('query').value.trim();
+  if(!q) return;
+  const typeBtn = document.querySelector('.type-btn.active');
+  const t = typeBtn?.dataset.type === 'auto' ? null : typeBtn?.dataset.type;
+  const ctx = document.getElementById('context-sel').value;
+
+  document.getElementById('search-btn').textContent = 'Searching…';
+  document.getElementById('search-btn').disabled = true;
+
+  fetch('/search', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ value: q, seed_type: t, context: ctx, priority: 'high' })
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    // Save to recent
+    const recent = JSON.parse(localStorage.getItem('lycan_recent')||'[]');
+    recent.unshift({ value: q, person_id: d.person_id, ts: Date.now() });
+    localStorage.setItem('lycan_recent', JSON.stringify(recent.slice(0,10)));
+    window.location.href = '/ui/person/' + d.person_id + '?q=' + encodeURIComponent(q);
+  })
+  .catch(e=>{
+    console.error(e);
+    document.getElementById('search-btn').textContent = 'Search';
+    document.getElementById('search-btn').disabled = false;
+  });
+}
+
+// Recent
+const recent = JSON.parse(localStorage.getItem('lycan_recent')||'[]');
+if(recent.length){
+  document.getElementById('recent-block').style.display = '';
+  const list = document.getElementById('recent-list');
+  recent.slice(0,6).forEach(r=>{
+    const a = document.createElement('a');
+    a.href = '/ui/person/'+r.person_id;
+    a.className = 'recent-item';
+    a.textContent = r.value;
+    list.appendChild(a);
+  });
+}
+</script>
+</body>
+</html>
