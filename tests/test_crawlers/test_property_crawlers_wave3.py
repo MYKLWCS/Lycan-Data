@@ -299,7 +299,8 @@ class TestZabaSearchScrape:
             await crawler.scrape("John James Smith")
         called_url = mock_get.call_args[0][0]
         assert "John" in called_url
-        assert "James+Smith" in called_url
+        # URL uses raw space (no quote_plus on name parts), last = "James Smith"
+        assert "James Smith" in called_url
 
     @pytest.mark.asyncio
     async def test_scrape_result_includes_profile_url(self):

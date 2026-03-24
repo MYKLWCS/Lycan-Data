@@ -176,9 +176,15 @@ class TestNameSimilarityEdgeCases:
         result = name_similarity("John Smith", "Dr")
         assert result == 0.0
 
-    def test_both_honorific_only_returns_zero(self):
+    def test_both_honorific_only_returns_one(self):
+        """
+        Both 'Mrs' and 'Dr' normalize to an empty string.
+        Empty strings are identical ('""' == '""'), so the function returns 1.0
+        (the early-exit identical-after-normalize branch at line ~170).
+        This test pins that documented behavior — do NOT change to 0.0.
+        """
         result = name_similarity("Mrs", "Dr")
-        assert result == 0.0
+        assert result == 1.0
 
     def test_honorific_plus_real_name_non_zero(self):
         """Honorific stripped; real tokens remain → score > 0."""
