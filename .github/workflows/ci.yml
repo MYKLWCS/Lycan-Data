@@ -53,26 +53,22 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install / sync dependencies
+      - name: Install dependencies
         run: |
-          if [ -f .venv/bin/pip ]; then
-            .venv/bin/pip install -q pytest pytest-asyncio pytest-cov anyio
-          else
-            python3 -m venv .venv
-            .venv/bin/pip install -q -r requirements.txt 2>/dev/null || \
-            .venv/bin/pip install -q fastapi sqlalchemy asyncpg alembic pydantic \
-              redis httpx beautifulsoup4 phonenumbers pytest pytest-asyncio pytest-cov anyio
-          fi
+          pip install --upgrade pip
+          pip install -r requirements.txt 2>/dev/null || \
+          pip install fastapi sqlalchemy asyncpg alembic pydantic pydantic-settings \
+            redis httpx beautifulsoup4 phonenumbers python-dateutil aiofiles networkx stem \
+            pytest pytest-asyncio pytest-cov anyio
 
       - name: Create test database if missing
         run: |
           docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
-          DATABASE_URL="postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test" \
-            .venv/bin/alembic upgrade head 2>/dev/null || true
+          alembic upgrade head 2>/dev/null || true
 
       - name: Run tests with coverage
         run: |
-          .venv/bin/pytest tests/ \
+          pytest tests/ \
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
