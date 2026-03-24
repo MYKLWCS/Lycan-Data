@@ -262,6 +262,40 @@ a:hover { color: #5599ff; }
 .queue-name { color: var(--text-mute); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
 .queue-count { font-family: var(--mono); font-size: 15px; font-weight: 700; color: #e8eef5; }
 
+/* ── Global pipeline status banner ── */
+#pipeline-banner {
+  position: fixed; top: 0; left: var(--sidebar-w); right: 0; z-index: 100;
+  background: rgba(8,12,16,0.97); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px; padding: 0 20px;
+  height: 36px; font-size: 11.5px; backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+#pipeline-banner.idle { border-bottom-color: var(--border); }
+#pipeline-banner.working { border-bottom-color: rgba(26,110,245,0.5); }
+#pipeline-banner.working #banner-bar-inner { animation: scan 2s linear infinite; }
+#banner-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--bg3); overflow: hidden; }
+#banner-bar-inner { height: 100%; width: 30%; background: var(--accent); transform: translateX(-100%); }
+@keyframes scan { from { transform: translateX(-100%); } to { transform: translateX(400%); } }
+.banner-seg { display: flex; align-items: center; gap: 6px; color: var(--text-dim); white-space: nowrap; }
+.banner-sep { color: var(--border2); }
+.banner-count { font-family: var(--mono); font-weight: 700; color: var(--text); }
+.banner-count.active { color: var(--accent); }
+.banner-count.warn { color: var(--yellow); }
+.banner-label { color: var(--text-mute); font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; }
+#banner-ticker { flex: 1; overflow: hidden; color: var(--text-mute); font-family: var(--mono); font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.main-with-banner { padding-top: 72px !important; }
+
+/* ── WA confirmed badge ── */
+.wa-confirmed { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,196,140,0.12); border: 1px solid rgba(0,196,140,0.3); color: var(--green); font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.05em; vertical-align: middle; margin-left: 6px; }
+.tg-confirmed { background: rgba(26,110,245,0.12); border-color: rgba(26,110,245,0.3); color: var(--accent); }
+
+/* ── Employment / wealth ── */
+.job-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.job-item:last-child { border-bottom: none; }
+.job-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.job-employer { font-size: 12px; color: var(--accent); }
+.job-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
 /* ── Misc ── */
 .empty-state { text-align: center; padding: 48px 24px; color: var(--text-dim); }
 .empty-state-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
@@ -310,7 +344,36 @@ a:hover { color: #5599ff; }
     </div>
   </nav>
 
-  <main class="main" id="app-root"></main>
+  <!-- Global pipeline status banner -->
+  <div id="pipeline-banner" class="idle">
+    <div class="banner-seg">
+      <span class="dot green pulse" id="banner-dot"></span>
+      <span id="banner-status" style="color:var(--text-dim)">Lycan Online</span>
+    </div>
+    <span class="banner-sep">|</span>
+    <div class="banner-seg">
+      <span class="banner-label">Queued</span>
+      <span class="banner-count" id="banner-queued">—</span>
+    </div>
+    <div class="banner-seg">
+      <span class="banner-label">Ingest</span>
+      <span class="banner-count" id="banner-ingest">—</span>
+    </div>
+    <div class="banner-seg">
+      <span class="banner-label">Index</span>
+      <span class="banner-count" id="banner-index">—</span>
+    </div>
+    <span class="banner-sep">|</span>
+    <div class="banner-seg">
+      <span class="banner-label">Crawlers</span>
+      <span class="banner-count" id="banner-crawlers">—</span>
+    </div>
+    <span class="banner-sep">|</span>
+    <span id="banner-ticker">Initialising pipeline…</span>
+    <div id="banner-bar"><div id="banner-bar-inner"></div></div>
+  </div>
+
+  <main class="main main-with-banner" id="app-root"></main>
 </div>
 
 <script>
@@ -506,12 +569,16 @@ const App = {
   },
 
   async _pollSystem() {
+    let lastJobId = null;
+
     const update = async () => {
       try {
         const [health, queues] = await Promise.all([
           apiGet('/system/health'),
           apiGet('/system/queues'),
         ]);
+
+        // ── Sidebar ──
         const cn = document.getElementById('crawler-num');
         if (cn) cn.textContent = health.crawlers_registered || '—';
         const qn = document.getElementById('queue-num');
@@ -519,22 +586,77 @@ const App = {
         const qs = document.getElementById('queue-status');
         if (qs) {
           const dot = qs.querySelector('.dot');
-          if (dot) {
-            dot.className = 'dot ' + ((queues.total_pending||0) > 0 ? 'yellow pulse' : 'green');
-          }
+          if (dot) dot.className = 'dot ' + ((queues.total_pending||0) > 0 ? 'yellow pulse' : 'green');
         }
         const ss = document.getElementById('sys-status');
-        if (ss) {
-          const dot = ss.querySelector('.dot');
-          if (dot) dot.className = 'dot green pulse';
+        if (ss) { const dot = ss.querySelector('.dot'); if (dot) dot.className = 'dot green pulse'; }
+
+        // ── Banner ──
+        const banner = document.getElementById('pipeline-banner');
+        const bannerDot = document.getElementById('banner-dot');
+        const bannerStatus = document.getElementById('banner-status');
+        const bannerQueued = document.getElementById('banner-queued');
+        const bannerIngest = document.getElementById('banner-ingest');
+        const bannerIndex = document.getElementById('banner-index');
+        const bannerCrawlers = document.getElementById('banner-crawlers');
+        const bannerTicker = document.getElementById('banner-ticker');
+
+        const total = queues.total_pending || 0;
+        const ingest = queues.ingest_backlog || 0;
+        const index = queues.index_backlog || 0;
+
+        if (bannerQueued) {
+          bannerQueued.textContent = total;
+          bannerQueued.className = 'banner-count' + (total > 0 ? ' active' : '');
         }
+        if (bannerIngest) { bannerIngest.textContent = ingest; bannerIngest.className = 'banner-count' + (ingest > 0 ? ' warn' : ''); }
+        if (bannerIndex)  { bannerIndex.textContent = index;   bannerIndex.className  = 'banner-count' + (index  > 0 ? ' warn' : ''); }
+        if (bannerCrawlers) bannerCrawlers.textContent = health.crawlers_registered || '—';
+
+        if (total > 0 || ingest > 0 || index > 0) {
+          if (banner) banner.className = 'working';
+          if (bannerDot) bannerDot.className = 'dot yellow pulse';
+          if (bannerStatus) { bannerStatus.textContent = 'Enriching…'; bannerStatus.style.color = 'var(--yellow)'; }
+        } else {
+          if (banner) banner.className = 'idle';
+          if (bannerDot) bannerDot.className = 'dot green pulse';
+          if (bannerStatus) { bannerStatus.textContent = 'Idle'; bannerStatus.style.color = 'var(--text-dim)'; }
+        }
+
+        // ── Ticker: show most recent crawl job activity ──
+        try {
+          const jobs = await apiGet('/crawls?limit=1&sort_by=updated_at&sort_dir=desc');
+          const recent = (jobs.jobs || jobs.crawl_jobs || [])[0];
+          if (recent && String(recent.id) !== String(lastJobId)) {
+            lastJobId = recent.id;
+            const statusColors = { completed:'var(--green)', running:'var(--yellow)', failed:'var(--red)', pending:'var(--accent)' };
+            const col = statusColors[recent.status] || 'var(--text-dim)';
+            if (bannerTicker) {
+              bannerTicker.textContent = '';
+              const ts = document.createTextNode(fmtDate(recent.updated_at||recent.created_at) + '  ');
+              const plat = document.createTextNode((recent.meta?.platform || recent.job_type || '—') + '  ');
+              const ident = document.createTextNode((recent.seed_identifier||'').substring(0,40) + '  ');
+              const stat = document.createElement('span');
+              stat.style.color = col;
+              stat.textContent = (recent.status||'').toUpperCase();
+              bannerTicker.append(ts, plat, ident, stat);
+            }
+          }
+        } catch(_) {}
+
       } catch(e) {
         const ss = document.getElementById('sys-status');
-        if (ss) { const dot = ss.querySelector('.dot'); if(dot) dot.className='dot red'; }
+        if (ss) { const dot = ss.querySelector('.dot'); if (dot) dot.className = 'dot red'; }
+        const banner = document.getElementById('pipeline-banner');
+        if (banner) banner.className = 'idle';
+        const bannerDot = document.getElementById('banner-dot');
+        if (bannerDot) bannerDot.className = 'dot red';
+        const bannerStatus = document.getElementById('banner-status');
+        if (bannerStatus) { bannerStatus.textContent = 'API Offline'; bannerStatus.style.color = 'var(--red)'; }
       }
     };
     await update();
-    setInterval(update, 15000);
+    setInterval(update, 5000); // poll every 5s — not 15s
   },
 
   // ──────────────────────────────────────────────────────────────────
@@ -1315,7 +1437,18 @@ const App = {
         const tr = document.createElement('tr');
         const tag = span('tag muted'); tag.style.fontSize='10px'; tag.textContent=i.type;
         const tdType = document.createElement('td'); tdType.appendChild(tag);
+
         const tdVal = document.createElement('td'); tdVal.className='mono'; tdVal.textContent=i.value||'—';
+        // WhatsApp / Telegram confirmed badges on phone numbers
+        if (i.type === 'phone') {
+          if (i.whatsapp_confirmed) {
+            const wb = span('wa-confirmed','WA ✓'); tdVal.appendChild(wb);
+          }
+          if (i.telegram_confirmed) {
+            const tb = span('wa-confirmed tg-confirmed','TG ✓'); tdVal.appendChild(tb);
+          }
+        }
+
         const tdConf = document.createElement('td'); tdConf.className='dim'; tdConf.textContent=Math.round((i.confidence||0)*100)+'%';
         const tdRel = document.createElement('td'); tdRel.appendChild(relBadge(i.source_reliability));
         const tdSt = document.createElement('td'); tdSt.className='dim'; tdSt.style.fontSize='10px'; tdSt.textContent=i.verification_status||'—';
@@ -1377,6 +1510,86 @@ const App = {
         }
         alertCard.append(aHdr, aBody);
         left.appendChild(alertCard);
+      }
+
+      // Employment history
+      if (d.employment && d.employment.length > 0) {
+        const empCard = div('card'); empCard.style.marginTop='16px';
+        const empHdr = div('card-header');
+        empHdr.append(span('card-title','⬡ Employment'), span('card-badge', d.employment.length));
+        const empBody = div('card-body');
+        d.employment.forEach(e => {
+          const item = div('job-item');
+          const titleEl = div('job-title', e.job_title||'Unknown Role');
+          const empEl = div('job-employer', e.employer_name||'Unknown Employer');
+          const metaParts = [];
+          if (e.industry) metaParts.push(e.industry);
+          if (e.started_at) metaParts.push('from '+fmtDate(e.started_at));
+          if (e.ended_at) metaParts.push('to '+fmtDate(e.ended_at));
+          if (e.is_current) metaParts.push('current');
+          if (e.estimated_salary_usd) metaParts.push('~$'+Math.round(e.estimated_salary_usd/1000)+'k');
+          const metaEl = div('job-meta', metaParts.join(' · '));
+          item.append(titleEl, empEl, metaEl);
+          empBody.appendChild(item);
+        });
+        empCard.append(empHdr, empBody);
+        left.appendChild(empCard);
+      }
+
+      // Behavioural profile
+      if (d.behavioural_profiles && d.behavioural_profiles.length > 0) {
+        const bp = d.behavioural_profiles[0];
+        const bCard = div('card'); bCard.style.marginTop='16px';
+        const bHdr = div('card-header'); bHdr.appendChild(span('card-title','⬡ Behavioural Signals'));
+        const bBody = div('card-body');
+        const signals = [
+          {label:'Gambling Signal',    val: bp.gambling_score},
+          {label:'Financial Distress', val: bp.financial_distress_score},
+          {label:'Violence Signal',    val: bp.violence_score},
+          {label:'Drug Signal',        val: bp.drug_signal_score},
+          {label:'Fraud Signal',       val: bp.fraud_score},
+          {label:'Criminal Signal',    val: bp.criminal_signal_score},
+        ].filter(s => s.val != null);
+        signals.forEach(s => {
+          const row = div('ocean-row');
+          const lbl = div('ocean-label', s.label);
+          const barWrap = div('ocean-bar-wrap');
+          const barInner = div('ocean-bar-inner');
+          const pct = Math.round((s.val||0)*100);
+          barInner.style.width = pct+'%';
+          barInner.style.background = pct > 60 ? 'var(--red)' : pct > 30 ? 'var(--yellow)' : 'var(--accent)';
+          barWrap.appendChild(barInner);
+          const valEl = div('ocean-val', pct+'%');
+          row.append(lbl, barWrap, valEl);
+          bBody.appendChild(row);
+        });
+        bCard.append(bHdr, bBody);
+        left.appendChild(bCard);
+      }
+
+      // Crypto wallets
+      if (d.crypto_wallets && d.crypto_wallets.length > 0) {
+        const cwCard = div('card'); cwCard.style.marginTop='16px';
+        const cwHdr = div('card-header');
+        cwHdr.append(span('card-title','⬡ Crypto Wallets'), span('card-badge', d.crypto_wallets.length));
+        const cwBody = div('card-body');
+        const cwTable = el('table','data-table');
+        const cwHead = el('tr','');
+        ['Chain','Address','Volume','Risk'].forEach(h => { const th=el('th',''); th.textContent=h; cwHead.appendChild(th); });
+        cwTable.appendChild(cwHead);
+        d.crypto_wallets.forEach(w => {
+          const row = el('tr','');
+          const chainCell = el('td',''); chainCell.appendChild(span('tag muted',(w.chain||'?').toUpperCase()));
+          const addrCell = el('td','mono'); addrCell.textContent=(w.address||'—').substring(0,18)+'…';
+          addrCell.title = w.address||'';
+          const volCell = el('td','dim'); volCell.textContent = w.total_volume_usd ? '$'+Math.round(w.total_volume_usd).toLocaleString() : '—';
+          const riskCell = el('td',''); riskCell.appendChild(relBadge(1-(w.risk_score||0)));
+          row.append(chainCell, addrCell, volCell, riskCell);
+          cwTable.appendChild(row);
+        });
+        cwBody.appendChild(cwTable);
+        cwCard.append(cwHdr, cwBody);
+        left.appendChild(cwCard);
       }
 
       // RIGHT column

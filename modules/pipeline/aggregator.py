@@ -99,6 +99,14 @@ async def aggregate_result(
         profile = await _upsert_social_profile(session, result, person.id)
         written["social_profile"] = str(profile.id) if profile else None
 
+    # WhatsApp / Telegram confirmation: identifier IS a phone number — also
+    # store it as a proper phone Identifier so it's visible in identifiers list.
+    if platform in {"whatsapp", "telegram"} and result.identifier:
+        phone_val = result.data.get("phone") or result.identifier
+        if _looks_like_phone_number(phone_val):
+            await _upsert_phone_identifier(session, phone_val, person.id, platform)
+            written["phone_identifier"] = phone_val
+
     # Phone enrichment ────────────────────────────────────────────────────────
     if platform in _PHONE_PLATFORMS:
         await _handle_phone_enrichment(session, result, person.id)
@@ -780,3 +788,51 @@ async def _handle_behavioural(
             last_assessed_at=datetime.now(timezone.utc),
         )
         session.add(bp)
+
+
+def _looks_like_phone_number(value: str) -> bool:
+    """True if value looks like a phone number (starts with + or has 7-15 digits)."""
+    import re
+    digits = re.sub(r'\D', '', value)
+    return (value.startswith('+') or value.startswith('00')) and 7 <= len(digits) <= 15
+
+
+async def _upsert_phone_identifier(
+    session: AsyncSession,
+    phone: str,
+    person_id: uuid.UUID,
+    source_platform: str,
+) -> None:
+    """Ensure this phone number exists as an Identifier row for the person."""
+    # Normalize: strip spaces/dashes, ensure leading +
+    import re
+    digits = re.sub(r'\D', '', phone)
+    normalized = f"+{digits}"
+
+    existing = (await session.execute(
+        select(Identifier).where(
+            Identifier.person_id == person_id,
+            Identifier.type == IdentifierType.PHONE.value,
+            Identifier.normalized_value == normalized,
+        ).limit(1)
+    )).scalar_one_or_none()
+
+    if existing:
+        # Confirm on an additional platform
+        existing.corroboration_count = (existing.corroboration_count or 1) + 1
+        existing.meta = {**(existing.meta or {}), f"confirmed_{source_platform}": True}
+        return
+
+    ident = Identifier(
+        id=uuid.uuid4(),
+        person_id=person_id,
+        type=IdentifierType.PHONE.value,
+        value=phone,
+        normalized_value=normalized,
+        confidence=0.9,
+        is_primary=False,
+        meta={"confirmed_via": source_platform},
+        source_reliability=0.8,
+    )
+    session.add(ident)
+    await session.flush()

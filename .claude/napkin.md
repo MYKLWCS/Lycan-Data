@@ -79,6 +79,17 @@
 
 ---
 
+## Critical Bugs Fixed (2026-03-24)
+
+1. **[2026-03-24] asyncio.gather on same AsyncSession causes "another operation in progress"**
+   Do instead: NEVER use asyncio.gather() with SQLAlchemy AsyncSession queries. Run all DB fetches sequentially on the same session. asyncpg does not allow concurrent queries on one connection.
+
+2. **[2026-03-24] BurnerAssessment FK is identifier_id not person_id**
+   Do instead: fetch burners via `BurnerAssessment.identifier_id.in_([i.id for i in idents])`. It links to Identifier, not Person.
+
+3. **[2026-03-24] WhatsApp stores phone as SocialProfile handle — not as Identifier**
+   Do instead: after `_upsert_social_profile` for whatsapp/telegram platforms, call `_upsert_phone_identifier()` to also store the phone number as an Identifier row with type=phone.
+
 ## New Models (added 2026-03-24)
 
 1. **[2026-03-24] CriminalRecord, IdentityDocument, CreditProfile, IdentifierHistory are now live**

@@ -297,19 +297,27 @@ async def get_certificate(person_id: str, session: AsyncSession = DbDep):
 
 @router.get("/{person_id}/report")
 async def get_report(person_id: str, session: AsyncSession = DbDep):
-    """Full comprehensive report joining all available tables."""
+    """Full comprehensive report joining ALL available tables for this person."""
     uid = _parse_uuid(person_id)
     p = await _require_person(session, uid)
 
     from shared.models.employment import EmploymentHistory
-    from shared.models.darkweb import DarkwebMention
+    from shared.models.darkweb import DarkwebMention, CryptoWallet
     from shared.models.watchlist import WatchlistMatch
     from shared.models.breach import BreachRecord
+    from shared.models.behavioural import BehaviouralProfile
+    from shared.models.burner import BurnerAssessment
+    from shared.models.alert import Alert
+    from shared.models.media import MediaAsset
 
-    async def _fetch(model):
-        r = await session.execute(select(model).where(model.person_id == uid))
+    async def _fetch(model, order_by=None):
+        q = select(model).where(model.person_id == uid)
+        if order_by is not None:
+            q = q.order_by(order_by)
+        r = await session.execute(q)
         return r.scalars().all()
 
+    # asyncpg does not allow concurrent queries on the same session — sequential only
     idents     = await _fetch(Identifier)
     profiles   = await _fetch(SocialProfile)
     aliases    = await _fetch(Alias)
@@ -318,26 +326,77 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
     darkweb    = await _fetch(DarkwebMention)
     watchlist  = await _fetch(WatchlistMatch)
     breaches   = await _fetch(BreachRecord)
+    criminal   = await _fetch(CriminalRecord)
+    documents  = await _fetch(IdentityDocument)
+    credit     = await _fetch(CreditProfile)
+    history    = await _fetch(IdentifierHistory)
+    behavioural= await _fetch(BehaviouralProfile)
+    # BurnerAssessment links to Identifier (not person) — join via identifiers
+    ident_ids = [i.id for i in idents]
+    if ident_ids:
+        b_res = await session.execute(
+            select(BurnerAssessment).where(BurnerAssessment.identifier_id.in_(ident_ids))
+        )
+        burners = b_res.scalars().all()
+    else:
+        burners = []
+    wallets    = await _fetch(CryptoWallet)
+    alerts     = await _fetch(Alert)
+    media      = await _fetch(MediaAsset)
+
+    # Phone identifiers confirmed by WhatsApp/Telegram get a special flag
+    phone_idents = [i for i in idents if i.type == "phone"]
+    for pi in phone_idents:
+        meta = pi.meta or {}
+        pi_dict_extra = {
+            "whatsapp_confirmed": meta.get("confirmed_whatsapp", False),
+            "telegram_confirmed": meta.get("confirmed_telegram", False),
+        }
 
     return {
         "person": _model_to_dict(p),
         "aliases": [_model_to_dict(a) for a in aliases],
-        "identifiers": [_model_to_dict(i) for i in idents],
+        "identifiers": [
+            {**_model_to_dict(i),
+             "whatsapp_confirmed": (i.meta or {}).get("confirmed_whatsapp", False),
+             "telegram_confirmed": (i.meta or {}).get("confirmed_telegram", False)}
+            for i in idents
+        ],
         "social_profiles": [_model_to_dict(s) for s in profiles],
         "addresses": [_model_to_dict(a) for a in addresses],
         "employment": [_model_to_dict(e) for e in employment],
         "darkweb_mentions": [_model_to_dict(d) for d in darkweb],
         "watchlist_matches": [_model_to_dict(w) for w in watchlist],
         "breach_records": [_model_to_dict(b) for b in breaches],
+        "criminal_records": [_model_to_dict(r) for r in criminal],
+        "identity_documents": [_model_to_dict(d) for d in documents],
+        "credit_profiles": [_model_to_dict(c) for c in credit],
+        "identifier_history": [_model_to_dict(h) for h in history],
+        "behavioural_profiles": [_model_to_dict(b) for b in behavioural],
+        "burner_assessments": [_model_to_dict(b) for b in burners],
+        "crypto_wallets": [_model_to_dict(w) for w in wallets],
+        "alerts": [_model_to_dict(a) for a in alerts],
+        "media_assets": [_model_to_dict(m) for m in media],
         "summary": {
-            "identifier_count":  len(idents),
-            "alias_count":       len(aliases),
-            "platform_count":    len(profiles),
-            "address_count":     len(addresses),
-            "employment_count":  len(employment),
-            "darkweb_hits":      len(darkweb),
-            "watchlist_hits":    len(watchlist),
-            "breach_count":      len(breaches),
+            "identifier_count":   len(idents),
+            "phone_count":        len(phone_idents),
+            "alias_count":        len(aliases),
+            "platform_count":     len(profiles),
+            "address_count":      len(addresses),
+            "employment_count":   len(employment),
+            "darkweb_hits":       len(darkweb),
+            "watchlist_hits":     len(watchlist),
+            "breach_count":       len(breaches),
+            "criminal_count":     len(criminal),
+            "document_count":     len(documents),
+            "has_criminal_record": len(criminal) > 0,
+            "has_sex_offender":   any(r.is_sex_offender for r in criminal),
+            "has_bankruptcy":     any(c.has_bankruptcy for c in credit),
+            "has_sanctions":      len(watchlist) > 0,
+            "has_darkweb":        len(darkweb) > 0,
+            "crypto_wallet_count": len(wallets),
+            "alert_count":        len(alerts),
+            "identifier_history_count": len(history),
         },
     }
 
