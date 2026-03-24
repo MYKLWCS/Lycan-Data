@@ -23,7 +23,7 @@ class MergeRequest(BaseModel):
 
 
 class BatchCandidatesRequest(BaseModel):
-    person_ids: list[str] = Field(..., max_length=100)
+    person_ids: list[str]  # length enforced explicitly in the handler (max 100)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -45,24 +45,7 @@ def _candidate_to_dict(c) -> dict:
     }
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
-
-@router.post("/{person_id}/candidates")
-async def get_candidates(person_id: str, session: AsyncSession = DbDep):
-    """Find merge candidates for a single person."""
-    _validate_uuid(person_id)
-    try:
-        candidates = await score_person_dedup(person_id, session)
-    except Exception as exc:
-        logger.exception("score_person_dedup failed person_id=%s", person_id)
-        raise HTTPException(500, "Internal error") from exc
-
-    return {
-        "person_id": person_id,
-        "candidates": [_candidate_to_dict(c) for c in candidates],
-        "count": len(candidates),
-    }
-
+# ── Endpoints — fixed paths MUST be declared before parameterised paths ────────
 
 @router.post("/merge")
 async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
@@ -123,6 +106,23 @@ async def batch_candidates(req: BatchCandidatesRequest, session: AsyncSession = 
         "candidates": all_candidates,
         "count": len(all_candidates),
         "persons_scanned": len(req.person_ids),
+    }
+
+
+@router.post("/{person_id}/candidates")
+async def get_candidates(person_id: str, session: AsyncSession = DbDep):
+    """Find merge candidates for a single person."""
+    _validate_uuid(person_id)
+    try:
+        candidates = await score_person_dedup(person_id, session)
+    except Exception as exc:
+        logger.exception("score_person_dedup failed person_id=%s", person_id)
+        raise HTTPException(500, "Internal error") from exc
+
+    return {
+        "person_id": person_id,
+        "candidates": [_candidate_to_dict(c) for c in candidates],
+        "count": len(candidates),
     }
 
 
