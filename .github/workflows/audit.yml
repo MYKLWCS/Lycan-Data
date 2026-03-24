@@ -1,9 +1,12 @@
-name: System Audit
+name: Audit
 
 on:
   schedule:
-    - cron: "0 8 * * 1"
-  workflow_dispatch:
+    - cron: "0 8 * * 1"   # Every Monday 08:00 UTC
+  workflow_dispatch:        # Manual trigger
+
+env:
+  PYTHONPATH: "."
 
 jobs:
   audit:
@@ -18,25 +21,44 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
       - name: Install audit dependencies
-        run: pip install anthropic PyGithub
+        run: .venv/bin/python -m pip install --quiet anthropic PyGithub
 
       - name: Run system audit
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python scripts/audit.py
+        run: .venv/bin/python scripts/audit.py
 
       - name: Upload audit report
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: audit-report-${{ github.run_number }}
           path: audit_report.md
           retention-days: 90
+
+  health-check:
+    name: Health Check
+    runs-on: [self-hosted, lycan]
+    needs: audit
+    if: always()
+    env:
+      DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
+      REDIS_URL: "redis://localhost:6379/0"
+      MEILI_URL: "http://localhost:7700"
+      MEILI_MASTER_KEY: ""
+      SECRET_KEY: "audit-health-check-key"
+      ENVIRONMENT: "test"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install test deps
+        run: |
+          .venv/bin/python -m pip install --quiet -r requirements.txt
+          .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
+
+      - name: Run health report
+        run: .venv/bin/python scripts/selfheal.py --report

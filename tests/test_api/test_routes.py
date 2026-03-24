@@ -616,7 +616,6 @@ class TestAlertRoutes:
 # ===========================================================================
 
 class TestRootRoutes:
-    @pytest.mark.skip(reason="Static file serving requires the static/ directory to be present")
     def test_root_returns_spa(self):
         """GET / returns the SPA index.html."""
         client = TestClient(app, raise_server_exceptions=False)

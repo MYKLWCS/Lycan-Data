@@ -10,138 +10,98 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
+  REDIS_URL: "redis://localhost:6379/0"
+  MEILI_URL: "http://localhost:7700"
+  MEILI_MASTER_KEY: ""
+  SECRET_KEY: "ci-test-secret-key-not-for-production"
+  ENVIRONMENT: "test"
+  PYTHONPATH: "."
+
 jobs:
-  # --- 1. Lint & Static Analysis ----------------------------------------------
+  # ── 1. Lint ──────────────────────────────────────────────────────────────────
   lint:
-    name: Lint (ruff)
+    name: Lint
     runs-on: [self-hosted, lycan]
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install ruff
-        run: python -m pip install ruff
 
       - name: Ruff lint
-        run: python -m ruff check . --output-format=github
+        run: |
+          .venv/bin/python -m pip install --quiet ruff
+          .venv/bin/python -m ruff check . --output-format=github
 
       - name: Ruff format check
-        run: python -m ruff format --check .
+        run: .venv/bin/python -m ruff format --check .
 
-  # --- 2. Tests ---------------------------------------------------------------
+  # ── 2. Tests ─────────────────────────────────────────────────────────────────
   test:
-    name: Tests (Python 3.12)
+    name: Tests
     runs-on: [self-hosted, lycan]
-    env:
-      DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
-      REDIS_URL: "redis://localhost:6379/0"
-      MEILI_URL: "http://localhost:7700"
-      MEILI_MASTER_KEY: ""
-      SECRET_KEY: "ci-test-secret-key-not-for-production"
-      ENVIRONMENT: "test"
-
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt 2>/dev/null || \
-          python -m pip install fastapi sqlalchemy asyncpg alembic pydantic pydantic-settings \
-            redis httpx beautifulsoup4 phonenumbers python-dateutil aiofiles networkx stem \
-            pytest pytest-asyncio pytest-cov anyio
+          .venv/bin/python -m pip install --quiet --upgrade pip
+          .venv/bin/python -m pip install --quiet -r requirements.txt
+          .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
 
-      - name: Create test database if missing
+      - name: Pre-flight environment heal
         run: |
-          docker exec osnit-postgres-1 psql -U lycan -c "ALTER USER lycan WITH PASSWORD 'lycan';" 2>/dev/null || true
+          # Ensure test DB exists and is migrated
           docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
-          docker exec osnit-postgres-1 psql -U lycan lycan_test -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
           docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
-          python -m alembic upgrade head 2>/dev/null || true
-
-      - name: Pre-flight self-heal
-        run: |
+          .venv/bin/python -m alembic upgrade head 2>/dev/null || true
+          # Flush stale queue items that live workers may have left
           docker exec osnit-dragonfly-1 redis-cli FLUSHDB 2>/dev/null || true
-          python -m alembic upgrade head 2>/dev/null || true
 
-      - name: Run tests with coverage
+      - name: Run tests
         run: |
-          python -m pytest tests/ \
+          .venv/bin/python -m pytest tests/ \
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-fail-under=45 \
-            -v \
-            --tb=short
+            -v --tb=short
 
-      - name: Upload coverage artifact
+      - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-${{ github.run_number }}
           path: coverage.xml
           retention-days: 30
 
-  # --- 3. Self-Heal (runs on test failure) ------------------------------------
+  # ── 3. Self-Heal (only on test failure) ──────────────────────────────────────
   self-heal:
     name: Self-Heal
     runs-on: [self-hosted, lycan]
     needs: test
     if: failure()
-    env:
-      DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
-      REDIS_URL: "redis://localhost:6379/0"
-      MEILI_URL: "http://localhost:7700"
-      MEILI_MASTER_KEY: ""
-      SECRET_KEY: "ci-test-secret-key-not-for-production"
-      ENVIRONMENT: "test"
-
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt 2>/dev/null || \
-          python -m pip install fastapi sqlalchemy asyncpg alembic pydantic pydantic-settings \
-            redis httpx beautifulsoup4 phonenumbers python-dateutil aiofiles networkx stem \
-            pytest pytest-asyncio pytest-cov anyio
+          .venv/bin/python -m pip install --quiet -r requirements.txt
+          .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
 
-      - name: Run self-heal
-        run: python scripts/selfheal.py
+      - name: Diagnose and heal
+        run: .venv/bin/python scripts/selfheal.py
 
-  # --- 4. Import Sanity Check -------------------------------------------------
+  # ── 4. Import sanity ─────────────────────────────────────────────────────────
   import-check:
     name: Import Sanity
     runs-on: [self-hosted, lycan]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
       - name: Install core deps
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install fastapi pydantic pydantic-settings sqlalchemy asyncpg \
-            redis httpx beautifulsoup4 phonenumbers python-dateutil aiofiles networkx stem
+          .venv/bin/python -m pip install --quiet -r requirements.txt
 
-      - name: Check modules import cleanly
-        run: python scripts/check_imports.py
+      - name: Check all modules import cleanly
+        run: .venv/bin/python scripts/check_imports.py
         continue-on-error: true
