@@ -1,0 +1,6 @@
+Lycan OSINT — Alembic Migrations
+
+Run from /data/projects/osnit:
+
+    PYTHONPATH=/data/projects/osnit python3.12 -m alembic upgrade head
+    PYTHONPATH=/data/projects/osnit python3.12 -m alembic revision --autogenerate -m "description"
