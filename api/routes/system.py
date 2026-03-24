@@ -68,6 +68,7 @@ async def health():
     results["crawlers"] = {
         "registered": len(CRAWLER_REGISTRY),
     }
+    results["crawlers_registered"] = len(CRAWLER_REGISTRY)  # flat field for UI
 
     # ── Overall ────────────────────────────────────────────────────────────────
     critical_ok = redis_ok and db_ok
