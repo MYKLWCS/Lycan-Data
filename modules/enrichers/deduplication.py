@@ -24,6 +24,126 @@ class MergeCandidate:
     match_reasons: list[str] = field(default_factory=list)
 
 
+# ─── ExactMatchDeduplicator — Pass 1 ─────────────────────────────────────────
+
+class ExactMatchDeduplicator:
+    """Pass 1 exact-match deduplication using composite deterministic keys."""
+
+    def __init__(self, dragonfly_client=None):
+        # dragonfly_client: Redis-compatible client, or None for in-memory fallback
+        self.dragonfly = dragonfly_client
+        self.seen_hashes: set[str] = set()
+
+    def normalize_string(self, s: str) -> str:
+        """Lowercase, strip whitespace, remove . , - """
+        return re.sub(r'[.,\-]', '', s.lower().strip())
+
+    def extract_ssn_last4(self, ssn: str) -> str:
+        """Extract last 4 digits from SSN string."""
+        digits = re.sub(r'\D', '', ssn)
+        return digits[-4:] if len(digits) >= 4 else digits
+
+    def create_composite_keys(self, record: dict) -> list[tuple[str, int]]:
+        """
+        Returns list of (key_string, priority) tuples.
+        Priority 1 (strongest): f"ssn:{ssn_last4}:{dob}:{name}"
+        Priority 2: f"email:{email}"  (only if @ present and non-empty)
+        Priority 3: f"phone:{phone}"  (only if 10+ digits after normalizing)
+        Priority 4: f"namedob:{name}:{dob}"  (only if both non-empty)
+        Priority 5: f"ein:{ein}"  (only if non-empty, for businesses)
+        """
+        keys: list[tuple[str, int]] = []
+
+        raw_ssn = record.get('ssn', '') or ''
+        raw_dob = record.get('dob', '') or ''
+        raw_name = record.get('full_name', '') or ''
+        raw_email = record.get('email', '') or ''
+        raw_phone = record.get('phone', '') or ''
+        raw_ein = record.get('ein', '') or ''
+
+        ssn_last4 = self.extract_ssn_last4(raw_ssn)
+        dob = self.normalize_string(str(raw_dob))
+        name = self.normalize_string(raw_name)
+
+        # Priority 1: SSN last4 + DOB + name
+        if ssn_last4 and dob and name:
+            keys.append((f"ssn:{ssn_last4}:{dob}:{name}", 1))
+
+        # Priority 2: email (only if contains @ and non-empty)
+        email = self.normalize_string(raw_email)
+        if email and '@' in email:
+            keys.append((f"email:{email}", 2))
+
+        # Priority 3: phone (only if 10+ digits after normalizing)
+        phone_digits = re.sub(r'\D', '', raw_phone)
+        if len(phone_digits) >= 10:
+            keys.append((f"phone:{phone_digits}", 3))
+
+        # Priority 4: name + dob (only if both non-empty)
+        if name and dob:
+            keys.append((f"namedob:{name}:{dob}", 4))
+
+        # Priority 5: EIN (only if non-empty, for businesses)
+        ein = self.normalize_string(raw_ein)
+        if ein:
+            keys.append((f"ein:{ein}", 5))
+
+        return keys
+
+    def hash_key(self, key: str) -> str:
+        """SHA256 hex digest of key."""
+        return hashlib.sha256(key.encode('utf-8')).hexdigest()
+
+    def check_and_mark_duplicate(self, record: dict) -> tuple[bool, str]:
+        """
+        Check each composite key hash. If found in dragonfly/seen_hashes → return (True, key).
+        Otherwise mark all keys as seen. Return (False, "").
+        Dragonfly: use setex with TTL 86400 under key f"dedup:key:{hash}"
+        """
+        composite_keys = self.create_composite_keys(record)
+        # Sort by priority so we check strongest signals first
+        composite_keys.sort(key=lambda t: t[1])
+
+        for key_str, _priority in composite_keys:
+            h = self.hash_key(key_str)
+            dragonfly_key = f"dedup:key:{h}"
+
+            if self.dragonfly is not None:
+                if self.dragonfly.get(dragonfly_key):
+                    return True, key_str
+            else:
+                if h in self.seen_hashes:
+                    return True, key_str
+
+        # Not a duplicate — mark all keys as seen
+        for key_str, _priority in composite_keys:
+            h = self.hash_key(key_str)
+            dragonfly_key = f"dedup:key:{h}"
+            if self.dragonfly is not None:
+                self.dragonfly.setex(dragonfly_key, 86400, 1)
+            else:
+                self.seen_hashes.add(h)
+
+        return False, ""
+
+    def process_batch(self, records: list) -> tuple[list, list]:
+        """
+        Returns (unique, duplicates).
+        duplicates entries: {'record': record, 'matched_key': key, 'pass': 1}
+        """
+        unique: list = []
+        duplicates: list = []
+
+        for record in records:
+            is_dup, matched_key = self.check_and_mark_duplicate(record)
+            if is_dup:
+                duplicates.append({'record': record, 'matched_key': matched_key, 'pass': 1})
+            else:
+                unique.append(record)
+
+        return unique, duplicates
+
+
 # ─── Name normalization ───────────────────────────────────────────────────────
 
 HONORIFICS = frozenset(['mr', 'mrs', 'ms', 'dr', 'prof', 'rev', 'sr', 'jr', 'ii', 'iii'])
@@ -401,6 +521,22 @@ class FuzzyDeduplicator:
 
     MERGE_THRESHOLD: float = 0.78
 
+    def __init__(
+        self,
+        jaro_winkler_threshold: float = 0.92,
+        levenshtein_threshold: float = 0.88,
+        merge_threshold: float | None = None,
+    ) -> None:
+        """
+        jaro_winkler_threshold: minimum JW score to count as name match
+        levenshtein_threshold: minimum Lev score to count as address match
+        merge_threshold: override for MERGE_THRESHOLD class default
+        """
+        self.jw_threshold = jaro_winkler_threshold
+        self.lev_threshold = levenshtein_threshold
+        if merge_threshold is not None:
+            self.MERGE_THRESHOLD = merge_threshold
+
     def find_candidates(self, persons: list[dict]) -> list[MergeCandidate]:
         """
         Find merge candidates across a list of person dicts.
@@ -510,7 +646,7 @@ class FuzzyDeduplicator:
         if name_a and name_b:
             jw = jaro_winkler_similarity(name_a.lower(), name_b.lower())
             score += jw * 0.40
-            if jw >= 0.80:
+            if jw >= self.jw_threshold:
                 reasons.append(f"name JW match: '{name_a}' ≈ '{name_b}' ({jw:.2f})")
 
         # ── DOB exact match × 0.30 ────────────────────────────────────────────
@@ -545,7 +681,7 @@ class FuzzyDeduplicator:
             cs_b = _city_state(addr_b[0])
             if cs_a and cs_b:
                 lev = levenshtein_similarity(cs_a, cs_b)
-                if lev > 0.7:
+                if lev > self.lev_threshold:
                     score += 0.10
                     reasons.append(f"address match: '{cs_a}' ≈ '{cs_b}' ({lev:.2f})")
 
@@ -795,12 +931,9 @@ async def score_person_dedup(
             last_name = parts[-1] if parts else ''
             if last_name:
                 sdx = soundex(last_name)
-                # Match persons whose last name token shares the same soundex
-                # We do a simpler approach: fetch persons with similar full_name
-                # and let the fuzzy scorer handle fine-grained filtering.
-                # Use a LIKE on last name as a blocking heuristic.
+                # Blocking by last name; soundex key sdx={sdx} used for FuzzyDeduplicator blocking
                 ln_stmt = sa_select(Person.id).where(
-                    Person.full_name.ilike(f"%{last_name[:3]}%")
+                    Person.full_name.ilike(f"%{last_name}%")
                 )
                 ln_result = await session.execute(ln_stmt)
                 candidate_ids.update(str(r[0]) for r in ln_result.fetchall())
