@@ -1,6 +1,6 @@
 # Crawler Overhaul — Full Bypass Stack + Data Cascade Fix
 **Date:** 2026-03-24
-**Status:** Approved
+**Status:** Approved (v2 — spec review fixes applied)
 **Scope:** Option C — New base crawlers, FlareSolverr sidecar, bug fixes, new sources
 
 ---
@@ -12,8 +12,8 @@ The platform has 130+ crawlers but is returning almost no data. Five distinct ro
 1. **TLS fingerprinting** — `httpx` presents a Python TLS signature. Cloudflare, DataDome, and Akamai detect it immediately and block. Affects all data broker sites (WhitePages, ThatsThem, FastPeopleSearch, TruePeopleSearch).
 2. **Playwright stealth is too thin** — Only masks the `webdriver` flag. Modern bot detection (PerimeterX, DataDome, Meta/Instagram) checks canvas fingerprint, WebGL, audio context, font enumeration, Chrome plugin lists. Social crawlers return empty pages.
 3. **Stale user agents** — Chrome 122 (March 2024) agents in `playwright_base.py`. Sites cross-check Chrome version against TLS signature — mismatch = instant bot flag. Current Chrome is 130+.
-4. **Pivot cap too low** — `_MAX_PIVOTS = 3` in `pivot_enricher.py` limits cascade to 3 new identifiers per result. Each only fans to 4–10 platforms. The chain dies too early.
-5. **Case sensitivity in identifier storage** — `identifiers` table has `UniqueConstraint` on `value` (raw string). `@JohnSmith` and `@johnsmith` create separate person records that never merge. The cascade runs twice and the results scatter.
+4. **Pivot cap too low** — `_MAX_PIVOTS = 3` in `pivot_enricher.py` slices the extracted identifiers list before dispatch, capping the cascade at 3 total new identifier extractions per result. The chain dies too early.
+5. **Case sensitivity in identifier storage** — `identifiers` table has `UniqueConstraint("type", "value")` (raw string). `@JohnSmith` and `@johnsmith` create separate person records that never merge.
 
 ---
 
@@ -29,193 +29,199 @@ Input (any identifier — name, email, phone, handle, IP, wallet)
   SEED_PLATFORM_MAP → dispatch_job() × N platforms
        │
        ├─ Government / open APIs ──────────► HttpxCrawler (unchanged)
-       │  (SEC, NMLS, SAM, FAA, FEC, etc.)   No bot protection, fast
+       │  (SEC, NMLS, SAM, FAA, FEC, etc.)
        │
-       ├─ Cloudflare-protected sites ──────► FlareSolverrCrawler (new)
-       │  (WhitePages, ThatsThem,             Sends request to local FlareSolverr
-       │   FastPeopleSearch, ZabaSearch,      Docker sidecar which solves CF
-       │   TruePeopleSearch, Pastebin)        challenge, returns clean HTML
+       ├─ Cloudflare-protected sites ──────► FlareSolverrCrawler(CurlCrawler)
+       │  (WhitePages, ThatsThem,             FlareSolverr Docker sidecar solves CF;
+       │   FastPeopleSearch, Pastebin)        falls back to CurlCrawler if sidecar down
        │
-       ├─ PerimeterX / DataDome sites ─────► CamoufoxCrawler (new)
-       │  (Instagram, LinkedIn, Twitter,      Firefox-based stealth browser
-       │   TikTok, Snapchat)                  beats canvas, WebGL, audio checks
+       ├─ PerimeterX / DataDome sites ─────► CamoufoxCrawler
+       │  (Instagram, LinkedIn, Twitter)      Firefox stealth browser; falls back to
+       │                                      error result if camoufox unavailable
        │
-       └─ General HTTP (non-CF) ───────────► CurlCrawler (new)
-          (APIs, news, crypto explorers,      curl_cffi impersonates Chrome TLS
-           court records, breach DBs)         fingerprint — indistinguishable
-                                              from real browser at network level
+       └─ General HTTP (non-CF) ───────────► CurlCrawler
+          (APIs, breach DBs, crypto)          curl_cffi Chrome 130 TLS impersonation;
+                                              falls back to httpx on import error
        │
        ▼
-  CrawlerResult.found=True
-       │
-       ▼
-  IngestionDaemon → aggregate_result → pivot_from_result (cap: 15)
+  CrawlerResult.found=True → IngestionDaemon → aggregate_result
                                               │
                                               ▼
-                                   extracted email / phone / full_name
+                                        pivot_from_result
+                                        total cap: 30 jobs/call
+                                        per-type: email→6, phone→4,
+                                                  name→12, handle→6, domain→4
                                               │
                                               ▼
-                                   dispatch_job() × pivot platforms
-                                   (recursive, depth-limited)
+                                   dispatch_job() × pivot platforms (recursive)
 ```
 
 ---
 
 ## Section 1: New Python Packages
 
-All free and open source. Added to `pyproject.toml` under `[tool.poetry.dependencies]`.
+All free and open source. Added to `pyproject.toml`.
 
 | Package | Purpose | Why |
 |---|---|---|
-| `curl_cffi` | TLS fingerprint impersonation | Impersonates Chrome 130 at TLS handshake level. Cloudflare can't distinguish it from a real browser. Drop-in async client. |
-| `patchright` | Stealth Playwright fork | Drop-in replacement for `playwright`. Patches canvas, WebGL, fonts, audio, navigator properties. Maintained fork of `playwright-stealth`. |
-| `camoufox[geoip]` | Firefox stealth browser | Firefox-based, undetected by PerimeterX and DataDome. Different fingerprint profile from Chrome — complements Patchright. |
-| `fake-useragent` | Current UA database | Pulls real-world user agent distribution from web. Current Chrome 130+, Firefox 125+. Replaces static list in `playwright_base.py`. |
-| `primp` | Hardened HTTP client | Rust-based Python binding. Browser-level TLS + HTTP/2 fingerprint. Fallback when curl_cffi is unavailable. |
-| `maigret` | Username across 2000+ sites | Replaces/supplements Sherlock. Covers 10x more platforms, returns structured JSON. |
-| `socialscan` | Email + username registration check | Async, fast, checks 30+ platforms simultaneously. |
-| `phoneinfoga` | Phone OSINT CLI | Carrier, country, line type, OSINT sources. Wraps CLI output into structured data. |
+| `curl_cffi` | TLS fingerprint impersonation | Impersonates Chrome 130 at TLS handshake level — Cloudflare cannot distinguish it from a real browser. Primary HTTP transport for non-government sites. |
+| `patchright` | Stealth Playwright fork | Drop-in for `playwright`. Patches canvas, WebGL, fonts, audio, navigator. Requires `patchright install chromium`. |
+| `camoufox[geoip]` | Firefox stealth browser | Undetected by PerimeterX and DataDome. Different fingerprint from Chrome — complements Patchright. |
+| `fake-useragent` | Current UA database | Real-world Chrome 130+, Firefox 125+ distribution. Replaces static list. |
+| `maigret` | Username across 2000+ sites | CLI tool. 10x more coverage than Sherlock. Returns structured JSON. Wrapped with 120s timeout + 50-result cap. |
+| `socialscan` | Email + username registration | Python async library. Checks 30+ platforms simultaneously. No subprocess needed. |
+| `phoneinfoga` | Phone OSINT | CLI tool. Carrier, country, line type. Wrapped with 60s timeout. |
+
+**`primp` is not included.** `curl_cffi` covers the same use case with better ecosystem support.
 
 ---
 
 ## Section 2: New Base Crawlers
 
-Three new abstract base classes in `modules/crawlers/`. All extend `BaseCrawler`. Fully composable — subclasses just inherit and call `self.get()` or `async with self.page()` as before.
+Three new classes in `modules/crawlers/`. All extend `BaseCrawler`. Fully composable — subclasses change only the parent class import; the `scrape()` method is untouched. Fallback is internal to each base class, invisible to subclasses.
 
 ### 2.1 `CurlCrawler` (`curl_base.py`)
 
-Extends `HttpxCrawler` interface, swaps transport to `curl_cffi`.
+Inherits from `HttpxCrawler`. Overrides `_client()` to build a `curl_cffi.AsyncSession` with `impersonate="chrome130"`. Inherits `get()`, `post()`, rate limiter, and circuit breaker from `HttpxCrawler` unchanged. If `curl_cffi` is not importable at runtime, logs a warning and delegates to `super()._client()` (plain httpx transport).
 
-```python
-# Usage (identical to HttpxCrawler):
-class MyCrawler(CurlCrawler):
-    async def scrape(self, identifier):
-        resp = await self.get("https://example.com/search?q=" + identifier)
-```
-
-- Impersonates `chrome130` TLS fingerprint by default
-- Inherits rate limiter + circuit breaker from `HttpxCrawler`
-- Falls back to plain `httpx` if `curl_cffi` import fails (graceful degradation)
-- SOCKS5 Tor proxy support via `curl_cffi` native proxy arg
+**Fallback chain:** curl_cffi chrome130 → httpx direct
 
 ### 2.2 `FlareSolverrCrawler` (`flaresolverr_base.py`)
 
-Sends requests through the local FlareSolverr HTTP API (port 8191). FlareSolverr spins up a headless Chrome instance, solves the Cloudflare JS challenge, and returns the rendered HTML + cookies.
+Inherits from `CurlCrawler`. Adds `fs_get(url)` and `fs_post(url, data)` methods. These POST to the FlareSolverr HTTP API at `FLARESOLVERR_URL` (env var, default `http://localhost:8191`). FlareSolverr runs a headless Chrome, solves the CF JS challenge, and returns rendered HTML + cookies.
 
-```python
-# Usage:
-class MyCrawler(FlareSolverrCrawler):
-    async def scrape(self, identifier):
-        html, cookies = await self.fs_get("https://www.whitepages.com/name/" + identifier)
-        soup = BeautifulSoup(html, "html.parser")
-```
+If FlareSolverr is unreachable (health check on first call, then cached per-instance), `fs_get` transparently delegates to `super().get()` (CurlCrawler) and returns `(response.text, {})`. No subclass code changes needed.
 
-- `fs_get(url)` → returns `(html: str, cookies: dict)`
-- `fs_post(url, data)` → returns `(html: str, cookies: dict)`
-- Configurable `FLARESOLVERR_URL` env var (default: `http://localhost:8191`)
-- Health check on startup — falls back to `CurlCrawler` if FlareSolverr is unreachable
-- Inherits rate limiter + circuit breaker
-- Session persistence: reuses FlareSolverr sessions for cookie-carrying requests
+Session persistence: FlareSolverr sessions are created per-domain and reused to carry cookies through challenge flows.
+
+**Fallback chain:** FlareSolverr → CurlCrawler (chrome130) → httpx direct
 
 ### 2.3 `CamoufoxCrawler` (`camoufox_base.py`)
 
-Firefox-based stealth browser. Different fingerprint profile from Chrome — PerimeterX and DataDome use separate detection trees for Chrome vs Firefox. Passing Firefox fingerprint checks requires a real Firefox engine.
+Inherits from `BaseCrawler`. Provides `async with self.page(url) as page:` context manager using `camoufox.AsyncNewBrowser`. `camoufox[geoip]` aligns timezone/locale to Tor exit IP automatically. Uses `fake-useragent` Firefox UAs. Block detection mirrors `PlaywrightCrawler.is_blocked()`. On block, calls `rotate_circuit()`.
 
-```python
-# Usage (identical to PlaywrightCrawler):
-class MyCrawler(CamoufoxCrawler):
-    async def scrape(self, identifier):
-        async with self.page("https://www.instagram.com/" + identifier) as page:
-            content = await page.content()
-```
+If `camoufox` is not importable, the context manager raises `ImportError`, caught by `BaseCrawler.run()`, returned as `error="camoufox_unavailable"` result.
 
-- Uses `camoufox` async context manager
-- Injects `fake-useragent` Firefox UAs (current versions)
-- Tor proxy support via camoufox proxy arg
-- Automatic block detection + circuit rotation (same as `PlaywrightCrawler`)
-- GeoIP data bundled via `camoufox[geoip]` — matches timezone/locale to exit IP
+**Fallback chain:** camoufox Firefox → error result (subclasses may override `_fallback_page()`)
 
 ### 2.4 `PlaywrightCrawler` upgrade (`playwright_base.py`)
 
-Swap `playwright` → `patchright` (drop-in). Update static user agent list to Chrome 130+. Add `fake-useragent` rotation for dynamic UAs.
+Swap: `from patchright.async_api import Browser, BrowserContext, Page, async_playwright`. API is identical. Update static `USER_AGENTS` to Chrome 130+ and supplement with `fake-useragent`. Add viewport jitter (±50px) and extra `navigator` property patches.
 
-Changes:
-- `from patchright.async_api import ...` replaces `from playwright.async_api import ...`
-- User agent list updated + supplemented by `fake-useragent` at runtime
-- Add viewport jitter (±50px), extra `navigator` property patches
+**CI / Dockerfile must add:** `patchright install chromium`
 
 ---
 
 ## Section 3: Bug Fixes
 
-### 3.1 Case sensitivity — identifier deduplication
+### 3.1a Deduplication — DB migration (critical, deploy atomically with 3.1b)
 
-**Problem:** `UniqueConstraint("type", "value")` is case-sensitive. `@JohnSmith` ≠ `@johnsmith`.
+**Problem:** `UniqueConstraint("type", "value")` is case-sensitive. The lookup in `search.py` already uses `normalized_value` correctly — the constraint is what allows the duplicate insert to succeed.
 
-**Fix:** Add database migration to:
-1. Drop `uq_identifier_type_value` constraint
-2. Add `uq_identifier_type_normalized` constraint on `(type, normalized_value)`
-3. Ensure `normalized_value` is always populated on write (currently nullable)
+**Migration steps:**
+1. `UPDATE identifiers SET normalized_value = lower(value) WHERE normalized_value IS NULL` (backfill)
+2. Drop `uq_identifier_type_value`
+3. Add `uq_identifier_type_normalized` on `(type, normalized_value)`
+4. Make `normalized_value` NOT NULL
 
-Also fix `search.py` `_auto_detect_type()` — call `.lower()` before regex matching so Instagram handles starting with capital letters are detected correctly.
+### 3.1b Model update — `shared/models/identifier.py` (atomic with 3.1a)
 
-### 3.2 Pivot cap — `pivot_enricher.py`
+Change `__table_args__` from `UniqueConstraint("type", "value", name="uq_identifier_type_value")` to `UniqueConstraint("type", "normalized_value", name="uq_identifier_type_normalized")`. If this is not done simultaneously with the migration, Alembic autogenerate will attempt to revert the constraint on the next run.
 
-**Problem:** `_MAX_PIVOTS = 3` starves the cascade.
+### 3.1c Type detection — `search.py` `_auto_detect_type()`
+
+Separate fix (not deduplication): add `.lower()` at top of `_auto_detect_type()` before regex so uppercase-prefixed handles (`@JohnSmith`, `Instagram.com/X`) type-detect correctly. Minor correctness fix.
+
+### 3.2 Pivot cap redesign + email extraction bug — `pivot_enricher.py`
+
+**Problem 1:** `return found[:_MAX_PIVOTS]` in `_extract_pivots()` caps identifier types extracted, not job count. Meaningless to raise it since a result rarely has more than 3 distinct identifier types (email, phone, name).
+
+**Problem 2:** Python operator precedence bug in the existing email extraction expression (lines 66-73). Due to the ternary `if/else` binding to the entire `or` chain rather than just the last clause, `email` evaluates to `None` whenever `data["emails"]` is not a list — even when `data["email"]`, `data["email_address"]`, or `data["contact_email"]` are populated. This silently drops email pivots from most crawler results.
 
 **Fix:**
-- Raise `_MAX_PIVOTS` to `15`
-- Add per-type caps: email → 6 platforms, phone → 4 platforms, full_name → 12 platforms
-- Add `instagram_handle`, `twitter_handle`, `linkedin_url` as new pivot types (currently ignored)
-- Expand `_PIVOT_PLATFORMS` to include all platforms from `SEED_PLATFORM_MAP`
+- Remove `return found[:_MAX_PIVOTS]` slice from `_extract_pivots()` entirely — return all found types (naturally bounded at ~3)
+- Add `_MAX_JOBS_PER_CALL = 30` total job ceiling in `pivot_from_result()` applied to the running `jobs_queued` counter
+- `_PIVOT_PLATFORMS` list lengths remain the per-type caps: email→6, phone→4, full_name→12
+- Fix email extraction parenthesization so `data.get("emails", [None])[0]` is the ternary subject, not the entire `or` chain:
+  ```
+  email = (
+      data.get("email")
+      or data.get("email_address")
+      or data.get("contact_email")
+      or (data.get("emails", [None])[0] if isinstance(data.get("emails"), list) else None)
+  )
+  ```
 
-### 3.3 Instagram handle as pivot type
+### 3.3 New pivot types — `pivot_enricher.py`
 
-Currently `pivot_enricher.py` only pivots on `email`, `phone`, `full_name`. When a WhitePages result includes an Instagram handle, it's ignored. Fix: add `instagram_handle`, `twitter_handle`, `linkedin_url`, `domain` as pivot types with appropriate platform lists.
+Add extraction for:
+- `instagram_handle` — from `data.get("instagram")`, `data.get("instagram_handle")`, URL pattern extraction
+- `twitter_handle` — from `data.get("twitter")`, `data.get("twitter_handle")`
+- `linkedin_url` — from `data.get("linkedin")`, `data.get("linkedin_url")`
+- `domain` — from email domain part and explicit `data.get("domain")` fields
+
+Platform lists for new types:
+```
+instagram_handle → instagram, username_maigret, username_sherlock
+twitter_handle   → twitter, username_maigret, username_sherlock
+linkedin_url     → linkedin
+domain           → domain_whois, cyber_crt, cyber_urlscan, cyber_wayback
+```
+
+### 3.4 `SeedType` extension — `shared/constants.py`
+
+Add to `SeedType` enum:
+```
+INSTAGRAM_HANDLE = "instagram_handle"
+TWITTER_HANDLE   = "twitter_handle"
+LINKEDIN_URL     = "linkedin_url"
+```
+
+Add corresponding entries in `SEED_PLATFORM_MAP` in `search.py` or pivot-only identifiers will be stored but never dispatched.
 
 ---
 
 ## Section 4: Crawler Migration
 
-Which crawlers move to which new base class:
+Only the parent class import changes in each file. `scrape()` methods are untouched.
 
-| Base Class | Crawlers |
+| New Base Class | Crawlers |
 |---|---|
 | `FlareSolverrCrawler` | `whitepages`, `truepeoplesearch`, `fastpeoplesearch`, `people_thatsthem`, `people_zabasearch`, `paste_pastebin`, `paste_ghostbin`, `paste_psbdmp` |
 | `CamoufoxCrawler` | `instagram`, `linkedin`, `twitter`, `tiktok`, `snapchat`, `discord`, `pinterest`, `facebook` |
 | `CurlCrawler` | `email_hibp`, `email_holehe`, `email_emailrep`, `email_breach`, `cyber_shodan`, `cyber_virustotal`, `cyber_greynoise`, `cyber_abuseipdb`, `cyber_urlscan`, `cyber_crt`, `crypto_bitcoin`, `crypto_ethereum`, `crypto_blockchair`, `financial_crunchbase`, `news_search`, `news_wikipedia`, `domain_whois` |
-| `HttpxCrawler` (unchanged) | All gov/public record crawlers: `gov_*`, `sanctions_*`, `court_*`, `bankruptcy_pacer`, `company_*`, `mortgage_*`, `vehicle_*`, `geo_*`, `public_*` |
-| `PlaywrightCrawler` (upgraded) | `youtube`, `reddit`, `mastodon`, `twitch`, `steam`, `darkweb_torch`, `darkweb_ahmia` |
+| `HttpxCrawler` (unchanged) | All `gov_*`, `sanctions_*`, `court_*`, `bankruptcy_pacer`, `company_*`, `mortgage_*`, `vehicle_*`, `geo_*`, `public_*` |
+| `PlaywrightCrawler` (patchright upgrade) | `youtube`, `reddit`, `mastodon`, `twitch`, `steam`, `darkweb_torch`, `darkweb_ahmia` |
 
 ---
 
 ## Section 5: New Crawlers / Sources
 
-All free/open source. Each follows the `@register("platform")` pattern.
+All free/open source. Follow `@register("platform")` pattern.
 
-| Crawler File | Platform Key | Source | Base Class |
+| File | Platform Key | Base | Notes |
 |---|---|---|---|
-| `username_maigret.py` | `username_maigret` | Maigret CLI (2000+ sites) | `BaseCrawler` (CLI wrapper) |
-| `email_socialscan.py` | `email_socialscan` | socialscan library | `BaseCrawler` (async lib) |
-| `phone_phoneinfoga.py` | `phone_phoneinfoga` | phoneinfoga CLI | `BaseCrawler` (CLI wrapper) |
-| `people_phonebook.py` | `people_phonebook` | PhoneBook.cz | `CurlCrawler` |
-| `people_intelx.py` | `people_intelx` | IntelligenceX free API | `CurlCrawler` |
-| `email_dehashed.py` | `email_dehashed` | DeHashed free search | `CurlCrawler` |
+| `username_maigret.py` | `username_maigret` | `BaseCrawler` | CLI wrapper. 120s timeout via `asyncio.wait_for`. Cap output to first 50 matches. |
+| `email_socialscan.py` | `email_socialscan` | `BaseCrawler` | Python async library, no CLI needed. |
+| `phone_phoneinfoga.py` | `phone_phoneinfoga` | `BaseCrawler` | CLI wrapper. 60s timeout via `asyncio.wait_for`. |
+| `people_phonebook.py` | `people_phonebook` | `CurlCrawler` | PhoneBook.cz email/domain search. |
+| `people_intelx.py` | `people_intelx` | `CurlCrawler` | IntelligenceX public search (no key required for basic). |
+| `email_dehashed.py` | `email_dehashed` | `CurlCrawler` | DeHashed public search endpoint. |
 
-Add all 6 to `SEED_PLATFORM_MAP` in `search.py` under appropriate seed types. Add to `_PIVOT_PLATFORMS` in `pivot_enricher.py`.
+CLI wrapper pattern: use `asyncio.wait_for(proc.communicate(), timeout=N)`. On `TimeoutError`, kill proc and return `error="timeout"` result. Parse stdout as JSON. All wrappers must pass identifier as a positional argument (never interpolated into a shell string) to prevent injection.
+
+All 6 added to `SEED_PLATFORM_MAP` and `_PIVOT_PLATFORMS`.
 
 ---
 
 ## Section 6: FlareSolverr Docker Service
-
-Add to `docker-compose.yml`:
 
 ```yaml
 flaresolverr:
   image: ghcr.io/flaresolverr/flaresolverr:latest
   environment:
     LOG_LEVEL: info
-    LOG_HTML: false
+    LOG_HTML: "false"
     CAPTCHA_SOLVER: none
     TZ: America/New_York
   ports:
@@ -228,75 +234,81 @@ flaresolverr:
   restart: unless-stopped
 ```
 
-Add `FLARESOLVERR_URL=http://localhost:8191` to `.env.example`.
+Add to `.env.example`: `FLARESOLVERR_URL=http://localhost:8191`
 
 ---
 
 ## Section 7: Hardening + Resilience
 
-### Fallback chain per base class
+### Canonical fallback chain
 
-Every new base class has a fallback:
 ```
-FlareSolverrCrawler → CurlCrawler → HttpxCrawler (direct)
-CamoufoxCrawler     → PlaywrightCrawler (Chrome)
-CurlCrawler         → HttpxCrawler (direct)
+FlareSolverrCrawler.fs_get()  → CurlCrawler.get() (chrome130) → httpx direct
+CamoufoxCrawler.page()        → error result (camoufox_unavailable)
+CurlCrawler.get()             → httpx direct
+PlaywrightCrawler.page()      → error (Playwright must be installed)
+HttpxCrawler.get()            → error (base level)
 ```
-If the preferred transport is blocked or unavailable, the crawler degrades automatically rather than returning empty.
 
-### Health check on startup
+Fallback is always internal to the base class method. Subclasses call `self.get()` or `self.fs_get()` — they never implement fallback.
 
-`shared/health.py` (new) — checks FlareSolverr, Tor instances, Dragonfly, Postgres on startup. Logs which bypass layers are active. Dispatcher uses this to know which base classes are available.
+### `shared/health.py` — startup health check
 
-### Per-domain transport registry
+Checks: FlareSolverr HTTP endpoint, 3x Tor SOCKS ports, Dragonfly ping, Postgres connection. Logs a summary of active bypass layers. Non-fatal — missing services degrade gracefully.
 
-`shared/transport_registry.py` (new) — maps domains to preferred crawler base. Automatically upgrades a domain to `FlareSolverrCrawler` after 3 consecutive `BLOCKED` results from `CurlCrawler`. Downgraded after 24h to re-test. Persisted in Dragonfly.
+### `shared/transport_registry.py` — per-domain transport tracking
+
+Dragonfly-backed. Tracks consecutive BLOCKED count, last transport used, last tested timestamp per domain. After 3 consecutive BLOCKs from `CurlCrawler`, promotes domain to prefer `FlareSolverrCrawler`. Resets after 24h. Consulted by `FlareSolverrCrawler.fs_get()` to skip FlareSolverr for domains where curl already works.
 
 ### User agent freshness
 
-`fake-useragent` fetches current UA distribution on first use, caches to disk. Crawlers call `ua.chrome` / `ua.firefox` rather than static strings. Updated automatically.
+`fake-useragent` fetches current distribution on first use, caches to disk. Base classes call `ua.chrome` / `ua.firefox`. No more static strings.
 
 ---
 
 ## Section 8: Normalisation Rules
 
-All identifier normalisation applied at `search.py` entry point and `pivot_enricher.py` extraction:
+Applied at `search.py` entry and `pivot_enricher.py` extraction:
 
-| Type | Normalisation |
+| Type | Rule |
 |---|---|
-| All | `.strip().lower()` |
-| Email | strip, lowercase, strip leading `@` if present |
+| All | `.strip().lower()` first |
+| Email | strip, lowercase, strip leading `@` |
 | Phone | strip non-digits, add `+` prefix if 10+ digits |
-| Username | strip, lowercase, strip leading `@` |
-| Full name | strip, title-case for display, lowercase for storage |
-| Domain | strip, lowercase, strip `www.` |
-| Crypto wallet | strip, lowercase (ETH), preserve case (BTC bech32) |
+| Username / handle | strip, lowercase, strip leading `@` |
+| Full name | lowercase for `normalized_value`; title-case for `value` display |
+| Domain | strip, lowercase, strip leading `www.` |
+| Crypto wallet | strip, lowercase ETH; preserve case BTC bech32 |
+| IP address | strip only |
 
 ---
 
 ## Implementation Order
 
-1. **pyproject.toml** — add new packages, `poetry install`
-2. **docker-compose.yml** — add FlareSolverr service
-3. **`playwright_base.py`** — swap patchright, update UAs
-4. **`curl_base.py`** — new `CurlCrawler`
-5. **`flaresolverr_base.py`** — new `FlareSolverrCrawler`
-6. **`camoufox_base.py`** — new `CamoufoxCrawler`
-7. **`shared/health.py`** — startup health check
-8. **`shared/transport_registry.py`** — per-domain transport tracking
-9. **DB migration** — fix identifier uniqueness constraint
-10. **`search.py`** — normalize before type-detect, fix case
-11. **`pivot_enricher.py`** — raise cap, add new pivot types, expand platforms
-12. **Migrate existing crawlers** — update base class imports for the 30+ crawlers in migration table
-13. **New crawlers** — maigret, socialscan, phoneinfoga, phonebook, intelx, dehashed
-14. **`search.py` SEED_PLATFORM_MAP** — add new platform keys
-15. **Tests** — unit tests for each new base class + integration smoke test
+Steps 9a and 9b must deploy atomically (migration runs first, app code restarts after).
+
+1. `pyproject.toml` — add packages, run `poetry install`
+2. `docker-compose.yml` — add `flaresolverr` service
+3. `playwright_base.py` — swap to patchright; add `patchright install chromium` to CI and Dockerfile
+4. `modules/crawlers/curl_base.py` — new `CurlCrawler`
+5. `modules/crawlers/flaresolverr_base.py` — new `FlareSolverrCrawler(CurlCrawler)`
+6. `modules/crawlers/camoufox_base.py` — new `CamoufoxCrawler`
+7. `shared/health.py` — startup health check
+8. `shared/transport_registry.py` — per-domain transport tracking
+9a. DB migration — backfill, swap constraint to `(type, normalized_value)`, NOT NULL
+9b. `shared/models/identifier.py` — update `__table_args__` (atomic with 9a)
+10. `shared/constants.py` — add `INSTAGRAM_HANDLE`, `TWITTER_HANDLE`, `LINKEDIN_URL` to `SeedType`
+11. `api/routes/search.py` — normalize before type-detect, add new SeedType entries to `SEED_PLATFORM_MAP`
+12. `modules/pipeline/pivot_enricher.py` — remove slice, add `_MAX_JOBS_PER_CALL`, add new pivot types
+13. Migrate existing crawlers — update base class import for all 30+ crawlers in migration table
+14. New crawlers — `username_maigret`, `email_socialscan`, `phone_phoneinfoga`, `people_phonebook`, `people_intelx`, `email_dehashed`
+15. Tests — unit tests for each new base class; fallback smoke tests; pivot cascade integration test
 
 ---
 
 ## Files Created / Modified
 
-**New files:**
+**New:**
 - `modules/crawlers/curl_base.py`
 - `modules/crawlers/flaresolverr_base.py`
 - `modules/crawlers/camoufox_base.py`
@@ -310,41 +322,18 @@ All identifier normalisation applied at `search.py` entry point and `pivot_enric
 - `shared/transport_registry.py`
 - `migrations/versions/XXXX_fix_identifier_case_uniqueness.py`
 
-**Modified files:**
+**Modified:**
 - `pyproject.toml`
 - `docker-compose.yml`
+- `shared/constants.py`
+- `shared/models/identifier.py`
 - `modules/crawlers/playwright_base.py`
-- `modules/crawlers/instagram.py`
-- `modules/crawlers/linkedin.py`
-- `modules/crawlers/twitter.py`
-- `modules/crawlers/tiktok.py`
-- `modules/crawlers/snapchat.py`
-- `modules/crawlers/discord.py`
-- `modules/crawlers/pinterest.py`
-- `modules/crawlers/facebook.py`
-- `modules/crawlers/whitepages.py`
-- `modules/crawlers/truepeoplesearch.py`
-- `modules/crawlers/fastpeoplesearch.py`
-- `modules/crawlers/people_thatsthem.py`
-- `modules/crawlers/people_zabasearch.py`
-- `modules/crawlers/paste_pastebin.py`
-- `modules/crawlers/paste_ghostbin.py`
-- `modules/crawlers/paste_psbdmp.py`
-- `modules/crawlers/email_hibp.py`
-- `modules/crawlers/email_holehe.py`
-- `modules/crawlers/email_emailrep.py`
-- `modules/crawlers/email_breach.py`
-- `modules/crawlers/cyber_shodan.py`
-- `modules/crawlers/cyber_virustotal.py`
-- `modules/crawlers/cyber_greynoise.py`
-- `modules/crawlers/cyber_abuseipdb.py`
-- `modules/crawlers/cyber_urlscan.py`
-- `modules/crawlers/cyber_crt.py`
-- `modules/crawlers/crypto_bitcoin.py`
-- `modules/crawlers/crypto_ethereum.py`
-- `modules/crawlers/crypto_blockchair.py`
-- `modules/crawlers/news_search.py`
-- `modules/crawlers/news_wikipedia.py`
-- `modules/crawlers/domain_whois.py`
+- `modules/crawlers/instagram.py` + `linkedin.py` + `twitter.py` + `tiktok.py` + `snapchat.py` + `discord.py` + `pinterest.py` + `facebook.py`
+- `modules/crawlers/whitepages.py` + `truepeoplesearch.py` + `fastpeoplesearch.py` + `people_thatsthem.py` + `people_zabasearch.py`
+- `modules/crawlers/paste_pastebin.py` + `paste_ghostbin.py` + `paste_psbdmp.py`
+- `modules/crawlers/email_hibp.py` + `email_holehe.py` + `email_emailrep.py` + `email_breach.py`
+- `modules/crawlers/cyber_shodan.py` + `cyber_virustotal.py` + `cyber_greynoise.py` + `cyber_abuseipdb.py` + `cyber_urlscan.py` + `cyber_crt.py`
+- `modules/crawlers/crypto_bitcoin.py` + `crypto_ethereum.py` + `crypto_blockchair.py`
+- `modules/crawlers/news_search.py` + `news_wikipedia.py` + `domain_whois.py` + `financial_crunchbase.py`
 - `modules/pipeline/pivot_enricher.py`
 - `api/routes/search.py`

@@ -1310,8 +1310,11 @@ class TestEmailHolehe:
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(stdout, b""))
 
+        async def _passthrough_wait_for(coro, timeout):
+            return await coro
+
         with patch("asyncio.create_subprocess_exec", new=AsyncMock(return_value=mock_proc)):
-            with patch("asyncio.wait_for", new=AsyncMock(return_value=(stdout, b""))):
+            with patch("asyncio.wait_for", side_effect=_passthrough_wait_for):
                 found, total = await _run_holehe("test@example.com")
 
         assert "twitter" in found
@@ -1464,8 +1467,11 @@ class TestDomainHarvester:
         mock_proc = MagicMock()
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
 
+        async def _passthrough_wait_for(coro, timeout):
+            return await coro
+
         with patch("asyncio.create_subprocess_exec", new=AsyncMock(return_value=mock_proc)):
-            with patch("asyncio.wait_for", new=AsyncMock(return_value=(b"", b""))):
+            with patch("asyncio.wait_for", side_effect=_passthrough_wait_for):
                 with patch("os.path.exists", return_value=False):
                     result = await _run_harvester("example.com")
         assert result == {}
