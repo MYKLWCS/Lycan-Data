@@ -27,9 +27,20 @@ async def lifespan(app: FastAPI):
     try:
         await event_bus.connect()
     except Exception:
-        # Redis/Dragonfly may not be available in dev — log and continue
         import logging
         logging.getLogger(__name__).warning("EventBus could not connect — continuing without Redis")
+    # Connect Tor control ports (non-fatal if Tor isn't running)
+    try:
+        from shared.tor import tor_manager
+        await tor_manager.connect_all()
+    except Exception:
+        pass
+    # Ensure MeiliSearch index exists
+    try:
+        from modules.search.meili_indexer import meili_indexer
+        await meili_indexer.setup_index()
+    except Exception:
+        pass
     yield
     try:
         await event_bus.disconnect()
