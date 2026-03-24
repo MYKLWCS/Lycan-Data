@@ -352,11 +352,47 @@ class FinancialIntelligenceEngine:
             model_version="2.0",
         ))
 
-        # Update WealthAssessment crypto signal if record exists
+        # Upsert WealthAssessment — update if exists, create if not
+        vol_score = min(1.0, sum(w.total_volume_usd for w in crypto) / 1_000_000)
+        mixer_penalty = 0.30 if any(w.mixer_exposure for w in crypto) else 0.0
+        crypto_signal_val = max(0.0, vol_score - mixer_penalty)
+
+        # Derive wealth_band from credit score
+        if credit.score >= 750:
+            derived_wealth_band = "high"
+        elif credit.score >= 600:
+            derived_wealth_band = "medium"
+        else:
+            derived_wealth_band = "low"
+
+        # Derive income range estimates from stability and wealth signals
+        stability_score = credit.component_breakdown.get("stability", 0.5)
+        wealth_score = credit.component_breakdown.get("wealth", 0.5)
+        base_income_min = round(20_000 + stability_score * 60_000 + wealth_score * 40_000, 2)
+        base_income_max = round(base_income_min * 1.5, 2)
+
         if wealth_row:
-            vol_score = min(1.0, sum(w.total_volume_usd for w in crypto) / 1_000_000)
-            mixer_penalty = 0.30 if any(w.mixer_exposure for w in crypto) else 0.0
-            wealth_row.crypto_signal = max(0.0, vol_score - mixer_penalty)
+            # Update existing record
+            wealth_row.wealth_band = derived_wealth_band
+            wealth_row.income_estimate_usd = base_income_min
+            wealth_row.crypto_signal = crypto_signal_val
+            wealth_row.confidence = round(
+                min(1.0, (credit.score - _SCORE_MIN) / _SCORE_RANGE), 4
+            )
+            wealth_row.assessed_at = now
+        else:
+            # Create new WealthAssessment record
+            session.add(WealthAssessment(
+                person_id=pid,
+                wealth_band=derived_wealth_band,
+                income_estimate_usd=base_income_min,
+                net_worth_estimate_usd=base_income_max,
+                confidence=round(
+                    min(1.0, (credit.score - _SCORE_MIN) / _SCORE_RANGE), 4
+                ),
+                crypto_signal=crypto_signal_val,
+                assessed_at=now,
+            ))
 
         await session.flush()
 
