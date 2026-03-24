@@ -73,31 +73,9 @@ async def lifespan(app: FastAPI):
     except Exception:
         _log.warning("Rate limiter / circuit breaker init skipped (no Redis)")
 
-    # ── Start background workers ───────────────────────────────────────────────
-    worker_tasks: list[asyncio.Task] = []
-    try:
-        from modules.dispatcher.dispatcher import CrawlDispatcher
-        from modules.pipeline.ingestion_daemon import IngestionDaemon
-
-        # 3 parallel crawl workers + 1 ingestion worker
-        for i in range(1, 4):
-            d = CrawlDispatcher(worker_id=f"worker-{i}")
-            worker_tasks.append(asyncio.create_task(d.start(), name=f"crawler-{i}"))
-
-        ingester = IngestionDaemon(worker_id="ingester-1")
-        worker_tasks.append(asyncio.create_task(ingester.start(), name="ingester-1"))
-
-        _log.info("Started %d background workers (3 crawl + 1 ingest)", len(worker_tasks))
-    except Exception:
-        _log.warning("Background workers failed to start", exc_info=True)
-
     yield
 
     # ── Graceful shutdown ──────────────────────────────────────────────────────
-    for t in worker_tasks:
-        t.cancel()
-    if worker_tasks:
-        await asyncio.gather(*worker_tasks, return_exceptions=True)
     try:
         await event_bus.disconnect()
     except Exception:
