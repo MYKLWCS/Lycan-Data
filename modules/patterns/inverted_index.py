@@ -67,9 +67,31 @@ class AttributeInvertedIndex:
             return set()
 
     async def remove_entity(self, entity_id: str, field: str, value: str) -> None:
-        """Remove a specific entity from an attribute index entry."""
+        """Remove an entity from one specific field:value index entry."""
         key = f"lycan:attr:{field}:{str(value)[:200]}"
         try:
             await self.redis.srem(key, entity_id)
         except Exception:
             logger.exception("AttributeInvertedIndex.remove_entity failed")
+
+    async def remove_entity_from_field(
+        self, entity_id: str, entity_data: dict[str, Any]
+    ) -> None:
+        """
+        Remove an entity from ALL indexed field:value entries.
+        Use this when an entity is deleted or fully re-indexed.
+        Mirrors the key-generation logic in index_entity.
+        """
+        for field, value in entity_data.items():
+            if value is None:
+                continue
+            if isinstance(value, (str, int, float, bool)):
+                await self.remove_entity(entity_id, field, str(value))
+            elif isinstance(value, list):
+                for item in value:
+                    if item is not None:
+                        await self.remove_entity(entity_id, field, str(item))
+            elif isinstance(value, dict):
+                for k, v in value.items():
+                    if v is not None:
+                        await self.remove_entity(entity_id, f"{field}.{k}", str(v))

@@ -75,7 +75,7 @@ async def change_velocity(
 @router.get("/temporal/address-patterns")
 async def address_patterns(
     min_changes: int = Query(3, ge=2, le=50),
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = DbDep,
 ):
     """Find persons with high address change frequency (relocation anomaly)."""
@@ -91,7 +91,7 @@ async def address_patterns(
 @router.get("/temporal/identifier-churn")
 async def identifier_churn(
     min_changes: int = Query(3, ge=2, le=20),
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = DbDep,
 ):
     """Find persons with many phone/email changes (burner indicator)."""
@@ -106,7 +106,7 @@ async def identifier_churn(
 
 @router.get("/risk/co-occurring-flags")
 async def co_occurring_flags(
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = DbDep,
 ):
     """Find persons appearing in multiple risk tables simultaneously."""
@@ -122,7 +122,7 @@ async def co_occurring_flags(
 @router.get("/risk/network-anomalies")
 async def network_anomalies(
     min_connections: int = Query(10, ge=3, le=500),
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = DbDep,
 ):
     """Find persons with unusually high connection counts (network hubs / fraud ring centers)."""

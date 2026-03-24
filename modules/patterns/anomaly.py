@@ -58,11 +58,10 @@ class StatisticalAnomalyDetector:
         except statistics.StatisticsError:
             stdev = 0.0
 
-        # Compute IQR
+        # Compute IQR using statistics.quantiles (Python 3.8+) for correct interpolation
         sorted_vals = sorted(values)
-        n = len(sorted_vals)
-        q1 = sorted_vals[n // 4]
-        q3 = sorted_vals[(3 * n) // 4]
+        quantiles = statistics.quantiles(sorted_vals, n=4)  # [Q1, median, Q3]
+        q1, q3 = quantiles[0], quantiles[2]
         iqr = q3 - q1
         lower_fence = q1 - self.iqr_multiplier * iqr
         upper_fence = q3 + self.iqr_multiplier * iqr
