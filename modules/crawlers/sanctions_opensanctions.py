@@ -6,6 +6,7 @@ including OFAC, EU, UN, Interpol Red Notices, PEPs, and crime lists.
 
 Registered as "sanctions_opensanctions".
 """
+
 from __future__ import annotations
 
 import logging

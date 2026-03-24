@@ -10,13 +10,13 @@ people-search, sanctions checks, and dark web exposure.
 Only pivots on HIGH-VALUE identifier types (email, phone, full_name).
 Never pivots on usernames to prevent social-graph explosion.
 """
+
 import logging
 import re
 import uuid
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.db import AsyncSessionLocal
 from shared.models.identifier import Identifier
@@ -29,17 +29,31 @@ _MAX_PIVOTS = 3
 # Platforms to run per pivot type — ordered by signal value
 _PIVOT_PLATFORMS: dict[str, list[str]] = {
     "email": [
-        "email_hibp", "email_holehe", "email_leakcheck", "email_emailrep",
-        "darkweb_ahmia", "paste_pastebin",
+        "email_hibp",
+        "email_holehe",
+        "email_leakcheck",
+        "email_emailrep",
+        "darkweb_ahmia",
+        "paste_pastebin",
     ],
     "phone": [
-        "phone_carrier", "phone_truecaller", "whatsapp", "telegram",
+        "phone_carrier",
+        "phone_truecaller",
+        "whatsapp",
+        "telegram",
     ],
     "full_name": [
-        "whitepages", "fastpeoplesearch", "truepeoplesearch",
-        "sanctions_ofac", "sanctions_un", "sanctions_fbi",
-        "sanctions_eu", "court_courtlistener", "people_interpol",
-        "darkweb_ahmia", "news_search",
+        "whitepages",
+        "fastpeoplesearch",
+        "truepeoplesearch",
+        "sanctions_ofac",
+        "sanctions_un",
+        "sanctions_fbi",
+        "sanctions_eu",
+        "court_courtlistener",
+        "people_interpol",
+        "darkweb_ahmia",
+        "news_search",
     ],
 }
 
@@ -50,8 +64,12 @@ def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
 
     # Email
     email = (
-        data.get("email") or data.get("email_address") or
-        data.get("contact_email") or data.get("emails", [None])[0] if isinstance(data.get("emails"), list) else None
+        data.get("email")
+        or data.get("email_address")
+        or data.get("contact_email")
+        or data.get("emails", [None])[0]
+        if isinstance(data.get("emails"), list)
+        else None
     )
     if email and isinstance(email, str) and "@" in email and len(email) > 5:
         found.append(("email", email.strip().lower()))
@@ -65,15 +83,41 @@ def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
 
     # Full name (must be multi-word, not just a handle)
     name = (
-        data.get("full_name") or data.get("name") or data.get("display_name") or
-        data.get("owner_name") or data.get("registrant_name")
+        data.get("full_name")
+        or data.get("name")
+        or data.get("display_name")
+        or data.get("owner_name")
+        or data.get("registrant_name")
     )
     _REJECT_WORDS = {
-        "youtube", "snapchat", "instagram", "twitter", "facebook", "tiktok",
-        "linkedin", "reddit", "telegram", "whatsapp", "discord", "twitch",
-        "steam", "pinterest", "mastodon", "github",
-        "cookie", "consent", "gdpr", "weitergehen", "continuer", "fortsätter",
-        "continuar", "continue", "privacy", "terms", "sur", "auf",
+        "youtube",
+        "snapchat",
+        "instagram",
+        "twitter",
+        "facebook",
+        "tiktok",
+        "linkedin",
+        "reddit",
+        "telegram",
+        "whatsapp",
+        "discord",
+        "twitch",
+        "steam",
+        "pinterest",
+        "mastodon",
+        "github",
+        "cookie",
+        "consent",
+        "gdpr",
+        "weitergehen",
+        "continuer",
+        "fortsätter",
+        "continuar",
+        "continue",
+        "privacy",
+        "terms",
+        "sur",
+        "auf",
     }
     if name and isinstance(name, str):
         clean = name.strip()
@@ -114,12 +158,16 @@ async def pivot_from_result(
             norm = value.lower()
 
             # Skip if person already has this identifier (avoid re-searching)
-            existing = (await session.execute(
-                select(Identifier).where(
-                    Identifier.person_id == pid,
-                    Identifier.normalized_value == norm,
-                ).limit(1)
-            )).scalar_one_or_none()
+            existing = (
+                await session.execute(
+                    select(Identifier)
+                    .where(
+                        Identifier.person_id == pid,
+                        Identifier.normalized_value == norm,
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
             if existing:
                 continue
 
@@ -140,7 +188,11 @@ async def pivot_from_result(
             if queued_for_this:
                 logger.info(
                     "Pivot: person=%s platform=%s found %s=%r → queued %d jobs",
-                    person_id, platform, id_type, value, queued_for_this,
+                    person_id,
+                    platform,
+                    id_type,
+                    value,
+                    queued_for_this,
                 )
 
     return jobs_queued

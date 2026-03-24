@@ -1,4 +1,5 @@
 """Marketing tags and consumer segmentation API routes."""
+
 import logging
 import uuid
 
@@ -20,6 +21,7 @@ _engine = MarketingTagsEngine()
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @router.post("/{person_id}/tag")
 async def tag_person(person_id: str, session: AsyncSession = DbDep):
     """Run MarketingTagsEngine on the person and persist results to DB."""
@@ -36,25 +38,33 @@ async def tag_person(person_id: str, session: AsyncSession = DbDep):
 
     # Upsert each tag result into the marketing_tags table
     for result in tag_results:
-        existing = (await session.execute(
-            select(MarketingTag).where(
-                MarketingTag.person_id == uid,
-                MarketingTag.tag == result.tag,
+        existing = (
+            (
+                await session.execute(
+                    select(MarketingTag).where(
+                        MarketingTag.person_id == uid,
+                        MarketingTag.tag == result.tag,
+                    )
+                )
             )
-        )).scalars().first()
+            .scalars()
+            .first()
+        )
 
         if existing:
             existing.confidence = result.confidence
             existing.reasoning = result.reasoning
             existing.scored_at = result.scored_at
         else:
-            session.add(MarketingTag(
-                person_id=uid,
-                tag=result.tag,
-                confidence=result.confidence,
-                reasoning=result.reasoning,
-                scored_at=result.scored_at,
-            ))
+            session.add(
+                MarketingTag(
+                    person_id=uid,
+                    tag=result.tag,
+                    confidence=result.confidence,
+                    reasoning=result.reasoning,
+                    scored_at=result.scored_at,
+                )
+            )
 
     try:
         await session.commit()
@@ -85,9 +95,11 @@ async def get_tags(person_id: str, session: AsyncSession = DbDep):
     except ValueError:
         raise HTTPException(400, f"Invalid UUID: {person_id!r}")
 
-    rows = (await session.execute(
-        select(MarketingTag).where(MarketingTag.person_id == uid)
-    )).scalars().all()
+    rows = (
+        (await session.execute(select(MarketingTag).where(MarketingTag.person_id == uid)))
+        .scalars()
+        .all()
+    )
 
     return {
         "person_id": person_id,
@@ -103,15 +115,17 @@ async def get_persons_by_tag(
     session: AsyncSession = DbDep,
 ):
     """Return persons who have a specific tag with confidence >= threshold."""
-    rows = (await session.execute(
-        select(MarketingTag, Person.full_name)
-        .join(Person, Person.id == MarketingTag.person_id)
-        .where(
-            MarketingTag.tag == tag_name,
-            MarketingTag.confidence >= threshold,
+    rows = (
+        await session.execute(
+            select(MarketingTag, Person.full_name)
+            .join(Person, Person.id == MarketingTag.person_id)
+            .where(
+                MarketingTag.tag == tag_name,
+                MarketingTag.confidence >= threshold,
+            )
+            .limit(limit)
         )
-        .limit(limit)
-    )).all()
+    ).all()
 
     return {
         "tag": tag_name,
@@ -135,12 +149,18 @@ async def get_borrower_profile(person_id: str, session: AsyncSession = DbDep):
     except ValueError:
         raise HTTPException(400, f"Invalid UUID: {person_id!r}")
 
-    rows = (await session.execute(
-        select(ConsumerSegment)
-        .where(ConsumerSegment.person_id == uid)
-        .order_by(ConsumerSegment.created_at.desc())
-        .limit(50)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(ConsumerSegment)
+                .where(ConsumerSegment.person_id == uid)
+                .order_by(ConsumerSegment.created_at.desc())
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return {
         "person_id": person_id,

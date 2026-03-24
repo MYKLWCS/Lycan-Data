@@ -6,6 +6,7 @@ filings associated with a company or person name.
 
 Registered as "company_sec".
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,10 +28,7 @@ _EDGAR_COMPANY_URL = (
 )
 
 # EDGAR full-text search for person names
-_EDGAR_FTS_URL = (
-    "https://efts.sec.gov/LATEST/search-index"
-    "?q=%22{query}%22&forms=DEF%2014A,8-K"
-)
+_EDGAR_FTS_URL = "https://efts.sec.gov/LATEST/search-index?q=%22{query}%22&forms=DEF%2014A,8-K"
 
 # Atom namespace used by EDGAR feeds
 _ATOM_NS = "http://www.w3.org/2005/Atom"
@@ -71,11 +69,10 @@ def _parse_atom_feed(xml_text: str) -> list[dict[str, Any]]:
         url = link_el.get("href", "") if link_el is not None else ""
         form_type = (
             category_el.get("label", "") or category_el.get("term", "")
-            if category_el is not None else ""
+            if category_el is not None
+            else ""
         )
-        content_text = (
-            content_el.text.strip() if content_el is not None and content_el.text else ""
-        )
+        content_text = content_el.text.strip() if content_el is not None and content_el.text else ""
 
         # Extract company name and CIK from the title or content
         company = title
@@ -88,11 +85,11 @@ def _parse_atom_feed(xml_text: str) -> list[dict[str, Any]]:
 
         filings.append(
             {
-                "company":   company,
-                "cik":       cik,
+                "company": company,
+                "cik": cik,
                 "form_type": form_type,
-                "date":      date[:10] if len(date) >= 10 else date,
-                "url":       url,
+                "date": date[:10] if len(date) >= 10 else date,
+                "url": url,
             }
         )
 
@@ -154,11 +151,11 @@ class SECEdgarCrawler(HttpxCrawler):
                     src = hit.get("_source", {})
                     filings.append(
                         {
-                            "company":   src.get("entity_name", ""),
-                            "cik":       src.get("file_num", ""),
+                            "company": src.get("entity_name", ""),
+                            "cik": src.get("file_num", ""),
                             "form_type": src.get("form_type", ""),
-                            "date":      src.get("file_date", ""),
-                            "url":       "https://www.sec.gov/Archives/" + src.get("file_path", ""),
+                            "date": src.get("file_date", ""),
+                            "url": "https://www.sec.gov/Archives/" + src.get("file_path", ""),
                         }
                     )
             except Exception as exc:

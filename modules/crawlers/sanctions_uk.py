@@ -7,6 +7,7 @@ sanctions list CSV, caches it for 6 hours, and searches by name.
 Source: https://ofsistorage.blob.core.windows.net/publishlive/ConsolidatedList.csv
 Registered as "sanctions_uk".
 """
+
 from __future__ import annotations
 
 import csv
@@ -22,9 +23,7 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_UK_CSV_URL = (
-    "https://ofsistorage.blob.core.windows.net/publishlive/ConsolidatedList.csv"
-)
+_UK_CSV_URL = "https://ofsistorage.blob.core.windows.net/publishlive/ConsolidatedList.csv"
 _CACHE_PATH = "/tmp/lycan_uk_sanctions.csv"
 _CACHE_MAX_AGE_HOURS = 6.0
 _MATCH_THRESHOLD = 0.6
@@ -93,7 +92,7 @@ class UKSanctionsCrawler(HttpxCrawler):
         if _cache_valid(_CACHE_PATH):
             logger.debug("UK sanctions: using cached list at %s", _CACHE_PATH)
             try:
-                with open(_CACHE_PATH, "r", encoding="latin-1", errors="replace") as fh:
+                with open(_CACHE_PATH, encoding="latin-1", errors="replace") as fh:
                     return fh.read()
             except OSError as exc:
                 logger.warning("UK sanctions: cache read failed: %s", exc)

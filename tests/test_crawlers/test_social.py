@@ -1,17 +1,21 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from modules.crawlers.instagram import InstagramCrawler, _parse_count
+
+import pytest
+
 from modules.crawlers.facebook import FacebookCrawler
-from modules.crawlers.twitter import TwitterCrawler, _parse_stat
+from modules.crawlers.instagram import InstagramCrawler, _parse_count
 from modules.crawlers.registry import is_registered
+from modules.crawlers.twitter import TwitterCrawler, _parse_stat
 
 
 # --- Registry checks ---
 def test_instagram_registered():
     assert is_registered("instagram")
 
+
 def test_facebook_registered():
     assert is_registered("facebook")
+
 
 def test_twitter_registered():
     assert is_registered("twitter")
@@ -21,11 +25,14 @@ def test_twitter_registered():
 def test_parse_count_k():
     assert _parse_count("1.5K") == 1500
 
+
 def test_parse_count_m():
     assert _parse_count("2.3M") == 2300000
 
+
 def test_parse_count_plain():
     assert _parse_count("12,345") == 12345
+
 
 def test_parse_count_invalid():
     assert _parse_count("abc") is None
@@ -34,6 +41,7 @@ def test_parse_count_invalid():
 # --- _parse_stat utility ---
 def test_parse_stat_k():
     assert _parse_stat("4.5K") == 4500
+
 
 def test_parse_stat_empty():
     assert _parse_stat("") == 0
@@ -86,6 +94,7 @@ async def test_twitter_not_found():
 @pytest.mark.asyncio
 async def test_twitter_parses_profile():
     from bs4 import BeautifulSoup
+
     crawler = TwitterCrawler()
     html = """
     <html><body>

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 
@@ -66,7 +67,7 @@ class InstagramCrawler(PlaywrightCrawler):
             if "•" in title:
                 name_part = title.split("•")[0].strip()
                 # Strip trailing (@handle) — e.g. "Juliana Bentel (@juliana_bentel)"
-                name_part = re.sub(r'\s*\(@[^)]+\)\s*$', '', name_part).strip()
+                name_part = re.sub(r"\s*\(@[^)]+\)\s*$", "", name_part).strip()
                 if name_part:
                     data["display_name"] = name_part
 
@@ -74,15 +75,17 @@ class InstagramCrawler(PlaywrightCrawler):
             if og_desc:
                 data["bio"] = og_desc[:500]
                 # Extract contact info from bio text
-                email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', og_desc)
+                email_match = re.search(
+                    r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", og_desc
+                )
                 if email_match:
                     data["email"] = email_match.group(0).lower()
-                phone_match = re.search(r'(\+?\d[\d\s\-().]{7,15}\d)', og_desc)
+                phone_match = re.search(r"(\+?\d[\d\s\-().]{7,15}\d)", og_desc)
                 if phone_match:
                     data["phone"] = phone_match.group(0).strip()
 
             content = await page.content()
-            data["is_verified"] = "is_verified\":true" in content or '"verified":true' in content
+            data["is_verified"] = 'is_verified":true' in content or '"verified":true' in content
 
         except Exception as exc:
             logger.debug("Instagram extract error: %s", exc)

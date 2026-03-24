@@ -5,7 +5,9 @@ Scrapes https://www.whois.com/whois/{domain} to extract registrar info,
 creation/expiry dates, registrant details, and name servers.
 Registered as "domain_whois".
 """
+
 from __future__ import annotations
+
 import logging
 import re
 
@@ -59,8 +61,7 @@ def _parse_whois(text: str) -> dict:
 
     # Collect all name server entries
     result["name_servers"] = [
-        m.group(1).strip().lower()
-        for m in _NAMESERVER_PATTERN.finditer(text)
+        m.group(1).strip().lower() for m in _NAMESERVER_PATTERN.finditer(text)
     ]
 
     return result
@@ -117,8 +118,7 @@ class DomainWhoisCrawler(HttpxCrawler):
 
         # If nothing was extracted at all the domain is likely unregistered
         has_data = any(
-            v for k, v in parsed.items()
-            if k != "name_servers" and v is not None
+            v for k, v in parsed.items() if k != "name_servers" and v is not None
         ) or parsed.get("name_servers")
 
         return self._result(

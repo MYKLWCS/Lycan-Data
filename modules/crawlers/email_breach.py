@@ -8,6 +8,7 @@ Replaces HIBP (now paid-only) with three free sources:
 
 Registered as "email_breach".
 """
+
 from __future__ import annotations
 
 import logging
@@ -83,13 +84,15 @@ class EmailBreachCrawler(HttpxCrawler):
         items = data if isinstance(data, list) else data.get("data", [])
         out = []
         for item in items[:5]:
-            out.append({
-                "name": f"psbdmp:{item.get('id', 'unknown')}",
-                "source": "psbdmp",
-                "date": None,
-                "data_classes": ["paste_dump"],
-                "preview": str(item.get("text", ""))[:200],
-            })
+            out.append(
+                {
+                    "name": f"psbdmp:{item.get('id', 'unknown')}",
+                    "source": "psbdmp",
+                    "date": None,
+                    "data_classes": ["paste_dump"],
+                    "preview": str(item.get("text", ""))[:200],
+                }
+            )
         return out
 
     async def _check_github(self, email: str) -> list[dict]:
@@ -97,17 +100,17 @@ class EmailBreachCrawler(HttpxCrawler):
         Use the GitHub public code-search API to find the email in committed code.
         No authentication required; returns up to 5 hits.
         """
-        url = (
-            f"https://api.github.com/search/code"
-            f"?q={urllib.parse.quote(email)}+in:file&per_page=5"
-        )
+        url = f"https://api.github.com/search/code?q={urllib.parse.quote(email)}+in:file&per_page=5"
         resp = await self.get(
             url,
             headers={"Accept": "application/vnd.github.v3+json"},
         )
         if not resp or resp.status_code != 200:
-            logger.debug("github code-search: non-200 for %s (status=%s)",
-                         email, resp.status_code if resp else "no response")
+            logger.debug(
+                "github code-search: non-200 for %s (status=%s)",
+                email,
+                resp.status_code if resp else "no response",
+            )
             return []
 
         try:
@@ -120,14 +123,16 @@ class EmailBreachCrawler(HttpxCrawler):
         for item in items:
             repo = item.get("repository", {}).get("full_name", "unknown")
             file_path = item.get("path", "")
-            out.append({
-                "name": f"github:{repo}:{file_path}",
-                "source": "github",
-                "date": None,
-                "data_classes": ["source_code_exposure"],
-                "repo": repo,
-                "file": file_path,
-            })
+            out.append(
+                {
+                    "name": f"github:{repo}:{file_path}",
+                    "source": "github",
+                    "date": None,
+                    "data_classes": ["source_code_exposure"],
+                    "repo": repo,
+                    "file": file_path,
+                }
+            )
         return out
 
     async def _check_leakcheck(self, email: str) -> list[dict]:
@@ -135,10 +140,7 @@ class EmailBreachCrawler(HttpxCrawler):
         Query the LeakCheck.io public (keyless) API.
         Free tier returns which breach databases the email appears in.
         """
-        url = (
-            f"https://leakcheck.io/api/public"
-            f"?key=&type=email&look={urllib.parse.quote(email)}"
-        )
+        url = f"https://leakcheck.io/api/public?key=&type=email&look={urllib.parse.quote(email)}"
         resp = await self.get(url)
         if not resp or resp.status_code != 200:
             logger.debug("leakcheck: non-200 for %s", email)
@@ -155,10 +157,12 @@ class EmailBreachCrawler(HttpxCrawler):
 
         out = []
         for source in data.get("sources", []):
-            out.append({
-                "name": str(source),
-                "source": "leakcheck",
-                "date": None,
-                "data_classes": [],
-            })
+            out.append(
+                {
+                    "name": str(source),
+                    "source": "leakcheck",
+                    "date": None,
+                    "data_classes": [],
+                }
+            )
         return out

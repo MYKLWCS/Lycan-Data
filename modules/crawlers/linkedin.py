@@ -1,10 +1,9 @@
 from __future__ import annotations
+
 import logging
-import re
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
@@ -29,7 +28,9 @@ class LinkedInCrawler(PlaywrightCrawler):
         # identifier can be a LinkedIn URL or a username
         if identifier.startswith("http"):
             url = identifier
-            handle = identifier.split("/in/")[-1].rstrip("/") if "/in/" in identifier else identifier
+            handle = (
+                identifier.split("/in/")[-1].rstrip("/") if "/in/" in identifier else identifier
+            )
         else:
             handle = identifier.lower().replace(" ", "-")
             url = f"https://www.linkedin.com/in/{handle}/"
@@ -86,6 +87,7 @@ class LinkedInCrawler(PlaywrightCrawler):
     async def _try_public_view(self, handle: str) -> CrawlerResult:
         """Try the Bing/Google cached version of the profile."""
         import httpx
+
         # LinkedIn exposes structured data on some profiles via their embed API
         url = f"https://www.linkedin.com/in/{handle}/"
         try:

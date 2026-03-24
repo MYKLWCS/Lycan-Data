@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 
@@ -7,7 +8,7 @@ from bs4 import BeautifulSoup
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
-from shared.constants import LineType, BURNER_CARRIERS
+from shared.constants import BURNER_CARRIERS, LineType
 from shared.tor import TorInstance
 
 logger = logging.getLogger(__name__)

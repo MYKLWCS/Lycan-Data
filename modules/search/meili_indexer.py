@@ -3,8 +3,10 @@ MeiliSearch indexer.
 Indexes Person records with all their identifiers, social profiles, addresses,
 and key fields for sub-millisecond full-text + region search.
 """
+
 import logging
 from typing import Any
+
 import httpx
 
 from shared.config import settings
@@ -14,21 +16,48 @@ logger = logging.getLogger(__name__)
 PERSONS_INDEX = "persons"
 MEILI_SETTINGS = {
     "searchableAttributes": [
-        "full_name", "aliases", "phones", "emails", "usernames",
-        "platforms", "addresses_text", "city", "state_province", "country",
-        "employer", "notes",
+        "full_name",
+        "aliases",
+        "phones",
+        "emails",
+        "usernames",
+        "platforms",
+        "addresses_text",
+        "city",
+        "state_province",
+        "country",
+        "employer",
+        "notes",
     ],
     "filterableAttributes": [
-        "risk_tier", "wealth_band", "has_darkweb", "has_sanctions",
-        "nationality", "platform_count", "city", "state_province", "country",
-        "verification_status", "has_addresses",
+        "risk_tier",
+        "wealth_band",
+        "has_darkweb",
+        "has_sanctions",
+        "nationality",
+        "platform_count",
+        "city",
+        "state_province",
+        "country",
+        "verification_status",
+        "has_addresses",
     ],
     "sortableAttributes": [
-        "default_risk_score", "created_at", "platform_count",
-        "city", "state_province", "composite_quality", "corroboration_count",
+        "default_risk_score",
+        "created_at",
+        "platform_count",
+        "city",
+        "state_province",
+        "composite_quality",
+        "corroboration_count",
     ],
     "rankingRules": [
-        "words", "typo", "proximity", "attribute", "sort", "exactness",
+        "words",
+        "typo",
+        "proximity",
+        "attribute",
+        "sort",
+        "exactness",
     ],
 }
 
@@ -125,13 +154,13 @@ class MeiliIndexer:
         """Search persons filtered to a geographic region."""
         filter_parts: list[str] = []
         if city:
-            safe = city.replace('"', '')
+            safe = city.replace('"', "")
             filter_parts.append(f'city = "{safe}"')
         if state:
-            safe = state.replace('"', '')
+            safe = state.replace('"', "")
             filter_parts.append(f'state_province = "{safe}"')
         if country:
-            safe = country.replace('"', '')
+            safe = country.replace('"', "")
             filter_parts.append(f'country = "{safe}"')
 
         filters = " AND ".join(filter_parts) if filter_parts else None

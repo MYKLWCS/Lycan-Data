@@ -1,8 +1,9 @@
 """Marketing Tags Intelligence Enricher — consumer tag classification engine."""
+
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone, timedelta
+from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 
 from sqlalchemy import select
@@ -23,88 +24,135 @@ logger = logging.getLogger(__name__)
 
 # ─── Tag Taxonomy ─────────────────────────────────────────────────────────────
 
+
 class LendingTag(StrEnum):
-    TITLE_LOAN_CANDIDATE     = "title_loan_candidate"
-    PAYDAY_LOAN_CANDIDATE    = "payday_loan_candidate"
-    PERSONAL_LOAN_CANDIDATE  = "personal_loan_candidate"
-    MORTGAGE_READY           = "mortgage_ready"
-    REFINANCE_CANDIDATE      = "refinance_candidate"
-    AUTO_LOAN_CANDIDATE      = "auto_loan_candidate"
-    DEBT_CONSOLIDATION       = "debt_consolidation"
-    CREDIT_CARD_CANDIDATE    = "credit_card_candidate"
+    TITLE_LOAN_CANDIDATE = "title_loan_candidate"
+    PAYDAY_LOAN_CANDIDATE = "payday_loan_candidate"
+    PERSONAL_LOAN_CANDIDATE = "personal_loan_candidate"
+    MORTGAGE_READY = "mortgage_ready"
+    REFINANCE_CANDIDATE = "refinance_candidate"
+    AUTO_LOAN_CANDIDATE = "auto_loan_candidate"
+    DEBT_CONSOLIDATION = "debt_consolidation"
+    CREDIT_CARD_CANDIDATE = "credit_card_candidate"
 
 
 class InvestmentTag(StrEnum):
-    CRYPTO_INVESTOR       = "crypto_investor"
-    REAL_ESTATE_INVESTOR  = "real_estate_investor"
-    RETIREMENT_PLANNING   = "retirement_planning"
+    CRYPTO_INVESTOR = "crypto_investor"
+    REAL_ESTATE_INVESTOR = "real_estate_investor"
+    RETIREMENT_PLANNING = "retirement_planning"
 
 
 class BehaviouralTag(StrEnum):
-    ACTIVE_GAMBLER      = "active_gambler"
-    CASINO_GAMBLER      = "casino_gambler"
-    SPORTS_BETTOR       = "sports_bettor"
-    ONLINE_GAMBLER      = "online_gambler"
-    TRAVEL_ENTHUSIAST   = "travel_enthusiast"
-    FITNESS_ENTHUSIAST  = "fitness_enthusiast"
-    LUXURY_BUYER        = "luxury_buyer"
-    BARGAIN_HUNTER      = "bargain_hunter"
+    ACTIVE_GAMBLER = "active_gambler"
+    CASINO_GAMBLER = "casino_gambler"
+    SPORTS_BETTOR = "sports_bettor"
+    ONLINE_GAMBLER = "online_gambler"
+    TRAVEL_ENTHUSIAST = "travel_enthusiast"
+    FITNESS_ENTHUSIAST = "fitness_enthusiast"
+    LUXURY_BUYER = "luxury_buyer"
+    BARGAIN_HUNTER = "bargain_hunter"
 
 
 class LifeStageTag(StrEnum):
-    NEW_PARENT         = "new_parent"
-    NEWLY_MARRIED      = "newly_married"
-    RECENTLY_DIVORCED  = "recently_divorced"
-    RECENT_MOVER       = "recent_mover"
-    RECENT_GRADUATE    = "recent_graduate"
-    RETIRING_SOON      = "retiring_soon"
+    NEW_PARENT = "new_parent"
+    NEWLY_MARRIED = "newly_married"
+    RECENTLY_DIVORCED = "recently_divorced"
+    RECENT_MOVER = "recent_mover"
+    RECENT_GRADUATE = "recent_graduate"
+    RETIRING_SOON = "retiring_soon"
 
 
 # ─── Thresholds ───────────────────────────────────────────────────────────────
 
 _THRESHOLDS: dict[str, float] = {
-    LendingTag.TITLE_LOAN_CANDIDATE:    0.70,
-    InvestmentTag.CRYPTO_INVESTOR:      0.70,
+    LendingTag.TITLE_LOAN_CANDIDATE: 0.70,
+    InvestmentTag.CRYPTO_INVESTOR: 0.70,
     InvestmentTag.REAL_ESTATE_INVESTOR: 0.70,
-    LifeStageTag.RECENT_MOVER:          0.70,
-    LifeStageTag.NEW_PARENT:            0.70,
-    BehaviouralTag.ACTIVE_GAMBLER:      0.65,
-    BehaviouralTag.LUXURY_BUYER:        0.65,
-    LifeStageTag.RETIRING_SOON:         0.65,
+    LifeStageTag.RECENT_MOVER: 0.70,
+    LifeStageTag.NEW_PARENT: 0.70,
+    BehaviouralTag.ACTIVE_GAMBLER: 0.65,
+    BehaviouralTag.LUXURY_BUYER: 0.65,
+    LifeStageTag.RETIRING_SOON: 0.65,
 }
 
 _HIGH_INCOME_TITLES = (
-    "ceo", "cto", "cfo", "coo", "cso", "president", "founder",
-    "director", "vp ", "vice president", "managing director",
-    "doctor", "dr.", "physician", "surgeon", "attorney", "lawyer",
-    "engineer", "partner",
+    "ceo",
+    "cto",
+    "cfo",
+    "coo",
+    "cso",
+    "president",
+    "founder",
+    "director",
+    "vp ",
+    "vice president",
+    "managing director",
+    "doctor",
+    "dr.",
+    "physician",
+    "surgeon",
+    "attorney",
+    "lawyer",
+    "engineer",
+    "partner",
 )
 
 _GAMBLING_KEYWORDS = ("gambling", "casino", "poker", "betting", "bet", "slots", "wager")
-_CRYPTO_KEYWORDS = ("crypto", "bitcoin", "btc", "eth", "ethereum", "defi", "nft", "web3", "blockchain")
-_PARENTING_KEYWORDS = ("parent", "baby", "infant", "toddler", "newborn", "mom", "dad", "family", "diaper", "nursery")
-_FINANCIAL_CRIME_KEYWORDS = ("fraud", "lien", "judgment", "garnishment", "embezzlement", "theft", "forgery")
+_CRYPTO_KEYWORDS = (
+    "crypto",
+    "bitcoin",
+    "btc",
+    "eth",
+    "ethereum",
+    "defi",
+    "nft",
+    "web3",
+    "blockchain",
+)
+_PARENTING_KEYWORDS = (
+    "parent",
+    "baby",
+    "infant",
+    "toddler",
+    "newborn",
+    "mom",
+    "dad",
+    "family",
+    "diaper",
+    "nursery",
+)
+_FINANCIAL_CRIME_KEYWORDS = (
+    "fraud",
+    "lien",
+    "judgment",
+    "garnishment",
+    "embezzlement",
+    "theft",
+    "forgery",
+)
 
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class TagResult:
     tag: str
     confidence: float
     reasoning: list[str]
-    scored_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    scored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
 class BorrowerProfile:
-    score: int                     # 0-100
-    tier: str                      # prime | near_prime | subprime | deep_subprime
+    score: int  # 0-100
+    tier: str  # prime | near_prime | subprime | deep_subprime
     applicable_products: list[str]
     signals: list[str]
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _compute_age(dob: date | None) -> int | None:
     if dob is None:
@@ -128,12 +176,11 @@ def _social_text(profiles: list[SocialProfile]) -> str:
 
 
 def _darkweb_text(mentions: list[DarkwebMention]) -> str:
-    return " ".join(
-        (m.mention_context or "").lower() for m in mentions
-    )
+    return " ".join((m.mention_context or "").lower() for m in mentions)
 
 
 # ─── Tag Scorers ──────────────────────────────────────────────────────────────
+
 
 def _score_title_loan(
     addresses: list[Address],
@@ -150,7 +197,8 @@ def _score_title_loan(
 
     # Financial crimes or liens in criminal records
     fin_crimes = [
-        r for r in criminals
+        r
+        for r in criminals
         if any(kw in (r.charge or "").lower() for kw in _FINANCIAL_CRIME_KEYWORDS)
     ]
     if fin_crimes:
@@ -212,7 +260,9 @@ def _score_crypto_investor(
         score += 0.5
         reasons.append(f"{len(crypto_wallets)} crypto wallet(s) on darkweb/records")
 
-    crypto_ids = [i for i in identifiers if "crypto" in i.type.lower() or "wallet" in i.type.lower()]
+    crypto_ids = [
+        i for i in identifiers if "crypto" in i.type.lower() or "wallet" in i.type.lower()
+    ]
     if crypto_ids:
         score += 0.3
         reasons.append(f"{len(crypto_ids)} crypto-type identifier(s)")
@@ -239,10 +289,7 @@ def _score_real_estate_investor(
         score += 0.5
         reasons.append(f"{distinct_cities} distinct address locations on record")
 
-    re_employers = [
-        e for e in employment
-        if e.industry and "real estate" in e.industry.lower()
-    ]
+    re_employers = [e for e in employment if e.industry and "real estate" in e.industry.lower()]
     if re_employers:
         score += 0.3
         reasons.append(f"real estate industry employment: {re_employers[0].employer_name}")
@@ -258,22 +305,19 @@ def _score_recent_mover(
     addresses: list[Address],
     identifiers: list[Identifier],
 ) -> tuple[float, list[str]]:
-    score = 0.0
     reasons: list[str] = []
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+    cutoff = datetime.now(UTC) - timedelta(days=90)
 
-    recent_addrs = [
-        a for a in addresses
-        if a.updated_at and a.updated_at >= cutoff
-    ]
+    recent_addrs = [a for a in addresses if a.updated_at and a.updated_at >= cutoff]
     addr_score = 0.7 if recent_addrs else 0.0
     if recent_addrs:
         reasons.append(f"{len(recent_addrs)} address record(s) updated in last 90 days")
 
     # Identifier history proxy — address-type identifiers recently updated
     recent_id_addrs = [
-        i for i in identifiers
+        i
+        for i in identifiers
         if "address" in i.type.lower() and i.updated_at and i.updated_at >= cutoff
     ]
     id_score = 0.3 if recent_id_addrs else 0.0
@@ -324,15 +368,27 @@ def _score_retiring_soon(
 
     # Long-tenure current employment
     long_tenure = [
-        e for e in employment
-        if e.is_current and e.started_at and
-        (date.today() - (e.started_at.date() if isinstance(e.started_at, datetime) else e.started_at)).days >= 365 * 15
+        e
+        for e in employment
+        if e.is_current
+        and e.started_at
+        and (
+            date.today()
+            - (e.started_at.date() if isinstance(e.started_at, datetime) else e.started_at)
+        ).days
+        >= 365 * 15
     ]
     if long_tenure:
-        started = long_tenure[0].started_at.date() if isinstance(long_tenure[0].started_at, datetime) else long_tenure[0].started_at
+        started = (
+            long_tenure[0].started_at.date()
+            if isinstance(long_tenure[0].started_at, datetime)
+            else long_tenure[0].started_at
+        )
         years = round((date.today() - started).days / 365, 1)
         score += 0.3
-        reasons.append(f"long employment tenure: {years} years at {long_tenure[0].employer_name or 'current employer'}")
+        reasons.append(
+            f"long employment tenure: {years} years at {long_tenure[0].employer_name or 'current employer'}"
+        )
 
     return _clamp(score), reasons
 
@@ -356,7 +412,7 @@ def _score_new_parent(
         reasons.append(f"age {age} in new-parent range (25-40)")
 
     # Recent address change as proxy for getting more space
-    cutoff = datetime.now(timezone.utc) - timedelta(days=180)
+    cutoff = datetime.now(UTC) - timedelta(days=180)
     recent = [a for a in addresses if a.updated_at and a.updated_at >= cutoff]
     if recent:
         score += 0.2
@@ -368,10 +424,10 @@ def _score_new_parent(
 # ─── High Interest Borrower Scorer ────────────────────────────────────────────
 
 _BORROWER_TIERS = [
-    (75, "prime",        ["personal_loan", "mortgage", "auto_loan", "credit_card"]),
-    (60, "near_prime",   ["personal_loan", "auto_loan", "credit_card", "refinance"]),
-    (40, "subprime",     ["title_loan", "payday_loan", "personal_loan", "auto_loan"]),
-    (0,  "deep_subprime", ["title_loan", "payday_loan"]),
+    (75, "prime", ["personal_loan", "mortgage", "auto_loan", "credit_card"]),
+    (60, "near_prime", ["personal_loan", "auto_loan", "credit_card", "refinance"]),
+    (40, "subprime", ["title_loan", "payday_loan", "personal_loan", "auto_loan"]),
+    (0, "deep_subprime", ["title_loan", "payday_loan"]),
 ]
 
 
@@ -389,9 +445,11 @@ class HighInterestBorrowerScorer:
         signals: list[str] = []
 
         # Liens and judgments
-        liens = [r for r in criminals if any(
-            kw in (r.charge or "").lower() for kw in ("lien", "judgment", "garnishment")
-        )]
+        liens = [
+            r
+            for r in criminals
+            if any(kw in (r.charge or "").lower() for kw in ("lien", "judgment", "garnishment"))
+        ]
         if liens:
             raw -= len(liens) * 10
             signals.append(f"{len(liens)} lien/judgment record(s)")
@@ -418,7 +476,11 @@ class HighInterestBorrowerScorer:
         else:
             for emp in current:
                 if emp.started_at:
-                    started = emp.started_at.date() if isinstance(emp.started_at, datetime) else emp.started_at
+                    started = (
+                        emp.started_at.date()
+                        if isinstance(emp.started_at, datetime)
+                        else emp.started_at
+                    )
                     tenure_years = (date.today() - started).days / 365
                     if tenure_years < 1:
                         raw -= 10
@@ -431,21 +493,26 @@ class HighInterestBorrowerScorer:
         # Wealth band adjustments
         if wealth:
             band_adj = {
-                "ultra_high": 10, "high": 7, "upper_middle": 3,
-                "middle": 0, "lower_middle": -5, "low": -10,
+                "ultra_high": 10,
+                "high": 7,
+                "upper_middle": 3,
+                "middle": 0,
+                "lower_middle": -5,
+                "low": -10,
             }.get(wealth.wealth_band, 0)
             if band_adj != 0:
                 raw += band_adj
                 signals.append(f"wealth band adjustment ({wealth.wealth_band}): {band_adj:+d}")
 
         clamped = max(0, min(100, raw))
-        tier, products = next(
-            (t, p) for threshold, t, p in _BORROWER_TIERS if clamped >= threshold
+        tier, products = next((t, p) for threshold, t, p in _BORROWER_TIERS if clamped >= threshold)
+        return BorrowerProfile(
+            score=clamped, tier=tier, applicable_products=products, signals=signals
         )
-        return BorrowerProfile(score=clamped, tier=tier, applicable_products=products, signals=signals)
 
 
 # ─── Marketing Tags Engine ─────────────────────────────────────────────────────
+
 
 class MarketingTagsEngine:
     """Query available DB data and assign marketing intelligence tags to a person."""
@@ -457,53 +524,79 @@ class MarketingTagsEngine:
         pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
 
         # Sequential DB queries — never asyncio.gather on same session
-        person = (await session.execute(
-            select(Person).where(Person.id == pid)
-        )).scalars().first()
+        person = (await session.execute(select(Person).where(Person.id == pid))).scalars().first()
 
-        addresses = list((await session.execute(
-            select(Address).where(Address.person_id == pid)
-        )).scalars().all())
+        addresses = list(
+            (await session.execute(select(Address).where(Address.person_id == pid))).scalars().all()
+        )
 
-        employment = list((await session.execute(
-            select(EmploymentHistory).where(EmploymentHistory.person_id == pid)
-        )).scalars().all())
+        employment = list(
+            (
+                await session.execute(
+                    select(EmploymentHistory).where(EmploymentHistory.person_id == pid)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
-        criminals = list((await session.execute(
-            select(CriminalRecord).where(CriminalRecord.person_id == pid)
-        )).scalars().all())
+        criminals = list(
+            (await session.execute(select(CriminalRecord).where(CriminalRecord.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        darkweb = list((await session.execute(
-            select(DarkwebMention).where(DarkwebMention.person_id == pid)
-        )).scalars().all())
+        darkweb = list(
+            (await session.execute(select(DarkwebMention).where(DarkwebMention.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        crypto_wallets = list((await session.execute(
-            select(CryptoWallet).where(CryptoWallet.person_id == pid)
-        )).scalars().all())
+        crypto_wallets = list(
+            (await session.execute(select(CryptoWallet).where(CryptoWallet.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        identifiers = list((await session.execute(
-            select(Identifier).where(Identifier.person_id == pid)
-        )).scalars().all())
+        identifiers = list(
+            (await session.execute(select(Identifier).where(Identifier.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        socials = list((await session.execute(
-            select(SocialProfile).where(SocialProfile.person_id == pid)
-        )).scalars().all())
+        socials = list(
+            (await session.execute(select(SocialProfile).where(SocialProfile.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        behavioural = (await session.execute(
-            select(BehaviouralProfile).where(BehaviouralProfile.person_id == pid)
-        )).scalars().first()
+        behavioural = (
+            (
+                await session.execute(
+                    select(BehaviouralProfile).where(BehaviouralProfile.person_id == pid)
+                )
+            )
+            .scalars()
+            .first()
+        )
 
-        wealth = (await session.execute(
-            select(WealthAssessment)
-            .where(WealthAssessment.person_id == pid)
-            .order_by(WealthAssessment.assessed_at.desc())
-            .limit(1)
-        )).scalars().first()
+        wealth = (
+            (
+                await session.execute(
+                    select(WealthAssessment)
+                    .where(WealthAssessment.person_id == pid)
+                    .order_by(WealthAssessment.assessed_at.desc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
 
         # Derived values
         dob = person.date_of_birth if person else None
         age = _compute_age(dob)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Run all scorers
         scoring_map: list[tuple[str, float, list[str]]] = []
@@ -537,28 +630,35 @@ class MarketingTagsEngine:
         for tag, confidence, reasoning in scoring_map:
             threshold = _THRESHOLDS.get(tag, 0.65)
             if confidence >= threshold and reasoning:
-                results.append(TagResult(
-                    tag=tag,
-                    confidence=round(confidence, 4),
-                    reasoning=reasoning,
-                    scored_at=now,
-                ))
+                results.append(
+                    TagResult(
+                        tag=tag,
+                        confidence=round(confidence, 4),
+                        reasoning=reasoning,
+                        scored_at=now,
+                    )
+                )
 
         # Borrower profile — scored independently and appended as a tier tag
         borrower_profile = self._borrower_scorer.score(criminals, addresses, employment, wealth)
-        results.append(TagResult(
-            tag=f"borrower:{borrower_profile.tier}",
-            confidence=round(borrower_profile.score / 100, 4),
-            reasoning=borrower_profile.signals or [f"borrower tier: {borrower_profile.tier}"],
-            scored_at=now,
-        ))
+        results.append(
+            TagResult(
+                tag=f"borrower:{borrower_profile.tier}",
+                confidence=round(borrower_profile.score / 100, 4),
+                reasoning=borrower_profile.signals or [f"borrower tier: {borrower_profile.tier}"],
+                scored_at=now,
+            )
+        )
 
         try:
-            await event_bus.publish("enrichment", {
-                "event": "marketing_tagged",
-                "person_id": str(pid),
-                "tag_count": len(results),
-            })
+            await event_bus.publish(
+                "enrichment",
+                {
+                    "event": "marketing_tagged",
+                    "person_id": str(pid),
+                    "tag_count": len(results),
+                },
+            )
         except Exception:
             logger.warning("Event bus unavailable — marketing_tagged event not published")
 

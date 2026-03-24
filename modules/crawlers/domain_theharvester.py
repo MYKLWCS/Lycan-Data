@@ -5,7 +5,9 @@ Runs theHarvester to collect emails, subdomains, IPs, and URLs from
 passive sources (Bing, DuckDuckGo, crt.sh, etc.) for a given domain.
 Registered as "domain_harvester".
 """
+
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -27,7 +29,15 @@ async def _run_harvester(domain: str) -> dict:
     outfile = f"/tmp/harvest_{run_id}"
     try:
         proc = await asyncio.create_subprocess_exec(
-            "theHarvester", "-d", domain, "-b", "all", "-l", "100", "-f", outfile,
+            "theHarvester",
+            "-d",
+            domain,
+            "-b",
+            "all",
+            "-l",
+            "100",
+            "-f",
+            outfile,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
@@ -38,7 +48,7 @@ async def _run_harvester(domain: str) -> dict:
                 data = json.load(f)
             os.unlink(json_path)
             return data
-    except (asyncio.TimeoutError, FileNotFoundError):
+    except (TimeoutError, FileNotFoundError):
         pass
     return {}
 
@@ -47,13 +57,14 @@ async def _check_harvester_installed() -> bool:
     """Return True if theHarvester is available on PATH."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "theHarvester", "--help",
+            "theHarvester",
+            "--help",
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
         await asyncio.wait_for(proc.communicate(), timeout=10)
         return proc.returncode == 0
-    except (FileNotFoundError, asyncio.TimeoutError):
+    except (TimeoutError, FileNotFoundError):
         return False
 
 
@@ -103,7 +114,7 @@ class DomainHarvesterCrawler(BaseCrawler):
 
         try:
             raw = await _run_harvester(domain)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CrawlerResult(
                 platform=self.platform,
                 identifier=identifier,
@@ -122,9 +133,7 @@ class DomainHarvesterCrawler(BaseCrawler):
 
         parsed = _parse_harvester_output(raw)
 
-        found = bool(
-            parsed["emails"] or parsed["subdomains"] or parsed["ips"] or parsed["urls"]
-        )
+        found = bool(parsed["emails"] or parsed["subdomains"] or parsed["ips"] or parsed["urls"])
 
         return self._result(
             identifier,

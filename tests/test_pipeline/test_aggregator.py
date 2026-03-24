@@ -4,39 +4,40 @@ Tests for modules/pipeline/aggregator.py
 12 tests covering the main entry-point and every sub-handler.
 All DB interaction is mocked — no real database required.
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
 from modules.crawlers.result import CrawlerResult
 from modules.pipeline.aggregator import (
-    aggregate_result,
     _get_or_create_person,
-    _upsert_social_profile,
+    _handle_behavioural,
     _handle_breach_data,
-    _handle_watchlist,
+    _handle_court_records,
     _handle_darkweb,
     _handle_people_search,
-    _handle_court_records,
-    _handle_behavioural,
+    _handle_watchlist,
+    _upsert_social_profile,
+    aggregate_result,
 )
+from shared.models.address import Address
+from shared.models.alert import Alert
+from shared.models.behavioural import BehaviouralProfile
+from shared.models.breach import BreachRecord
+from shared.models.darkweb import DarkwebMention
 from shared.models.person import Person
 from shared.models.social_profile import SocialProfile
-from shared.models.breach import BreachRecord
 from shared.models.watchlist import WatchlistMatch
-from shared.models.darkweb import DarkwebMention
-from shared.models.address import Address
-from shared.models.behavioural import BehaviouralProfile
-from shared.models.alert import Alert
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_session() -> AsyncMock:
     """Return a mock AsyncSession with sensible defaults."""
@@ -56,13 +57,13 @@ def _mock_session() -> AsyncMock:
 
 
 def _make_result(**kwargs) -> CrawlerResult:
-    defaults = dict(
-        platform="instagram",
-        identifier="testuser",
-        found=True,
-        data={"handle": "testuser", "bio": "Hello"},
-        source_reliability=0.55,
-    )
+    defaults = {
+        "platform": "instagram",
+        "identifier": "testuser",
+        "found": True,
+        "data": {"handle": "testuser", "bio": "Hello"},
+        "source_reliability": 0.55,
+    }
     defaults.update(kwargs)
     return CrawlerResult(**defaults)
 
@@ -304,7 +305,11 @@ async def test_handle_people_search_writes_addresses():
                 {"address": "123 Main St", "city": "Dallas", "state": "TX"},
                 {"address": "456 Oak Ave", "city": "Houston", "state": "TX"},
                 {"address": "789 Pine Rd", "city": "Austin", "state": "TX"},
-                {"address": "999 Extra Ln", "city": "Waco", "state": "TX"},  # 4th — should be skipped
+                {
+                    "address": "999 Extra Ln",
+                    "city": "Waco",
+                    "state": "TX",
+                },  # 4th — should be skipped
             ]
         },
     )

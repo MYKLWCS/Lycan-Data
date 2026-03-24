@@ -11,6 +11,7 @@ Registered as "public_nsopw".
 
 identifier: "First Last" name.
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,15 +28,16 @@ _MAX_RESULTS = 50
 
 _HEADERS = {
     "Content-Type": "application/json",
-    "Accept":        "application/json",
-    "Referer":       "https://www.nsopw.gov/en/search/results",
-    "Origin":        "https://www.nsopw.gov",
+    "Accept": "application/json",
+    "Referer": "https://www.nsopw.gov/en/search/results",
+    "Origin": "https://www.nsopw.gov",
 }
 
 
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _split_name(identifier: str) -> tuple[str, str]:
     """Split "First Last" into (first, last)."""
@@ -56,11 +58,11 @@ def _parse_offenders(data: dict) -> list[dict[str, Any]]:
     for item in data.get("Records", [])[:_MAX_RESULTS]:
         offenders.append(
             {
-                "name":       item.get("FullName", ""),
-                "address":    item.get("Address", ""),
-                "city":       item.get("City", ""),
-                "state":      item.get("State", ""),
-                "dob":        item.get("DOB", ""),
+                "name": item.get("FullName", ""),
+                "address": item.get("Address", ""),
+                "city": item.get("City", ""),
+                "state": item.get("State", ""),
+                "dob": item.get("DOB", ""),
                 "conviction": item.get("Conviction", ""),
             }
         )
@@ -70,6 +72,7 @@ def _parse_offenders(data: dict) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("public_nsopw")
 class PublicNSOPWCrawler(HttpxCrawler):
@@ -94,11 +97,11 @@ class PublicNSOPWCrawler(HttpxCrawler):
 
         payload = {
             "firstName": first,
-            "lastName":  last,
-            "stateId":   "",
-            "county":    "",
-            "city":      "",
-            "zipCode":   "",
+            "lastName": last,
+            "stateId": "",
+            "county": "",
+            "city": "",
+            "zipCode": "",
         }
 
         response = await self.post(

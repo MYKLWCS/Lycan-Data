@@ -4,7 +4,9 @@ cyber_crt.py — Certificate Transparency Log crawler via crt.sh.
 Queries the crt.sh JSON API to enumerate TLS certificates issued for a domain.
 Registered as "cyber_crt".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler

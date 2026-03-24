@@ -1,8 +1,8 @@
-import uuid
 from datetime import datetime
 from typing import Any
+
 from sqlalchemy import DateTime, event, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -46,6 +46,7 @@ class TimestampMixin:
 
 class DataQualityMixin:
     """Every row carries data quality metadata."""
+
     source_reliability: Mapped[float] = mapped_column(default=0.5, nullable=False)
     freshness_score: Mapped[float] = mapped_column(default=1.0, nullable=False)
     corroboration_count: Mapped[int] = mapped_column(default=1, nullable=False)

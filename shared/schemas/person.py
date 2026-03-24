@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 import uuid
 from datetime import date, datetime
+
 from pydantic import BaseModel
 
 
 class PersonSummary(BaseModel):
     """Minimal person representation for lists and graph nodes."""
+
     id: uuid.UUID
     full_name: str | None
     relationship_score: float
@@ -18,6 +21,7 @@ class PersonSummary(BaseModel):
 
 class PersonResponse(BaseModel):
     """Full person dossier response."""
+
     id: uuid.UUID
     full_name: str | None
     date_of_birth: date | None

@@ -7,7 +7,9 @@ Two-step approach:
 
 Registered as "cyber_wayback".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -35,7 +37,7 @@ def _parse_cdx(raw: list) -> list[dict]:
     out = []
     for row in raw[1:]:
         if isinstance(row, list) and len(row) == len(keys):
-            out.append(dict(zip(keys, row)))
+            out.append(dict(zip(keys, row, strict=False)))
     return out
 
 

@@ -5,6 +5,7 @@ Resolves a country name or ISO-2 code to structured economic data:
 GDP, CPI, and unemployment for the last 5 years.
 No API key required. Registered as "financial_worldbank".
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,9 +19,7 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://api.worldbank.org/v2"
 _COUNTRY_SEARCH_URL = _BASE + "/country?name={name}&format=json"
-_INDICATOR_URL = (
-    _BASE + "/country/{country}/indicator/{indicator}?format=json&mrv=5"
-)
+_INDICATOR_URL = _BASE + "/country/{country}/indicator/{indicator}?format=json&mrv=5"
 
 # Indicators to fetch
 _INDICATORS = {

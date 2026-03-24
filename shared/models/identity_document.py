@@ -1,11 +1,13 @@
 """Identity documents and financial identity markers."""
+
 import uuid
 from datetime import date
+
 from sqlalchemy import Boolean, Date, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from shared.models.base import Base, TimestampMixin, DataQualityMixin
+from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
 
 class IdentityDocument(Base, TimestampMixin, DataQualityMixin):
@@ -14,15 +16,13 @@ class IdentityDocument(Base, TimestampMixin, DataQualityMixin):
     IMPORTANT: We never store full SSNs or document numbers. Only partial
     values (last 4 digits) are persisted. Full values are never written.
     """
+
     __tablename__ = "identity_documents"
-    __table_args__ = (
-        Index("ix_idoc_person_id", "person_id"),
-    )
+    __table_args__ = (Index("ix_idoc_person_id", "person_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     person_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Document type
@@ -34,7 +34,9 @@ class IdentityDocument(Base, TimestampMixin, DataQualityMixin):
     doc_number_partial: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # e.g. "***-**-1234" or "****1234"
 
-    issuing_country: Mapped[str | None] = mapped_column(String(10), nullable=True)  # ISO 3166 alpha-2
+    issuing_country: Mapped[str | None] = mapped_column(
+        String(10), nullable=True
+    )  # ISO 3166 alpha-2
     issuing_state: Mapped[str | None] = mapped_column(String(100), nullable=True)
     issuing_authority: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
@@ -58,15 +60,13 @@ class CreditProfile(Base, TimestampMixin, DataQualityMixin):
     Note: We cannot scrape actual FICO scores — those require bureau access.
     This model stores available proxies and inferred credit tiers.
     """
+
     __tablename__ = "credit_profiles"
-    __table_args__ = (
-        Index("ix_credit_person_id", "person_id"),
-    )
+    __table_args__ = (Index("ix_credit_person_id", "person_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     person_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Inferred from public records — NOT actual bureau score

@@ -62,9 +62,13 @@ ignore = [
     "B008",   # do not perform function calls in default arguments
     "B904",   # raise from within except (too strict for crawlers)
     "UP007",  # use X | Y for type unions (Python 3.12 but breaks some patterns)
+    "E402",   # module-level import not at top (intentional in main.py / deduplication)
+    "B023",   # function definition does not bind loop variable (false positive in lambdas)
+    "E741",   # ambiguous variable name (l used intentionally in some places)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["F401", "F811"]
+"tests/**" = ["F401", "F811", "E741"]
 "migrations/**" = ["E501", "F401"]
-"scripts/**" = ["T201"]  # allow print() in scripts
+"scripts/**" = ["T201", "E741"]  # allow print() and l in scripts
+"shared/models/**" = ["F821"]  # SQLAlchemy forward references resolve at runtime

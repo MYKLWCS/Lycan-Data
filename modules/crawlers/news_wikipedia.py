@@ -6,6 +6,7 @@ the summary of the top result, and queries Wikidata for up to 3 entity matches.
 
 Registered as "news_wikipedia".
 """
+
 from __future__ import annotations
 
 import logging

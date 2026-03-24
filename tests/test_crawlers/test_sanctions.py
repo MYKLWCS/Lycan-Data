@@ -6,40 +6,51 @@ Tests for Sanctions & Watchlists scrapers — Task 22.
 
 15 tests total — all HTTP calls are mocked.
 """
+
 from __future__ import annotations
 
 import os
-import time
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
+import time
+from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
 
+import modules.crawlers.sanctions_fbi  # noqa: F401
+
 # Trigger @register decorators
 import modules.crawlers.sanctions_ofac  # noqa: F401
-import modules.crawlers.sanctions_un    # noqa: F401
-import modules.crawlers.sanctions_fbi   # noqa: F401
-
+import modules.crawlers.sanctions_un  # noqa: F401
+from modules.crawlers.registry import is_registered
+from modules.crawlers.sanctions_fbi import (
+    SanctionsFBICrawler,
+)
+from modules.crawlers.sanctions_fbi import (
+    _name_matches as fbi_name_matches,
+)
 from modules.crawlers.sanctions_ofac import (
     SanctionsOFACCrawler,
-    _name_matches as ofac_name_matches,
+)
+from modules.crawlers.sanctions_ofac import (
     _cache_valid as ofac_cache_valid,
+)
+from modules.crawlers.sanctions_ofac import (
+    _name_matches as ofac_name_matches,
 )
 from modules.crawlers.sanctions_un import (
     SanctionsUNCrawler,
-    _name_matches as un_name_matches,
+)
+from modules.crawlers.sanctions_un import (
     _cache_valid as un_cache_valid,
 )
-from modules.crawlers.sanctions_fbi import (
-    SanctionsFBICrawler,
-    _name_matches as fbi_name_matches,
+from modules.crawlers.sanctions_un import (
+    _name_matches as un_name_matches,
 )
-from modules.crawlers.registry import is_registered
-
 
 # ===========================================================================
 # Helper factories
 # ===========================================================================
+
 
 def _mock_httpx_response(status: int = 200, text: str = "", json_data: dict | None = None):
     """Build a mock httpx.Response."""
@@ -124,6 +135,7 @@ SAMPLE_FBI_JSON = {
 # 1. Registry tests
 # ===========================================================================
 
+
 def test_ofac_registered():
     """sanctions_ofac must be registered in the crawler registry."""
     assert is_registered("sanctions_ofac")
@@ -142,6 +154,7 @@ def test_fbi_registered():
 # ===========================================================================
 # 2. _name_matches utility tests
 # ===========================================================================
+
 
 def test_name_matches_exact():
     """Exact same name → score 1.0."""
@@ -168,6 +181,7 @@ def test_name_matches_empty_query():
 # ===========================================================================
 # 3. _cache_valid tests
 # ===========================================================================
+
 
 def test_cache_valid_missing_file():
     """Non-existent file → False."""
@@ -202,6 +216,7 @@ def test_cache_valid_old_file():
 # 4. OFAC scraper tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_ofac_name_found():
     """OFAC scraper returns a match when the name appears in the CSV."""
@@ -209,9 +224,11 @@ async def test_ofac_name_found():
     mock_resp = _mock_httpx_response(200, SAMPLE_OFAC_CSV)
 
     # Ensure cache is bypassed
-    with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False), \
-         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)), \
-         patch("builtins.open", mock_open()):
+    with (
+        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+        patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
+        patch("builtins.open", mock_open()),
+    ):
         result = await crawler.scrape("SMITH JOHN")
 
     assert result.found is True
@@ -226,9 +243,11 @@ async def test_ofac_name_not_found():
     crawler = SanctionsOFACCrawler()
     mock_resp = _mock_httpx_response(200, SAMPLE_OFAC_CSV)
 
-    with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False), \
-         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)), \
-         patch("builtins.open", mock_open()):
+    with (
+        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+        patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
+        patch("builtins.open", mock_open()),
+    ):
         result = await crawler.scrape("NOBODY UNKNOWN ZZZXXX")
 
     assert result.data["match_count"] == 0
@@ -240,9 +259,11 @@ async def test_ofac_cache_hit_no_http():
     """When cache is fresh, OFAC scraper reads from disk without making HTTP call."""
     crawler = SanctionsOFACCrawler()
 
-    with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=True), \
-         patch("builtins.open", mock_open(read_data=SAMPLE_OFAC_CSV)) as mocked_open, \
-         patch.object(crawler, "get", new=AsyncMock()) as mock_get:
+    with (
+        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=True),
+        patch("builtins.open", mock_open(read_data=SAMPLE_OFAC_CSV)),
+        patch.object(crawler, "get", new=AsyncMock()) as mock_get,
+    ):
         result = await crawler.scrape("SMITH JOHN")
 
     mock_get.assert_not_called()
@@ -254,8 +275,10 @@ async def test_ofac_http_failure():
     """OFAC scraper returns error result when HTTP download fails."""
     crawler = SanctionsOFACCrawler()
 
-    with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False), \
-         patch.object(crawler, "get", new=AsyncMock(return_value=None)):
+    with (
+        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+        patch.object(crawler, "get", new=AsyncMock(return_value=None)),
+    ):
         result = await crawler.scrape("JOHN SMITH")
 
     assert result.found is False
@@ -266,15 +289,18 @@ async def test_ofac_http_failure():
 # 5. UN scraper tests
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_un_xml_individual_found():
     """UN scraper correctly parses INDIVIDUAL elements and returns a match."""
     crawler = SanctionsUNCrawler()
     mock_resp = _mock_httpx_response(200, SAMPLE_UN_XML)
 
-    with patch("modules.crawlers.sanctions_un._cache_valid", return_value=False), \
-         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)), \
-         patch("builtins.open", mock_open()):
+    with (
+        patch("modules.crawlers.sanctions_un._cache_valid", return_value=False),
+        patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
+        patch("builtins.open", mock_open()),
+    ):
         result = await crawler.scrape("JOHN SMITH")
 
     assert result.found is True
@@ -291,9 +317,11 @@ async def test_un_xml_entity_found():
     crawler = SanctionsUNCrawler()
     mock_resp = _mock_httpx_response(200, SAMPLE_UN_XML)
 
-    with patch("modules.crawlers.sanctions_un._cache_valid", return_value=False), \
-         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)), \
-         patch("builtins.open", mock_open()):
+    with (
+        patch("modules.crawlers.sanctions_un._cache_valid", return_value=False),
+        patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
+        patch("builtins.open", mock_open()),
+    ):
         result = await crawler.scrape("ACME WEAPONS")
 
     assert result.found is True
@@ -307,9 +335,11 @@ async def test_un_name_not_found():
     crawler = SanctionsUNCrawler()
     mock_resp = _mock_httpx_response(200, SAMPLE_UN_XML)
 
-    with patch("modules.crawlers.sanctions_un._cache_valid", return_value=False), \
-         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)), \
-         patch("builtins.open", mock_open()):
+    with (
+        patch("modules.crawlers.sanctions_un._cache_valid", return_value=False),
+        patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
+        patch("builtins.open", mock_open()),
+    ):
         result = await crawler.scrape("NOBODY UNKNOWN ZZZXXX")
 
     assert result.data["match_count"] == 0
@@ -319,6 +349,7 @@ async def test_un_name_not_found():
 # ===========================================================================
 # 6. FBI scraper tests
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_fbi_name_found():

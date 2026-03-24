@@ -1,4 +1,5 @@
 """Pattern detection API routes."""
+
 import logging
 import uuid
 
@@ -19,9 +20,16 @@ _anomaly = StatisticalAnomalyDetector()
 
 
 class AnomalyDetectRequest(BaseModel):
-    person_ids: list[uuid.UUID] | None = Field(None, description="Specific person IDs to analyze. If omitted, uses all persons.")
+    person_ids: list[uuid.UUID] | None = Field(
+        None, description="Specific person IDs to analyze. If omitted, uses all persons."
+    )
     fields: list[str] = Field(
-        default=["default_risk_score", "source_reliability", "darkweb_exposure", "behavioural_risk"],
+        default=[
+            "default_risk_score",
+            "source_reliability",
+            "darkweb_exposure",
+            "behavioural_risk",
+        ],
         description="Person fields to analyze for anomalies",
     )
     min_score: float = Field(0.0, ge=0.0, le=1.0)
@@ -32,6 +40,7 @@ class AnomalyDetectRequest(BaseModel):
 async def detect_anomalies(req: AnomalyDetectRequest, session: AsyncSession = DbDep):
     """Detect statistical anomalies across persons. Loads data from DB automatically."""
     from sqlalchemy import select
+
     from shared.models.person import Person
 
     q = select(Person).limit(req.limit)
@@ -40,8 +49,12 @@ async def detect_anomalies(req: AnomalyDetectRequest, session: AsyncSession = Db
     persons = (await session.scalars(q)).all()
 
     if len(persons) < 3:
-        return {"anomalies": {}, "fields_analyzed": req.fields, "entities_count": len(persons),
-                "message": "Need at least 3 persons in DB to detect anomalies"}
+        return {
+            "anomalies": {},
+            "fields_analyzed": req.fields,
+            "entities_count": len(persons),
+            "message": "Need at least 3 persons in DB to detect anomalies",
+        }
 
     entities = [
         {
@@ -62,7 +75,9 @@ async def detect_anomalies(req: AnomalyDetectRequest, session: AsyncSession = Db
             field: [
                 {
                     "entity_id": r.entity_id,
-                    "full_name": next((e["full_name"] for e in entities if e["id"] == r.entity_id), None),
+                    "full_name": next(
+                        (e["full_name"] for e in entities if e["id"] == r.entity_id), None
+                    ),
                     "value": r.value,
                     "z_score": r.z_score,
                     "severity": r.severity,

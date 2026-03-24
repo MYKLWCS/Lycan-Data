@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime
+
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from shared.models.base import Base, TimestampMixin
 
 
@@ -24,4 +26,6 @@ class Alert(Base, TimestampMixin):
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    delivery_channel: Mapped[str | None] = mapped_column(String(50), nullable=True)  # webhook, email, telegram
+    delivery_channel: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # webhook, email, telegram

@@ -12,6 +12,7 @@ the full last_analysis_stats breakdown.
 Registered as "cyber_virustotal".
 Requires settings.virustotal_api_key.
 """
+
 from __future__ import annotations
 
 import base64
@@ -20,18 +21,16 @@ import re
 from typing import Any
 from urllib.parse import quote
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
 _VT_BASE = "https://www.virustotal.com/api/v3"
 
-_IPV4_RE = re.compile(
-    r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$"
-)
+_IPV4_RE = re.compile(r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$")
 
 
 def _is_ipv4(value: str) -> bool:
@@ -99,32 +98,24 @@ class VirusTotalCrawler(HttpxCrawler):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _query_ip(
-        self, identifier: str, ip: str, headers: dict
-    ) -> CrawlerResult:
+    async def _query_ip(self, identifier: str, ip: str, headers: dict) -> CrawlerResult:
         url = f"{_VT_BASE}/ip_addresses/{ip}"
         resp = await self.get(url, headers=headers)
         return self._handle_response(identifier, resp, endpoint="ip")
 
-    async def _query_domain(
-        self, identifier: str, domain: str, headers: dict
-    ) -> CrawlerResult:
+    async def _query_domain(self, identifier: str, domain: str, headers: dict) -> CrawlerResult:
         safe = quote(domain, safe="")
         url = f"{_VT_BASE}/domains/{safe}"
         resp = await self.get(url, headers=headers)
         return self._handle_response(identifier, resp, endpoint="domain")
 
-    async def _query_url(
-        self, identifier: str, raw_url: str, headers: dict
-    ) -> CrawlerResult:
+    async def _query_url(self, identifier: str, raw_url: str, headers: dict) -> CrawlerResult:
         url_id = _vt_url_id(raw_url)
         url = f"{_VT_BASE}/urls/{url_id}"
         resp = await self.get(url, headers=headers)
         return self._handle_response(identifier, resp, endpoint="url")
 
-    def _handle_response(
-        self, identifier: str, resp: Any, endpoint: str
-    ) -> CrawlerResult:
+    def _handle_response(self, identifier: str, resp: Any, endpoint: str) -> CrawlerResult:
         if resp is None:
             return self._result(identifier, found=False, error="http_error")
 
@@ -132,17 +123,13 @@ class VirusTotalCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="invalid_api_key")
 
         if resp.status_code == 404:
-            return self._result(
-                identifier, found=False, error="not_found", endpoint=endpoint
-            )
+            return self._result(identifier, found=False, error="not_found", endpoint=endpoint)
 
         if resp.status_code == 429:
             return self._result(identifier, found=False, error="rate_limited")
 
         if resp.status_code != 200:
-            return self._result(
-                identifier, found=False, error=f"http_{resp.status_code}"
-            )
+            return self._result(identifier, found=False, error=f"http_{resp.status_code}")
 
         try:
             data = resp.json()
@@ -155,6 +142,4 @@ class VirusTotalCrawler(HttpxCrawler):
         suspicious = extracted.get("suspicious", 0) or 0
         found = (malicious + suspicious) > 0
 
-        return self._result(
-            identifier, found=found, endpoint=endpoint, **extracted
-        )
+        return self._result(identifier, found=found, endpoint=endpoint, **extracted)

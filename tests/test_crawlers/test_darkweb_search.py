@@ -5,22 +5,24 @@ Tests for dark web search crawlers:
 
 Total: 10 tests.
 """
+
 from __future__ import annotations
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import modules.crawlers.darkweb_ahmia   # noqa: F401 — trigger @register
-import modules.crawlers.darkweb_torch   # noqa: F401
+import pytest
 
+import modules.crawlers.darkweb_ahmia  # noqa: F401 — trigger @register
+import modules.crawlers.darkweb_torch  # noqa: F401
 from modules.crawlers.darkweb_ahmia import DarkwebAhmiaCrawler, _parse_ahmia_html
 from modules.crawlers.darkweb_torch import DarkwebTorchCrawler, _parse_torch_html
 from modules.crawlers.registry import is_registered
 from shared.tor import TorInstance
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_resp(status_code: int = 200, text: str = "") -> MagicMock:
     mock = MagicMock()
@@ -63,6 +65,7 @@ _EMPTY_HTML = "<html><body><p>No results found.</p></body></html>"
 # ---------------------------------------------------------------------------
 # DarkwebAhmiaCrawler — 5 tests
 # ---------------------------------------------------------------------------
+
 
 def test_darkweb_ahmia_registered():
     """Ahmia crawler must be in the registry."""
@@ -125,6 +128,7 @@ def test_ahmia_uses_tor2():
 # ---------------------------------------------------------------------------
 # DarkwebTorchCrawler — 5 tests
 # ---------------------------------------------------------------------------
+
 
 def test_darkweb_torch_registered():
     """Torch crawler must be in the registry."""

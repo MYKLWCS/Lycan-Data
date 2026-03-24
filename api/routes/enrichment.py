@@ -1,4 +1,5 @@
 """Enrichment pipeline API routes."""
+
 import logging
 import uuid
 
@@ -6,7 +7,6 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
-from api.serializers import _serialize
 from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
 
 router = APIRouter()
@@ -16,6 +16,7 @@ _orchestrator = EnrichmentOrchestrator()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _validate_uuid(value: str) -> uuid.UUID:
     """Parse and return a UUID, raising HTTP 400 on failure."""
@@ -47,6 +48,7 @@ def _report_to_dict(report) -> dict:
 
 async def _background_enrich(person_id: str) -> None:
     from shared.db import AsyncSessionLocal
+
     async with AsyncSessionLocal() as session:
         try:
             await _orchestrator.enrich_person(person_id, session)
@@ -57,6 +59,7 @@ async def _background_enrich(person_id: str) -> None:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("/{person_id}/enrich")
 async def enrich_person(person_id: str, session: AsyncSession = DbDep):

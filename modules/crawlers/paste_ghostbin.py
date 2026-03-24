@@ -6,7 +6,9 @@ paste and document site with a search endpoint.
 
 Registered as "paste_ghostbin".
 """
+
 from __future__ import annotations
+
 import logging
 from urllib.parse import quote_plus
 

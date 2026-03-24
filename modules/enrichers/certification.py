@@ -9,13 +9,14 @@ coverage, and trustworthiness. Certificates are:
   BRONZE    — >= 0.30 overall score, 1+ source
   UNRATED   — < 0.30 or no sources
 """
+
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 
-class CertificateGrade(str, Enum):
+class CertificateGrade(StrEnum):
     PLATINUM = "platinum"
     GOLD = "gold"
     SILVER = "silver"
@@ -56,7 +57,7 @@ class DataCertificate:
     coverage_score: float = 0.0
 
     # Metadata
-    certified_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    certified_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     certificate_version: str = "1.0"
 
     # Recommendations for improving the certificate
@@ -69,10 +70,7 @@ def compute_coverage(person_data: dict[str, Any]) -> tuple[list[str], list[str],
     missing = []
 
     for category, fields in COVERAGE_CATEGORIES.items():
-        has_any = any(
-            person_data.get(f) is not None and person_data.get(f) != ""
-            for f in fields
-        )
+        has_any = any(person_data.get(f) is not None and person_data.get(f) != "" for f in fields)
         if has_any:
             covered.append(category)
         else:

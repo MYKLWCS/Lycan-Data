@@ -7,6 +7,7 @@ flags, and hit counts.
 
 Registered as "financial_finra".
 """
+
 from __future__ import annotations
 
 import logging

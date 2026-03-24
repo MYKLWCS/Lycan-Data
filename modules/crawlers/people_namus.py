@@ -9,6 +9,7 @@ Source: https://namus.nij.ojp.gov/
 API:    https://www.namus.gov/api/CaseSets/NamUs/MissingPersons/Search (POST)
 Registered as "people_namus".
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,11 +44,17 @@ def _parse_case(case: dict) -> dict[str, Any]:
         "nickname": subject.get("nicknames", ""),
         "date_of_birth": subject.get("dateOfBirth"),
         "age_at_disappearance": subject.get("computedMissingMinAge"),
-        "sex": subject.get("sex", {}).get("name") if isinstance(subject.get("sex"), dict) else subject.get("sex", ""),
+        "sex": subject.get("sex", {}).get("name")
+        if isinstance(subject.get("sex"), dict)
+        else subject.get("sex", ""),
         "race": [r.get("name") for r in subject.get("races", []) if isinstance(r, dict)],
         "missing_date": circumstances.get("dateMissing"),
-        "missing_city": last_seen.get("address", {}).get("city") if isinstance(last_seen.get("address"), dict) else "",
-        "missing_state": last_seen.get("address", {}).get("state", {}).get("name") if isinstance(last_seen.get("address", {}).get("state"), dict) else "",
+        "missing_city": last_seen.get("address", {}).get("city")
+        if isinstance(last_seen.get("address"), dict)
+        else "",
+        "missing_state": last_seen.get("address", {}).get("state", {}).get("name")
+        if isinstance(last_seen.get("address", {}).get("state"), dict)
+        else "",
         "case_url": f"https://www.namus.gov/MissingPersons/Case#/{case.get('caseNumber')}",
     }
 

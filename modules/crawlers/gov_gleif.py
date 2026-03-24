@@ -6,6 +6,7 @@ company name or LEI code. Returns completions and full-text search results.
 
 Registered as "gov_gleif".
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,14 +19,8 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_FUZZY_URL = (
-    "https://api.gleif.org/api/v1/fuzzycompletions"
-    "?field=entity.legalName&q={query}"
-)
-_FULLTEXT_URL = (
-    "https://api.gleif.org/api/v1/lei-records"
-    "?filter[fulltext]={query}&page[size]=10"
-)
+_FUZZY_URL = "https://api.gleif.org/api/v1/fuzzycompletions?field=entity.legalName&q={query}"
+_FULLTEXT_URL = "https://api.gleif.org/api/v1/lei-records?filter[fulltext]={query}&page[size]=10"
 
 
 def _parse_fuzzy(data: list) -> list[dict[str, Any]]:
@@ -34,7 +29,7 @@ def _parse_fuzzy(data: list) -> list[dict[str, Any]]:
     for item in data:
         completions.append(
             {
-                "lei":  item.get("lei", ""),
+                "lei": item.get("lei", ""),
                 "name": item.get("value", item.get("name", "")),
             }
         )
@@ -119,8 +114,10 @@ class GleifCrawler(HttpxCrawler):
                 legal_name = entity.get("legalName", {})
                 completions.append(
                     {
-                        "lei":  record.get("id", attrs.get("lei", "")),
-                        "name": legal_name.get("name", "") if isinstance(legal_name, dict) else str(legal_name),
+                        "lei": record.get("id", attrs.get("lei", "")),
+                        "name": legal_name.get("name", "")
+                        if isinstance(legal_name, dict)
+                        else str(legal_name),
                     }
                 )
             return completions

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import random
 from urllib.parse import quote
@@ -86,10 +87,16 @@ class WhitepagesCrawler(PlaywrightCrawler):
 
         results = []
         # Whitepages person cards use various selectors; target common card containers
-        cards = soup.select("div[data-testid='person-card'], li.card, div.card, article.result-card")
+        cards = soup.select(
+            "div[data-testid='person-card'], li.card, div.card, article.result-card"
+        )
         if not cards:
             # Fallback: any div with a class containing "card"
-            cards = [el for el in soup.find_all("div") if el.get("class") and any("card" in c for c in el.get("class", []))]
+            cards = [
+                el
+                for el in soup.find_all("div")
+                if el.get("class") and any("card" in c for c in el.get("class", []))
+            ]
 
         for card in cards[:3]:
             person = _extract_whitepages_card(card)
@@ -110,7 +117,9 @@ def _extract_whitepages_card(card) -> dict | None:
         data: dict = {}
 
         # Name
-        name_el = card.find(["h2", "h3", "a"], class_=lambda c: c and "name" in c.lower() if c else False)
+        name_el = card.find(
+            ["h2", "h3", "a"], class_=lambda c: c and "name" in c.lower() if c else False
+        )
         if not name_el:
             name_el = card.find(["h2", "h3"])
         data["name"] = name_el.get_text(strip=True) if name_el else ""
@@ -119,6 +128,7 @@ def _extract_whitepages_card(card) -> dict | None:
         age_el = card.find(string=lambda t: t and ("Age" in t or "age" in t))
         if age_el:
             import re
+
             age_match = re.search(r"\d{1,3}", age_el)
             data["age"] = int(age_match.group()) if age_match else None
         else:
@@ -141,11 +151,15 @@ def _extract_whitepages_card(card) -> dict | None:
 
         # Phones
         phone_els = card.find_all(class_=lambda c: c and "phone" in c.lower() if c else False)
-        data["associated_phones"] = [el.get_text(strip=True) for el in phone_els if el.get_text(strip=True)]
+        data["associated_phones"] = [
+            el.get_text(strip=True) for el in phone_els if el.get_text(strip=True)
+        ]
 
         # Emails
         email_els = card.find_all(class_=lambda c: c and "email" in c.lower() if c else False)
-        data["associated_emails"] = [el.get_text(strip=True) for el in email_els if el.get_text(strip=True)]
+        data["associated_emails"] = [
+            el.get_text(strip=True) for el in email_els if el.get_text(strip=True)
+        ]
 
         # Relatives
         rel_el = card.find(class_=lambda c: c and "relative" in c.lower() if c else False)

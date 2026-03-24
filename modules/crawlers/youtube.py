@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 
@@ -53,10 +54,18 @@ class YouTubeCrawler(HttpxCrawler):
 
     # Consent / GDPR interstitial page markers (multilingual)
     _CONSENT_MARKERS = [
-        "before you continue", "bevor sie zu youtube", "avant de continuer",
-        "innan du fortsätter", "antes de continuar", "prima di continuare",
-        "voordat je verdergaat", "zanim przejdziesz", "прежде чем продолжить",
-        "consent", "cookie", "gdpr",
+        "before you continue",
+        "bevor sie zu youtube",
+        "avant de continuer",
+        "innan du fortsätter",
+        "antes de continuar",
+        "prima di continuare",
+        "voordat je verdergaat",
+        "zanim przejdziesz",
+        "прежде чем продолжить",
+        "consent",
+        "cookie",
+        "gdpr",
     ]
 
     def _parse(self, html: str, handle: str) -> dict:

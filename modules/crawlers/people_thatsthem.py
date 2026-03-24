@@ -9,6 +9,7 @@ Supports three lookup modes determined by the identifier format:
 Returns a list of person cards parsed from the HTML response.
 Registered as "people_thatsthem".
 """
+
 from __future__ import annotations
 
 import logging
@@ -35,6 +36,7 @@ _HEADERS = {
 # Identifier routing
 # ---------------------------------------------------------------------------
 
+
 def _build_url(identifier: str) -> tuple[str, str]:
     """Return (url, mode) for the given identifier."""
     s = identifier.strip()
@@ -54,6 +56,7 @@ def _build_url(identifier: str) -> tuple[str, str]:
 # HTML parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _text(tag: Any) -> str:
     """Return stripped inner text of a BeautifulSoup tag, or ''."""
     return tag.get_text(separator=" ", strip=True) if tag else ""
@@ -64,6 +67,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
     persons: list[dict[str, Any]] = []
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
 
         # Each person record is contained in a <div class="ThatsThem-record ...">
@@ -126,6 +130,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("people_thatsthem")
 class PeopleThatsThemCrawler(HttpxCrawler):

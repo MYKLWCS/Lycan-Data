@@ -1,9 +1,11 @@
 import uuid
 from datetime import date
+
 from sqlalchemy import Date, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from shared.models.base import Base, TimestampMixin, DataQualityMixin
+
+from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
 
 class Education(Base, TimestampMixin, DataQualityMixin):
@@ -19,5 +21,7 @@ class Education(Base, TimestampMixin, DataQualityMixin):
     started_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     ended_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_completed: Mapped[bool] = mapped_column(default=False, nullable=False)
-    tier: Mapped[str | None] = mapped_column(String(50), nullable=True)  # elite, tier1, tier2, vocational
+    tier: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # elite, tier1, tier2, vocational
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)

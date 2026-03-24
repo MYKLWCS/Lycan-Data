@@ -5,6 +5,7 @@ Searches the PatentsView API for patents by inventor last name or
 assignee/company name. No authentication required.
 Registered as "gov_uspto_patents".
 """
+
 from __future__ import annotations
 
 import json

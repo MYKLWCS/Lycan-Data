@@ -5,15 +5,17 @@ Tests for domain OSINT crawlers:
 
 Total: 12 tests.
 """
+
 from __future__ import annotations
+
 import asyncio
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import modules.crawlers.domain_theharvester  # noqa: F401 — trigger @register
-import modules.crawlers.domain_whois          # noqa: F401
+import pytest
 
+import modules.crawlers.domain_theharvester  # noqa: F401 — trigger @register
+import modules.crawlers.domain_whois  # noqa: F401
 from modules.crawlers.domain_theharvester import (
     DomainHarvesterCrawler,
     _parse_harvester_output,
@@ -22,10 +24,10 @@ from modules.crawlers.domain_theharvester import (
 from modules.crawlers.domain_whois import DomainWhoisCrawler, _parse_whois
 from modules.crawlers.registry import is_registered
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_response(status_code: int = 200, text: str = "", json_data=None):
     mock = MagicMock()
@@ -41,6 +43,7 @@ def _mock_response(status_code: int = 200, text: str = "", json_data=None):
 # ---------------------------------------------------------------------------
 # DomainHarvesterCrawler — 6 tests
 # ---------------------------------------------------------------------------
+
 
 def test_domain_harvester_registered():
     assert is_registered("domain_harvester")
@@ -58,12 +61,15 @@ async def test_harvester_found_results():
         "urls": ["http://example.com/login"],
     }
 
-    with patch(
-        "modules.crawlers.domain_theharvester._check_harvester_installed",
-        new=AsyncMock(return_value=True),
-    ), patch(
-        "modules.crawlers.domain_theharvester._run_harvester",
-        new=AsyncMock(return_value=raw),
+    with (
+        patch(
+            "modules.crawlers.domain_theharvester._check_harvester_installed",
+            new=AsyncMock(return_value=True),
+        ),
+        patch(
+            "modules.crawlers.domain_theharvester._run_harvester",
+            new=AsyncMock(return_value=raw),
+        ),
     ):
         result = await crawler.scrape("example.com")
 
@@ -82,12 +88,15 @@ async def test_harvester_no_results_found_false():
     """Empty harvester output yields found=False."""
     crawler = DomainHarvesterCrawler()
 
-    with patch(
-        "modules.crawlers.domain_theharvester._check_harvester_installed",
-        new=AsyncMock(return_value=True),
-    ), patch(
-        "modules.crawlers.domain_theharvester._run_harvester",
-        new=AsyncMock(return_value={}),
+    with (
+        patch(
+            "modules.crawlers.domain_theharvester._check_harvester_installed",
+            new=AsyncMock(return_value=True),
+        ),
+        patch(
+            "modules.crawlers.domain_theharvester._run_harvester",
+            new=AsyncMock(return_value={}),
+        ),
     ):
         result = await crawler.scrape("empty.com")
 
@@ -169,7 +178,9 @@ async def test_whois_parse_full_record():
     """WHOIS HTML with a full record is parsed into all expected fields."""
     crawler = DomainWhoisCrawler()
 
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_response(200, text=_WHOIS_HTML))):
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_response(200, text=_WHOIS_HTML))
+    ):
         result = await crawler.scrape("example.com")
 
     assert result.found is True
@@ -224,6 +235,7 @@ def test_whois_source_reliability():
 def test_whois_requires_tor_and_instance():
     """WHOIS crawler requires Tor and should use TOR2."""
     from shared.tor import TorInstance
+
     crawler = DomainWhoisCrawler()
     assert crawler.requires_tor is True
     assert crawler.tor_instance == TorInstance.TOR2

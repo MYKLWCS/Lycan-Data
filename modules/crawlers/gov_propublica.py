@@ -6,6 +6,7 @@ by organization name, returning EIN, NTEE code, income, and filing dates.
 
 Registered as "gov_propublica".
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,13 +29,13 @@ def _parse_organizations(data: dict) -> tuple[list[dict[str, Any]], int]:
     for org in orgs_raw:
         organizations.append(
             {
-                "name":          org.get("name", ""),
-                "city":          org.get("city", ""),
-                "state":         org.get("state", ""),
-                "ein":           org.get("ein", ""),
-                "ntee_code":     org.get("ntee_code", ""),
+                "name": org.get("name", ""),
+                "city": org.get("city", ""),
+                "state": org.get("state", ""),
+                "ein": org.get("ein", ""),
+                "ntee_code": org.get("ntee_code", ""),
                 "income_amount": org.get("income_amount"),
-                "filing_date":   org.get("filing_date", ""),
+                "filing_date": org.get("filing_date", ""),
             }
         )
     total_results: int = data.get("total_results", len(organizations))

@@ -6,24 +6,26 @@ Tests for crypto tracer crawlers:
 
 Total: 12 tests.
 """
+
 from __future__ import annotations
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import modules.crawlers.crypto_bitcoin     # noqa: F401 — trigger @register
-import modules.crawlers.crypto_ethereum    # noqa: F401
-import modules.crawlers.crypto_blockchair  # noqa: F401
+import pytest
 
+import modules.crawlers.crypto_bitcoin  # noqa: F401 — trigger @register
+import modules.crawlers.crypto_blockchair  # noqa: F401
+import modules.crawlers.crypto_ethereum  # noqa: F401
 from modules.crawlers.crypto_bitcoin import CryptoBitcoinCrawler, _satoshi_to_btc
+from modules.crawlers.crypto_blockchair import BLOCKCHAIR_CHAINS, CryptoBlockchairCrawler
 from modules.crawlers.crypto_ethereum import CryptoEthereumCrawler, _wei_to_eth
-from modules.crawlers.crypto_blockchair import CryptoBlockchairCrawler, BLOCKCHAIR_CHAINS
 from modules.crawlers.registry import is_registered
 from shared.tor import TorInstance
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_response(status_code: int = 200, json_data=None):
     mock = MagicMock()
@@ -40,9 +42,9 @@ def _mock_response(status_code: int = 200, json_data=None):
 # ---------------------------------------------------------------------------
 
 _BTC_JSON = {
-    "final_balance": 100_000_000,       # 1.0 BTC
-    "total_received": 200_000_000,      # 2.0 BTC
-    "total_sent": 100_000_000,          # 1.0 BTC
+    "final_balance": 100_000_000,  # 1.0 BTC
+    "total_received": 200_000_000,  # 2.0 BTC
+    "total_sent": 100_000_000,  # 1.0 BTC
     "n_tx": 5,
     "txs": [
         {"hash": "abc123", "time": 1700000000, "out": [{"value": 50_000_000}]},
@@ -213,7 +215,9 @@ async def test_blockchair_btc_parsed():
     crawler = CryptoBlockchairCrawler()
     address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7Divf"
 
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_response(200, _BLOCKCHAIR_JSON))):
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_response(200, _BLOCKCHAIR_JSON))
+    ):
         result = await crawler.scrape(f"btc:{address}")
 
     assert result.found is True

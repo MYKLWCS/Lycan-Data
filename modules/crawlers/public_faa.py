@@ -9,6 +9,7 @@ Registered as "public_faa".
 
 identifier: "First Last" name of the airman.
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,6 +30,7 @@ _MAX_RESULTS = 20
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _split_name(identifier: str) -> tuple[str, str]:
     """Split "First Last" into (first, last)."""
     parts = identifier.strip().split()
@@ -47,6 +49,7 @@ def _parse_airmen_html(html: str) -> list[dict[str, Any]]:
     pilots: list[dict[str, Any]] = []
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
 
         tables = soup.find_all("table")
@@ -55,22 +58,18 @@ def _parse_airmen_html(html: str) -> list[dict[str, Any]]:
             if len(rows) < 2:
                 continue
 
-            headers = [
-                c.get_text(strip=True).lower()
-                for c in rows[0].find_all(["th", "td"])
-            ]
+            headers = [c.get_text(strip=True).lower() for c in rows[0].find_all(["th", "td"])]
             if len(headers) < 3:
                 continue
 
             # Must look like an airmen table
             header_text = " ".join(headers)
             if not any(
-                kw in header_text
-                for kw in ("certificate", "first", "last", "city", "name")
+                kw in header_text for kw in ("certificate", "first", "last", "city", "name")
             ):
                 continue
 
-            for row in rows[1:_MAX_RESULTS + 1]:
+            for row in rows[1 : _MAX_RESULTS + 1]:
                 cells = row.find_all("td")
                 if not cells:
                     continue
@@ -96,10 +95,10 @@ def _parse_airmen_html(html: str) -> list[dict[str, Any]]:
                     pilots.append(
                         {
                             "certificate_number": cert_num,
-                            "name":               (first + " " + last).strip(),
-                            "city":               city,
-                            "state":              state,
-                            "certificates":       [c.strip() for c in certs.split(",") if c.strip()],
+                            "name": (first + " " + last).strip(),
+                            "city": city,
+                            "state": state,
+                            "certificates": [c.strip() for c in certs.split(",") if c.strip()],
                         }
                     )
             if pilots:
@@ -127,6 +126,7 @@ def _extract_viewstate(html: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("public_faa")
 class PublicFAACrawler(HttpxCrawler):
@@ -166,9 +166,9 @@ class PublicFAACrawler(HttpxCrawler):
         # Step 2: POST the search form
         form_data = {
             **hidden,
-            "ctl00$content$txtLastName":  last,
+            "ctl00$content$txtLastName": last,
             "ctl00$content$txtFirstName": first,
-            "ctl00$content$btnSearch":    "Search",
+            "ctl00$content$btnSearch": "Search",
         }
 
         post_resp = await self.post(

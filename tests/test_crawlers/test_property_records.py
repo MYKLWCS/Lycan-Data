@@ -5,6 +5,7 @@ Tests for Property Records scrapers — Tasks 25.
 
 12 tests total — Playwright calls are mocked; no real network traffic.
 """
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -12,22 +13,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Trigger @register decorators
-import modules.crawlers.property_zillow  # noqa: F401
 import modules.crawlers.property_county  # noqa: F401
 
-from modules.crawlers.property_zillow import (
-    PropertyZillowCrawler,
-    _parse_suggestions,
-    _parse_property_page,
-)
+# Trigger @register decorators
+import modules.crawlers.property_zillow  # noqa: F401
 from modules.crawlers.property_county import (
     PropertyCountyCrawler,
     _parse_identifier,
     _parse_propertyshark_html,
 )
+from modules.crawlers.property_zillow import (
+    PropertyZillowCrawler,
+    _parse_property_page,
+    _parse_suggestions,
+)
 from modules.crawlers.registry import is_registered
-
 
 # ===========================================================================
 # Sample fixtures
@@ -124,6 +124,7 @@ EMPTY_HTML = "<html><body><p>No results found.</p></body></html>"
 # 1. Registry tests
 # ===========================================================================
 
+
 def test_property_zillow_registered():
     assert is_registered("property_zillow")
 
@@ -135,6 +136,7 @@ def test_property_county_registered():
 # ===========================================================================
 # 2. _parse_suggestions
 # ===========================================================================
+
 
 def test_parse_suggestions_extracts_fields():
     props = _parse_suggestions(SAMPLE_SUGGEST_JSON)
@@ -162,6 +164,7 @@ def test_parse_suggestions_missing_meta():
 # 3. _parse_property_page
 # ===========================================================================
 
+
 def test_parse_property_page_regex_fallback():
     """Regex patterns extract zestimate / beds / baths / sqft."""
     details = _parse_property_page(SAMPLE_ZILLOW_HTML)
@@ -182,6 +185,7 @@ def test_parse_property_page_empty_html():
 # 4. _parse_identifier (county)
 # ===========================================================================
 
+
 def test_parse_identifier_full():
     addr, county, state = _parse_identifier("123 Main St|Cook,IL")
     assert addr == "123 Main St"
@@ -199,6 +203,7 @@ def test_parse_identifier_bare_address():
 # ===========================================================================
 # 5. _parse_propertyshark_html
 # ===========================================================================
+
 
 def test_parse_propertyshark_extracts_fields():
     details = _parse_propertyshark_html(SAMPLE_PROPERTYSHARK_HTML)
@@ -220,15 +225,23 @@ def test_parse_propertyshark_empty_html():
 # 6. PropertyZillowCrawler.scrape() — mocked
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_zillow_found():
     """Suggestions returned → found=True, properties list populated."""
     crawler = PropertyZillowCrawler()
 
-    with patch.object(
-        crawler, "_fetch_suggestions", new=AsyncMock(return_value=_parse_suggestions(SAMPLE_SUGGEST_JSON))
-    ), patch.object(
-        crawler, "_fetch_property_page", new=AsyncMock(return_value={"zestimate": 450000, "beds": 3})
+    with (
+        patch.object(
+            crawler,
+            "_fetch_suggestions",
+            new=AsyncMock(return_value=_parse_suggestions(SAMPLE_SUGGEST_JSON)),
+        ),
+        patch.object(
+            crawler,
+            "_fetch_property_page",
+            new=AsyncMock(return_value={"zestimate": 450000, "beds": 3}),
+        ),
     ):
         result = await crawler.scrape("123 Main St Austin TX")
 
@@ -253,15 +266,14 @@ async def test_zillow_not_found():
 # 7. PropertyCountyCrawler.scrape() — mocked
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_county_found():
     """PropertyShark returns data → found=True."""
     crawler = PropertyCountyCrawler()
     parsed = _parse_propertyshark_html(SAMPLE_PROPERTYSHARK_HTML)
 
-    with patch.object(
-        crawler, "_scrape_propertyshark", new=AsyncMock(return_value=parsed)
-    ):
+    with patch.object(crawler, "_scrape_propertyshark", new=AsyncMock(return_value=parsed)):
         result = await crawler.scrape("123 Main St|Cook,IL")
 
     assert result.found is True
@@ -273,14 +285,20 @@ async def test_county_found():
 async def test_county_not_found():
     """All fields None → found=False."""
     crawler = PropertyCountyCrawler()
-    empty = {k: None for k in (
-        "owner_name", "assessed_value", "tax_amount", "year_built",
-        "lot_size", "zoning", "last_sale_price", "last_sale_date"
-    )}
+    empty = dict.fromkeys(
+        (
+            "owner_name",
+            "assessed_value",
+            "tax_amount",
+            "year_built",
+            "lot_size",
+            "zoning",
+            "last_sale_price",
+            "last_sale_date",
+        )
+    )
 
-    with patch.object(
-        crawler, "_scrape_propertyshark", new=AsyncMock(return_value=empty)
-    ):
+    with patch.object(crawler, "_scrape_propertyshark", new=AsyncMock(return_value=empty)):
         result = await crawler.scrape("999 Unknown Blvd|Harris,TX")
 
     assert result.found is False

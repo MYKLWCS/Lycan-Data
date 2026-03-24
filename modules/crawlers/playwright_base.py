@@ -1,14 +1,12 @@
 from __future__ import annotations
-import asyncio
+
 import logging
 import random
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
 
-from playwright.async_api import async_playwright, Browser, Page, BrowserContext
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
-from shared.config import settings
-from shared.tor import tor_manager, TorInstance
 from modules.crawlers.base import BaseCrawler
 
 logger = logging.getLogger(__name__)

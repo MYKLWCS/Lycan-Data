@@ -4,11 +4,10 @@ Enrichment Pipeline Orchestrator.
 Runs all enrichers for a person in sequence and publishes a completion event.
 Each enricher is independent — failures are logged and don't block subsequent enrichers.
 """
-import asyncio
+
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,52 +50,60 @@ class EnrichmentOrchestrator:
     After all steps, publishes enrichment_complete event to event_bus.
     """
 
-    async def enrich_person(
-        self, person_id: str, session: AsyncSession
-    ) -> EnrichmentReport:
+    async def enrich_person(self, person_id: str, session: AsyncSession) -> EnrichmentReport:
         """
         Run the full enrichment pipeline for a person.
         Returns a report of what ran, what succeeded, and what failed.
         """
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
         steps: list[EnrichmentStepResult] = []
 
         # ── Step 1: Financial / AML ───────────────────────────────────────────
-        steps.append(await self._run_step(
-            enricher="financial_aml",
-            coro=self._run_financial_aml(person_id, session),
-            person_id=person_id,
-        ))
+        steps.append(
+            await self._run_step(
+                enricher="financial_aml",
+                coro=self._run_financial_aml(person_id, session),
+                person_id=person_id,
+            )
+        )
 
         # ── Step 2: Marketing Tags ────────────────────────────────────────────
-        steps.append(await self._run_step(
-            enricher="marketing_tags",
-            coro=self._run_marketing_tags(person_id, session),
-            person_id=person_id,
-        ))
+        steps.append(
+            await self._run_step(
+                enricher="marketing_tags",
+                coro=self._run_marketing_tags(person_id, session),
+                person_id=person_id,
+            )
+        )
 
         # ── Step 3: Deduplication scoring ─────────────────────────────────────
-        steps.append(await self._run_step(
-            enricher="deduplication",
-            coro=self._run_deduplication(person_id, session),
-            person_id=person_id,
-        ))
+        steps.append(
+            await self._run_step(
+                enricher="deduplication",
+                coro=self._run_deduplication(person_id, session),
+                person_id=person_id,
+            )
+        )
 
         # ── Step 4: Burner assessment ─────────────────────────────────────────
-        steps.append(await self._run_step(
-            enricher="burner_assessment",
-            coro=self._run_burner(person_id, session),
-            person_id=person_id,
-        ))
+        steps.append(
+            await self._run_step(
+                enricher="burner_assessment",
+                coro=self._run_burner(person_id, session),
+                person_id=person_id,
+            )
+        )
 
         # ── Step 5: Relationship score ────────────────────────────────────────
-        steps.append(await self._run_step(
-            enricher="relationship_score",
-            coro=self._run_relationship_score(person_id, session),
-            person_id=person_id,
-        ))
+        steps.append(
+            await self._run_step(
+                enricher="relationship_score",
+                coro=self._run_relationship_score(person_id, session),
+                person_id=person_id,
+            )
+        )
 
-        finished_at = datetime.now(timezone.utc)
+        finished_at = datetime.now(UTC)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
         report = EnrichmentReport(
@@ -112,21 +119,19 @@ class EnrichmentOrchestrator:
 
         return report
 
-    async def _run_step(
-        self, enricher: str, coro, person_id: str = ""
-    ) -> EnrichmentStepResult:
+    async def _run_step(self, enricher: str, coro, person_id: str = "") -> EnrichmentStepResult:
         """Run a single enricher coroutine, catching all exceptions."""
-        t0 = datetime.now(timezone.utc)
+        t0 = datetime.now(UTC)
         try:
             await coro
-            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
             return EnrichmentStepResult(
                 enricher=enricher,
                 status="ok",
                 duration_ms=round(duration, 2),
             )
         except Exception as exc:
-            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
             logger.exception("Enricher %r failed for person_id=%s", enricher, person_id)
             return EnrichmentStepResult(
                 enricher=enricher,
@@ -138,28 +143,32 @@ class EnrichmentOrchestrator:
     async def _run_financial_aml(self, person_id: str, session: AsyncSession) -> None:
         # The class is FinancialIntelligenceEngine, not FinancialAMLEngine.
         from modules.enrichers.financial_aml import FinancialIntelligenceEngine
+
         engine = FinancialIntelligenceEngine()
         await engine.score_person(person_id, session)
 
     async def _run_marketing_tags(self, person_id: str, session: AsyncSession) -> None:
         from modules.enrichers.marketing_tags import MarketingTagsEngine
+
         engine = MarketingTagsEngine()
         await engine.tag_person(person_id, session)
 
     async def _run_deduplication(self, person_id: str, session: AsyncSession) -> None:
         from modules.enrichers.deduplication import score_person_dedup
+
         await score_person_dedup(person_id, session)
 
     async def _run_burner(self, person_id: str, session: AsyncSession) -> None:
         # persist_burner_assessment signature: (session, identifier_id, score)
         # It takes one identifier at a time with a BurnerScore.
         # We load phone identifiers and run compute_burner_score on each, then persist.
+        from sqlalchemy import select
+
         from modules.enrichers.burner_detector import (
             compute_burner_score,
             persist_burner_assessment,
         )
         from shared.models.identifier import Identifier
-        from sqlalchemy import select
 
         result = await session.execute(
             select(Identifier).where(
@@ -183,11 +192,13 @@ class EnrichmentOrchestrator:
     async def _run_relationship_score(self, person_id: str, session: AsyncSession) -> None:
         """Compute relationship_score from network breadth across all linked data."""
         import uuid
-        from sqlalchemy import select, func
+
+        from sqlalchemy import func, select
+
+        from shared.models.address import Address
+        from shared.models.identifier import Identifier
         from shared.models.person import Person
         from shared.models.social_profile import SocialProfile
-        from shared.models.identifier import Identifier
-        from shared.models.address import Address
 
         pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
         person = await session.get(Person, pid)
@@ -195,17 +206,25 @@ class EnrichmentOrchestrator:
             return
 
         # Count distinct data points as a proxy for network breadth
-        social_count = (await session.execute(
-            select(func.count()).select_from(SocialProfile).where(SocialProfile.person_id == pid)
-        )).scalar() or 0
+        social_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(SocialProfile)
+                .where(SocialProfile.person_id == pid)
+            )
+        ).scalar() or 0
 
-        ident_count = (await session.execute(
-            select(func.count()).select_from(Identifier).where(Identifier.person_id == pid)
-        )).scalar() or 0
+        ident_count = (
+            await session.execute(
+                select(func.count()).select_from(Identifier).where(Identifier.person_id == pid)
+            )
+        ).scalar() or 0
 
-        addr_count = (await session.execute(
-            select(func.count()).select_from(Address).where(Address.person_id == pid)
-        )).scalar() or 0
+        addr_count = (
+            await session.execute(
+                select(func.count()).select_from(Address).where(Address.person_id == pid)
+            )
+        ).scalar() or 0
 
         # Simple normalized score: more data points = wider network footprint
         # Caps at 1.0 with diminishing returns
@@ -217,18 +236,19 @@ class EnrichmentOrchestrator:
             await session.flush()
             await session.commit()
 
-    async def _publish_completion(
-        self, person_id: str, report: EnrichmentReport
-    ) -> None:
+    async def _publish_completion(self, person_id: str, report: EnrichmentReport) -> None:
         if not event_bus.is_connected:
             return
         try:
-            await event_bus.publish("enrichment", {
-                "event": "enrichment_complete",
-                "person_id": person_id,
-                "ok_count": report.ok_count,
-                "error_count": report.error_count,
-                "total_duration_ms": report.total_duration_ms,
-            })
+            await event_bus.publish(
+                "enrichment",
+                {
+                    "event": "enrichment_complete",
+                    "person_id": person_id,
+                    "ok_count": report.ok_count,
+                    "error_count": report.error_count,
+                    "total_duration_ms": report.total_duration_ms,
+                },
+            )
         except Exception:
             logger.exception("Failed to publish enrichment_complete for %s", person_id)

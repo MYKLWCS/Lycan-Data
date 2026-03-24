@@ -7,16 +7,17 @@ settings.sam_api_key. Returns entity registration status, UEI, and core data.
 
 Registered as "gov_sam".
 """
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 from urllib.parse import quote_plus
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +47,7 @@ def _parse_entities(data: dict) -> list[dict[str, Any]]:
                 "purposeOfRegistration": reg.get("purposeOfRegistrationDesc"),
                 "entityType": reg.get("entityTypeDesc"),
                 "congressionalDistrict": reg.get("congressionalDistrict"),
-                "fiscalYearEndCloseDate": entity_info.get(
-                    "fiscalYearEndCloseDate"
-                ),
+                "fiscalYearEndCloseDate": entity_info.get("fiscalYearEndCloseDate"),
                 "submissionDate": reg.get("submissionDate"),
             }
         )

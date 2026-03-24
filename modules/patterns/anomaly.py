@@ -1,9 +1,8 @@
 """Statistical anomaly detection — pure Python, no ML dependencies."""
+
 import logging
-import math
 import statistics
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -91,15 +90,17 @@ class StatisticalAnomalyDetector:
             if iqr_outlier:
                 reasons.append(f"IQR outlier (fence [{lower_fence:.2f}, {upper_fence:.2f}])")
 
-            results.append(AnomalyResult(
-                entity_id=entity_id,
-                field=field,
-                value=val,
-                z_score=round(z, 4),
-                is_anomaly=True,
-                severity=severity,
-                reason="; ".join(reasons),
-            ))
+            results.append(
+                AnomalyResult(
+                    entity_id=entity_id,
+                    field=field,
+                    value=val,
+                    z_score=round(z, 4),
+                    is_anomaly=True,
+                    severity=severity,
+                    reason="; ".join(reasons),
+                )
+            )
 
         results.sort(key=lambda r: r.z_score, reverse=True)
         return results

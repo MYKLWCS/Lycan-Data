@@ -1,4 +1,5 @@
 """Shared serialisation helpers for API route modules."""
+
 import dataclasses
 import uuid
 from datetime import datetime

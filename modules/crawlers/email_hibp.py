@@ -4,7 +4,9 @@ email_hibp.py — Have I Been Pwned (HIBP) free API crawler.
 Uses the HIBP v2 public API to check if an email address appears in known data breaches.
 Registered as "email_hibp".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -21,12 +23,14 @@ def _parse_breaches(json_data: list[dict]) -> list[dict]:
     """Extract relevant fields from HIBP breach list."""
     out = []
     for item in json_data:
-        out.append({
-            "name": item.get("Name", ""),
-            "domain": item.get("Domain", ""),
-            "date": item.get("BreachDate", ""),
-            "data_classes": item.get("DataClasses", []),
-        })
+        out.append(
+            {
+                "name": item.get("Name", ""),
+                "domain": item.get("Domain", ""),
+                "date": item.get("BreachDate", ""),
+                "data_classes": item.get("DataClasses", []),
+            }
+        )
     return out
 
 

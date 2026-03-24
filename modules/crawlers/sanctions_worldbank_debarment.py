@@ -5,6 +5,7 @@ Queries the World Bank debarment API for firms and individuals that have been
 sanctioned or debarred from World Bank Group financed projects.
 Registered as "sanctions_worldbank_debarment".
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,8 +19,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _SEARCH_URL = (
-    "https://apigwext.worldbank.org/dvsvc/v1.0/json/CONTRACT_AWARD"
-    "/debarred/FIRM_NAME/{name}/0/20"
+    "https://apigwext.worldbank.org/dvsvc/v1.0/json/CONTRACT_AWARD/debarred/FIRM_NAME/{name}/0/20"
 )
 
 
@@ -56,33 +56,17 @@ def _parse_debarred(payload: Any, query: str) -> list[dict[str, Any]]:
     for rec in records:
         if not isinstance(rec, dict):
             continue
-        firm_name = (
-            rec.get("firmName", "")
-            or rec.get("firm_name", "")
-            or rec.get("name", "")
-        )
+        firm_name = rec.get("firmName", "") or rec.get("firm_name", "") or rec.get("name", "")
         overlap = _word_overlap(query, firm_name)
         if overlap < 0.3:
             continue  # Skip low-relevance results
         entities.append(
             {
                 "firm_name": firm_name,
-                "country": (
-                    rec.get("country", "")
-                    or rec.get("countryName", "")
-                ),
-                "from_date": (
-                    rec.get("fromDate", "")
-                    or rec.get("debarmentFromDate", "")
-                ),
-                "to_date": (
-                    rec.get("toDate", "")
-                    or rec.get("debarmentToDate", "")
-                ),
-                "grounds": (
-                    rec.get("grounds", "")
-                    or rec.get("sanctionType", "")
-                ),
+                "country": (rec.get("country", "") or rec.get("countryName", "")),
+                "from_date": (rec.get("fromDate", "") or rec.get("debarmentFromDate", "")),
+                "to_date": (rec.get("toDate", "") or rec.get("debarmentToDate", "")),
+                "grounds": (rec.get("grounds", "") or rec.get("sanctionType", "")),
                 "ineligibility_period": rec.get("ineligibilityPeriod", ""),
             }
         )

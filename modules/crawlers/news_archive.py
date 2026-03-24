@@ -7,6 +7,7 @@ total number of snapshots on record.
 
 Registered as "news_archive".
 """
+
 from __future__ import annotations
 
 import logging

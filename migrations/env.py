@@ -1,13 +1,15 @@
 import asyncio
 from logging.config import fileConfig
+
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from alembic import context
+
+from shared.config import settings
 
 # Import ALL models so Alembic can detect them
 from shared.models import Base  # noqa: F401 — registers all models
-from shared.config import settings
 
 config = context.config
 # Offline mode uses the sync URL (no driver needed — just generates SQL)

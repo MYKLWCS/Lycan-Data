@@ -2,6 +2,7 @@
 Tests for modules/enrichers/psychological.py — 15 tests covering OCEAN scoring,
 emotional triggers, risk language, dominant themes, and product predispositions.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -15,8 +16,8 @@ from modules.enrichers.psychological import (
     detect_risk_language,
 )
 
-
 # ── analyze_ocean ─────────────────────────────────────────────────────────────
+
 
 class TestAnalyzeOcean:
     def test_high_openness_keywords(self):
@@ -36,17 +37,22 @@ class TestAnalyzeOcean:
         assert scores["openness"] == 0.5
 
     def test_high_conscientiousness(self):
-        texts = ["I am very organized, goal-oriented, disciplined and professional at meeting deadlines"]
+        texts = [
+            "I am very organized, goal-oriented, disciplined and professional at meeting deadlines"
+        ]
         scores = analyze_ocean(texts)
         assert scores["conscientiousness"] > 0.5
 
     def test_high_neuroticism(self):
-        texts = ["I feel so anxious and stressed, worry constantly and often feel overwhelmed and depressed"]
+        texts = [
+            "I feel so anxious and stressed, worry constantly and often feel overwhelmed and depressed"
+        ]
         scores = analyze_ocean(texts)
         assert scores["neuroticism"] > 0.5
 
 
 # ── detect_emotional_triggers ─────────────────────────────────────────────────
+
 
 class TestDetectEmotionalTriggers:
     def test_family_keywords(self):
@@ -62,15 +68,16 @@ class TestDetectEmotionalTriggers:
         assert triggers == []
 
     def test_multiple_triggers_detected(self):
-        triggers = detect_emotional_triggers([
-            "My family is important. I worry about money and my career job work."
-        ])
+        triggers = detect_emotional_triggers(
+            ["My family is important. I worry about money and my career job work."]
+        )
         assert "family" in triggers
         assert "money" in triggers
         assert "career" in triggers
 
 
 # ── detect_risk_language ──────────────────────────────────────────────────────
+
 
 class TestDetectRiskLanguage:
     def test_financial_stress_detected(self):
@@ -95,6 +102,7 @@ class TestDetectRiskLanguage:
 
 # ── detect_dominant_themes ────────────────────────────────────────────────────
 
+
 class TestDetectDominantThemes:
     def test_money_theme_with_repeated_keywords(self):
         texts = ["money money financial debt loan debt bills afford"]
@@ -108,6 +116,7 @@ class TestDetectDominantThemes:
 
 
 # ── build_psychological_profile ───────────────────────────────────────────────
+
 
 class TestBuildPsychologicalProfile:
     def test_short_text_confidence_zero(self):

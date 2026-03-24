@@ -4,7 +4,9 @@ email_holehe.py — Holehe subprocess wrapper.
 Checks if an email address is registered on 100+ services using the holehe CLI tool.
 Registered as "email_holehe".
 """
+
 from __future__ import annotations
+
 import asyncio
 import logging
 import re
@@ -21,13 +23,16 @@ HOLEHE_TIMEOUT = 120  # seconds
 async def _run_holehe(email: str) -> tuple[list[str], int]:
     """Run holehe subprocess, return (found_services, total_checked)."""
     proc = await asyncio.create_subprocess_exec(
-        "holehe", email, "--only-used", "--no-color",
+        "holehe",
+        email,
+        "--only-used",
+        "--no-color",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
     )
     stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=HOLEHE_TIMEOUT)
     lines = stdout.decode(errors="replace").splitlines()
-    found = [re.sub(r'\[.\]\s*', '', l).strip() for l in lines if l.startswith("[+]")]
+    found = [re.sub(r"\[.\]\s*", "", l).strip() for l in lines if l.startswith("[+]")]
     total = sum(1 for l in lines if l.startswith("[+]") or l.startswith("[-]"))
     return found, total
 
@@ -36,13 +41,14 @@ async def _check_holehe_installed() -> bool:
     """Return True if holehe is available on PATH."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "holehe", "--help",
+            "holehe",
+            "--help",
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
         await asyncio.wait_for(proc.communicate(), timeout=10)
         return proc.returncode == 0
-    except (FileNotFoundError, asyncio.TimeoutError):
+    except (TimeoutError, FileNotFoundError):
         return False
 
 
@@ -73,7 +79,7 @@ class EmailHoleheCrawler(BaseCrawler):
 
         try:
             found_on, checked_count = await _run_holehe(email)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CrawlerResult(
                 platform=self.platform,
                 identifier=identifier,

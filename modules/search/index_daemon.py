@@ -15,13 +15,13 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.search.meili_indexer import build_person_doc, meili_indexer
 from shared.db import AsyncSessionLocal
 from shared.events import event_bus
-from shared.models.person import Person
-from shared.models.identifier import Identifier
 from shared.models.address import Address
+from shared.models.identifier import Identifier
+from shared.models.person import Person
 from shared.models.social_profile import SocialProfile
-from modules.search.meili_indexer import meili_indexer, build_person_doc
 
 logger = logging.getLogger(__name__)
 
@@ -83,21 +83,27 @@ class IndexDaemon:
             return
 
         # Fetch all related data in parallel-ish queries
-        idents = (await session.execute(
-            select(Identifier).where(Identifier.person_id == p.id)
-        )).scalars().all()
+        idents = (
+            (await session.execute(select(Identifier).where(Identifier.person_id == p.id)))
+            .scalars()
+            .all()
+        )
 
-        addresses = (await session.execute(
-            select(Address).where(Address.person_id == p.id)
-        )).scalars().all()
+        addresses = (
+            (await session.execute(select(Address).where(Address.person_id == p.id)))
+            .scalars()
+            .all()
+        )
 
-        profiles = (await session.execute(
-            select(SocialProfile).where(SocialProfile.person_id == p.id)
-        )).scalars().all()
+        profiles = (
+            (await session.execute(select(SocialProfile).where(SocialProfile.person_id == p.id)))
+            .scalars()
+            .all()
+        )
 
         # Extract typed identifiers
-        phones   = [i.value for i in idents if i.type == "phone"]
-        emails   = [i.value for i in idents if i.type == "email"]
+        phones = [i.value for i in idents if i.type == "phone"]
+        emails = [i.value for i in idents if i.type == "email"]
         usernames = [i.value for i in idents if i.type == "username"]
 
         # Extract platform names
@@ -111,14 +117,24 @@ class IndexDaemon:
         addr_list = current or list(addresses)
 
         for addr in addr_list[:5]:  # cap at 5 addresses
-            parts = [p for p in [addr.street, addr.city, addr.state_province, addr.postal_code, addr.country] if p]
+            parts = [
+                p
+                for p in [
+                    addr.street,
+                    addr.city,
+                    addr.state_province,
+                    addr.postal_code,
+                    addr.country,
+                ]
+                if p
+            ]
             if parts:
                 addresses_text.append(", ".join(parts))
 
         if addr_list:
             primary = addr_list[0]
-            city    = primary.city
-            state   = primary.state_province
+            city = primary.city
+            state = primary.state_province
             country = primary.country
 
         # Risk tier label

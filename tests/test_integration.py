@@ -2,34 +2,52 @@
 Full integration test — exercises the entire shared foundation together.
 Requires: postgres (localhost:5432) and dragonfly (localhost:6379) running.
 """
+
 import uuid
+from datetime import UTC, datetime, timezone
+
 import pytest
-from datetime import datetime, timezone
-from sqlalchemy import text, select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from shared.constants import (
+    BurnerConfidence,
+    DefaultRiskTier,
+    IdentifierType,
+    LineType,
+    Platform,
+    SeedType,
+    WealthBand,
+)
+from shared.data_quality import apply_quality_to_model, assess_quality
 from shared.db import get_test_db
 from shared.events import get_event_bus
-from shared.models import (
-    Person, Identifier, SocialProfile, Web, WebMembership,
-    BehaviouralProfile, CreditRiskAssessment, WealthAssessment,
-    BurnerAssessment, DarkwebMention,
-)
-from shared.constants import (
-    SeedType, IdentifierType, Platform, WealthBand, DefaultRiskTier,
-    BurnerConfidence, LineType,
-)
-from shared.schemas import SeedInput, PersonResponse, WebConfig
-from shared.data_quality import assess_quality, apply_quality_to_model
 from shared.freshness import compute_freshness, is_stale
-from shared.utils import (
-    normalize_phone, normalize_email, normalize_handle,
-    get_line_type, is_valid_email, build_profile_url,
+from shared.models import (
+    BehaviouralProfile,
+    BurnerAssessment,
+    CreditRiskAssessment,
+    DarkwebMention,
+    Identifier,
+    Person,
+    SocialProfile,
+    WealthAssessment,
+    Web,
+    WebMembership,
 )
-from shared.tor import tor_manager, TorInstance
-
+from shared.schemas import PersonResponse, SeedInput, WebConfig
+from shared.tor import TorInstance, tor_manager
+from shared.utils import (
+    build_profile_url,
+    get_line_type,
+    is_valid_email,
+    normalize_email,
+    normalize_handle,
+    normalize_phone,
+)
 
 # ─── Database Fixtures ───────────────────────────────────────────────────────
+
 
 @pytest.fixture
 async def db():
@@ -53,6 +71,7 @@ async def test_person(db: AsyncSession):
 
 # ─── Core Integration Tests ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_create_person_with_identifier(db: AsyncSession, test_person: Person):
     """Create a person and attach an identifier — verify both persist in session."""
@@ -67,9 +86,7 @@ async def test_create_person_with_identifier(db: AsyncSession, test_person: Pers
     await db.flush()
 
     # Verify via query
-    result = await db.execute(
-        select(Identifier).where(Identifier.person_id == test_person.id)
-    )
+    result = await db.execute(select(Identifier).where(Identifier.person_id == test_person.id))
     identifiers = result.scalars().all()
     assert len(identifiers) == 1
     assert identifiers[0].value == "jane.doe@example.com"
@@ -118,9 +135,7 @@ async def test_create_web_with_member(db: AsyncSession, test_person: Person):
     db.add(membership)
     await db.flush()
 
-    result = await db.execute(
-        select(WebMembership).where(WebMembership.web_id == web.id)
-    )
+    result = await db.execute(select(WebMembership).where(WebMembership.web_id == web.id))
     members = result.scalars().all()
     assert len(members) == 1
     assert members[0].role == "seed"
@@ -153,7 +168,7 @@ async def test_credit_risk_assessment(db: AsyncSession, test_person: Person):
         default_risk_score=0.65,
         risk_tier=DefaultRiskTier.HIGH_RISK.value,
         gambling_weight=0.25,
-        assessed_at=datetime.now(timezone.utc),
+        assessed_at=datetime.now(UTC),
     )
     db.add(assessment)
     await db.flush()
@@ -174,7 +189,7 @@ async def test_wealth_assessment(db: AsyncSession, test_person: Person):
         wealth_band=WealthBand.MIDDLE.value,
         income_estimate_usd=75000.0,
         confidence=0.6,
-        assessed_at=datetime.now(timezone.utc),
+        assessed_at=datetime.now(UTC),
     )
     db.add(wa)
     await db.flush()
@@ -210,6 +225,7 @@ async def test_darkweb_mention(db: AsyncSession, test_person: Person):
 
 # ─── Event Bus Integration ────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_event_bus_queue_roundtrip():
     """Publish a crawl job to the event bus and retrieve it."""
@@ -229,6 +245,7 @@ async def test_event_bus_queue_roundtrip():
 
 # ─── Data Quality Integration ─────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_data_quality_applied_to_model(db: AsyncSession, test_person: Person):
     """Apply quality scores to an identifier and verify they're set."""
@@ -242,7 +259,7 @@ async def test_data_quality_applied_to_model(db: AsyncSession, test_person: Pers
 
     apply_quality_to_model(
         identifier,
-        last_scraped_at=datetime.now(timezone.utc),
+        last_scraped_at=datetime.now(UTC),
         source_type="social_media_profile",
         source_name="truecaller",
         corroboration_count=2,
@@ -253,6 +270,7 @@ async def test_data_quality_applied_to_model(db: AsyncSession, test_person: Pers
 
 
 # ─── Utility Integration ─────────────────────────────────────────────────────
+
 
 def test_full_phone_pipeline():
     """Phone normalization → line type → country code chain."""
@@ -278,6 +296,7 @@ def test_full_social_pipeline():
 
 # ─── Schema Integration ───────────────────────────────────────────────────────
 
+
 def test_seed_input_schema():
     s = SeedInput(
         seed_type=SeedType.EMAIL,
@@ -295,6 +314,7 @@ def test_web_config_schema():
 
 
 # ─── Tor Manager (offline) ────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_tor_manager_graceful_offline():

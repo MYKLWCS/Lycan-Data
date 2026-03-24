@@ -10,6 +10,7 @@ Source: https://steamcommunity.com/id/{username}?xml=1
 API:    https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/
 Registered as "social_steam".
 """
+
 from __future__ import annotations
 
 import logging
@@ -17,10 +18,10 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +158,10 @@ class SteamCrawler(HttpxCrawler):
 
         xml_text = resp.text
         # Steam returns an error page when profile not found
-        if "<error>" in xml_text.lower() or "the specified profile could not be found" in xml_text.lower():
+        if (
+            "<error>" in xml_text.lower()
+            or "the specified profile could not be found" in xml_text.lower()
+        ):
             return self._result(
                 identifier,
                 found=False,
@@ -195,9 +199,7 @@ class SteamCrawler(HttpxCrawler):
             in_game=in_game,
         )
 
-    async def _fetch_player_summary(
-        self, api_key: str, steam_id: str
-    ) -> dict[str, Any] | None:
+    async def _fetch_player_summary(self, api_key: str, steam_id: str) -> dict[str, Any] | None:
         """Fetch enhanced player data from Steam Web API."""
         url = _SUMMARY_URL.format(api_key=api_key, steam_id=steam_id)
         resp = await self.get(url, headers={"Accept": "application/json"})

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import random
 import socket
 from dataclasses import dataclass, field
 from enum import Enum
@@ -121,7 +120,11 @@ class TorManager:
         socks_host, socks_port = self._parse_socks(ep.socks_url)
         if socks_host and await self._tcp_reachable(socks_host, socks_port):
             ep.is_connected = True
-            logger.info("%s control unavailable but SOCKS port %d is reachable — marking active", ep.name, socks_port)
+            logger.info(
+                "%s control unavailable but SOCKS port %d is reachable — marking active",
+                ep.name,
+                socks_port,
+            )
         else:
             ep.is_connected = False
             logger.warning("%s unreachable (both control port and SOCKS failed)", ep.name)
@@ -150,7 +153,7 @@ class TorManager:
             return False
 
     async def disconnect_all(self) -> None:
-        for instance, ep in self._endpoints.items():
+        for _instance, ep in self._endpoints.items():
             if ep.controller and ep.is_connected:
                 try:
                     ep.controller.close()

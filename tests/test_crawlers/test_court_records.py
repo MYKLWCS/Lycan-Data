@@ -5,21 +5,21 @@ Tests for Court Records scrapers — Tasks 23.
 
 12 tests total — HTTP calls are mocked; Playwright calls are mocked.
 """
+
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
 # Trigger @register decorators
 import modules.crawlers.court_courtlistener  # noqa: F401
-import modules.crawlers.court_state          # noqa: F401
-
+import modules.crawlers.court_state  # noqa: F401
 from modules.crawlers.court_courtlistener import (
     CourtListenerCrawler,
-    _split_name,
     _parse_case_results,
+    _split_name,
 )
 from modules.crawlers.court_state import (
     CourtStateCrawler,
@@ -27,10 +27,10 @@ from modules.crawlers.court_state import (
 )
 from modules.crawlers.registry import is_registered
 
-
 # ===========================================================================
 # Helpers
 # ===========================================================================
+
 
 def _mock_resp(status: int = 200, json_data: dict | None = None, text: str = ""):
     resp = MagicMock()
@@ -91,6 +91,7 @@ SAMPLE_TX_HTML = """
 # 1. Registry tests
 # ===========================================================================
 
+
 def test_courtlistener_registered():
     assert is_registered("court_courtlistener")
 
@@ -102,6 +103,7 @@ def test_court_state_registered():
 # ===========================================================================
 # 2. _split_name utility
 # ===========================================================================
+
 
 def test_split_name_two_words():
     first, last = _split_name("John Smith")
@@ -126,6 +128,7 @@ def test_split_name_three_words():
 # 3. _parse_case_results
 # ===========================================================================
 
+
 def test_parse_case_results_extracts_fields():
     cases = _parse_case_results(SAMPLE_CL_JSON)
     assert len(cases) == 2
@@ -143,6 +146,7 @@ def test_parse_case_results_empty():
 # ===========================================================================
 # 4. CourtListenerCrawler — scrape()
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_courtlistener_found():
@@ -209,6 +213,7 @@ async def test_courtlistener_json_parse_error():
 # 5. _parse_table_rows
 # ===========================================================================
 
+
 def test_parse_table_rows_tx():
     """TX HTML table is parsed into case records."""
     rows = _parse_table_rows(SAMPLE_TX_HTML, state="TX")
@@ -226,6 +231,7 @@ def test_parse_table_rows_empty_html():
 # 6. CourtStateCrawler — scrape() with mocked Playwright
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_court_state_found():
     """Mocked Playwright yields HTML with results."""
@@ -240,7 +246,9 @@ async def test_court_state_found():
         with patch.object(
             crawler,
             "_scrape_portal",
-            new=AsyncMock(return_value=[{"state": "TX", "case_number": "2023-TX-001", "parties": "SMITH"}]),
+            new=AsyncMock(
+                return_value=[{"state": "TX", "case_number": "2023-TX-001", "parties": "SMITH"}]
+            ),
         ):
             result = await crawler.scrape("John Smith")
 

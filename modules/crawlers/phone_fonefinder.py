@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 import logging
 import re
 
 from bs4 import BeautifulSoup
 
 from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.phone_carrier import _detect_line_type, parse_phone_parts
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
-from modules.crawlers.phone_carrier import parse_phone_parts, _detect_line_type
 from shared.constants import LineType
 from shared.tor import TorInstance
 
@@ -15,11 +16,56 @@ logger = logging.getLogger(__name__)
 
 # US state abbreviation set for basic city/state detection
 _US_STATES = {
-    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY",
     "DC",
 }
 
@@ -28,9 +74,7 @@ def _parse_city_state(text: str) -> tuple[str, str]:
     """Extract city and state from a string like 'Austin, TX' or 'AUSTIN TX'."""
     text = text.strip()
     # Pattern: City, ST  or  City ST
-    match = re.search(
-        r"([A-Za-z\s]+),?\s+([A-Z]{2})\b", text
-    )
+    match = re.search(r"([A-Za-z\s]+),?\s+([A-Z]{2})\b", text)
     if match:
         city = match.group(1).strip().title()
         state = match.group(2).upper()

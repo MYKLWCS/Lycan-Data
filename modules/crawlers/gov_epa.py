@@ -7,6 +7,7 @@ status including quarters with non-compliance.
 
 Registered as "gov_epa".
 """
+
 from __future__ import annotations
 
 import logging

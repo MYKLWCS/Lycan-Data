@@ -11,6 +11,7 @@ The identifier may be:
 
 Registered as "people_familysearch".
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,6 +42,7 @@ _FS_ACCEPT = "application/x-fs-v1+json"
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_entry(entry: dict) -> dict[str, Any]:
     """Normalise a single FamilySearch search entry into a flat dict."""
@@ -80,6 +82,7 @@ def _parse_entry(entry: dict) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("people_familysearch")
 class PeopleFamilySearchCrawler(HttpxCrawler):

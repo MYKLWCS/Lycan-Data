@@ -1,15 +1,18 @@
 """Criminal records — arrests, charges, convictions, warrants, mugshots."""
+
 import uuid
-from datetime import date, datetime
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, Text
+from datetime import date
+
+from sqlalchemy import Boolean, Date, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from shared.models.base import Base, TimestampMixin, DataQualityMixin
+from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
 
 class CriminalRecord(Base, TimestampMixin, DataQualityMixin):
     """One criminal event — arrest, charge, or conviction — for a person."""
+
     __tablename__ = "criminal_records"
     __table_args__ = (
         Index("ix_criminal_person_id", "person_id"),
@@ -18,8 +21,7 @@ class CriminalRecord(Base, TimestampMixin, DataQualityMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     person_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Classification
@@ -56,7 +58,9 @@ class CriminalRecord(Base, TimestampMixin, DataQualityMixin):
 
     # Mugshot
     has_mugshot: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    mugshot_url_hashed: Mapped[str | None] = mapped_column(String(64), nullable=True)  # sha256 of URL
+    mugshot_url_hashed: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )  # sha256 of URL
 
     # Sex offender registry
     is_sex_offender: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

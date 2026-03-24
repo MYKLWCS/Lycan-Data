@@ -1,15 +1,23 @@
 import pytest
-from modules.crawlers.registry import register, get_crawler, list_platforms, is_registered, CRAWLER_REGISTRY
+
 from modules.crawlers.base import BaseCrawler
+from modules.crawlers.registry import (
+    CRAWLER_REGISTRY,
+    get_crawler,
+    is_registered,
+    list_platforms,
+    register,
+)
 from modules.crawlers.result import CrawlerResult
 
-
 # --- Registry tests ---
+
 
 def test_register_decorator():
     @register("testplatform")
     class TestCrawler(BaseCrawler):
         platform = "testplatform"
+
         async def scrape(self, identifier: str) -> CrawlerResult:
             return self._result(identifier, found=True, handle=identifier)
 
@@ -31,6 +39,7 @@ def test_get_crawler_unknown_returns_none():
 
 
 # --- CrawlerResult tests ---
+
 
 def test_crawler_result_defaults():
     r = CrawlerResult(platform="instagram", identifier="testuser", found=True)
@@ -57,15 +66,18 @@ def test_crawler_result_to_db_dict():
 
 # --- BaseCrawler kill switch test ---
 
+
 @pytest.mark.asyncio
 async def test_crawler_run_kill_switch():
     """If kill switch is off, run() returns not-found without scraping."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from shared.config import settings
 
     @register("killtestplatform")
     class KillCrawler(BaseCrawler):
         platform = "killtestplatform"
+
         async def scrape(self, identifier: str) -> CrawlerResult:
             return self._result(identifier, found=True)
 
@@ -85,9 +97,11 @@ async def test_crawler_run_kill_switch():
 @pytest.mark.asyncio
 async def test_crawler_run_catches_exception():
     """run() catches exceptions from scrape() and returns error result."""
+
     @register("errortestplatform")
     class ErrorCrawler(BaseCrawler):
         platform = "errortestplatform"
+
         async def scrape(self, identifier: str) -> CrawlerResult:
             raise ValueError("Test error")
 

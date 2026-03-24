@@ -6,6 +6,7 @@ by name or city, returning asset size, location, and report dates.
 
 Registered as "gov_fdic".
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,10 +34,10 @@ def _parse_institutions(data: dict) -> tuple[list[dict[str, Any]], int]:
         record = item.get("data", item)
         institutions.append(
             {
-                "name":        record.get("NAME", ""),
-                "city":        record.get("CITY", ""),
-                "state":       record.get("STNAME", ""),
-                "assets":      record.get("ASSET"),
+                "name": record.get("NAME", ""),
+                "city": record.get("CITY", ""),
+                "state": record.get("STNAME", ""),
+                "assets": record.get("ASSET"),
                 "report_date": record.get("REPDTE", ""),
             }
         )

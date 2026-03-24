@@ -6,6 +6,7 @@ containing name, city, state, age, and phone.
 
 Registered as "people_zabasearch".
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,6 +32,7 @@ _HEADERS = {
 # HTML parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _text(tag: Any) -> str:
     return tag.get_text(separator=" ", strip=True) if tag else ""
 
@@ -40,6 +42,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
     persons: list[dict[str, Any]] = []
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
 
         # ZabaSearch wraps each record in a <div class="person-search-result"> or similar
@@ -61,7 +64,9 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
                 person["name"] = _text(name_tag)
 
             # City and state often appear as "City, ST"
-            loc_tag = card.select_one(".location, [class*='city'], [class*='location'], [class*='address']")
+            loc_tag = card.select_one(
+                ".location, [class*='city'], [class*='location'], [class*='address']"
+            )
             if loc_tag:
                 loc_text = _text(loc_tag)
                 m = re.match(r"^([^,]+),\s*([A-Z]{2})", loc_text)
@@ -95,9 +100,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
                     phones.append(ph_text)
             # Regex fallback for phone patterns in card text
             if not phones:
-                raw_phones = re.findall(
-                    r"\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}", card.get_text()
-                )
+                raw_phones = re.findall(r"\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}", card.get_text())
                 phones = list(dict.fromkeys(raw_phones))
             if phones:
                 person["phones"] = phones
@@ -113,6 +116,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("people_zabasearch")
 class PeopleZabaSearchCrawler(HttpxCrawler):

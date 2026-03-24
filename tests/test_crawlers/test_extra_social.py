@@ -1,27 +1,33 @@
 """Tests for Snapchat, Pinterest, GitHub, and Discord scrapers."""
+
 from __future__ import annotations
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from modules.crawlers.snapchat import SnapchatCrawler
-from modules.crawlers.pinterest import PinterestCrawler
-from modules.crawlers.github import GitHubCrawler
-from modules.crawlers.discord import DiscordCrawler, snowflake_to_datetime
-from modules.crawlers.registry import is_registered
+import pytest
 
+from modules.crawlers.discord import DiscordCrawler, snowflake_to_datetime
+from modules.crawlers.github import GitHubCrawler
+from modules.crawlers.pinterest import PinterestCrawler
+from modules.crawlers.registry import is_registered
+from modules.crawlers.snapchat import SnapchatCrawler
 
 # ---------------------------------------------------------------------------
 # Registry checks
 # ---------------------------------------------------------------------------
 
+
 def test_snapchat_registered():
     assert is_registered("snapchat")
+
 
 def test_pinterest_registered():
     assert is_registered("pinterest")
 
+
 def test_github_registered():
     assert is_registered("github")
+
 
 def test_discord_registered():
     assert is_registered("discord")
@@ -262,6 +268,7 @@ async def test_discord_http_error():
 # ---------------------------------------------------------------------------
 # Utility — snowflake timestamp
 # ---------------------------------------------------------------------------
+
 
 def test_snowflake_to_datetime():
     # Known Discord epoch calculation: snowflake 0 → 2015-01-01

@@ -8,6 +8,7 @@ Uses the Redfin internal stingray API (unofficial, no auth required) to:
 Returns a list of matching properties with price, beds, baths, sqft, etc.
 Registered as "property_redfin".
 """
+
 from __future__ import annotations
 
 import json
@@ -24,8 +25,7 @@ from shared.tor import TorInstance
 logger = logging.getLogger(__name__)
 
 _AUTOCOMPLETE_URL = (
-    "https://www.redfin.com/stingray/api/location/autocomplete"
-    "?location={address}&v=2"
+    "https://www.redfin.com/stingray/api/location/autocomplete?location={address}&v=2"
 )
 _GIS_CSV_URL = (
     "https://www.redfin.com/stingray/api/gis-csv"
@@ -48,6 +48,7 @@ _XSSI_RE = re.compile(r"^\s*\{\}\s*&&\s*")
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _strip_xssi(text: str) -> str:
     return _XSSI_RE.sub("", text, count=1).strip()
@@ -117,6 +118,7 @@ def _parse_csv_text(text: str) -> list[dict[str, Any]]:
         # Plain CSV
         import csv
         import io
+
         reader = csv.DictReader(io.StringIO(text))
         for row in reader:
             properties.append(_parse_csv_property(dict(row)))
@@ -129,6 +131,7 @@ def _parse_csv_text(text: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("property_redfin")
 class PropertyRedfinCrawler(HttpxCrawler):

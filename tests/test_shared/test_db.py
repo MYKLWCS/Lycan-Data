@@ -1,7 +1,9 @@
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from shared.db import get_test_db
+
 
 @pytest.mark.asyncio
 async def test_db_connects():
@@ -10,10 +12,12 @@ async def test_db_connects():
         result = await session.execute(text("SELECT 1"))
         assert result.scalar() == 1
 
+
 @pytest.mark.asyncio
 async def test_db_session_is_async_session():
     async for session in get_test_db():
         assert isinstance(session, AsyncSession)
+
 
 @pytest.mark.asyncio
 async def test_db_pgvector_extension():
@@ -23,6 +27,7 @@ async def test_db_pgvector_extension():
             text("SELECT extname FROM pg_extension WHERE extname = 'vector'")
         )
         assert result.scalar() == "vector"
+
 
 @pytest.mark.asyncio
 async def test_db_uuid_extension():

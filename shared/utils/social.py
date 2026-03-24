@@ -1,5 +1,7 @@
 """Social media handle normalisation."""
+
 from __future__ import annotations
+
 import re
 
 

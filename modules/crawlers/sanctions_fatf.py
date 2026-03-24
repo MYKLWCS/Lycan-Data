@@ -14,6 +14,7 @@ Sources:
 
 Registered as "sanctions_fatf".
 """
+
 from __future__ import annotations
 
 import logging
@@ -151,10 +152,31 @@ def _parse_fatf_page(html: str) -> tuple[list[str], list[str]]:
             grey_candidates = country_pattern.findall(grey_match.group(1))
             # Filter out common non-country words
             skip = {
-                "The", "And", "Of", "In", "For", "With", "This", "That",
-                "These", "FATF", "Plenary", "October", "June", "February",
-                "March", "April", "May", "July", "August", "September",
-                "November", "December", "January", "Member", "States",
+                "The",
+                "And",
+                "Of",
+                "In",
+                "For",
+                "With",
+                "This",
+                "That",
+                "These",
+                "FATF",
+                "Plenary",
+                "October",
+                "June",
+                "February",
+                "March",
+                "April",
+                "May",
+                "July",
+                "August",
+                "September",
+                "November",
+                "December",
+                "January",
+                "Member",
+                "States",
             }
             grey = [c for c in grey_candidates if c not in skip and len(c) > 3]
 
@@ -168,8 +190,16 @@ def _parse_fatf_page(html: str) -> tuple[list[str], list[str]]:
             country_pattern = re.compile(r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)\b")
             black_candidates = country_pattern.findall(black_match.group(1))
             skip = {
-                "The", "And", "Of", "In", "For", "With", "FATF", "Plenary",
-                "Member", "States",
+                "The",
+                "And",
+                "Of",
+                "In",
+                "For",
+                "With",
+                "FATF",
+                "Plenary",
+                "Member",
+                "States",
             }
             black = [c for c in black_candidates if c not in skip and len(c) > 3]
 
@@ -225,8 +255,8 @@ class FATFCrawler(HttpxCrawler):
         else:
             logger.debug("FATF: using embedded list (live fetch unavailable)")
 
-        black_set = frozenset(b.lower() for b in black_list)
-        grey_set = frozenset(g.lower() for g in grey_list)
+        frozenset(b.lower() for b in black_list)
+        frozenset(g.lower() for g in grey_list)
 
         on_black = _match_country(country, frozenset(black_list))
         on_grey = _match_country(country, frozenset(grey_list))

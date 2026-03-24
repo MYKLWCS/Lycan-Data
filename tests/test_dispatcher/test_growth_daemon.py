@@ -2,25 +2,26 @@
 Tests for the Growth Daemon — Task 28.
 12 tests covering event handling, fan-out logic, kill switches, dedup, and priority.
 """
+
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
 from modules.dispatcher.growth_daemon import (
-    GrowthDaemon,
-    PLATFORM_ACCEPTS,
     KILL_SWITCHES,
     MAX_DEPTH,
+    PLATFORM_ACCEPTS,
+    GrowthDaemon,
 )
 from shared.models.identifier import Identifier
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_identifier(type_: str, value: str, person_id: str | None = None) -> MagicMock:
     ident = MagicMock(spec=Identifier)
@@ -125,7 +126,13 @@ async def test_fan_out_phone_enqueues_phone_platforms(daemon):
             assert platform in dispatched_platforms, f"Expected {platform} in dispatched"
 
     # Specifically verify the well-known phone platforms
-    for expected in ["phone_carrier", "phone_fonefinder", "phone_truecaller", "whatsapp", "telegram"]:
+    for expected in [
+        "phone_carrier",
+        "phone_fonefinder",
+        "phone_truecaller",
+        "whatsapp",
+        "telegram",
+    ]:
         assert expected in dispatched_platforms, f"Missing expected platform: {expected}"
 
 
@@ -196,6 +203,7 @@ async def test_fan_out_kill_switch_disables_platform(daemon):
 
     # Disable instagram via kill switch
     from shared.config import Settings
+
     fake_settings = MagicMock(spec=Settings)
     fake_settings.enable_instagram = False
     fake_settings.enable_twitter = True

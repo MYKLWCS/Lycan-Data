@@ -6,6 +6,7 @@ Returns a raw HTML preview since BOP does not expose a structured JSON API.
 
 Registered as "gov_bop".
 """
+
 from __future__ import annotations
 
 import logging

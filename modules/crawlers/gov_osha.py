@@ -7,6 +7,7 @@ endpoint when the primary API returns no data.
 
 Registered as "gov_osha".
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,13 +20,9 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_DOL_URL = (
-    "https://data.dol.gov/get/inspection"
-    "/filter_by_name/{encoded_name}/rows/20"
-)
+_DOL_URL = "https://data.dol.gov/get/inspection/filter_by_name/{encoded_name}/rows/20"
 _OSHA_FALLBACK_URL = (
-    "https://www.osha.gov/pls/imis/establishment.search"
-    "?p_logger=1&action=search&p_est={name}"
+    "https://www.osha.gov/pls/imis/establishment.search?p_logger=1&action=search&p_est={name}"
 )
 
 

@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 import logging
 import re
 
 from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.phone_carrier import parse_phone_parts
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
-from modules.crawlers.phone_carrier import parse_phone_parts
 from shared.constants import LineType
 from shared.tor import TorInstance
 
@@ -50,8 +51,7 @@ class TruecallerCrawler(HttpxCrawler):
         query_number = re.sub(r"\D", "", parts["e164"])
 
         url = (
-            f"{_TC_BASE}"
-            f"?q={query_number}&countryCode={country_code}&type=4&locAddr=&encoding=json"
+            f"{_TC_BASE}?q={query_number}&countryCode={country_code}&type=4&locAddr=&encoding=json"
         )
 
         response = await self.get(url, headers=_TC_HEADERS)
@@ -126,8 +126,9 @@ class TruecallerCrawler(HttpxCrawler):
                 raw_type = phones[0].get("type")
 
             score = record.get("score", 0.0)
-            tags = [t.get("tag", t) if isinstance(t, dict) else str(t)
-                    for t in record.get("tags", [])]
+            tags = [
+                t.get("tag", t) if isinstance(t, dict) else str(t) for t in record.get("tags", [])
+            ]
 
             line_type = _TC_LINE_TYPE.get(raw_type, LineType.UNKNOWN.value)
             if isinstance(raw_type, str):

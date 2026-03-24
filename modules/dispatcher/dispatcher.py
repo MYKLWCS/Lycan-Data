@@ -9,22 +9,15 @@ updates CrawlJob status, and emits completion events.
 import asyncio
 import json
 import logging
-import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.constants import CrawlStatus, Platform
+from modules.crawlers.registry import get_crawler
+from shared.constants import CrawlStatus
 from shared.db import AsyncSessionLocal
 from shared.events import event_bus
 from shared.models.crawl import CrawlJob, CrawlLog
-from shared.models.person import Person
-from shared.models.identifier import Identifier
-from modules.crawlers.registry import get_crawler, CRAWLER_REGISTRY
-from modules.pipeline.aggregator import aggregate_result
-from modules.search.meili_indexer import meili_indexer, build_person_doc
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +68,9 @@ class CrawlDispatcher:
         retry_count = job_dict.get("retry_count", 0)
 
         async with AsyncSessionLocal() as session:
-            await self._run_job(session, job_id, platform, identifier, person_id, retry_count, job_dict)
+            await self._run_job(
+                session, job_id, platform, identifier, person_id, retry_count, job_dict
+            )
 
     async def _run_job(
         self,
@@ -90,22 +85,26 @@ class CrawlDispatcher:
         crawler_cls = get_crawler(platform)
         if crawler_cls is None:
             logger.warning(f"No crawler for platform: {platform}")
-            await self._update_job_status(session, job_id, CrawlStatus.FAILED, f"No crawler for: {platform}")
+            await self._update_job_status(
+                session, job_id, CrawlStatus.FAILED, f"No crawler for: {platform}"
+            )
             return
 
         await self._update_job_status(session, job_id, CrawlStatus.RUNNING)
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
 
         try:
             crawler = crawler_cls()
             result = await crawler.run(identifier)
 
-            duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
+            duration_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
 
             if result.found:
                 # ── DECOUPLED: Push to Ingest Queue ──
                 ingest_payload = {
-                    "result": result.to_db_dict() if hasattr(result, "to_db_dict") else result.__dict__,
+                    "result": result.to_db_dict()
+                    if hasattr(result, "to_db_dict")
+                    else result.__dict__,
                     "platform": result.platform,
                     "identifier": result.identifier,
                     "found": result.found,
@@ -121,13 +120,16 @@ class CrawlDispatcher:
 
                 await self._update_job_status(session, job_id, CrawlStatus.DONE)
                 await self._log_crawl(session, job_id, platform, identifier, True, duration_ms)
-                await event_bus.publish("enrichment", {
-                    "event": "crawl_complete",
-                    "platform": platform,
-                    "identifier": identifier,
-                    "person_id": person_id,
-                    "found": True,
-                })
+                await event_bus.publish(
+                    "enrichment",
+                    {
+                        "event": "crawl_complete",
+                        "platform": platform,
+                        "identifier": identifier,
+                        "person_id": person_id,
+                        "found": True,
+                    },
+                )
             else:
                 if result.error and "rate" in (result.error or "").lower():
                     await self._requeue_with_backoff(job_dict, retry_count)
@@ -136,7 +138,9 @@ class CrawlDispatcher:
                     await self._update_job_status(session, job_id, CrawlStatus.BLOCKED)
                 else:
                     await self._update_job_status(session, job_id, CrawlStatus.DONE)
-                await self._log_crawl(session, job_id, platform, identifier, False, duration_ms, result.error)
+                await self._log_crawl(
+                    session, job_id, platform, identifier, False, duration_ms, result.error
+                )
 
         except Exception as exc:
             logger.exception(f"Job {job_id} failed: {exc}")
@@ -145,16 +149,20 @@ class CrawlDispatcher:
             await self._update_job_status(session, job_id, CrawlStatus.FAILED, str(exc))
 
     async def _update_job_status(
-        self, session: AsyncSession, job_id: str | None, status: CrawlStatus, error: str | None = None
+        self,
+        session: AsyncSession,
+        job_id: str | None,
+        status: CrawlStatus,
+        error: str | None = None,
     ) -> None:
         if not job_id:
             return
-        from sqlalchemy import select, update
-        from shared.models.crawl import CrawlJob
+        from sqlalchemy import update
+
         await session.execute(
             update(CrawlJob)
             .where(CrawlJob.id == job_id)
-            .values(status=status.value, error_message=error, updated_at=datetime.now(timezone.utc))
+            .values(status=status.value, error_message=error, updated_at=datetime.now(UTC))
         )
         await session.commit()
 
@@ -187,7 +195,7 @@ class CrawlDispatcher:
     async def _requeue_with_backoff(self, job_dict: dict, retry_count: int) -> None:
         delay = RETRY_DELAYS[min(retry_count, len(RETRY_DELAYS) - 1)]
         job_dict["retry_count"] = retry_count + 1
-        job_dict["run_after"] = (datetime.now(timezone.utc).timestamp() + delay)
+        job_dict["run_after"] = datetime.now(UTC).timestamp() + delay
         priority = "low" if retry_count >= 1 else "normal"
         await event_bus.enqueue(job_dict, priority=priority)
         logger.info(f"Requeued job with {delay}s backoff (retry {retry_count + 1})")

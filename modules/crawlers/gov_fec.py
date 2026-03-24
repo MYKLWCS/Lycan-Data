@@ -6,16 +6,17 @@ by name, returning party, state, office, total receipts, and election years.
 
 Registered as "gov_fec".
 """
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 from urllib.parse import quote_plus
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +30,12 @@ def _parse_candidates(data: dict) -> tuple[list[dict[str, Any]], int]:
     for item in data.get("results", []):
         results.append(
             {
-                "name":            item.get("name", ""),
-                "party":           item.get("party", ""),
-                "state":           item.get("state", ""),
-                "office":          item.get("office", ""),
-                "total_receipts":  item.get("total_receipts"),
-                "election_years":  item.get("election_years", []),
+                "name": item.get("name", ""),
+                "party": item.get("party", ""),
+                "state": item.get("state", ""),
+                "office": item.get("office", ""),
+                "total_receipts": item.get("total_receipts"),
+                "election_years": item.get("election_years", []),
             }
         )
     pagination = data.get("pagination", {})

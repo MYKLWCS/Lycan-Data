@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 from datetime import datetime, timedelta
@@ -55,7 +56,8 @@ class DiscordCrawler(HttpxCrawler):
 
         if response.status_code != 200:
             return self._result(
-                identifier, found=False,
+                identifier,
+                found=False,
                 error=f"unexpected_status_{response.status_code}",
             )
 

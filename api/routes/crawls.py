@@ -3,15 +3,17 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
-from shared.models.crawl import CrawlJob
 from shared.constants import CrawlStatus
+from shared.models.crawl import CrawlJob
 
 router = APIRouter()
 
 
 def _job_dict(j: CrawlJob) -> dict:
-    return {c.name: str(getattr(j, c.name)) if getattr(j, c.name) is not None else None
-            for c in j.__table__.columns}
+    return {
+        c.name: str(getattr(j, c.name)) if getattr(j, c.name) is not None else None
+        for c in j.__table__.columns
+    }
 
 
 @router.get("")
@@ -46,6 +48,7 @@ async def get_crawl(job_id: str, session: AsyncSession = DbDep):
 @router.post("/retry")
 async def retry_crawl(job_id: str, session: AsyncSession = DbDep):
     import uuid
+
     from modules.dispatcher.dispatcher import dispatch_job
 
     try:
@@ -57,7 +60,11 @@ async def retry_crawl(job_id: str, session: AsyncSession = DbDep):
     if not job:
         raise HTTPException(404, "Crawl job not found")
 
-    if job.status not in (CrawlStatus.FAILED.value, CrawlStatus.BLOCKED.value, CrawlStatus.RATE_LIMITED.value):
+    if job.status not in (
+        CrawlStatus.FAILED.value,
+        CrawlStatus.BLOCKED.value,
+        CrawlStatus.RATE_LIMITED.value,
+    ):
         raise HTTPException(409, f"Job status '{job.status}' is not retryable")
 
     # Reset status to pending

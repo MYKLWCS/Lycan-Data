@@ -6,6 +6,7 @@ Analyses a blob of already-scraped social data to identify:
 - Consistent usernames across platforms (Twitter, Instagram, GitHub, etc.)
 - Co-follow relationships
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,8 +20,17 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 # Platforms we look for in the text blob
-KNOWN_PLATFORMS = ["twitter", "instagram", "github", "linkedin", "facebook",
-                   "tiktok", "reddit", "youtube", "telegram"]
+KNOWN_PLATFORMS = [
+    "twitter",
+    "instagram",
+    "github",
+    "linkedin",
+    "facebook",
+    "tiktok",
+    "reddit",
+    "youtube",
+    "telegram",
+]
 
 # Regex to extract @mentions
 MENTION_RE = re.compile(r"@(\w+)")
@@ -118,11 +128,13 @@ def _build_connections(
         platforms = platform_mentions.get(username, [])
         mention_count = mentions.get(username, 0)
 
-        connections.append({
-            "username": username,
-            "platforms": platforms,
-            "mention_count": mention_count,
-            "co_follows": len(platforms) >= 2,  # True if cross-platform match
-        })
+        connections.append(
+            {
+                "username": username,
+                "platforms": platforms,
+                "mention_count": mention_count,
+                "co_follows": len(platforms) >= 2,  # True if cross-platform match
+            }
+        )
 
     return connections

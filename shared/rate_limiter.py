@@ -10,6 +10,7 @@ Usage:
     await limiter.acquire("twitter.com", rate=1.0, burst=5)
     # blocks until a token is available, then returns
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -28,21 +29,21 @@ _KEY_TTL = 3600  # 1 hour — keys auto-expire when idle
 class RateLimitSpec:
     """Rate limit specification for a domain/key."""
 
-    rate: float   # tokens per second (e.g. 1.0 = 1 req/s)
-    burst: int    # maximum burst size (max simultaneous tokens)
+    rate: float  # tokens per second (e.g. 1.0 = 1 req/s)
+    burst: int  # maximum burst size (max simultaneous tokens)
 
     @classmethod
-    def conservative(cls) -> "RateLimitSpec":
+    def conservative(cls) -> RateLimitSpec:
         """1 request per second, burst 3."""
         return cls(rate=1.0, burst=3)
 
     @classmethod
-    def moderate(cls) -> "RateLimitSpec":
+    def moderate(cls) -> RateLimitSpec:
         """2 requests per second, burst 10."""
         return cls(rate=2.0, burst=10)
 
     @classmethod
-    def aggressive(cls) -> "RateLimitSpec":
+    def aggressive(cls) -> RateLimitSpec:
         """5 requests per second, burst 20."""
         return cls(rate=5.0, burst=20)
 
@@ -51,20 +52,20 @@ class RateLimitSpec:
 # Exact key match tried first; then first matching prefix.
 _DOMAIN_DEFAULTS: dict[str, RateLimitSpec] = {
     # Public government APIs — can handle higher throughput
-    "api.open.fec.gov":          RateLimitSpec(rate=2.0, burst=10),
-    "api.opensanctions.org":     RateLimitSpec(rate=1.0, burst=5),
-    "namus.gov":                 RateLimitSpec(rate=0.5, burst=2),
+    "api.open.fec.gov": RateLimitSpec(rate=2.0, burst=10),
+    "api.opensanctions.org": RateLimitSpec(rate=1.0, burst=5),
+    "namus.gov": RateLimitSpec(rate=0.5, burst=2),
     # Social platforms — conservative to avoid bans
-    "mastodon.social":           RateLimitSpec(rate=1.0, burst=5),
-    "steamcommunity.com":        RateLimitSpec(rate=0.5, burst=3),
-    "api.twitch.tv":             RateLimitSpec(rate=5.0, burst=20),
-    "api.spotify.com":           RateLimitSpec(rate=2.0, burst=10),
+    "mastodon.social": RateLimitSpec(rate=1.0, burst=5),
+    "steamcommunity.com": RateLimitSpec(rate=0.5, burst=3),
+    "api.twitch.tv": RateLimitSpec(rate=5.0, burst=20),
+    "api.spotify.com": RateLimitSpec(rate=2.0, burst=10),
     # Sanctions/bulk data — cached, minimal rate needed
     "ofsistorage.blob.core.windows.net": RateLimitSpec(rate=0.1, burst=1),
-    "webgate.ec.europa.eu":      RateLimitSpec(rate=0.1, burst=1),
-    "www.treasury.gov":          RateLimitSpec(rate=0.2, burst=2),
+    "webgate.ec.europa.eu": RateLimitSpec(rate=0.1, burst=1),
+    "www.treasury.gov": RateLimitSpec(rate=0.2, burst=2),
     # Default for unknown domains
-    "__default__":               RateLimitSpec(rate=1.0, burst=5),
+    "__default__": RateLimitSpec(rate=1.0, burst=5),
 }
 
 
@@ -150,21 +151,20 @@ end
 
         waited = 0.0
         while True:
-            retry_after_ms = await self._try_acquire(
-                key, effective_rate, effective_burst
-            )
+            retry_after_ms = await self._try_acquire(key, effective_rate, effective_burst)
             if retry_after_ms == 0:
                 return  # token acquired
 
             wait_s = retry_after_ms / 1000.0
             if waited + wait_s > max_wait_seconds:
-                raise asyncio.TimeoutError(
-                    f"Rate limit wait exceeded {max_wait_seconds}s for key={key!r}"
-                )
+                raise TimeoutError(f"Rate limit wait exceeded {max_wait_seconds}s for key={key!r}")
 
             logger.debug(
                 "Rate limiter: key=%r sleeping %.2fs (rate=%.1f burst=%d)",
-                key, wait_s, effective_rate, effective_burst,
+                key,
+                wait_s,
+                effective_rate,
+                effective_burst,
             )
             await asyncio.sleep(wait_s)
             waited += wait_s

@@ -7,11 +7,12 @@ No external APIs. All data sourced from:
   - shared.models.social_profile.SocialProfile
   - shared.models.person.Person
 """
+
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,35 +20,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from shared.models.employment import EmploymentHistory
 from shared.models.person import Person
 from shared.models.relationship import Relationship
-from shared.models.social_profile import SocialProfile
-
 
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class CompanyRecord:
     id: str
     legal_name: str
     dba_names: list[str]
-    entity_type: str          # "llc" | "corporation" | "nonprofit" | "sole_prop" | "unknown"
-    status: str               # "active" | "dissolved" | "suspended" | "unknown"
+    entity_type: str  # "llc" | "corporation" | "nonprofit" | "sole_prop" | "unknown"
+    status: str  # "active" | "dissolved" | "suspended" | "unknown"
     state_of_incorporation: str | None
     incorporation_date: datetime | None
     ein: str | None
     website: str | None
-    hq_address: dict | None   # {street, city, state, zip}
-    officers: list[dict]      # [{name, title}]
-    court_cases: list[dict]   # [{case_number, type, status}]
+    hq_address: dict | None  # {street, city, state, zip}
+    officers: list[dict]  # [{name, title}]
+    court_cases: list[dict]  # [{case_number, type, status}]
     data_sources: list[str]
     confidence_score: float
-    last_updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_record_from_rows(
     employer_name: str,
@@ -115,6 +116,7 @@ def _build_record_from_rows(
 # Engine
 # ---------------------------------------------------------------------------
 
+
 class CompanyIntelligenceEngine:
     """Query company data from the Lycan-Data relational store."""
 
@@ -146,10 +148,7 @@ class CompanyIntelligenceEngine:
         # Filter by state if provided
         if state:
             state_lower = state.lower()
-            rows = [
-                r for r in rows
-                if r.location and state_lower in r.location.lower()
-            ]
+            rows = [r for r in rows if r.location and state_lower in r.location.lower()]
 
         if not rows:
             return []
@@ -164,9 +163,7 @@ class CompanyIntelligenceEngine:
         person_ids = list({str(r.person_id) for r in rows if r.person_id})
         person_rows: list[Person] = []
         if person_ids:
-            p_stmt = select(Person).where(
-                Person.id.in_([uuid.UUID(pid) for pid in person_ids])
-            )
+            p_stmt = select(Person).where(Person.id.in_([uuid.UUID(pid) for pid in person_ids]))
             p_result = await session.execute(p_stmt)
             person_rows = list(p_result.scalars().all())
 
@@ -202,9 +199,7 @@ class CompanyIntelligenceEngine:
 
         person_rows: list[Person] = []
         if person_ids:
-            p_stmt = select(Person).where(
-                Person.id.in_([uuid.UUID(pid) for pid in person_ids])
-            )
+            p_stmt = select(Person).where(Person.id.in_([uuid.UUID(pid) for pid in person_ids]))
             p_result = await session.execute(p_stmt)
             person_rows = list(p_result.scalars().all())
 

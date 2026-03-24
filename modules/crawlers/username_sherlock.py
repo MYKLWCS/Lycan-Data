@@ -4,7 +4,9 @@ username_sherlock.py — Sherlock subprocess wrapper.
 Searches 300+ sites for a username using the sherlock CLI tool.
 Registered as "username_sherlock".
 """
+
 from __future__ import annotations
+
 import asyncio
 import logging
 import re
@@ -21,13 +23,18 @@ SHERLOCK_TIMEOUT = 180  # seconds
 async def _run_sherlock(username: str) -> list[dict]:
     """Run sherlock, return list of {site, url} dicts."""
     proc = await asyncio.create_subprocess_exec(
-        "sherlock", username, "--print-found", "--no-color", "--timeout", "10",
+        "sherlock",
+        username,
+        "--print-found",
+        "--no-color",
+        "--timeout",
+        "10",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
     )
     stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=SHERLOCK_TIMEOUT)
     text = stdout.decode(errors="replace")
-    matches = re.findall(r'\[\+\]\s+([^:]+):\s+(https?://\S+)', text)
+    matches = re.findall(r"\[\+\]\s+([^:]+):\s+(https?://\S+)", text)
     return [{"site": m[0].strip(), "url": m[1].strip()} for m in matches]
 
 
@@ -35,13 +42,14 @@ async def _check_sherlock_installed() -> bool:
     """Return True if sherlock is available on PATH."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "sherlock", "--help",
+            "sherlock",
+            "--help",
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
         await asyncio.wait_for(proc.communicate(), timeout=10)
         return True
-    except (FileNotFoundError, asyncio.TimeoutError):
+    except (TimeoutError, FileNotFoundError):
         return False
 
 
@@ -71,7 +79,7 @@ class UsernameSherockCrawler(BaseCrawler):
 
         try:
             found_on = await _run_sherlock(username)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CrawlerResult(
                 platform=self.platform,
                 identifier=identifier,

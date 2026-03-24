@@ -3,7 +3,9 @@ Obituary search crawler — scrapes Legacy.com and FindAGrave for mentions of a
 name or their family members. Survived-by / preceded-by parsing surfaces living
 vs deceased relatives without any active probing of the subject.
 """
+
 from __future__ import annotations
+
 import logging
 import re
 from urllib.parse import quote
@@ -87,17 +89,24 @@ class ObituarySearchCrawler(HttpxCrawler):
 
 # ── Parsers ───────────────────────────────────────────────────────────────────
 
+
 def _parse_legacy(html: str, query: str) -> list[dict]:
     """Parse Legacy.com search results page."""
     soup = BeautifulSoup(html, "html.parser")
     results = []
 
     # Legacy.com listing containers
-    listings = soup.select("div.obituary-listing, div[data-component='ObituaryCard'], article.obit-card")
+    listings = soup.select(
+        "div.obituary-listing, div[data-component='ObituaryCard'], article.obit-card"
+    )
     if not listings:
         # Fallback: any section that looks like an obit listing
-        listings = [el for el in soup.find_all("div") if el.get("class") and
-                    any("obituary" in c.lower() or "obit" in c.lower() for c in el.get("class", []))]
+        listings = [
+            el
+            for el in soup.find_all("div")
+            if el.get("class")
+            and any("obituary" in c.lower() or "obit" in c.lower() for c in el.get("class", []))
+        ]
 
     for card in listings[:10]:
         obit = _extract_legacy_card(card)
@@ -114,7 +123,9 @@ def _extract_legacy_card(card) -> dict | None:
         data: dict = {}
 
         # Name
-        name_el = card.find(["h3", "h2", "a"], class_=lambda c: c and "name" in c.lower() if c else False)
+        name_el = card.find(
+            ["h3", "h2", "a"], class_=lambda c: c and "name" in c.lower() if c else False
+        )
         if not name_el:
             name_el = card.find(["h3", "h2"])
         data["name"] = name_el.get_text(strip=True) if name_el else ""
@@ -132,7 +143,9 @@ def _extract_legacy_card(card) -> dict | None:
         data["date"] = date_el.get_text(strip=True) if date_el else None
 
         # Location
-        loc_el = card.find(class_=lambda c: c and ("location" in c.lower() or "city" in c.lower()) if c else False)
+        loc_el = card.find(
+            class_=lambda c: c and ("location" in c.lower() or "city" in c.lower()) if c else False
+        )
         data["location"] = loc_el.get_text(strip=True) if loc_el else None
 
         # Full text for survived_by / preceded_by
@@ -173,7 +186,9 @@ def _extract_findagrave_card(card) -> dict | None:
     try:
         data: dict = {}
 
-        name_el = card.find(["a", "h3", "h2"], class_=lambda c: c and "name" in c.lower() if c else False)
+        name_el = card.find(
+            ["a", "h3", "h2"], class_=lambda c: c and "name" in c.lower() if c else False
+        )
         if not name_el:
             name_el = card.find(["h3", "h2", "a"])
         data["name"] = name_el.get_text(strip=True) if name_el else ""
@@ -201,6 +216,7 @@ def _extract_findagrave_card(card) -> dict | None:
 
 # ── Text extraction helpers ───────────────────────────────────────────────────
 
+
 def _extract_survived_by(text: str) -> list[str]:
     """
     Pull names listed after 'survived by' — these are still-living relatives.
@@ -211,11 +227,13 @@ def _extract_survived_by(text: str) -> list[str]:
     for marker in markers:
         idx = text_lower.find(marker)
         if idx != -1:
-            segment = text[idx + len(marker):idx + len(marker) + 400]
+            segment = text[idx + len(marker) : idx + len(marker) + 400]
             # Stop at next structural marker
-            stop = re.search(r"(?:preceded by|in lieu|memorial service|funeral|visitation|\.)", segment, re.I)
+            stop = re.search(
+                r"(?:preceded by|in lieu|memorial service|funeral|visitation|\.)", segment, re.I
+            )
             if stop:
-                segment = segment[:stop.start()]
+                segment = segment[: stop.start()]
             names = _extract_names_from_segment(segment)
             return names
     return []
@@ -231,10 +249,12 @@ def _extract_preceded_by(text: str) -> list[str]:
     for marker in markers:
         idx = text_lower.find(marker)
         if idx != -1:
-            segment = text[idx + len(marker):idx + len(marker) + 400]
-            stop = re.search(r"(?:survived by|memorial service|funeral|visitation|\.)", segment, re.I)
+            segment = text[idx + len(marker) : idx + len(marker) + 400]
+            stop = re.search(
+                r"(?:survived by|memorial service|funeral|visitation|\.)", segment, re.I
+            )
             if stop:
-                segment = segment[:stop.start()]
+                segment = segment[: stop.start()]
             names = _extract_names_from_segment(segment)
             return names
     return []

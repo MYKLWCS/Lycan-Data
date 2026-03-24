@@ -5,7 +5,9 @@ Checks an email address against the emailrep.io reputation database.
 Returns reputation score, suspicious flags, breach and profile data.
 Registered as "email_emailrep".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler

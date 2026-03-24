@@ -1,21 +1,23 @@
 """Deduplication API routes — find and merge duplicate person records."""
+
 import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
 from api.serializers import _serialize
-from modules.enrichers.deduplication import score_person_dedup, AsyncMergeExecutor
+from modules.enrichers.deduplication import AsyncMergeExecutor, score_person_dedup
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 # ── Request schemas ────────────────────────────────────────────────────────────
+
 
 class MergeRequest(BaseModel):
     canonical_id: str
@@ -27,6 +29,7 @@ class BatchCandidatesRequest(BaseModel):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _validate_uuid(value: str) -> uuid.UUID:
     """Parse and return a UUID, raising HTTP 400 on failure."""
@@ -46,6 +49,7 @@ def _candidate_to_dict(c) -> dict:
 
 
 # ── Endpoints — fixed paths MUST be declared before parameterised paths ────────
+
 
 @router.post("/merge")
 async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
@@ -91,7 +95,7 @@ async def batch_candidates(req: BatchCandidatesRequest, session: AsyncSession = 
     for pid in req.person_ids:
         try:
             candidates = await score_person_dedup(pid, session)
-        except Exception as exc:
+        except Exception:
             logger.exception("score_person_dedup failed person_id=%s (batch)", pid)
             continue
 
@@ -134,8 +138,7 @@ async def merge_history(person_id: str, session: AsyncSession = DbDep):
     try:
         result = await session.execute(
             sa_text(
-                "SELECT * FROM audit_log WHERE person_id = :id "
-                "ORDER BY access_time DESC LIMIT 50"
+                "SELECT * FROM audit_log WHERE person_id = :id ORDER BY access_time DESC LIMIT 50"
             ),
             {"id": person_id},
         )

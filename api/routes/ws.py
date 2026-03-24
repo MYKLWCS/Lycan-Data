@@ -1,4 +1,5 @@
 """WebSocket and SSE endpoints for real-time scrape progress."""
+
 import asyncio
 import json
 import logging
@@ -49,7 +50,7 @@ async def scrape_progress(websocket: WebSocket, person_id: str):
                 # Echo pings back (browser keepalive pattern)
                 if msg == "ping":
                     await websocket.send_json({"event": "pong"})
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Send a server-side ping
                 try:
                     await websocket.send_json({"event": "ping"})
@@ -94,7 +95,7 @@ async def sse_progress(person_id: str, request: Request):
                     yield f"data: {json.dumps(msg)}\n\n"
                     if msg.get("event") == "done":
                         break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     yield f"data: {json.dumps({'event': 'heartbeat'})}\n\n"
         finally:
             sub_task.cancel()

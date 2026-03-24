@@ -3,7 +3,9 @@ Social posts analyzer — meta-enricher that post-processes already-scraped
 social profile and post text. Runs biographical and psychological analysis
 on cached text without hitting any external network endpoints.
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.base import BaseCrawler

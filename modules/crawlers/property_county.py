@@ -11,6 +11,7 @@ identifier format: "{address}|{county},{state}"
   e.g. "123 Main St|Cook,IL"
   The county/state portion is optional — bare addresses are accepted.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,14 +26,13 @@ from shared.tor import TorInstance
 
 logger = logging.getLogger(__name__)
 
-_PROPERTYSHARK_URL = (
-    "https://www.propertyshark.com/Real-Estate-Reports/{address}/"
-)
+_PROPERTYSHARK_URL = "https://www.propertyshark.com/Real-Estate-Reports/{address}/"
 
 
 # ---------------------------------------------------------------------------
 # Identifier parsing
 # ---------------------------------------------------------------------------
+
 
 def _parse_identifier(identifier: str) -> tuple[str, str, str]:
     """
@@ -53,6 +53,7 @@ def _parse_identifier(identifier: str) -> tuple[str, str, str]:
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_propertyshark_html(html: str) -> dict[str, Any]:
     """
     Parse PropertyShark property report page.
@@ -61,18 +62,19 @@ def _parse_propertyshark_html(html: str) -> dict[str, Any]:
               lot_size, zoning, last_sale_price, last_sale_date.
     """
     details: dict[str, Any] = {
-        "owner_name":      None,
-        "assessed_value":  None,
-        "tax_amount":      None,
-        "year_built":      None,
-        "lot_size":        None,
-        "zoning":          None,
+        "owner_name": None,
+        "assessed_value": None,
+        "tax_amount": None,
+        "year_built": None,
+        "lot_size": None,
+        "zoning": None,
         "last_sale_price": None,
-        "last_sale_date":  None,
+        "last_sale_date": None,
     }
 
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
 
         # --- Owner name ---
@@ -136,9 +138,7 @@ def _parse_propertyshark_html(html: str) -> dict[str, Any]:
                 m = re.search(r"\d+", txt)
                 if m:
                     details["last_sale_price"] = int(m.group())
-        sale_date_label = soup.find(
-            string=re.compile(r"Sale\s+Date|Last\s+Sale\s+Date", re.I)
-        )
+        sale_date_label = soup.find(string=re.compile(r"Sale\s+Date|Last\s+Sale\s+Date", re.I))
         if sale_date_label:
             nxt = sale_date_label.parent.find_next_sibling()
             if nxt:
@@ -165,6 +165,7 @@ def _parse_propertyshark_html(html: str) -> dict[str, Any]:
 # Crawler
 # ---------------------------------------------------------------------------
 
+
 @register("property_county")
 class PropertyCountyCrawler(PlaywrightCrawler):
     """
@@ -189,11 +190,7 @@ class PropertyCountyCrawler(PlaywrightCrawler):
         details = await self._scrape_propertyshark(url)
         details["address"] = address
 
-        found = any(
-            v is not None
-            for k, v in details.items()
-            if k != "address"
-        )
+        found = any(v is not None for k, v in details.items() if k != "address")
 
         return self._result(
             identifier,
@@ -215,12 +212,12 @@ class PropertyCountyCrawler(PlaywrightCrawler):
         except Exception as exc:
             logger.warning("PropertyShark scrape error: %s", exc)
             return {
-                "owner_name":      None,
-                "assessed_value":  None,
-                "tax_amount":      None,
-                "year_built":      None,
-                "lot_size":        None,
-                "zoning":          None,
+                "owner_name": None,
+                "assessed_value": None,
+                "tax_amount": None,
+                "year_built": None,
+                "lot_size": None,
+                "zoning": None,
                 "last_sale_price": None,
-                "last_sale_date":  None,
+                "last_sale_date": None,
             }

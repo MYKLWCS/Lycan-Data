@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 from typing import Any
 from urllib.parse import urlparse
@@ -55,6 +56,7 @@ class HttpxCrawler(BaseCrawler):
 
         # Circuit breaker check — block if domain is in OPEN state
         from shared.circuit_breaker import get_circuit_breaker
+
         cb = get_circuit_breaker()
         if await cb.is_open(domain):
             logger.warning("httpx GET blocked by circuit breaker: %s", domain)
@@ -62,6 +64,7 @@ class HttpxCrawler(BaseCrawler):
 
         # Rate limiter — wait for token before sending
         from shared.rate_limiter import get_rate_limiter
+
         try:
             await get_rate_limiter().acquire(domain)
         except Exception as exc:
@@ -85,12 +88,14 @@ class HttpxCrawler(BaseCrawler):
         domain = _domain_from_url(url)
 
         from shared.circuit_breaker import get_circuit_breaker
+
         cb = get_circuit_breaker()
         if await cb.is_open(domain):
             logger.warning("httpx POST blocked by circuit breaker: %s", domain)
             return None
 
         from shared.rate_limiter import get_rate_limiter
+
         try:
             await get_rate_limiter().acquire(domain)
         except Exception as exc:

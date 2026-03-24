@@ -6,12 +6,13 @@ Covers:
   - Shared connection detection across a list of persons
   - Fraud ring detection via shared addresses / phone numbers
 """
+
 from __future__ import annotations
 
 import uuid
 from collections import defaultdict
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.models.address import Address
@@ -21,10 +22,10 @@ from shared.models.person import Person
 from shared.models.relationship import Relationship
 from shared.models.social_profile import SocialProfile
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _person_node(person: Person) -> dict:
     return {
@@ -46,6 +47,7 @@ def _edge(source: str, target: str, edge_type: str, confidence: float) -> dict:
 # ---------------------------------------------------------------------------
 # Builder
 # ---------------------------------------------------------------------------
+
 
 class EntityGraphBuilder:
     """Build entity-relationship graphs from the Lycan-Data relational store."""
@@ -91,43 +93,69 @@ class EntityGraphBuilder:
             # Batch all associated data for the entire frontier at once
             frontier_list = list(frontier)
 
-            addr_rows_batch = (await session.execute(
-                select(Address).where(Address.person_id.in_(frontier_list))
-            )).scalars().all()
+            addr_rows_batch = (
+                (await session.execute(select(Address).where(Address.person_id.in_(frontier_list))))
+                .scalars()
+                .all()
+            )
             addr_by_pid: dict[uuid.UUID, list] = defaultdict(list)
             for a in addr_rows_batch:
                 addr_by_pid[a.person_id].append(a)
 
-            ident_rows_batch = (await session.execute(
-                select(Identifier).where(Identifier.person_id.in_(frontier_list))
-            )).scalars().all()
+            ident_rows_batch = (
+                (
+                    await session.execute(
+                        select(Identifier).where(Identifier.person_id.in_(frontier_list))
+                    )
+                )
+                .scalars()
+                .all()
+            )
             ident_by_pid: dict[uuid.UUID, list] = defaultdict(list)
             for i in ident_rows_batch:
                 ident_by_pid[i.person_id].append(i)
 
-            emp_rows_batch = (await session.execute(
-                select(EmploymentHistory).where(
-                    EmploymentHistory.person_id.in_(frontier_list),
-                    EmploymentHistory.employer_name.isnot(None),
+            emp_rows_batch = (
+                (
+                    await session.execute(
+                        select(EmploymentHistory).where(
+                            EmploymentHistory.person_id.in_(frontier_list),
+                            EmploymentHistory.employer_name.isnot(None),
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
             emp_by_pid: dict[uuid.UUID, list] = defaultdict(list)
             for e in emp_rows_batch:
                 emp_by_pid[e.person_id].append(e)
 
-            sp_rows_batch = (await session.execute(
-                select(SocialProfile).where(SocialProfile.person_id.in_(frontier_list))
-            )).scalars().all()
+            sp_rows_batch = (
+                (
+                    await session.execute(
+                        select(SocialProfile).where(SocialProfile.person_id.in_(frontier_list))
+                    )
+                )
+                .scalars()
+                .all()
+            )
             sp_by_pid: dict[uuid.UUID, list] = defaultdict(list)
             for s in sp_rows_batch:
                 sp_by_pid[s.person_id].append(s)
 
-            rel_rows_batch = (await session.execute(
-                select(Relationship).where(
-                    (Relationship.person_a_id.in_(frontier_list))
-                    | (Relationship.person_b_id.in_(frontier_list))
+            rel_rows_batch = (
+                (
+                    await session.execute(
+                        select(Relationship).where(
+                            (Relationship.person_a_id.in_(frontier_list))
+                            | (Relationship.person_b_id.in_(frontier_list))
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
             rel_by_pid: dict[uuid.UUID, list] = defaultdict(list)
             for r in rel_rows_batch:
                 rel_by_pid[r.person_a_id].append(r)
@@ -135,9 +163,7 @@ class EntityGraphBuilder:
 
             edge_keys: set[frozenset] = set()
 
-            def _add_edge_dedup(
-                source: str, target: str, etype: str, conf: float
-            ) -> None:
+            def _add_edge_dedup(source: str, target: str, etype: str, conf: float) -> None:
                 key = frozenset([source, target, etype])
                 if key not in edge_keys:
                     edge_keys.add(key)
@@ -165,9 +191,7 @@ class EntityGraphBuilder:
                     edge_type = f"has_{itype}"
                     iid = f"ident:{ident.id}"
                     nodes[iid] = _stub_node(iid, node_type, ident.value)
-                    edges.append(
-                        _edge(pid_str, iid, edge_type, ident.confidence or 1.0)
-                    )
+                    edges.append(_edge(pid_str, iid, edge_type, ident.confidence or 1.0))
 
                 # --- Employment / company nodes ---
                 for emp in emp_by_pid.get(pid, []):
@@ -192,11 +216,7 @@ class EntityGraphBuilder:
                     if rel.id in seen_rels:
                         continue
                     seen_rels.add(rel.id)
-                    other_id = (
-                        rel.person_b_id
-                        if rel.person_a_id == pid
-                        else rel.person_a_id
-                    )
+                    other_id = rel.person_b_id if rel.person_a_id == pid else rel.person_a_id
                     other_str = str(other_id)
                     if other_id not in visited_persons:
                         next_frontier.add(other_id)

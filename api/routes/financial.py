@@ -1,19 +1,20 @@
 """Financial & AML API routes."""
+
 import logging
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
-from api.serializers import _model_to_dict, _safe_asdict
+from api.serializers import _model_to_dict
 from modules.enrichers.financial_aml import FinancialIntelligenceEngine
 from modules.enrichers.marketing_tags import HighInterestBorrowerScorer
 from shared.models.address import Address
-from shared.models.criminal import CriminalRecord
 from shared.models.credit_risk import CreditRiskAssessment
+from shared.models.criminal import CriminalRecord
 from shared.models.employment import EmploymentHistory
 from shared.models.watchlist import WatchlistMatch
 from shared.models.wealth import WealthAssessment
@@ -27,11 +28,13 @@ _borrower_scorer = HighInterestBorrowerScorer()
 
 # ── Request schemas ───────────────────────────────────────────────────────────
 
+
 class BorrowerScoreRequest(BaseModel):
     person_id: str
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("/{person_id}/score")
 async def score_person(person_id: str, session: AsyncSession = DbDep):
@@ -69,12 +72,18 @@ async def get_latest_assessment(person_id: str, session: AsyncSession = DbDep):
     except ValueError:
         raise HTTPException(400, f"Invalid UUID: {person_id!r}")
 
-    row = (await session.execute(
-        select(CreditRiskAssessment)
-        .where(CreditRiskAssessment.person_id == uid)
-        .order_by(CreditRiskAssessment.assessed_at.desc())
-        .limit(1)
-    )).scalars().first()
+    row = (
+        (
+            await session.execute(
+                select(CreditRiskAssessment)
+                .where(CreditRiskAssessment.person_id == uid)
+                .order_by(CreditRiskAssessment.assessed_at.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
 
     if not row:
         raise HTTPException(404, "No credit risk assessment found for this person")
@@ -90,11 +99,15 @@ async def get_aml_matches(person_id: str, session: AsyncSession = DbDep):
     except ValueError:
         raise HTTPException(400, f"Invalid UUID: {person_id!r}")
 
-    rows = (await session.execute(
-        select(WatchlistMatch)
-        .where(WatchlistMatch.person_id == uid)
-        .limit(500)
-    )).scalars().all()
+    rows = (
+        (
+            await session.execute(
+                select(WatchlistMatch).where(WatchlistMatch.person_id == uid).limit(500)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return {
         "person_id": person_id,
@@ -121,24 +134,34 @@ async def borrower_score(req: BorrowerScoreRequest, session: AsyncSession = DbDe
     except ValueError:
         raise HTTPException(400, f"Invalid UUID: {req.person_id!r}")
 
-    criminals = list((await session.execute(
-        select(CriminalRecord).where(CriminalRecord.person_id == uid)
-    )).scalars().all())
+    criminals = list(
+        (await session.execute(select(CriminalRecord).where(CriminalRecord.person_id == uid)))
+        .scalars()
+        .all()
+    )
 
-    addresses = list((await session.execute(
-        select(Address).where(Address.person_id == uid)
-    )).scalars().all())
+    addresses = list(
+        (await session.execute(select(Address).where(Address.person_id == uid))).scalars().all()
+    )
 
-    employment = list((await session.execute(
-        select(EmploymentHistory).where(EmploymentHistory.person_id == uid)
-    )).scalars().all())
+    employment = list(
+        (await session.execute(select(EmploymentHistory).where(EmploymentHistory.person_id == uid)))
+        .scalars()
+        .all()
+    )
 
-    wealth = (await session.execute(
-        select(WealthAssessment)
-        .where(WealthAssessment.person_id == uid)
-        .order_by(WealthAssessment.assessed_at.desc())
-        .limit(1)
-    )).scalars().first()
+    wealth = (
+        (
+            await session.execute(
+                select(WealthAssessment)
+                .where(WealthAssessment.person_id == uid)
+                .order_by(WealthAssessment.assessed_at.desc())
+                .limit(1)
+            )
+        )
+        .scalars()
+        .first()
+    )
 
     profile = _borrower_scorer.score(criminals, addresses, employment, wealth)
 

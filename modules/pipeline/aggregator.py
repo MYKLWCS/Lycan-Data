@@ -4,33 +4,36 @@ Person Aggregation Pipeline.
 Takes a CrawlerResult and writes it into the correct DB tables,
 linked to the right Person. Handles all result types.
 """
+
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.crawlers.result import CrawlerResult
 from shared.constants import (
-    IdentifierType, Platform, AlertType, AlertSeverity,
+    AlertSeverity,
+    AlertType,
+    IdentifierType,
+    Platform,
 )
-from shared.data_quality import apply_quality_to_model, assess_quality
-from shared.models.person import Person
-from shared.models.identifier import Identifier
-from shared.models.social_profile import SocialProfile
+from shared.data_quality import apply_quality_to_model
 from shared.models.address import Address
-from shared.models.behavioural import BehaviouralProfile
-from shared.models.burner import BurnerAssessment
-from shared.models.watchlist import WatchlistMatch
-from shared.models.darkweb import DarkwebMention
 from shared.models.alert import Alert
+from shared.models.behavioural import BehaviouralProfile
 from shared.models.breach import BreachRecord
 from shared.models.criminal import CriminalRecord
-from shared.models.identity_document import IdentityDocument, CreditProfile
+from shared.models.darkweb import DarkwebMention
+from shared.models.identifier import Identifier
 from shared.models.identifier_history import IdentifierHistory
+from shared.models.identity_document import CreditProfile
+from shared.models.person import Person
+from shared.models.social_profile import SocialProfile
+from shared.models.watchlist import WatchlistMatch
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +45,10 @@ _PHONE_PLATFORMS = {"phone_carrier", "phone_fonefinder", "phone_truecaller"}
 
 # Email breach platform keys
 _EMAIL_BREACH_PLATFORMS = {
-    "email_hibp", "email_holehe", "email_leakcheck", "email_breach",
+    "email_hibp",
+    "email_holehe",
+    "email_leakcheck",
+    "email_breach",
 }
 
 # Sanctions / watchlist platform keys
@@ -50,14 +56,19 @@ _SANCTIONS_PLATFORMS = {"sanctions_ofac", "sanctions_un", "sanctions_fbi"}
 
 # Dark-web / paste platform keys
 _DARKWEB_PLATFORMS = {
-    "darkweb_ahmia", "darkweb_torch",
-    "paste_pastebin", "paste_ghostbin", "paste_psbdmp",
+    "darkweb_ahmia",
+    "darkweb_torch",
+    "paste_pastebin",
+    "paste_ghostbin",
+    "paste_psbdmp",
     "telegram_dark",
 }
 
 # People-search platform keys
 _PEOPLE_SEARCH_PLATFORMS = {
-    "whitepages", "fastpeoplesearch", "truepeoplesearch",
+    "whitepages",
+    "fastpeoplesearch",
+    "truepeoplesearch",
 }
 
 # Court / criminal record platform keys
@@ -101,13 +112,35 @@ async def aggregate_result(
             or result.data.get("owner_name")
         )
         import re as _re
+
         _PLATFORM_WORDS = {
-            "youtube", "snapchat", "instagram", "twitter", "facebook", "tiktok",
-            "linkedin", "reddit", "telegram", "whatsapp", "discord", "twitch",
-            "steam", "pinterest", "mastodon", "github",
+            "youtube",
+            "snapchat",
+            "instagram",
+            "twitter",
+            "facebook",
+            "tiktok",
+            "linkedin",
+            "reddit",
+            "telegram",
+            "whatsapp",
+            "discord",
+            "twitch",
+            "steam",
+            "pinterest",
+            "mastodon",
+            "github",
             # Consent page markers
-            "cookie", "consent", "gdpr", "weitergehen", "continuer", "fortsätter",
-            "continuar", "continue", "privacy", "terms",
+            "cookie",
+            "consent",
+            "gdpr",
+            "weitergehen",
+            "continuer",
+            "fortsätter",
+            "continuar",
+            "continue",
+            "privacy",
+            "terms",
         }
         if candidate and isinstance(candidate, str):
             c = candidate.strip()
@@ -204,9 +237,11 @@ async def aggregate_result(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _normalize_name(name: str) -> str:
     """Lowercase, strip whitespace, collapse inner spaces for fuzzy matching."""
     import re
+
     return re.sub(r"\s+", " ", name.lower().strip())
 
 
@@ -232,18 +267,14 @@ async def _get_or_create_person(
 
     # Try to find by normalized full_name if result carries one
     full_name = (
-        result.data.get("name")
-        or result.data.get("full_name")
-        or result.data.get("display_name")
+        result.data.get("name") or result.data.get("full_name") or result.data.get("display_name")
     )
     if full_name:
         norm = _normalize_name(full_name)
         # Match on exact normalized name to avoid false-positive merges
-        existing = (await session.execute(
-            select(Person).where(
-                Person.full_name.ilike(norm)
-            ).limit(1)
-        )).scalar_one_or_none()
+        existing = (
+            await session.execute(select(Person).where(Person.full_name.ilike(norm)).limit(1))
+        ).scalar_one_or_none()
         if existing:
             return existing
 
@@ -261,20 +292,21 @@ async def _upsert_social_profile(
     """Insert or update a SocialProfile row from a CrawlerResult."""
     data = result.data or {}
     handle = (
-        data.get("handle")
-        or data.get("username")
-        or data.get("display_name")
-        or result.identifier
+        data.get("handle") or data.get("username") or data.get("display_name") or result.identifier
     )
 
-    existing = (await session.execute(
-        select(SocialProfile).where(
-            SocialProfile.platform == result.platform,
-            SocialProfile.handle == handle,
-        ).limit(1)
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(SocialProfile)
+            .where(
+                SocialProfile.platform == result.platform,
+                SocialProfile.handle == handle,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if existing:
         # Update mutable fields — never overwrite with None
@@ -338,13 +370,17 @@ async def _handle_phone_enrichment(
     data = result.data or {}
 
     # Find or create the phone Identifier
-    ident = (await session.execute(
-        select(Identifier).where(
-            Identifier.person_id == person_id,
-            Identifier.type == IdentifierType.PHONE.value,
-            Identifier.value == result.identifier,
-        ).limit(1)
-    )).scalar_one_or_none()
+    ident = (
+        await session.execute(
+            select(Identifier)
+            .where(
+                Identifier.person_id == person_id,
+                Identifier.type == IdentifierType.PHONE.value,
+                Identifier.value == result.identifier,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     if not ident:
         ident = Identifier(
@@ -387,6 +423,7 @@ async def _handle_breach_data(
         if raw_date:
             try:
                 from datetime import date
+
                 breach_date = date.fromisoformat(str(raw_date))
             except (ValueError, TypeError):
                 breach_date = None
@@ -498,10 +535,7 @@ async def _handle_darkweb(
         url = mention.get("url") or mention.get("onion_url") or ""
         url_hash = hashlib.sha256(url.encode()).hexdigest() if url else None
         snippet = (
-            mention.get("description")
-            or mention.get("preview")
-            or mention.get("content")
-            or ""
+            mention.get("description") or mention.get("preview") or mention.get("content") or ""
         )[:500]
 
         dm = DarkwebMention(
@@ -541,7 +575,7 @@ async def _handle_people_search(
     """Write Address rows from people-search results (up to 3 per scrape)."""
     data = result.data or {}
     results = data.get("results") or []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for r in results[:3]:
         if not isinstance(r, dict):
@@ -592,6 +626,7 @@ async def _handle_court_records(
         if raw_arrest:
             try:
                 from datetime import date as _date
+
                 arrest_date = _date.fromisoformat(str(raw_arrest)[:10])
             except (ValueError, TypeError):
                 pass
@@ -601,11 +636,13 @@ async def _handle_court_records(
         if raw_disp:
             try:
                 from datetime import date as _date
+
                 disposition_date = _date.fromisoformat(str(raw_disp)[:10])
             except (ValueError, TypeError):
                 pass
 
         import hashlib
+
         source_url = case.get("url") or case.get("case_url") or ""
         url_hash = hashlib.sha256(source_url.encode()).hexdigest() if source_url else None
 
@@ -615,9 +652,11 @@ async def _handle_court_records(
             record_type="charge",
             offense_level=_normalize_offense_level(case.get("level") or case.get("offense_level")),
             charge=str(case.get("charge") or case.get("offense") or "")[:500] or None,
-            offense_description=str(case.get("description") or case.get("details") or "")[:2000] or None,
+            offense_description=str(case.get("description") or case.get("details") or "")[:2000]
+            or None,
             statute=str(case.get("statute") or case.get("code") or "")[:200] or None,
-            court_case_number=str(case.get("case_number") or case.get("docket") or "")[:200] or None,
+            court_case_number=str(case.get("case_number") or case.get("docket") or "")[:200]
+            or None,
             court_name=str(case.get("court") or case.get("court_name") or "")[:300] or None,
             jurisdiction=str(case.get("jurisdiction") or case.get("county") or "")[:200] or None,
             arrest_date=arrest_date,
@@ -701,9 +740,11 @@ async def _handle_bankruptcy(
     if not cases:
         return
 
-    existing = (await session.execute(
-        select(CreditProfile).where(CreditProfile.person_id == person_id).limit(1)
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(CreditProfile).where(CreditProfile.person_id == person_id).limit(1)
+        )
+    ).scalar_one_or_none()
 
     if existing:
         existing.has_bankruptcy = True
@@ -731,7 +772,7 @@ async def _record_identifier_history(
     if not result.identifier:
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Determine type from platform context
     platform = (result.platform or "").lower()
@@ -739,22 +780,38 @@ async def _record_identifier_history(
         id_type = "phone"
     elif "email" in platform:
         id_type = "email"
-    elif platform in {"instagram", "twitter", "tiktok", "snapchat", "facebook",
-                      "linkedin", "reddit", "youtube", "telegram", "discord",
-                      "whatsapp", "pinterest", "github"}:
+    elif platform in {
+        "instagram",
+        "twitter",
+        "tiktok",
+        "snapchat",
+        "facebook",
+        "linkedin",
+        "reddit",
+        "youtube",
+        "telegram",
+        "discord",
+        "whatsapp",
+        "pinterest",
+        "github",
+    }:
         id_type = "handle"
     else:
         id_type = "identifier"
 
     normalized = result.identifier.lower().strip()
 
-    existing = (await session.execute(
-        select(IdentifierHistory).where(
-            IdentifierHistory.person_id == person_id,
-            IdentifierHistory.type == id_type,
-            IdentifierHistory.value == result.identifier,
-        ).limit(1)
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(IdentifierHistory)
+            .where(
+                IdentifierHistory.person_id == person_id,
+                IdentifierHistory.type == id_type,
+                IdentifierHistory.value == result.identifier,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     if existing:
         existing.last_seen_at = now
@@ -801,20 +858,18 @@ async def _handle_behavioural(
     substance = 1.0 if data.get("substance_language") else 0.0
     aggression = 1.0 if data.get("aggression_language") else 0.0
 
-    existing = (await session.execute(
-        select(BehaviouralProfile).where(
-            BehaviouralProfile.person_id == person_id
-        ).limit(1)
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(BehaviouralProfile).where(BehaviouralProfile.person_id == person_id).limit(1)
+        )
+    ).scalar_one_or_none()
 
     if existing:
         existing.gambling_score = max(existing.gambling_score or 0.0, gambling)
-        existing.financial_distress_score = max(
-            existing.financial_distress_score or 0.0, financial
-        )
+        existing.financial_distress_score = max(existing.financial_distress_score or 0.0, financial)
         existing.drug_signal_score = max(existing.drug_signal_score or 0.0, substance)
         existing.violence_score = max(existing.violence_score or 0.0, aggression)
-        existing.last_assessed_at = datetime.now(timezone.utc)
+        existing.last_assessed_at = datetime.now(UTC)
     else:
         bp = BehaviouralProfile(
             id=uuid.uuid4(),
@@ -825,7 +880,7 @@ async def _handle_behavioural(
             drug_signal_score=substance,
             violence_score=aggression,
             criminal_signal_score=0.0,
-            last_assessed_at=datetime.now(timezone.utc),
+            last_assessed_at=datetime.now(UTC),
         )
         session.add(bp)
 
@@ -833,7 +888,8 @@ async def _handle_behavioural(
 def _looks_like_phone_number(value: str) -> bool:
     """True if value looks like a phone number (7-15 digits, optional + prefix)."""
     import re
-    digits = re.sub(r'\D', '', value)
+
+    digits = re.sub(r"\D", "", value)
     return 7 <= len(digits) <= 15
 
 
@@ -846,16 +902,21 @@ async def _upsert_phone_identifier(
     """Ensure this phone number exists as an Identifier row for the person."""
     # Normalize: strip spaces/dashes, ensure leading +
     import re
-    digits = re.sub(r'\D', '', phone)
+
+    digits = re.sub(r"\D", "", phone)
     normalized = f"+{digits}"
 
-    existing = (await session.execute(
-        select(Identifier).where(
-            Identifier.person_id == person_id,
-            Identifier.type == IdentifierType.PHONE.value,
-            Identifier.normalized_value == normalized,
-        ).limit(1)
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(Identifier)
+            .where(
+                Identifier.person_id == person_id,
+                Identifier.type == IdentifierType.PHONE.value,
+                Identifier.normalized_value == normalized,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     if existing:
         # Confirm on an additional platform

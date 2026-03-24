@@ -1,8 +1,10 @@
 import uuid
+
 from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from shared.models.base import Base, TimestampMixin, DataQualityMixin
+
+from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
 
 class Identifier(Base, TimestampMixin, DataQualityMixin):

@@ -1,8 +1,9 @@
 """Financial/AML Intelligence Enricher — credit scoring, AML screening, fraud risk."""
+
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -23,28 +24,29 @@ logger = logging.getLogger(__name__)
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class CreditScoreResult:
-    score: int                           # 300–850 FICO-compatible
+    score: int  # 300–850 FICO-compatible
     confidence_interval: tuple[int, int]
     component_breakdown: dict[str, float]
-    risk_category: str                   # excellent | good | fair | poor | very_poor
+    risk_category: str  # excellent | good | fair | poor | very_poor
 
 
 @dataclass
 class AMLResult:
-    risk_score: float                    # 0.0–1.0
+    risk_score: float  # 0.0–1.0
     is_pep: bool
     sanctions_hits: list[dict[str, Any]]
     darkweb_mention_count: int
-    risk_tier: str                       # low | medium | high | critical
+    risk_tier: str  # low | medium | high | critical
 
 
 @dataclass
 class FraudRiskResult:
-    fraud_score: float                   # 0.0–1.0
+    fraud_score: float  # 0.0–1.0
     fraud_indicators: list[str]
-    tier: str                            # low | medium | high | critical
+    tier: str  # low | medium | high | critical
 
 
 @dataclass
@@ -53,15 +55,20 @@ class FinancialProfile:
     credit: CreditScoreResult
     aml: AMLResult
     fraud: FraudRiskResult
-    assessed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    assessed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 _SCORE_MIN, _SCORE_MAX = 300, 850
 _SCORE_RANGE = _SCORE_MAX - _SCORE_MIN
-_WEIGHTS = {"payment_behavior": 0.30, "stability": 0.25, "wealth": 0.20,
-            "utilization": 0.15, "trajectory": 0.10}
+_WEIGHTS = {
+    "payment_behavior": 0.30,
+    "stability": 0.25,
+    "wealth": 0.20,
+    "utilization": 0.15,
+    "trajectory": 0.10,
+}
 _CREDIT_TIERS = [(800, "excellent"), (740, "good"), (670, "fair"), (580, "poor"), (0, "very_poor")]
 _AML_TIERS = [(0.75, "critical"), (0.50, "high"), (0.25, "medium"), (0.0, "low")]
 _FRAUD_TIERS = [(0.75, "critical"), (0.50, "high"), (0.25, "medium"), (0.0, "low")]
@@ -72,6 +79,7 @@ def _tier(value: float, tiers: list[tuple[float, str]]) -> str:
 
 
 # ─── Alternative Credit Scorer ────────────────────────────────────────────────
+
 
 class AlternativeCreditScorer:
     """Heuristic FICO-scale scorer. XGBoost can replace _score_* methods if available."""
@@ -111,9 +119,14 @@ class AlternativeCreditScorer:
         return max(0.0, v)
 
     def _wealth(self, s: dict) -> float:
-        band_score = {"ultra_high": 1.0, "high": 0.80, "upper_middle": 0.65,
-                      "middle": 0.50, "lower_middle": 0.35, "low": 0.20}.get(
-            s.get("wealth_band", "unknown"), 0.40)
+        band_score = {
+            "ultra_high": 1.0,
+            "high": 0.80,
+            "upper_middle": 0.65,
+            "middle": 0.50,
+            "lower_middle": 0.35,
+            "low": 0.20,
+        }.get(s.get("wealth_band", "unknown"), 0.40)
         income_boost = min(0.20, ((s.get("income_estimate_usd") or 0) / 200_000) * 0.20)
         mixer_penalty = 0.15 if s.get("crypto_mixer_exposure") else 0.0
         return max(0.0, min(1.0, band_score + income_boost - mixer_penalty))
@@ -132,6 +145,7 @@ class AlternativeCreditScorer:
 
 
 # ─── AML Screener ─────────────────────────────────────────────────────────────
+
 
 class AMLScreener:
     """Screen against sanctions, PEP lists, and darkweb/crypto signals."""
@@ -152,14 +166,26 @@ class AMLScreener:
                 risk = max(risk, 0.40)
             elif row.list_type in ("sanctions", "terrorist"):
                 risk = max(risk, 0.90)
-                sanctions_hits.append({"list_name": row.list_name, "list_type": row.list_type,
-                                       "match_score": row.match_score, "match_name": row.match_name,
-                                       "is_confirmed": row.is_confirmed})
+                sanctions_hits.append(
+                    {
+                        "list_name": row.list_name,
+                        "list_type": row.list_type,
+                        "match_score": row.match_score,
+                        "match_name": row.match_name,
+                        "is_confirmed": row.is_confirmed,
+                    }
+                )
             elif row.list_type == "fugitive":
                 risk = max(risk, 0.70)
-                sanctions_hits.append({"list_name": row.list_name, "list_type": row.list_type,
-                                       "match_score": row.match_score, "match_name": row.match_name,
-                                       "is_confirmed": row.is_confirmed})
+                sanctions_hits.append(
+                    {
+                        "list_name": row.list_name,
+                        "list_type": row.list_type,
+                        "match_score": row.match_score,
+                        "match_name": row.match_name,
+                        "is_confirmed": row.is_confirmed,
+                    }
+                )
 
         if darkweb_rows:
             avg_exp = sum(r.exposure_score for r in darkweb_rows) / len(darkweb_rows)
@@ -239,8 +265,11 @@ class FraudRiskScorer:
                 indicators.append(f"{len(darkweb_rows)} darkweb mentions")
 
         # Fraud-related criminal charges
-        fraud_charges = [r for r in criminal_rows
-                         if any(kw in (r.charge or "").lower() for kw in _FRAUD_KEYWORDS)]
+        fraud_charges = [
+            r
+            for r in criminal_rows
+            if any(kw in (r.charge or "").lower() for kw in _FRAUD_KEYWORDS)
+        ]
         if fraud_charges:
             fs += min(0.40, len(fraud_charges) * 0.20)
             indicators.append(f"{len(fraud_charges)} fraud-related criminal records")
@@ -252,10 +281,13 @@ class FraudRiskScorer:
             indicators.append(f"{len(mixer_wallets)} wallet(s) with mixer exposure")
 
         fs = round(min(1.0, fs), 4)
-        return FraudRiskResult(fraud_score=fs, fraud_indicators=indicators, tier=_tier(fs, _FRAUD_TIERS))
+        return FraudRiskResult(
+            fraud_score=fs, fraud_indicators=indicators, tier=_tier(fs, _FRAUD_TIERS)
+        )
 
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
+
 
 class FinancialIntelligenceEngine:
     """Query all signals, run all scorers, persist results, emit event."""
@@ -269,52 +301,79 @@ class FinancialIntelligenceEngine:
         pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
 
         # Sequential DB queries — never asyncio.gather on same session
-        watchlist = (await session.execute(
-            select(WatchlistMatch).where(WatchlistMatch.person_id == pid)
-        )).scalars().all()
+        watchlist = (
+            (await session.execute(select(WatchlistMatch).where(WatchlistMatch.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        darkweb = (await session.execute(
-            select(DarkwebMention).where(DarkwebMention.person_id == pid)
-        )).scalars().all()
+        darkweb = (
+            (await session.execute(select(DarkwebMention).where(DarkwebMention.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        crypto = (await session.execute(
-            select(CryptoWallet).where(CryptoWallet.person_id == pid)
-        )).scalars().all()
+        crypto = (
+            (await session.execute(select(CryptoWallet).where(CryptoWallet.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        addresses = (await session.execute(
-            select(Address).where(Address.person_id == pid)
-        )).scalars().all()
+        addresses = (
+            (await session.execute(select(Address).where(Address.person_id == pid))).scalars().all()
+        )
 
-        identifiers = (await session.execute(
-            select(Identifier).where(Identifier.person_id == pid)
-        )).scalars().all()
+        identifiers = (
+            (await session.execute(select(Identifier).where(Identifier.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        criminals = (await session.execute(
-            select(CriminalRecord).where(CriminalRecord.person_id == pid)
-        )).scalars().all()
+        criminals = (
+            (await session.execute(select(CriminalRecord).where(CriminalRecord.person_id == pid)))
+            .scalars()
+            .all()
+        )
 
-        wealth_row = (await session.execute(
-            select(WealthAssessment)
-            .where(WealthAssessment.person_id == pid)
-            .order_by(WealthAssessment.assessed_at.desc())
-            .limit(1)
-        )).scalars().first()
+        wealth_row = (
+            (
+                await session.execute(
+                    select(WealthAssessment)
+                    .where(WealthAssessment.person_id == pid)
+                    .order_by(WealthAssessment.assessed_at.desc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .first()
+        )
 
         identifier_ids = [i.id for i in identifiers]
         burner_rows = []
         if identifier_ids:
-            burner_rows = (await session.execute(
-                select(BurnerAssessment).where(BurnerAssessment.identifier_id.in_(identifier_ids))
-            )).scalars().all()
+            burner_rows = (
+                (
+                    await session.execute(
+                        select(BurnerAssessment).where(
+                            BurnerAssessment.identifier_id.in_(identifier_ids)
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
 
         # Run scorers
         aml = self._aml.screen(list(watchlist), list(darkweb), list(crypto))
-        fraud = self._fraud.score(list(addresses), list(identifiers),
-                                  list(darkweb), list(criminals), list(crypto))
+        fraud = self._fraud.score(
+            list(addresses), list(identifiers), list(darkweb), list(criminals), list(crypto)
+        )
 
         signals: dict[str, Any] = {
             "criminal_felony_count": sum(1 for r in criminals if r.offense_level == "felony"),
-            "criminal_misdemeanor_count": sum(1 for r in criminals if r.offense_level == "misdemeanor"),
+            "criminal_misdemeanor_count": sum(
+                1 for r in criminals if r.offense_level == "misdemeanor"
+            ),
             "watchlist_hit_count": len(watchlist),
             "darkweb_mention_count": len(darkweb),
             "address_count": len(addresses),
@@ -329,38 +388,44 @@ class FinancialIntelligenceEngine:
         }
         credit = self._credit.score(signals)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Persist credit risk assessment
-        session.add(CreditRiskAssessment(
-            person_id=pid,
-            default_risk_score=round(1.0 - (credit.score - _SCORE_MIN) / _SCORE_RANGE, 4),
-            risk_tier=credit.risk_category,
-            gambling_weight=0.0,
-            financial_distress_weight=round(fraud.fraud_score * 0.5, 4),
-            court_judgment_weight=0.50 if any(
-                r.disposition in ("guilty", "plea_deal") for r in criminals) else 0.0,
-            burner_weight=0.0,
-            synthetic_identity_weight=min(
-                1.0, sum(1 for i in identifiers if i.confidence < 0.5) * 0.20),
-            darkweb_weight=min(1.0, len(darkweb) * 0.15),
-            criminal_weight=min(
-                1.0, signals["criminal_felony_count"] * 0.25
-                + signals["criminal_misdemeanor_count"] * 0.10),
-            signal_breakdown={
-                "credit_score": credit.score,
-                "credit_components": credit.component_breakdown,
-                "aml_risk_score": aml.risk_score,
-                "aml_tier": aml.risk_tier,
-                "fraud_score": fraud.fraud_score,
-                "fraud_tier": fraud.tier,
-                "fraud_indicators": fraud.fraud_indicators,
-                "sanctions_hits": len(aml.sanctions_hits),
-                "is_pep": aml.is_pep,
-            },
-            assessed_at=now,
-            model_version="2.0",
-        ))
+        session.add(
+            CreditRiskAssessment(
+                person_id=pid,
+                default_risk_score=round(1.0 - (credit.score - _SCORE_MIN) / _SCORE_RANGE, 4),
+                risk_tier=credit.risk_category,
+                gambling_weight=0.0,
+                financial_distress_weight=round(fraud.fraud_score * 0.5, 4),
+                court_judgment_weight=0.50
+                if any(r.disposition in ("guilty", "plea_deal") for r in criminals)
+                else 0.0,
+                burner_weight=0.0,
+                synthetic_identity_weight=min(
+                    1.0, sum(1 for i in identifiers if i.confidence < 0.5) * 0.20
+                ),
+                darkweb_weight=min(1.0, len(darkweb) * 0.15),
+                criminal_weight=min(
+                    1.0,
+                    signals["criminal_felony_count"] * 0.25
+                    + signals["criminal_misdemeanor_count"] * 0.10,
+                ),
+                signal_breakdown={
+                    "credit_score": credit.score,
+                    "credit_components": credit.component_breakdown,
+                    "aml_risk_score": aml.risk_score,
+                    "aml_tier": aml.risk_tier,
+                    "fraud_score": fraud.fraud_score,
+                    "fraud_tier": fraud.tier,
+                    "fraud_indicators": fraud.fraud_indicators,
+                    "sanctions_hits": len(aml.sanctions_hits),
+                    "is_pep": aml.is_pep,
+                },
+                assessed_at=now,
+                model_version="2.0",
+            )
+        )
 
         # Upsert WealthAssessment — update if exists, create if not
         vol_score = min(1.0, sum(w.total_volume_usd for w in crypto) / 1_000_000)
@@ -387,23 +452,21 @@ class FinancialIntelligenceEngine:
                 wealth_row.wealth_band = derived_wealth_band
             wealth_row.income_estimate_usd = base_income_min
             wealth_row.crypto_signal = crypto_signal_val
-            wealth_row.confidence = round(
-                min(1.0, (credit.score - _SCORE_MIN) / _SCORE_RANGE), 4
-            )
+            wealth_row.confidence = round(min(1.0, (credit.score - _SCORE_MIN) / _SCORE_RANGE), 4)
             wealth_row.assessed_at = now
         else:
             # Create new WealthAssessment record
-            session.add(WealthAssessment(
-                person_id=pid,
-                wealth_band=derived_wealth_band,
-                income_estimate_usd=base_income_min,
-                net_worth_estimate_usd=base_income_max,
-                confidence=round(
-                    min(1.0, (credit.score - _SCORE_MIN) / _SCORE_RANGE), 4
-                ),
-                crypto_signal=crypto_signal_val,
-                assessed_at=now,
-            ))
+            session.add(
+                WealthAssessment(
+                    person_id=pid,
+                    wealth_band=derived_wealth_band,
+                    income_estimate_usd=base_income_min,
+                    net_worth_estimate_usd=base_income_max,
+                    confidence=round(min(1.0, (credit.score - _SCORE_MIN) / _SCORE_RANGE), 4),
+                    crypto_signal=crypto_signal_val,
+                    assessed_at=now,
+                )
+            )
 
         await session.flush()
 
@@ -416,19 +479,23 @@ class FinancialIntelligenceEngine:
             person_row.behavioural_risk = round(fraud.fraud_score, 4)
             await session.flush()
 
-        profile = FinancialProfile(person_id=str(pid), credit=credit,
-                                   aml=aml, fraud=fraud, assessed_at=now)
+        profile = FinancialProfile(
+            person_id=str(pid), credit=credit, aml=aml, fraud=fraud, assessed_at=now
+        )
 
         try:
-            await event_bus.publish("enrichment", {
-                "event": "financial_scored",
-                "person_id": str(pid),
-                "credit_score": credit.score,
-                "risk_category": credit.risk_category,
-                "aml_tier": aml.risk_tier,
-                "fraud_tier": fraud.tier,
-                "assessed_at": now.isoformat(),
-            })
+            await event_bus.publish(
+                "enrichment",
+                {
+                    "event": "financial_scored",
+                    "person_id": str(pid),
+                    "credit_score": credit.score,
+                    "risk_category": credit.risk_category,
+                    "aml_tier": aml.risk_tier,
+                    "fraud_tier": fraud.tier,
+                    "assessed_at": now.isoformat(),
+                },
+            )
         except Exception:
             logger.warning("Event bus unavailable — financial_scored event not published")
 

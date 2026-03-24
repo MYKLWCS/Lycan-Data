@@ -6,6 +6,7 @@ basic country metadata and the last 5 years of GDP (current USD) data.
 
 Registered as "gov_worldbank".
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,14 +19,8 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_COUNTRY_SEARCH_URL = (
-    "https://api.worldbank.org/v2/country"
-    "?name={name}&format=json&per_page=5"
-)
-_GDP_URL = (
-    "https://api.worldbank.org/v2/country/{code}"
-    "/indicator/NY.GDP.MKTP.CD?format=json&mrv=5"
-)
+_COUNTRY_SEARCH_URL = "https://api.worldbank.org/v2/country?name={name}&format=json&per_page=5"
+_GDP_URL = "https://api.worldbank.org/v2/country/{code}/indicator/NY.GDP.MKTP.CD?format=json&mrv=5"
 
 # Common ISO-2 codes for fast path when identifier is already a code
 _ISO2_LEN = 2

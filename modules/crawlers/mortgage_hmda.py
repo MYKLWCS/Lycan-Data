@@ -12,6 +12,7 @@ identifier: "{city},{state}" or "{zip_code}"
 
 API: CFPB HMDA Data Browser 2023 aggregations endpoint.
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,12 +35,13 @@ _HMDA_ZIP_URL = (
     "?zip_codes={zip_code}&actions_taken=1&loan_types=1,2&format=json"
 )
 
-_ZIP_PATTERN = re.compile(r'^\d{5}(-\d{4})?$')
+_ZIP_PATTERN = re.compile(r"^\d{5}(-\d{4})?$")
 
 
 # ---------------------------------------------------------------------------
 # Identifier parsing
 # ---------------------------------------------------------------------------
+
 
 def _parse_identifier(identifier: str) -> tuple[str, str, str]:
     """
@@ -61,6 +63,7 @@ def _parse_identifier(identifier: str) -> tuple[str, str, str]:
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_hmda_aggregations(data: dict) -> dict[str, Any]:
     """
     Parse CFPB HMDA aggregations response into summary statistics.
@@ -68,20 +71,15 @@ def _parse_hmda_aggregations(data: dict) -> dict[str, Any]:
     Response schema varies; we normalise to our standard keys.
     """
     summary: dict[str, Any] = {
-        "total_loans":        0,
+        "total_loans": 0,
         "median_loan_amount": None,
-        "median_income":      None,
-        "denial_rate":        None,
-        "top_lenders":        [],
+        "median_income": None,
+        "denial_rate": None,
+        "top_lenders": [],
     }
 
     # The aggregations endpoint returns { aggregations: [...] } or { data: [...] }
-    rows = (
-        data.get("aggregations")
-        or data.get("data")
-        or data.get("results")
-        or []
-    )
+    rows = data.get("aggregations") or data.get("data") or data.get("results") or []
 
     if not rows:
         return summary
@@ -91,7 +89,7 @@ def _parse_hmda_aggregations(data: dict) -> dict[str, Any]:
     incomes: list[float] = []
     lender_counts: dict[str, int] = {}
     approved = 0
-    denied  = 0
+    denied = 0
 
     for row in rows:
         count = int(row.get("count", row.get("loan_count", 0)))
@@ -146,6 +144,7 @@ def _parse_hmda_aggregations(data: dict) -> dict[str, Any]:
 # Crawler
 # ---------------------------------------------------------------------------
 
+
 @register("mortgage_hmda")
 class MortgageHmdaCrawler(HttpxCrawler):
     """
@@ -180,28 +179,49 @@ class MortgageHmdaCrawler(HttpxCrawler):
             )
         else:
             return self._result(
-                identifier, found=False, error="invalid_identifier",
-                city=city, state=state, zip_code=zip_code,
-                total_loans=0, median_loan_amount=None, median_income=None,
-                denial_rate=None, top_lenders=[],
+                identifier,
+                found=False,
+                error="invalid_identifier",
+                city=city,
+                state=state,
+                zip_code=zip_code,
+                total_loans=0,
+                median_loan_amount=None,
+                median_income=None,
+                denial_rate=None,
+                top_lenders=[],
             )
 
         resp = await self.get(url)
 
         if resp is None:
             return self._result(
-                identifier, found=False, error="http_error",
-                city=city, state=state, zip_code=zip_code,
-                total_loans=0, median_loan_amount=None, median_income=None,
-                denial_rate=None, top_lenders=[],
+                identifier,
+                found=False,
+                error="http_error",
+                city=city,
+                state=state,
+                zip_code=zip_code,
+                total_loans=0,
+                median_loan_amount=None,
+                median_income=None,
+                denial_rate=None,
+                top_lenders=[],
             )
 
         if resp.status_code != 200:
             return self._result(
-                identifier, found=False, error=f"http_{resp.status_code}",
-                city=city, state=state, zip_code=zip_code,
-                total_loans=0, median_loan_amount=None, median_income=None,
-                denial_rate=None, top_lenders=[],
+                identifier,
+                found=False,
+                error=f"http_{resp.status_code}",
+                city=city,
+                state=state,
+                zip_code=zip_code,
+                total_loans=0,
+                median_loan_amount=None,
+                median_income=None,
+                denial_rate=None,
+                top_lenders=[],
             )
 
         try:
@@ -209,15 +229,22 @@ class MortgageHmdaCrawler(HttpxCrawler):
         except Exception as exc:
             logger.warning("HMDA JSON parse error: %s", exc)
             return self._result(
-                identifier, found=False, error="json_parse_error",
-                city=city, state=state, zip_code=zip_code,
-                total_loans=0, median_loan_amount=None, median_income=None,
-                denial_rate=None, top_lenders=[],
+                identifier,
+                found=False,
+                error="json_parse_error",
+                city=city,
+                state=state,
+                zip_code=zip_code,
+                total_loans=0,
+                median_loan_amount=None,
+                median_income=None,
+                denial_rate=None,
+                top_lenders=[],
             )
 
         summary = _parse_hmda_aggregations(data)
-        summary["city"]     = city
-        summary["state"]    = state
+        summary["city"] = city
+        summary["state"] = state
         summary["zip_code"] = zip_code
 
         found = summary["total_loans"] > 0

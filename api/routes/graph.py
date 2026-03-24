@@ -1,4 +1,5 @@
 """Graph intelligence API routes — company search, entity networks, fraud rings."""
+
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
@@ -19,6 +20,7 @@ _graph_builder = EntityGraphBuilder()
 
 # ── Request schemas ───────────────────────────────────────────────────────────
 
+
 class FraudRingsRequest(BaseModel):
     min_connections: int = Field(default=3, ge=1, le=50)
 
@@ -28,6 +30,7 @@ class SharedConnectionsRequest(BaseModel):
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/company/search")
 async def search_company(

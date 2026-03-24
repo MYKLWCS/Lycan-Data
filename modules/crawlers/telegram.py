@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import os
 import re
@@ -60,7 +61,9 @@ class TelegramCrawler(HttpxCrawler):
             data["extra"] = extra_tag.get_text(strip=True)
 
         # Subscriber count for channels
-        subscribers_match = re.search(r"([\d\s,]+)\s*(?:subscribers|members)", response.text, re.IGNORECASE)
+        subscribers_match = re.search(
+            r"([\d\s,]+)\s*(?:subscribers|members)", response.text, re.IGNORECASE
+        )
         if subscribers_match:
             count_str = subscribers_match.group(1).replace(",", "").replace(" ", "")
             try:
@@ -99,9 +102,9 @@ class TelegramCrawler(HttpxCrawler):
 
         try:
             from telethon import TelegramClient
+            from telethon.errors import PhoneNumberInvalidError
             from telethon.sessions import StringSession
             from telethon.tl.functions.contacts import ResolvePhoneRequest
-            from telethon.errors import PhoneNumberInvalidError
 
             client = TelegramClient(StringSession(session_string), int(api_id), api_hash)
             await client.connect()

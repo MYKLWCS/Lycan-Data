@@ -13,6 +13,7 @@ This process handles:
   - Growth daemon (auto-enqueues follow-up jobs)
   - Freshness scheduler (detects and re-queues stale records)
 """
+
 import argparse
 import asyncio
 import importlib
@@ -34,6 +35,7 @@ logger = logging.getLogger("lycan.worker")
 
 def _import_all_crawlers():
     import modules.crawlers as pkg
+
     for _, name, _ in pkgutil.iter_modules(pkg.__path__):
         try:
             importlib.import_module(f"modules.crawlers.{name}")
@@ -44,14 +46,14 @@ def _import_all_crawlers():
 async def main(workers: int, enable_growth: bool, enable_freshness: bool):
     # Setup
     _import_all_crawlers()
-    from shared.events import event_bus
-    from shared.tor import tor_manager
-    from modules.search.meili_indexer import meili_indexer
     from modules.dispatcher.dispatcher import CrawlDispatcher
-    from modules.dispatcher.growth_daemon import GrowthDaemon
     from modules.dispatcher.freshness_scheduler import FreshnessScheduler
+    from modules.dispatcher.growth_daemon import GrowthDaemon
     from modules.pipeline.ingestion_daemon import IngestionDaemon
     from modules.search.index_daemon import IndexDaemon
+    from modules.search.meili_indexer import meili_indexer
+    from shared.events import event_bus
+    from shared.tor import tor_manager
 
     await event_bus.connect()
     await tor_manager.connect_all()
@@ -65,15 +67,15 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool):
 
     # Dispatcher workers (Crawlers)
     for i in range(workers):
-        d = CrawlDispatcher(worker_id=f"dispatcher-{i+1}")
-        tasks.append(asyncio.create_task(d.start(), name=f"dispatcher-{i+1}"))
-        logger.info(f"Started dispatcher worker-{i+1}")
+        d = CrawlDispatcher(worker_id=f"dispatcher-{i + 1}")
+        tasks.append(asyncio.create_task(d.start(), name=f"dispatcher-{i + 1}"))
+        logger.info(f"Started dispatcher worker-{i + 1}")
 
     # Ingestion workers (Database writes)
     for i in range(2):  # 2 ingesters by default
-        ingest = IngestionDaemon(worker_id=f"ingester-{i+1}")
-        tasks.append(asyncio.create_task(ingest.start(), name=f"ingester-{i+1}"))
-        logger.info(f"Started ingestion daemon-{i+1}")
+        ingest = IngestionDaemon(worker_id=f"ingester-{i + 1}")
+        tasks.append(asyncio.create_task(ingest.start(), name=f"ingester-{i + 1}"))
+        logger.info(f"Started ingestion daemon-{i + 1}")
 
     # Index worker (MeiliSearch writes)
     indexer = IndexDaemon(worker_id="indexer-1")
@@ -120,13 +122,15 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lycan background worker")
-    parser.add_argument("--workers",      type=int, default=4, help="Number of dispatcher workers")
-    parser.add_argument("--no-growth",    action="store_true",  help="Disable growth daemon")
-    parser.add_argument("--no-freshness", action="store_true",  help="Disable freshness scheduler")
+    parser.add_argument("--workers", type=int, default=4, help="Number of dispatcher workers")
+    parser.add_argument("--no-growth", action="store_true", help="Disable growth daemon")
+    parser.add_argument("--no-freshness", action="store_true", help="Disable freshness scheduler")
     args = parser.parse_args()
 
-    asyncio.run(main(
-        workers=args.workers,
-        enable_growth=not args.no_growth,
-        enable_freshness=not args.no_freshness,
-    ))
+    asyncio.run(
+        main(
+            workers=args.workers,
+            enable_growth=not args.no_growth,
+            enable_freshness=not args.no_freshness,
+        )
+    )

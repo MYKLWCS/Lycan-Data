@@ -1,22 +1,25 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from modules.crawlers.base import BaseCrawler
 
 # Registry: platform_name → crawler class
-CRAWLER_REGISTRY: dict[str, type["BaseCrawler"]] = {}
+CRAWLER_REGISTRY: dict[str, type[BaseCrawler]] = {}
 
 
 def register(platform: str):
     """Decorator that registers a crawler class for a platform."""
-    def decorator(cls: type["BaseCrawler"]) -> type["BaseCrawler"]:
+
+    def decorator(cls: type[BaseCrawler]) -> type[BaseCrawler]:
         CRAWLER_REGISTRY[platform.lower()] = cls
         return cls
+
     return decorator
 
 
-def get_crawler(platform: str) -> type["BaseCrawler"] | None:
+def get_crawler(platform: str) -> type[BaseCrawler] | None:
     """Look up crawler by platform name. Case-insensitive."""
     return CRAWLER_REGISTRY.get(platform.lower())
 

@@ -1,19 +1,21 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
 @dataclass
 class CrawlerResult:
     """Unified result returned by every scraper."""
+
     platform: str
-    identifier: str              # what was searched (handle, phone, email, etc.)
-    found: bool                  # did we find a profile?
+    identifier: str  # what was searched (handle, phone, email, etc.)
+    found: bool  # did we find a profile?
     data: dict[str, Any] = field(default_factory=dict)
     profile_url: str | None = None
     error: str | None = None
-    scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    scraped_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     source_reliability: float = 0.5
     tor_used: bool = False
     circuit_id: str | None = None

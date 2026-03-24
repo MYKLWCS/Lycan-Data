@@ -10,13 +10,12 @@ Run locally:  python scripts/audit.py
 Run in CI:    triggered by .github/workflows/audit.yml
 """
 
-import ast
+import json
 import os
 import re
-import sys
-import json
 import subprocess
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -62,43 +61,71 @@ CONSENT_PAGE_PATTERNS = [
 # Platforms that should be in CRAWLER_REGISTRY based on SEED_PLATFORM_MAP
 EXPECTED_CRAWLERS_FROM_SPEC = {
     # Social
-    "instagram", "twitter", "reddit", "github", "youtube", "tiktok",
-    "linkedin", "facebook", "snapchat", "pinterest", "discord",
-    "telegram", "mastodon", "twitch", "steam",
+    "instagram",
+    "twitter",
+    "reddit",
+    "github",
+    "youtube",
+    "tiktok",
+    "linkedin",
+    "facebook",
+    "snapchat",
+    "pinterest",
+    "discord",
+    "telegram",
+    "mastodon",
+    "twitch",
+    "steam",
     # Phone
-    "phone_carrier", "phone_truecaller", "phone_numlookup",
+    "phone_carrier",
+    "phone_truecaller",
+    "phone_numlookup",
     "whatsapp",
     # Email
-    "email_hibp", "email_holehe", "email_leakcheck", "email_emailrep",
+    "email_hibp",
+    "email_holehe",
+    "email_leakcheck",
+    "email_emailrep",
     # People search
-    "whitepages", "fastpeoplesearch", "truepeoplesearch",
+    "whitepages",
+    "fastpeoplesearch",
+    "truepeoplesearch",
     # Sanctions
-    "sanctions_ofac", "sanctions_un", "sanctions_fbi",
-    "sanctions_eu", "sanctions_uk", "sanctions_opensanctions",
+    "sanctions_ofac",
+    "sanctions_un",
+    "sanctions_fbi",
+    "sanctions_eu",
+    "sanctions_uk",
+    "sanctions_opensanctions",
     # Court/legal
     "court_courtlistener",
     # Dark web
-    "darkweb_ahmia", "paste_pastebin",
+    "darkweb_ahmia",
+    "paste_pastebin",
     # Domain/IP/Crypto
-    "domain_whois", "ip_geolocation", "crypto_bitcoin",
+    "domain_whois",
+    "ip_geolocation",
+    "crypto_bitcoin",
     # Username sweep
     "username_sherlock",
     # Government
-    "public_npi", "public_faa",
+    "public_npi",
+    "public_faa",
     # Company
-    "company_opencorporates", "company_sec",
+    "company_opencorporates",
+    "company_sec",
 }
 
 # Enrichers required by spec
 REQUIRED_ENRICHERS = {
-    "financial_aml",       # credit score, AML screening
-    "burner_detector",     # phone burner detection
-    "verification",        # multi-source verification
-    "deduplication",       # entity dedup
-    "ranking",             # importance scoring
-    "biographical",        # biographical data extraction
-    "marketing_tags",      # behavioural tags
-    "psychological",       # psychological profiling
+    "financial_aml",  # credit score, AML screening
+    "burner_detector",  # phone burner detection
+    "verification",  # multi-source verification
+    "deduplication",  # entity dedup
+    "ranking",  # importance scoring
+    "biographical",  # biographical data extraction
+    "marketing_tags",  # behavioural tags
+    "psychological",  # psychological profiling
 }
 
 # Required API endpoints
@@ -124,12 +151,14 @@ def scan_file_for_stubs(path: Path) -> list[dict]:
         for pattern, description in STUB_PATTERNS:
             for match in pattern.finditer(content):
                 line_no = content[: match.start()].count("\n") + 1
-                findings.append({
-                    "file": str(path.relative_to(ROOT)),
-                    "line": line_no,
-                    "issue": description,
-                    "snippet": content[match.start(): match.start() + 80].strip(),
-                })
+                findings.append(
+                    {
+                        "file": str(path.relative_to(ROOT)),
+                        "line": line_no,
+                        "issue": description,
+                        "snippet": content[match.start() : match.start() + 80].strip(),
+                    }
+                )
     except Exception:
         pass
     return findings
@@ -162,10 +191,22 @@ def check_test_coverage() -> dict:
     """Run pytest --collect-only to count collected tests per module."""
     try:
         result = subprocess.run(
-            ["python", "-m", "pytest", "tests/", "--collect-only", "-q",
-             "--ignore=tests/test_crawlers", "--ignore=tests/test_darkweb",
-             "--ignore=tests/test_government", "--no-header"],
-            capture_output=True, text=True, cwd=ROOT, timeout=60
+            [
+                "python",
+                "-m",
+                "pytest",
+                "tests/",
+                "--collect-only",
+                "-q",
+                "--ignore=tests/test_crawlers",
+                "--ignore=tests/test_darkweb",
+                "--ignore=tests/test_government",
+                "--no-header",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            timeout=60,
         )
         lines = result.stdout.splitlines()
         total = sum(1 for l in lines if "::" in l)
@@ -181,29 +222,54 @@ def check_pipeline_wiring() -> list[dict]:
     # Check ingestion daemon imports pivot_enricher
     ingestion = (PIPELINE_DIR / "ingestion_daemon.py").read_text()
     if "pivot_from_result" not in ingestion:
-        issues.append({"severity": "HIGH", "component": "ingestion_daemon",
-                        "issue": "pivot_from_result not called — pivot chain broken"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "ingestion_daemon",
+                "issue": "pivot_from_result not called — pivot chain broken",
+            }
+        )
     if "enrich_person" not in ingestion:
-        issues.append({"severity": "HIGH", "component": "ingestion_daemon",
-                        "issue": "enrich_person not called — risk scores never computed"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "ingestion_daemon",
+                "issue": "enrich_person not called — risk scores never computed",
+            }
+        )
 
     # Check dispatcher pushes source_reliability
     dispatcher = (ROOT / "modules" / "dispatcher" / "dispatcher.py").read_text()
     if "source_reliability" not in dispatcher:
-        issues.append({"severity": "HIGH", "component": "dispatcher",
-                        "issue": "source_reliability not passed in ingest payload"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "dispatcher",
+                "issue": "source_reliability not passed in ingest payload",
+            }
+        )
 
     # Check aggregator updates corroboration
     aggregator = (PIPELINE_DIR / "aggregator.py").read_text()
     if "corroboration_count" not in aggregator:
-        issues.append({"severity": "MEDIUM", "component": "aggregator",
-                        "issue": "corroboration_count never incremented on Person"})
+        issues.append(
+            {
+                "severity": "MEDIUM",
+                "component": "aggregator",
+                "issue": "corroboration_count never incremented on Person",
+            }
+        )
 
     # Check enrichment orchestrator writes back to Person
     orch = (PIPELINE_DIR / "enrichment_orchestrator.py").read_text()
     if "default_risk_score" not in orch and "financial_aml" not in orch:
-        issues.append({"severity": "HIGH", "component": "enrichment_orchestrator",
-                        "issue": "risk scores not written back to Person model"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "enrichment_orchestrator",
+                "issue": "risk scores not written back to Person model",
+            }
+        )
 
     return issues
 
@@ -214,24 +280,44 @@ def check_crawler_quality() -> list[dict]:
 
     youtube = (CRAWLERS_DIR / "youtube.py").read_text()
     if "consent" not in youtube.lower() and "before you continue" not in youtube.lower():
-        issues.append({"severity": "HIGH", "component": "youtube_crawler",
-                        "issue": "No consent page detection — GDPR redirect returns garbage display_name"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "youtube_crawler",
+                "issue": "No consent page detection — GDPR redirect returns garbage display_name",
+            }
+        )
 
     snapchat = (CRAWLERS_DIR / "snapchat.py").read_text()
     if "sur snapchat" not in snapchat.lower() and "on snapchat" not in snapchat.lower():
-        issues.append({"severity": "HIGH", "component": "snapchat_crawler",
-                        "issue": "No OG title suffix stripping — 'Name sur Snapchat' stored as full_name"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "snapchat_crawler",
+                "issue": "No OG title suffix stripping — 'Name sur Snapchat' stored as full_name",
+            }
+        )
 
     whatsapp = (CRAWLERS_DIR / "whatsapp.py").read_text()
     if "invalid_phone" not in whatsapp and "len(digits)" not in whatsapp:
-        issues.append({"severity": "HIGH", "component": "whatsapp_crawler",
-                        "issue": "No phone validation — accepts usernames, returns false positive found=True"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "whatsapp_crawler",
+                "issue": "No phone validation — accepts usernames, returns false positive found=True",
+            }
+        )
 
     # Check pivot enricher rejects garbage names
     pivot = (PIPELINE_DIR / "pivot_enricher.py").read_text()
     if "youtube" not in pivot.lower() and "snapchat" not in pivot.lower():
-        issues.append({"severity": "HIGH", "component": "pivot_enricher",
-                        "issue": "No platform-word rejection — pivots on 'Juliana Bentel sur Snapchat'"})
+        issues.append(
+            {
+                "severity": "HIGH",
+                "component": "pivot_enricher",
+                "issue": "No platform-word rejection — pivots on 'Juliana Bentel sur Snapchat'",
+            }
+        )
 
     return issues
 
@@ -242,9 +328,7 @@ def check_source_reliability() -> list[dict]:
     try:
         constants = (SHARED_DIR / "constants.py").read_text()
         # Extract keys from SOURCE_RELIABILITY dict
-        match = re.search(
-            r"SOURCE_RELIABILITY[^{]+\{(.+?)\}", constants, re.DOTALL
-        )
+        match = re.search(r"SOURCE_RELIABILITY[^{]+\{(.+?)\}", constants, re.DOTALL)
         if match:
             keys_block = match.group(1)
             keys = set(re.findall(r'"(\w+)":', keys_block))
@@ -253,11 +337,13 @@ def check_source_reliability() -> list[dict]:
                 if not any(k in crawler or crawler in k for k in keys):
                     missing_platforms.append(crawler)
             if missing_platforms:
-                issues.append({
-                    "severity": "HIGH",
-                    "component": "constants.SOURCE_RELIABILITY",
-                    "issue": f"Missing platforms fall back to unknown=0.20: {missing_platforms}",
-                })
+                issues.append(
+                    {
+                        "severity": "HIGH",
+                        "component": "constants.SOURCE_RELIABILITY",
+                        "issue": f"Missing platforms fall back to unknown=0.20: {missing_platforms}",
+                    }
+                )
     except Exception as e:
         issues.append({"severity": "LOW", "component": "constants", "issue": str(e)})
     return issues
@@ -269,18 +355,18 @@ def check_api_endpoints() -> list[dict]:
     try:
         main_py = (API_DIR / "main.py").read_text()
         routes_dir = API_DIR / "routes"
-        all_route_content = " ".join(
-            f.read_text() for f in routes_dir.glob("*.py")
-        )
+        all_route_content = " ".join(f.read_text() for f in routes_dir.glob("*.py"))
         for endpoint, description in REQUIRED_ENDPOINTS.items():
             # Simple check: endpoint path appears somewhere in routes
             path_part = endpoint.lstrip("/").split("/")[0]
             if path_part not in main_py and path_part not in all_route_content:
-                issues.append({
-                    "severity": "MEDIUM",
-                    "component": f"api/{endpoint}",
-                    "issue": f"Required endpoint '{endpoint}' ({description}) may be missing",
-                })
+                issues.append(
+                    {
+                        "severity": "MEDIUM",
+                        "component": f"api/{endpoint}",
+                        "issue": f"Required endpoint '{endpoint}' ({description}) may be missing",
+                    }
+                )
     except Exception as e:
         issues.append({"severity": "LOW", "component": "api", "issue": str(e)})
     return issues
@@ -290,12 +376,10 @@ def get_git_stats() -> dict:
     """Get git activity stats."""
     try:
         log = subprocess.run(
-            ["git", "log", "--oneline", "-20"],
-            capture_output=True, text=True, cwd=ROOT
+            ["git", "log", "--oneline", "-20"], capture_output=True, text=True, cwd=ROOT
         ).stdout
         files_changed = subprocess.run(
-            ["git", "diff", "--stat", "HEAD~5", "HEAD"],
-            capture_output=True, text=True, cwd=ROOT
+            ["git", "diff", "--stat", "HEAD~5", "HEAD"], capture_output=True, text=True, cwd=ROOT
         ).stdout
         return {"recent_commits": log, "recent_changes": files_changed[:1000]}
     except Exception:
@@ -305,6 +389,7 @@ def get_git_stats() -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. Aggregate All Findings
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def run_full_audit() -> dict:
     print("Starting Lycan OSINT audit...")
@@ -319,7 +404,7 @@ def run_full_audit() -> dict:
     # Crawler registry check
     registered_crawlers = get_registered_crawlers()
     missing_crawlers = EXPECTED_CRAWLERS_FROM_SPEC - registered_crawlers
-    extra_crawlers = registered_crawlers - EXPECTED_CRAWLERS_FROM_SPEC
+    registered_crawlers - EXPECTED_CRAWLERS_FROM_SPEC
 
     # Enricher check
     registered_enrichers = get_registered_enrichers()
@@ -345,14 +430,20 @@ def run_full_audit() -> dict:
 
     # Summary counts
     high_severity = sum(
-        1 for i in pipeline_issues + quality_issues + reliability_issues + api_issues
+        1
+        for i in pipeline_issues + quality_issues + reliability_issues + api_issues
         if i.get("severity") == "HIGH"
     )
-    stubs_count = len([f for f in stub_findings if f["issue"] in
-                       ("NotImplementedError raised", "STUB comment", "PLACEHOLDER comment")])
+    stubs_count = len(
+        [
+            f
+            for f in stub_findings
+            if f["issue"] in ("NotImplementedError raised", "STUB comment", "PLACEHOLDER comment")
+        ]
+    )
 
     audit_result = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "summary": {
             "registered_crawlers": len(registered_crawlers),
             "missing_crawlers": sorted(missing_crawlers),
@@ -370,15 +461,18 @@ def run_full_audit() -> dict:
         "git_stats": git_stats,
     }
 
-    print(f"Audit complete: {high_severity} HIGH severity issues, "
-          f"{len(missing_crawlers)} missing crawlers, "
-          f"{stubs_count} stubs found")
+    print(
+        f"Audit complete: {high_severity} HIGH severity issues, "
+        f"{len(missing_crawlers)} missing crawlers, "
+        f"{stubs_count} stubs found"
+    )
     return audit_result
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 3. Claude Analysis
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def generate_claude_analysis(audit_data: dict, spec_excerpt: str) -> str:
     """Use Claude to generate a prioritised, actionable audit report."""
@@ -420,9 +514,7 @@ Use markdown. Be direct. No filler text. Focus on actionable findings.
 """
 
     response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4000,
-        messages=[{"role": "user", "content": prompt}]
+        model="claude-sonnet-4-6", max_tokens=4000, messages=[{"role": "user", "content": prompt}]
     )
     return response.content[0].text
 
@@ -430,6 +522,7 @@ Use markdown. Be direct. No filler text. Focus on actionable findings.
 # ──────────────────────────────────────────────────────────────────────────────
 # 4. Post GitHub Issue
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def post_github_issue(title: str, body: str) -> str | None:
     """Create or update a pinned audit issue on GitHub. Returns issue URL."""
@@ -439,6 +532,7 @@ def post_github_issue(title: str, body: str) -> str | None:
 
     try:
         from github import Github
+
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(GITHUB_REPOSITORY)
 
@@ -477,6 +571,7 @@ def post_github_issue(title: str, body: str) -> str | None:
 # 5. Main
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def main():
     audit_data = run_full_audit()
 
@@ -490,18 +585,18 @@ def main():
     ai_report = generate_claude_analysis(audit_data, spec_excerpt)
 
     # Build full report
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     s = audit_data["summary"]
 
     header = f"""# 🔍 Lycan OSINT — Automated System Audit
 **Generated:** {now}
-**Crawlers registered:** {s['registered_crawlers']}
-**Missing crawlers:** {len(s['missing_crawlers'])} ({', '.join(s['missing_crawlers'][:10]) or 'none'})
-**Missing enrichers:** {len(s['missing_enrichers'])} ({', '.join(s['missing_enrichers']) or 'none'})
-**Stubs found:** {s['stub_count']}
-**TODO comments:** {s['todo_count']}
-**Tests collected:** {s['total_tests']}
-**High severity issues:** {s['high_severity_issues']}
+**Crawlers registered:** {s["registered_crawlers"]}
+**Missing crawlers:** {len(s["missing_crawlers"])} ({", ".join(s["missing_crawlers"][:10]) or "none"})
+**Missing enrichers:** {len(s["missing_enrichers"])} ({", ".join(s["missing_enrichers"]) or "none"})
+**Stubs found:** {s["stub_count"]}
+**TODO comments:** {s["todo_count"]}
+**Tests collected:** {s["total_tests"]}
+**High severity issues:** {s["high_severity_issues"]}
 
 ---
 
@@ -511,13 +606,17 @@ def main():
     if audit_data["pipeline_issues"]:
         pipeline_section = "\n## ⚠️ Pipeline Wiring Issues\n"
         for issue in audit_data["pipeline_issues"]:
-            pipeline_section += f"- `[{issue['severity']}]` **{issue['component']}**: {issue['issue']}\n"
+            pipeline_section += (
+                f"- `[{issue['severity']}]` **{issue['component']}**: {issue['issue']}\n"
+            )
 
     quality_section = ""
     if audit_data["crawler_quality_issues"]:
         quality_section = "\n## 🐛 Crawler Quality Issues\n"
         for issue in audit_data["crawler_quality_issues"]:
-            quality_section += f"- `[{issue['severity']}]` **{issue['component']}**: {issue['issue']}\n"
+            quality_section += (
+                f"- `[{issue['severity']}]` **{issue['component']}**: {issue['issue']}\n"
+            )
 
     full_report = header + pipeline_section + quality_section + "\n---\n\n" + ai_report
 
@@ -529,7 +628,7 @@ def main():
 <summary>Raw audit data</summary>
 
 ```json
-{json.dumps({k: v for k, v in audit_data.items() if k != 'top_stubs'}, indent=2, default=str)[:3000]}
+{json.dumps({k: v for k, v in audit_data.items() if k != "top_stubs"}, indent=2, default=str)[:3000]}
 ```
 </details>
 """
@@ -540,7 +639,7 @@ def main():
     print(f"Report saved to {report_path}")
 
     # Post to GitHub
-    title = f"System Audit — {datetime.now(timezone.utc).strftime('%Y-%m-%d')} | {s['high_severity_issues']} critical issues"
+    title = f"System Audit — {datetime.now(UTC).strftime('%Y-%m-%d')} | {s['high_severity_issues']} critical issues"
     url = post_github_issue(title, full_report[:65000])
 
     if url:

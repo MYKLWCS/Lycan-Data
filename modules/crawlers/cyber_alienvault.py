@@ -7,14 +7,16 @@ and queries the OTX general indicator endpoint.
 Registered as "cyber_alienvault".
 Optional API key (settings.otx_api_key) — limited queries work without one.
 """
+
 from __future__ import annotations
+
 import logging
 import re
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 

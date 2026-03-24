@@ -4,6 +4,7 @@ Source: https://scsanctions.un.org/resources/xml/en/consolidated.xml
 
 Registered as: sanctions_un
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,6 +29,7 @@ MATCH_THRESHOLD = 0.7
 # Cache helpers (shared pattern across sanction scrapers)
 # ---------------------------------------------------------------------------
 
+
 def _cache_valid(path: str, max_age_hours: float = CACHE_MAX_AGE_HOURS) -> bool:
     if not os.path.exists(path):
         return False
@@ -43,6 +45,7 @@ def _cache_path(name: str, ext: str) -> str:
 # Name-matching helper
 # ---------------------------------------------------------------------------
 
+
 def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD) -> float:
     q_words = set(query.lower().split())
     c_words = set(candidate.lower().split())
@@ -56,6 +59,7 @@ def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD
 # ---------------------------------------------------------------------------
 # XML parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _text(element: ET.Element | None) -> str:
     """Safely extract stripped text from an XML element."""
@@ -72,6 +76,7 @@ def _build_full_name(*parts: str) -> str:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("sanctions_un")
 class SanctionsUNCrawler(HttpxCrawler):
@@ -115,7 +120,7 @@ class SanctionsUNCrawler(HttpxCrawler):
         if _cache_valid(CACHE_PATH):
             logger.debug("UN: using cached list at %s", CACHE_PATH)
             try:
-                with open(CACHE_PATH, "r", encoding="utf-8") as fh:
+                with open(CACHE_PATH, encoding="utf-8") as fh:
                     return fh.read()
             except OSError as exc:
                 logger.warning("UN: cache read failed: %s", exc)

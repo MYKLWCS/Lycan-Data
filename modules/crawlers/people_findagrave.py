@@ -10,6 +10,7 @@ with the appropriate headers and parameters.
 Source: https://www.findagrave.com/memorial/search
 Registered as "people_findagrave".
 """
+
 from __future__ import annotations
 
 import logging
@@ -44,8 +45,11 @@ _JSON_URL = (
     "?q={query}&firstname={first}&lastname={last}"
     "&typeId=1"
 )
-_JSON_HEADERS = {**_HEADERS, "Accept": "application/json, text/javascript, */*; q=0.01",
-                 "X-Requested-With": "XMLHttpRequest"}
+_JSON_HEADERS = {
+    **_HEADERS,
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "X-Requested-With": "XMLHttpRequest",
+}
 
 
 def _parse_memorial_html(html: str) -> list[dict[str, Any]]:
@@ -62,7 +66,7 @@ def _parse_memorial_html(html: str) -> list[dict[str, Any]]:
         re.IGNORECASE | re.DOTALL,
     )
     name_pattern = re.compile(r'<a[^>]+href="/memorial/(\d+)/[^"]*"[^>]*>(.*?)</a>', re.IGNORECASE)
-    date_pattern = re.compile(r'(\d{1,2}\s+\w+\s+\d{4}|\d{4})', re.IGNORECASE)
+    date_pattern = re.compile(r"(\d{1,2}\s+\w+\s+\d{4}|\d{4})", re.IGNORECASE)
 
     def strip_tags(s: str) -> str:
         return re.sub(r"<[^>]+>", "", s).strip()
@@ -92,6 +96,7 @@ def _parse_memorial_html(html: str) -> list[dict[str, Any]]:
             re.IGNORECASE | re.DOTALL,
         )
         import json
+
         for match in jsonld_pattern.finditer(html):
             try:
                 data = json.loads(match.group(1))

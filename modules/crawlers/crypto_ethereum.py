@@ -5,7 +5,9 @@ Fetches ETH balance and recent transactions for a 0x... wallet address.
 Uses the public demo API key which permits up to 5 req/s without registration.
 Registered as "crypto_ethereum".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -29,13 +31,15 @@ def _parse_recent_txs(txlist: list[dict], limit: int = 5) -> list[dict]:
     """Extract minimal tx fields from the first `limit` entries."""
     out = []
     for tx in txlist[:limit]:
-        out.append({
-            "hash": tx.get("hash", ""),
-            "from": tx.get("from", ""),
-            "to": tx.get("to", ""),
-            "amount_eth": _wei_to_eth(tx.get("value", 0)),
-            "time": int(tx.get("timeStamp", 0)),
-        })
+        out.append(
+            {
+                "hash": tx.get("hash", ""),
+                "from": tx.get("from", ""),
+                "to": tx.get("to", ""),
+                "amount_eth": _wei_to_eth(tx.get("value", 0)),
+                "time": int(tx.get("timeStamp", 0)),
+            }
+        )
     return out
 
 

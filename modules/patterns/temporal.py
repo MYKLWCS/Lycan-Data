@@ -1,4 +1,5 @@
 """Temporal pattern analysis — SQL window functions, no external dependencies."""
+
 import logging
 from typing import Any
 

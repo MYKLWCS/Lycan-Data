@@ -7,6 +7,7 @@ agency, and open/close dates.
 
 Registered as "gov_grants".
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,12 +30,7 @@ def _parse_opportunities(data: dict) -> list[dict[str, Any]]:
     """Extract opportunity fields from Grants.gov search response."""
     opportunities: list[dict[str, Any]] = []
     # Response structure varies; common keys are oppHits or hits
-    hits = (
-        data.get("oppHits")
-        or data.get("hits", {}).get("hits", [])
-        or data.get("hits", [])
-        or []
-    )
+    hits = data.get("oppHits") or data.get("hits", {}).get("hits", []) or data.get("hits", []) or []
     for item in hits[:20]:
         if not isinstance(item, dict):
             continue
@@ -51,9 +47,7 @@ def _parse_opportunities(data: dict) -> list[dict[str, Any]]:
                 "awardFloor": source.get("awardFloor"),
                 "cfdaNumber": source.get("cfdaNumber"),
                 "opportunityCategory": source.get("opportunityCategory"),
-                "fundingActivityCategory": source.get(
-                    "fundingActivityCategory"
-                ),
+                "fundingActivityCategory": source.get("fundingActivityCategory"),
             }
         )
     return opportunities

@@ -6,6 +6,7 @@ is_stolen, is_salvage, and is_total_loss flags.
 
 Registered as "vehicle_nicb".
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,6 +34,7 @@ _VIN_RE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$", re.IGNORECASE)
 # VIN validation
 # ---------------------------------------------------------------------------
 
+
 def _valid_vin(vin: str) -> bool:
     """Return True if vin is a syntactically valid 17-char VIN (no I/O/Q)."""
     return bool(_VIN_RE.match(vin))
@@ -41,6 +43,7 @@ def _valid_vin(vin: str) -> bool:
 # ---------------------------------------------------------------------------
 # Response parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_json_response(data: dict) -> dict[str, Any]:
     """Parse NICB JSON API response."""
@@ -60,11 +63,7 @@ def _parse_json_response(data: dict) -> dict[str, Any]:
     result["is_total_loss"] = bool(
         data.get("total_loss") or data.get("isTotalLoss") or data.get("total_loss_records")
     )
-    result["message"] = (
-        data.get("message")
-        or data.get("description")
-        or data.get("status", "")
-    )
+    result["message"] = data.get("message") or data.get("description") or data.get("status", "")
     return result
 
 
@@ -100,6 +99,7 @@ def _parse_html_response(html: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("vehicle_nicb")
 class VehicleNicbCrawler(HttpxCrawler):

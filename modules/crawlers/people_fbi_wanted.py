@@ -6,6 +6,7 @@ descriptors, aliases, charges, reward text, and the official wanted page URL.
 
 Registered as "people_fbi_wanted".
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,10 +19,7 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_FBI_URL = (
-    "https://api.fbi.gov/wanted/v1/list"
-    "?title={name}&pageSize=20&page=1"
-)
+_FBI_URL = "https://api.fbi.gov/wanted/v1/list?title={name}&pageSize=20&page=1"
 
 
 def _parse_items(data: dict) -> list[dict[str, Any]]:

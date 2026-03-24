@@ -13,15 +13,16 @@ Returns error "not_configured" if absent.
 Source: https://api.spotify.com/v1/users/{user_id}
 Registered as "social_spotify".
 """
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +175,7 @@ class SpotifyCrawler(HttpxCrawler):
 
         # Fallback: search for artist by name
         from urllib.parse import quote_plus
+
         search_resp = await self.get(
             _ARTIST_SEARCH_URL.format(query=quote_plus(query)),
             headers=headers,
@@ -223,6 +225,7 @@ class SpotifyCrawler(HttpxCrawler):
     async def _get_access_token(self, client_id: str, client_secret: str) -> str | None:
         """Obtain Spotify access token via client credentials flow."""
         import base64
+
         credentials = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
         resp = await self.post(
             _TOKEN_URL,

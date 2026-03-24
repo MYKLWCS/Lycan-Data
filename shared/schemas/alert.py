@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
+
 from pydantic import BaseModel
-from shared.constants import AlertSeverity, AlertType
 
 
 class AlertResponse(BaseModel):

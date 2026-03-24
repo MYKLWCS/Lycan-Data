@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 
 from bs4 import BeautifulSoup
@@ -59,12 +60,15 @@ class SnapchatCrawler(HttpxCrawler):
                 # Strip platform suffix in any language: "Name on Snapchat",
                 # "Name sur Snapchat", "Name på Snapchat", etc.
                 import re as _re
+
                 clean = _re.sub(
-                    r'\s+(on|sur|på|op|su|bei|na|en|の)\s+Snapchat\s*$',
-                    '', raw_title, flags=_re.IGNORECASE
+                    r"\s+(on|sur|på|op|su|bei|na|en|の)\s+Snapchat\s*$",
+                    "",
+                    raw_title,
+                    flags=_re.IGNORECASE,
                 ).strip()
                 # Also handle bare " Snapchat" at end
-                clean = _re.sub(r'\s*[-–|]\s*Snapchat\s*$', '', clean, flags=_re.IGNORECASE).strip()
+                clean = _re.sub(r"\s*[-–|]\s*Snapchat\s*$", "", clean, flags=_re.IGNORECASE).strip()
                 # Reject if all that's left IS just the platform name
                 if clean and clean.lower() != "snapchat":
                     data["display_name"] = clean

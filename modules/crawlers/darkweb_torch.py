@@ -7,7 +7,9 @@ parse search results.
 
 Registered as "darkweb_torch".
 """
+
 from __future__ import annotations
+
 import logging
 from urllib.parse import quote_plus
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
@@ -69,7 +70,7 @@ class RedditCrawler(HttpxCrawler):
         created_utc = raw.get("created_utc")
         created_at = None
         if created_utc:
-            created_at = datetime.fromtimestamp(created_utc, tz=timezone.utc)
+            created_at = datetime.fromtimestamp(created_utc, tz=UTC)
 
         return {
             "handle": handle,
@@ -88,10 +89,12 @@ class RedditCrawler(HttpxCrawler):
         posts = []
         for child in j.get("data", {}).get("children", [])[:25]:
             p = child.get("data", {})
-            posts.append({
-                "subreddit": p.get("subreddit"),
-                "title": p.get("title", "")[:200],
-                "score": p.get("score", 0),
-                "created_utc": p.get("created_utc"),
-            })
+            posts.append(
+                {
+                    "subreddit": p.get("subreddit"),
+                    "title": p.get("title", "")[:200],
+                    "score": p.get("score", 0),
+                    "created_utc": p.get("created_utc"),
+                }
+            )
         return posts

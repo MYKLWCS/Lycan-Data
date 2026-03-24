@@ -1,4 +1,5 @@
 import pytest
+
 from shared.events import EventBus, get_event_bus
 
 

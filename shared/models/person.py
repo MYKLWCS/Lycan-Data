@@ -1,9 +1,11 @@
 import uuid
-from datetime import date, datetime
+from datetime import date
+
 from sqlalchemy import Date, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from shared.models.base import Base, TimestampMixin, DataQualityMixin
+
+from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
 
 class Person(Base, TimestampMixin, DataQualityMixin):
@@ -26,13 +28,27 @@ class Person(Base, TimestampMixin, DataQualityMixin):
     default_risk_score: Mapped[float] = mapped_column(default=0.0, nullable=False)
 
     # Relationships
-    identifiers: Mapped[list["Identifier"]] = relationship(back_populates="person", cascade="all, delete-orphan")
-    social_profiles: Mapped[list["SocialProfile"]] = relationship(back_populates="person", cascade="all, delete-orphan")
-    aliases: Mapped[list["Alias"]] = relationship(back_populates="person", cascade="all, delete-orphan")
-    criminal_records: Mapped[list["CriminalRecord"]] = relationship(back_populates="person", cascade="all, delete-orphan")
-    identity_documents: Mapped[list["IdentityDocument"]] = relationship(back_populates="person", cascade="all, delete-orphan")
-    credit_profiles: Mapped[list["CreditProfile"]] = relationship(back_populates="person", cascade="all, delete-orphan")
-    identifier_history: Mapped[list["IdentifierHistory"]] = relationship(back_populates="person", cascade="all, delete-orphan")
+    identifiers: Mapped[list["Identifier"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
+    social_profiles: Mapped[list["SocialProfile"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
+    aliases: Mapped[list["Alias"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
+    criminal_records: Mapped[list["CriminalRecord"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
+    identity_documents: Mapped[list["IdentityDocument"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
+    credit_profiles: Mapped[list["CreditProfile"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
+    identifier_history: Mapped[list["IdentifierHistory"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
 
 
 class Alias(Base, TimestampMixin):
@@ -43,7 +59,9 @@ class Alias(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True
     )
     alias: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    alias_type: Mapped[str] = mapped_column(String(50), nullable=False)  # nickname, maiden_name, etc.
+    alias_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # nickname, maiden_name, etc.
     confidence: Mapped[float] = mapped_column(default=0.5, nullable=False)
 
     person: Mapped["Person"] = relationship(back_populates="aliases")

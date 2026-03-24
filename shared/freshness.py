@@ -8,9 +8,9 @@ toward 0.0 as time passes since last scrape. The decay is exponential:
 
 where t is hours elapsed since last_scraped_at.
 """
+
 import math
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from shared.constants import FRESHNESS_HALF_LIFE
 
@@ -30,11 +30,11 @@ def compute_freshness(last_scraped_at: datetime | None, source_type: str = "defa
         return 0.0
 
     half_life_hours = FRESHNESS_HALF_LIFE.get(source_type, FRESHNESS_HALF_LIFE["default"])
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Ensure last_scraped_at is timezone-aware
     if last_scraped_at.tzinfo is None:
-        last_scraped_at = last_scraped_at.replace(tzinfo=timezone.utc)
+        last_scraped_at = last_scraped_at.replace(tzinfo=UTC)
 
     elapsed_hours = (now - last_scraped_at).total_seconds() / 3600.0
     elapsed_hours = max(0.0, elapsed_hours)
@@ -43,12 +43,16 @@ def compute_freshness(last_scraped_at: datetime | None, source_type: str = "defa
     return round(min(1.0, max(0.0, freshness)), 4)
 
 
-def is_stale(last_scraped_at: datetime | None, source_type: str = "default", threshold: float = 0.40) -> bool:
+def is_stale(
+    last_scraped_at: datetime | None, source_type: str = "default", threshold: float = 0.40
+) -> bool:
     """Return True if freshness is below threshold."""
     return compute_freshness(last_scraped_at, source_type) < threshold
 
 
-def hours_until_stale(last_scraped_at: datetime | None, source_type: str = "default", threshold: float = 0.40) -> float:
+def hours_until_stale(
+    last_scraped_at: datetime | None, source_type: str = "default", threshold: float = 0.40
+) -> float:
     """
     How many hours from now until freshness drops below threshold.
     Returns 0.0 if already stale.
@@ -57,9 +61,9 @@ def hours_until_stale(last_scraped_at: datetime | None, source_type: str = "defa
         return 0.0
 
     half_life_hours = FRESHNESS_HALF_LIFE.get(source_type, FRESHNESS_HALF_LIFE["default"])
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if last_scraped_at.tzinfo is None:
-        last_scraped_at = last_scraped_at.replace(tzinfo=timezone.utc)
+        last_scraped_at = last_scraped_at.replace(tzinfo=UTC)
 
     elapsed_hours = (now - last_scraped_at).total_seconds() / 3600.0
     # Solve: 0.5^(t/half_life) = threshold => t = half_life * log2(1/threshold)

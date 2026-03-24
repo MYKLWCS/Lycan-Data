@@ -8,6 +8,7 @@ arbitrary terms), uses the Shodan host search endpoint with country and org face
 Registered as "cyber_shodan".
 Requires settings.shodan_api_key.
 """
+
 from __future__ import annotations
 
 import logging
@@ -15,10 +16,10 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +29,7 @@ _SEARCH_URL = (
     _BASE + "/shodan/host/search?key={api_key}&query={query}&facets=country,org&minify=true"
 )
 
-_IPV4_RE = re.compile(
-    r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$"
-)
+_IPV4_RE = re.compile(r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$")
 
 
 def _is_ipv4(value: str) -> bool:
@@ -41,7 +40,9 @@ def _parse_host(data: dict) -> dict[str, Any]:
     """Extract relevant fields from a Shodan host response."""
     return {
         "open_ports": data.get("ports", []),
-        "vulns": list(data.get("vulns", {}).keys()) if isinstance(data.get("vulns"), dict) else data.get("vulns", []),
+        "vulns": list(data.get("vulns", {}).keys())
+        if isinstance(data.get("vulns"), dict)
+        else data.get("vulns", []),
         "org": data.get("org", ""),
         "country": data.get("country_name", ""),
         "isp": data.get("isp", ""),
@@ -104,9 +105,7 @@ class ShodanCrawler(HttpxCrawler):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _scrape_host(
-        self, identifier: str, ip: str, api_key: str
-    ) -> CrawlerResult:
+    async def _scrape_host(self, identifier: str, ip: str, api_key: str) -> CrawlerResult:
         url = _HOST_URL.format(ip=ip, api_key=api_key)
         resp = await self.get(url)
 
@@ -120,9 +119,7 @@ class ShodanCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="invalid_api_key")
 
         if resp.status_code != 200:
-            return self._result(
-                identifier, found=False, error=f"http_{resp.status_code}"
-            )
+            return self._result(identifier, found=False, error=f"http_{resp.status_code}")
 
         try:
             data = resp.json()
@@ -133,9 +130,7 @@ class ShodanCrawler(HttpxCrawler):
         parsed = _parse_host(data)
         return self._result(identifier, found=True, mode="host", **parsed)
 
-    async def _scrape_search(
-        self, identifier: str, query: str, api_key: str
-    ) -> CrawlerResult:
+    async def _scrape_search(self, identifier: str, query: str, api_key: str) -> CrawlerResult:
         encoded = quote_plus(query)
         url = _SEARCH_URL.format(api_key=api_key, query=encoded)
         resp = await self.get(url)
@@ -147,9 +142,7 @@ class ShodanCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="invalid_api_key")
 
         if resp.status_code != 200:
-            return self._result(
-                identifier, found=False, error=f"http_{resp.status_code}"
-            )
+            return self._result(identifier, found=False, error=f"http_{resp.status_code}")
 
         try:
             data = resp.json()

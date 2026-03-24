@@ -1,12 +1,13 @@
 """System health, stats, and operational endpoints."""
+
 import logging
 import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import DbDep, db_session
-from modules.crawlers.registry import list_platforms, CRAWLER_REGISTRY
+from api.deps import DbDep
+from modules.crawlers.registry import CRAWLER_REGISTRY, list_platforms
 from shared.tor import tor_manager
 
 router = APIRouter()
@@ -26,6 +27,7 @@ async def health():
 
     # ── Redis / Dragonfly ──────────────────────────────────────────────────────
     from shared.events import event_bus
+
     redis_ok = False
     redis_latency_ms = None
     try:
@@ -42,8 +44,10 @@ async def health():
     db_ok = False
     db_latency_ms = None
     try:
-        from shared.db import AsyncSessionLocal
         from sqlalchemy import text as sa_text
+
+        from shared.db import AsyncSessionLocal
+
         t = time.monotonic()
         async with AsyncSessionLocal() as session:
             await session.execute(sa_text("SELECT 1"))
@@ -61,6 +65,7 @@ async def health():
     # ── Rate limiter / circuit breaker ─────────────────────────────────────────
     try:
         from shared.rate_limiter import get_rate_limiter
+
         rl_tokens = await get_rate_limiter().peek("__health_probe__")
         results["rate_limiter"] = {"ok": True, "probe_tokens": round(rl_tokens, 2)}
     except Exception as exc:
@@ -108,8 +113,9 @@ async def registry():
 @router.get("/queues")
 async def queue_stats(session: AsyncSession = DbDep):
     """Return queue depths + cumulative throughput stats for the pipeline banner."""
-    from shared.events import event_bus
     from sqlalchemy import text
+
+    from shared.events import event_bus
 
     try:
         queues = {}
@@ -118,14 +124,22 @@ async def queue_stats(session: AsyncSession = DbDep):
         total_pending = queues["high"] + queues["normal"] + queues["low"]
 
         # Cumulative throughput from DB (shown as "X ingested / Y indexed")
-        row = (await session.execute(text(
-            "SELECT COUNT(*) as total_logs, "
-            "SUM(CASE WHEN meta->>'success'='true' THEN 1 ELSE 0 END) as found_count "
-            "FROM crawl_logs"
-        ))).mappings().one()
-        persons_row = (await session.execute(text(
-            "SELECT COUNT(*) as total FROM persons"
-        ))).mappings().one()
+        row = (
+            (
+                await session.execute(
+                    text(
+                        "SELECT COUNT(*) as total_logs, "
+                        "SUM(CASE WHEN meta->>'success'='true' THEN 1 ELSE 0 END) as found_count "
+                        "FROM crawl_logs"
+                    )
+                )
+            )
+            .mappings()
+            .one()
+        )
+        persons_row = (
+            (await session.execute(text("SELECT COUNT(*) as total FROM persons"))).mappings().one()
+        )
 
         return {
             "queues": queues,
@@ -181,6 +195,7 @@ async def circuit_breaker_status():
             redis_key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
             domain = redis_key.removeprefix("lycan:cb:")
             from shared.circuit_breaker import get_circuit_breaker
+
             breakers[domain] = await get_circuit_breaker().get_state(domain)
         return {"breakers": breakers, "count": len(breakers)}
     except Exception as exc:
@@ -192,6 +207,7 @@ async def circuit_breaker_status():
 async def reset_circuit_breaker(domain: str):
     """Manually force a circuit breaker to CLOSED state."""
     from shared.circuit_breaker import get_circuit_breaker
+
     await get_circuit_breaker().force_close(domain)
     return {"message": f"Circuit breaker for {domain!r} forced to CLOSED", "domain": domain}
 
@@ -211,6 +227,7 @@ async def rate_limit_status():
             redis_key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
             domain = redis_key.removeprefix("lycan:rl:")
             from shared.rate_limiter import get_rate_limiter
+
             tokens = await get_rate_limiter().peek(domain)
             buckets[domain] = {"tokens": round(tokens, 3)}
         return {"buckets": buckets, "count": len(buckets)}

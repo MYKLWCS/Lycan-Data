@@ -1,10 +1,8 @@
-import os
-
 def build():
-    with open('static/style.css', 'r') as f:
+    with open("static/style.css") as f:
         css = f.read()
 
-    with open('static/app.js', 'r') as f:
+    with open("static/app.js") as f:
         js = f.read()
 
     html = f"""<!DOCTYPE html>
@@ -49,11 +47,11 @@ def build():
 <script>
 const App = {{
   root: document.getElementById('app-root'),
-  
+
   async init() {{
     window.addEventListener('hashchange', () => this.route());
     this.route();
-    
+
     // Update system stats
     try {{
       const d = await window.Lycan.apiGet('/system/health');
@@ -64,7 +62,7 @@ const App = {{
   route() {{
     const hash = window.location.hash || '#/';
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    
+
     if (hash === '#/') {{
       document.getElementById('nav-search').classList.add('active');
       this.renderSearch();
@@ -152,7 +150,7 @@ const App = {{
     const tBtn = document.querySelector('.type-btn.active');
     const type = tBtn?.dataset.type === 'auto' ? null : tBtn?.dataset.type;
     const ctx = document.getElementById('context-sel').value;
-    
+
     const btn = document.getElementById('search-btn');
     btn.textContent = 'Searching…'; btn.disabled = true;
     const errEl = document.getElementById('search-error');
@@ -166,11 +164,11 @@ const App = {{
       }});
       if (!r.ok) throw new Error(await r.text());
       const d = await r.json();
-      
+
       const recent = JSON.parse(localStorage.getItem('lycan_recent')||'[]');
       recent.unshift({{ value: q, person_id: d.person_id, ts: Date.now() }});
       localStorage.setItem('lycan_recent', JSON.stringify(recent.slice(0,10)));
-      
+
       window.location.hash = '#/person/' + d.person_id;
     }} catch(e) {{
       btn.textContent = 'Search'; btn.disabled = false;
@@ -252,7 +250,7 @@ const App = {{
   // ---------------------------------------------------------
   async renderPerson(id) {{
     this.root.innerHTML = `<div style="margin-bottom:20px"><a href="#/persons" class="btn">← Back</a></div><div id="person-body">Loading dossier...</div>`;
-    
+
     // Disconnect old socket if any
     if(this._lp) this._lp.disconnect();
 
@@ -260,7 +258,7 @@ const App = {{
       const d = await window.Lycan.apiGet('/persons/' + id + '/report');
       const p = d.person;
       const avatar = p.profile_image_url ? `<img class="person-avatar" src="${{p.profile_image_url}}">` : `<div class="person-avatar">◎</div>`;
-      
+
       let html = `
         <div class="card" style="margin-bottom:20px"><div class="card-body">
           <div class="person-header">
@@ -358,8 +356,9 @@ App.init();
 </body>
 </html>
 """
-    with open('static/index.html', 'w') as f:
+    with open("static/index.html", "w") as f:
         f.write(html)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     build()

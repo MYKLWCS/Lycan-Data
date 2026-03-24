@@ -6,26 +6,28 @@ Tests for people search scrapers — Task 16.
 
 12 tests total — Playwright page context is mocked entirely.
 """
-from __future__ import annotations
-from contextlib import asynccontextmanager
 
-import pytest
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+import modules.crawlers.fastpeoplesearch  # noqa: F401
+import modules.crawlers.truepeoplesearch  # noqa: F401
+
 # Trigger @register decorators
-import modules.crawlers.whitepages          # noqa: F401
-import modules.crawlers.fastpeoplesearch    # noqa: F401
-import modules.crawlers.truepeoplesearch    # noqa: F401
-
-from modules.crawlers.whitepages import WhitepagesCrawler, _parse_name_identifier
+import modules.crawlers.whitepages  # noqa: F401
 from modules.crawlers.fastpeoplesearch import FastPeopleSearchCrawler
-from modules.crawlers.truepeoplesearch import TruePeopleSearchCrawler
 from modules.crawlers.registry import is_registered
-
+from modules.crawlers.truepeoplesearch import TruePeopleSearchCrawler
+from modules.crawlers.whitepages import WhitepagesCrawler, _parse_name_identifier
 
 # ---------------------------------------------------------------------------
 # Shared fixture: build a mock Playwright page context manager
 # ---------------------------------------------------------------------------
+
 
 def make_page_cm(html: str, title: str = "People Search Results"):
     """Return a context manager that yields a mock Playwright page."""
@@ -45,6 +47,7 @@ def make_page_cm(html: str, title: str = "People Search Results"):
 # ===========================================================================
 # WHITEPAGES TESTS (3)
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_whitepages_found():
@@ -93,8 +96,10 @@ async def test_whitepages_bot_block():
     crawler = WhitepagesCrawler()
 
     # rotate_circuit should be called on block detection
-    with patch.object(crawler, "page", make_page_cm(html, title="Access Denied")), \
-         patch.object(crawler, "rotate_circuit", AsyncMock()) as mock_rotate:
+    with (
+        patch.object(crawler, "page", make_page_cm(html, title="Access Denied")),
+        patch.object(crawler, "rotate_circuit", AsyncMock()) as mock_rotate,
+    ):
         result = await crawler.scrape("John Smith")
 
     assert result.found is False
@@ -105,6 +110,7 @@ async def test_whitepages_bot_block():
 # ===========================================================================
 # FASTPEOPLESEARCH TESTS (3)
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_fastpeoplesearch_found():
@@ -154,8 +160,10 @@ async def test_fastpeoplesearch_bot_block():
     html = "<html><head><title>Blocked</title></head><body>Access Denied</body></html>"
     crawler = FastPeopleSearchCrawler()
 
-    with patch.object(crawler, "page", make_page_cm(html, title="Blocked")), \
-         patch.object(crawler, "rotate_circuit", AsyncMock()) as mock_rotate:
+    with (
+        patch.object(crawler, "page", make_page_cm(html, title="Blocked")),
+        patch.object(crawler, "rotate_circuit", AsyncMock()) as mock_rotate,
+    ):
         result = await crawler.scrape("John Smith")
 
     assert result.found is False
@@ -166,6 +174,7 @@ async def test_fastpeoplesearch_bot_block():
 # ===========================================================================
 # TRUEPEOPLESEARCH TESTS (3)
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_truepeoplesearch_found():
@@ -212,8 +221,10 @@ async def test_truepeoplesearch_bot_block():
     html = "<html><head><title>403 Forbidden</title></head><body>Forbidden</body></html>"
     crawler = TruePeopleSearchCrawler()
 
-    with patch.object(crawler, "page", make_page_cm(html, title="403 Forbidden")), \
-         patch.object(crawler, "rotate_circuit", AsyncMock()) as mock_rotate:
+    with (
+        patch.object(crawler, "page", make_page_cm(html, title="403 Forbidden")),
+        patch.object(crawler, "rotate_circuit", AsyncMock()) as mock_rotate,
+    ):
         result = await crawler.scrape("John Smith")
 
     assert result.found is False
@@ -224,6 +235,7 @@ async def test_truepeoplesearch_bot_block():
 # ===========================================================================
 # _parse_name_identifier HELPER TESTS (3)
 # ===========================================================================
+
 
 def test_parse_name_full_with_location():
     """Parses 'John Smith|Chicago,IL' correctly into components."""
@@ -255,6 +267,7 @@ def test_parse_name_single_token():
 # ===========================================================================
 # REGISTRY TESTS (3)
 # ===========================================================================
+
 
 def test_whitepages_registered():
     assert is_registered("whitepages")

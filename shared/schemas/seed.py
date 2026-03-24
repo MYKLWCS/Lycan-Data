@@ -1,9 +1,11 @@
 from pydantic import BaseModel, field_validator
+
 from shared.constants import SeedType
 
 
 class SeedInput(BaseModel):
     """Input to start a new investigation web."""
+
     seed_type: SeedType
     seed_value: str
     web_name: str | None = None

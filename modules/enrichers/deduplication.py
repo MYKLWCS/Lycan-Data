@@ -4,12 +4,13 @@ Deduplication Engine.
 Finds and merges duplicate records across persons and identifiers.
 Every merge is logged. Never deletes — always merges to a canonical record.
 """
+
 import hashlib
 import logging
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MergeCandidate:
     """A pair of records that may be duplicates."""
+
     id_a: str
     id_b: str
     similarity_score: float  # 0.0 - 1.0
@@ -25,6 +27,7 @@ class MergeCandidate:
 
 
 # ─── ExactMatchDeduplicator — Pass 1 ─────────────────────────────────────────
+
 
 class ExactMatchDeduplicator:
     """Pass 1 exact-match deduplication using composite deterministic keys."""
@@ -35,12 +38,12 @@ class ExactMatchDeduplicator:
         self.seen_hashes: set[str] = set()
 
     def normalize_string(self, s: str) -> str:
-        """Lowercase, strip whitespace, remove . , - """
-        return re.sub(r'[.,\-]', '', s.lower().strip())
+        """Lowercase, strip whitespace, remove . , -"""
+        return re.sub(r"[.,\-]", "", s.lower().strip())
 
     def extract_ssn_last4(self, ssn: str) -> str:
         """Extract last 4 digits from SSN string."""
-        digits = re.sub(r'\D', '', ssn)
+        digits = re.sub(r"\D", "", ssn)
         return digits[-4:] if len(digits) >= 4 else digits
 
     def create_composite_keys(self, record: dict) -> list[tuple[str, int]]:
@@ -54,12 +57,12 @@ class ExactMatchDeduplicator:
         """
         keys: list[tuple[str, int]] = []
 
-        raw_ssn = record.get('ssn', '') or ''
-        raw_dob = record.get('dob', '') or ''
-        raw_name = record.get('full_name', '') or ''
-        raw_email = record.get('email', '') or ''
-        raw_phone = record.get('phone', '') or ''
-        raw_ein = record.get('ein', '') or ''
+        raw_ssn = record.get("ssn", "") or ""
+        raw_dob = record.get("dob", "") or ""
+        raw_name = record.get("full_name", "") or ""
+        raw_email = record.get("email", "") or ""
+        raw_phone = record.get("phone", "") or ""
+        raw_ein = record.get("ein", "") or ""
 
         ssn_last4 = self.extract_ssn_last4(raw_ssn)
         dob = self.normalize_string(str(raw_dob))
@@ -71,11 +74,11 @@ class ExactMatchDeduplicator:
 
         # Priority 2: email (only if contains @ and non-empty)
         email = self.normalize_string(raw_email)
-        if email and '@' in email:
+        if email and "@" in email:
             keys.append((f"email:{email}", 2))
 
         # Priority 3: phone (only if 10+ digits after normalizing)
-        phone_digits = re.sub(r'\D', '', raw_phone)
+        phone_digits = re.sub(r"\D", "", raw_phone)
         if len(phone_digits) >= 10:
             keys.append((f"phone:{phone_digits}", 3))
 
@@ -92,7 +95,7 @@ class ExactMatchDeduplicator:
 
     def hash_key(self, key: str) -> str:
         """SHA256 hex digest of key."""
-        return hashlib.sha256(key.encode('utf-8')).hexdigest()
+        return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
     def check_and_mark_duplicate(self, record: dict) -> tuple[bool, str]:
         """
@@ -133,7 +136,7 @@ class ExactMatchDeduplicator:
         for record in records:
             is_dup, matched_key = self.check_and_mark_duplicate(record)
             if is_dup:
-                duplicates.append({'record': record, 'matched_key': matched_key, 'pass': 1})
+                duplicates.append({"record": record, "matched_key": matched_key, "pass": 1})
             else:
                 unique.append(record)
 
@@ -142,7 +145,7 @@ class ExactMatchDeduplicator:
 
 # ─── Name normalization ───────────────────────────────────────────────────────
 
-HONORIFICS = frozenset(['mr', 'mrs', 'ms', 'dr', 'prof', 'rev', 'sr', 'jr', 'ii', 'iii'])
+HONORIFICS = frozenset(["mr", "mrs", "ms", "dr", "prof", "rev", "sr", "jr", "ii", "iii"])
 
 
 def normalize_name(name: str) -> str:
@@ -182,12 +185,13 @@ def name_similarity(name_a: str, name_b: str) -> float:
 
 # ─── Identifier deduplication ─────────────────────────────────────────────────
 
+
 def normalize_phone(phone: str) -> str:
     """Strip all non-digits, ensure E.164-ish format."""
-    digits = re.sub(r'\D', '', phone)
+    digits = re.sub(r"\D", "", phone)
     if len(digits) == 10:
         return f"+1{digits}"
-    if len(digits) == 11 and digits[0] == '1':
+    if len(digits) == 11 and digits[0] == "1":
         return f"+{digits}"
     return f"+{digits}"
 
@@ -199,7 +203,7 @@ def normalize_email(email: str) -> str:
 
 def normalize_username(username: str) -> str:
     """Lowercase, strip @ prefix."""
-    return username.lower().lstrip('@').strip()
+    return username.lower().lstrip("@").strip()
 
 
 def find_duplicate_identifiers(
@@ -211,16 +215,16 @@ def find_duplicate_identifiers(
     Returns pairs that should be merged.
     """
     normalizers = {
-        'phone': normalize_phone,
-        'email': normalize_email,
-        'username': normalize_username,
+        "phone": normalize_phone,
+        "email": normalize_email,
+        "username": normalize_username,
     }
 
     candidates = []
     type_buckets: dict[str, list[dict]] = {}
 
     for ident in identifiers:
-        ident_type = ident.get('type', 'unknown')
+        ident_type = ident.get("type", "unknown")
         type_buckets.setdefault(ident_type, []).append(ident)
 
     for ident_type, bucket in type_buckets.items():
@@ -228,17 +232,19 @@ def find_duplicate_identifiers(
         seen: dict[str, dict] = {}
 
         for ident in bucket:
-            raw_value = ident.get('normalized_value') or ident.get('value', '')
+            raw_value = ident.get("normalized_value") or ident.get("value", "")
             norm = normalizer(raw_value)
 
             if norm in seen:
                 existing = seen[norm]
-                candidates.append(MergeCandidate(
-                    id_a=str(existing['id']),
-                    id_b=str(ident['id']),
-                    similarity_score=1.0,
-                    match_reasons=[f"identical normalized {ident_type}: {norm}"],
-                ))
+                candidates.append(
+                    MergeCandidate(
+                        id_a=str(existing["id"]),
+                        id_b=str(ident["id"]),
+                        similarity_score=1.0,
+                        match_reasons=[f"identical normalized {ident_type}: {norm}"],
+                    )
+                )
             else:
                 seen[norm] = ident
 
@@ -265,12 +271,14 @@ def find_duplicate_persons(
             a, b = persons[i], persons[j]
             score, reasons = _person_similarity(a, b)
             if score >= MERGE_THRESHOLD:
-                candidates.append(MergeCandidate(
-                    id_a=str(a['id']),
-                    id_b=str(b['id']),
-                    similarity_score=score,
-                    match_reasons=reasons,
-                ))
+                candidates.append(
+                    MergeCandidate(
+                        id_a=str(a["id"]),
+                        id_b=str(b["id"]),
+                        similarity_score=score,
+                        match_reasons=reasons,
+                    )
+                )
 
     return candidates
 
@@ -287,14 +295,14 @@ def _person_similarity(a: dict, b: dict) -> tuple[float, list[str]]:
     score = 0.0
     reasons = []
 
-    idents_a = set(str(i).lower().strip() for i in a.get('identifiers', []) if i)
-    idents_b = set(str(i).lower().strip() for i in b.get('identifiers', []) if i)
+    idents_a = {str(i).lower().strip() for i in a.get("identifiers", []) if i}
+    idents_b = {str(i).lower().strip() for i in b.get("identifiers", []) if i}
 
     # Fast path: shared phone or email is near-certain same person
-    phones_a = set(str(i) for i in a.get('phones', [])) | {v for v in idents_a if _looks_like_phone(v)}
-    phones_b = set(str(i) for i in b.get('phones', [])) | {v for v in idents_b if _looks_like_phone(v)}
-    emails_a = set(str(i) for i in a.get('emails', [])) | {v for v in idents_a if '@' in v}
-    emails_b = set(str(i) for i in b.get('emails', [])) | {v for v in idents_b if '@' in v}
+    phones_a = {str(i) for i in a.get("phones", [])} | {v for v in idents_a if _looks_like_phone(v)}
+    phones_b = {str(i) for i in b.get("phones", [])} | {v for v in idents_b if _looks_like_phone(v)}
+    emails_a = {str(i) for i in a.get("emails", [])} | {v for v in idents_a if "@" in v}
+    emails_b = {str(i) for i in b.get("emails", [])} | {v for v in idents_b if "@" in v}
 
     shared_phones = phones_a & phones_b
     shared_emails = emails_a & emails_b
@@ -307,16 +315,16 @@ def _person_similarity(a: dict, b: dict) -> tuple[float, list[str]]:
         return 0.95, reasons
 
     # Name similarity (weight 0.40)
-    name_a = a.get('full_name', '')
-    name_b = b.get('full_name', '')
+    name_a = a.get("full_name", "")
+    name_b = b.get("full_name", "")
     name_sim = name_similarity(name_a, name_b)
     score += name_sim * 0.40
     if name_sim >= 0.75:
         reasons.append(f"name match: '{name_a}' ≈ '{name_b}' ({name_sim:.2f})")
 
     # DOB exact match (weight 0.30)
-    dob_a = a.get('dob')
-    dob_b = b.get('dob')
+    dob_a = a.get("dob")
+    dob_b = b.get("dob")
     if dob_a and dob_b and str(dob_a) == str(dob_b):
         score += 0.30
         reasons.append(f"DOB match: {dob_a}")
@@ -333,7 +341,7 @@ def _person_similarity(a: dict, b: dict) -> tuple[float, list[str]]:
 
 def _looks_like_phone(value: str) -> bool:
     """Heuristic: string of mostly digits that's 7+ chars long."""
-    digits = re.sub(r'\D', '', value)
+    digits = re.sub(r"\D", "", value)
     return len(digits) >= 7 and len(digits) <= 15
 
 
@@ -347,30 +355,55 @@ def merge_persons(canonical_id: str, duplicate_id: str) -> dict[str, Any]:
         "duplicate_id": duplicate_id,
         "action": "merge",
         "reassign_tables": [
-            "identifiers", "social_profiles", "addresses",
-            "employment_histories", "educations", "breach_records",
-            "media_assets", "watchlist_matches", "darkweb_mentions",
-            "crypto_wallets", "behavioural_profiles", "credit_risk_assessments",
-            "wealth_assessments", "burner_assessments", "relationships",
-            "crawl_jobs", "alerts",
-            "criminal_records", "identity_documents", "credit_profiles",
+            "identifiers",
+            "social_profiles",
+            "addresses",
+            "employment_histories",
+            "educations",
+            "breach_records",
+            "media_assets",
+            "watchlist_matches",
+            "darkweb_mentions",
+            "crypto_wallets",
+            "behavioural_profiles",
+            "credit_risk_assessments",
+            "wealth_assessments",
+            "burner_assessments",
+            "relationships",
+            "crawl_jobs",
+            "alerts",
+            "criminal_records",
+            "identity_documents",
+            "credit_profiles",
             "identifier_history",
         ],
         "delete_duplicate": True,
-        "merged_at": datetime.now(timezone.utc).isoformat(),
+        "merged_at": datetime.now(UTC).isoformat(),
     }
 
 
 # ─── Soundex phonetic encoder ─────────────────────────────────────────────────
 
 _SOUNDEX_TABLE: dict[str, str] = {
-    'B': '1', 'F': '1', 'P': '1', 'V': '1',
-    'C': '2', 'G': '2', 'J': '2', 'K': '2', 'Q': '2',
-    'S': '2', 'X': '2', 'Y': '2', 'Z': '2',
-    'D': '3', 'T': '3',
-    'L': '4',
-    'M': '5', 'N': '5',
-    'R': '6',
+    "B": "1",
+    "F": "1",
+    "P": "1",
+    "V": "1",
+    "C": "2",
+    "G": "2",
+    "J": "2",
+    "K": "2",
+    "Q": "2",
+    "S": "2",
+    "X": "2",
+    "Y": "2",
+    "Z": "2",
+    "D": "3",
+    "T": "3",
+    "L": "4",
+    "M": "5",
+    "N": "5",
+    "R": "6",
 }
 
 
@@ -388,11 +421,11 @@ def soundex(name: str) -> str:
 
     # Encode all characters (including first) then process
     coded = []
-    prev_code = _SOUNDEX_TABLE.get(first_letter, '0')
+    prev_code = _SOUNDEX_TABLE.get(first_letter, "0")
 
     for ch in rest:
-        code = _SOUNDEX_TABLE.get(ch, '0')
-        if code != '0' and code != prev_code:
+        code = _SOUNDEX_TABLE.get(ch, "0")
+        if code != "0" and code != prev_code:
             coded.append(code)
         prev_code = code
 
@@ -402,6 +435,7 @@ def soundex(name: str) -> str:
 
 
 # ─── String similarity functions ──────────────────────────────────────────────
+
 
 def jaro_winkler_similarity(s1: str, s2: str) -> float:
     """
@@ -453,11 +487,7 @@ def jaro_winkler_similarity(s1: str, s2: str) -> float:
             transpositions += 1
         k += 1
 
-    jaro = (
-        matches / len1
-        + matches / len2
-        + (matches - transpositions / 2) / matches
-    ) / 3.0
+    jaro = (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3.0
 
     # Winkler prefix boost (p=0.1, max prefix=4)
     prefix = 0
@@ -497,9 +527,9 @@ def levenshtein_similarity(s1: str, s2: str) -> float:
         for j in range(1, len2 + 1):
             cost = 0 if s1[i - 1] == s2[j - 1] else 1
             curr[j] = min(
-                prev[j] + 1,        # deletion
-                curr[j - 1] + 1,    # insertion
-                prev[j - 1] + cost, # substitution
+                prev[j] + 1,  # deletion
+                curr[j - 1] + 1,  # insertion
+                prev[j - 1] + cost,  # substitution
             )
         prev, curr = curr, prev
 
@@ -508,6 +538,7 @@ def levenshtein_similarity(s1: str, s2: str) -> float:
 
 
 # ─── FuzzyDeduplicator ────────────────────────────────────────────────────────
+
 
 class FuzzyDeduplicator:
     """
@@ -561,12 +592,14 @@ class FuzzyDeduplicator:
 
                     score, reasons = self._score_pair(persons[a_idx], persons[b_idx])
                     if score >= self.MERGE_THRESHOLD:
-                        candidates.append(MergeCandidate(
-                            id_a=str(persons[a_idx]['id']),
-                            id_b=str(persons[b_idx]['id']),
-                            similarity_score=score,
-                            match_reasons=reasons,
-                        ))
+                        candidates.append(
+                            MergeCandidate(
+                                id_a=str(persons[a_idx]["id"]),
+                                id_b=str(persons[b_idx]["id"]),
+                                similarity_score=score,
+                                match_reasons=reasons,
+                            )
+                        )
 
         candidates.sort(key=lambda c: c.similarity_score, reverse=True)
         return candidates
@@ -579,23 +612,23 @@ class FuzzyDeduplicator:
         """
         keys: list[str] = []
 
-        dob = person.get('dob')
+        dob = person.get("dob")
         if dob:
             birth_year = str(dob)[:4]
             if birth_year.isdigit():
                 keys.append(f"birth_year:{birth_year}")
 
-        full_name = person.get('full_name', '')
+        full_name = person.get("full_name", "")
         if full_name:
             parts = full_name.strip().split()
             # Use last token as a proxy for last name
-            last_name = parts[-1] if parts else ''
+            last_name = parts[-1] if parts else ""
             if last_name:
                 keys.append(f"soundex:{soundex(last_name)}")
 
-        phones = person.get('phones', [])
+        phones = person.get("phones", [])
         for phone in phones:
-            digits = re.sub(r'\D', '', str(phone))
+            digits = re.sub(r"\D", "", str(phone))
             if len(digits) >= 3:
                 keys.append(f"phone_prefix:{digits[:3]}")
                 break  # one phone prefix per person is enough for blocking
@@ -617,17 +650,13 @@ class FuzzyDeduplicator:
         reasons: list[str] = []
 
         # ── Shared phone/email — early exit ──────────────────────────────────
-        phones_a: set[str] = {
-            re.sub(r'\D', '', str(p)) for p in a.get('phones', []) if p
-        }
-        phones_b: set[str] = {
-            re.sub(r'\D', '', str(p)) for p in b.get('phones', []) if p
-        }
-        emails_a: set[str] = {str(e).lower().strip() for e in a.get('emails', []) if e}
-        emails_b: set[str] = {str(e).lower().strip() for e in b.get('emails', []) if e}
+        phones_a: set[str] = {re.sub(r"\D", "", str(p)) for p in a.get("phones", []) if p}
+        phones_b: set[str] = {re.sub(r"\D", "", str(p)) for p in b.get("phones", []) if p}
+        emails_a: set[str] = {str(e).lower().strip() for e in a.get("emails", []) if e}
+        emails_b: set[str] = {str(e).lower().strip() for e in b.get("emails", []) if e}
 
-        shared_phones = (phones_a & phones_b) - {''}
-        shared_emails = (emails_a & emails_b) - {''}
+        shared_phones = (phones_a & phones_b) - {""}
+        shared_emails = (emails_a & emails_b) - {""}
 
         if shared_phones:
             reasons.append(f"shared phone: {next(iter(shared_phones))}")
@@ -637,8 +666,8 @@ class FuzzyDeduplicator:
             return 0.95, reasons
 
         # ── Name similarity (Jaro-Winkler) × 0.40 ────────────────────────────
-        name_a = a.get('full_name', '')
-        name_b = b.get('full_name', '')
+        name_a = a.get("full_name", "")
+        name_b = b.get("full_name", "")
         if name_a and name_b:
             jw = jaro_winkler_similarity(name_a.lower(), name_b.lower())
             score += jw * 0.40
@@ -646,15 +675,15 @@ class FuzzyDeduplicator:
                 reasons.append(f"name JW match: '{name_a}' ≈ '{name_b}' ({jw:.2f})")
 
         # ── DOB exact match × 0.30 ────────────────────────────────────────────
-        dob_a = a.get('dob')
-        dob_b = b.get('dob')
+        dob_a = a.get("dob")
+        dob_b = b.get("dob")
         if dob_a and dob_b and str(dob_a) == str(dob_b):
             score += 0.30
             reasons.append(f"DOB match: {dob_a}")
 
         # ── Shared other identifiers × min(0.20, count × 0.10) ───────────────
-        idents_a = {str(i).lower().strip() for i in a.get('identifiers', []) if i}
-        idents_b = {str(i).lower().strip() for i in b.get('identifiers', []) if i}
+        idents_a = {str(i).lower().strip() for i in a.get("identifiers", []) if i}
+        idents_b = {str(i).lower().strip() for i in b.get("identifiers", []) if i}
         shared_idents = idents_a & idents_b
         if shared_idents:
             ident_score = min(0.20, len(shared_idents) * 0.10)
@@ -662,14 +691,14 @@ class FuzzyDeduplicator:
             reasons.append(f"shared identifiers: {', '.join(list(shared_idents)[:3])}")
 
         # ── Address partial match (levenshtein > 0.7 on city+state) × 0.10 ───
-        addr_a = a.get('addresses', [])
-        addr_b = b.get('addresses', [])
+        addr_a = a.get("addresses", [])
+        addr_b = b.get("addresses", [])
         if addr_a and addr_b:
             # Use first address from each person
             def _city_state(addr: Any) -> str:
                 if isinstance(addr, dict):
-                    city = str(addr.get('city', '')).lower().strip()
-                    state = str(addr.get('state', '')).lower().strip()
+                    city = str(addr.get("city", "")).lower().strip()
+                    state = str(addr.get("state", "")).lower().strip()
                     return f"{city} {state}".strip()
                 return str(addr).lower().strip()
 
@@ -685,6 +714,7 @@ class FuzzyDeduplicator:
 
 
 # ─── BloomDedup ───────────────────────────────────────────────────────────────
+
 
 class BloomDedup:
     """
@@ -705,7 +735,7 @@ class BloomDedup:
         k = (m / n) * ln(2)          — number of hash functions
         """
         ln2 = math.log(2)
-        m = int(math.ceil(-n * math.log(p) / (ln2 ** 2)))
+        m = int(math.ceil(-n * math.log(p) / (ln2**2)))
         k = int(round((m / n) * ln2))
         k = max(1, k)
         return m, k
@@ -716,19 +746,19 @@ class BloomDedup:
         Each hash uses salt i prepended to the key to produce a different digest.
         """
         positions: list[int] = []
-        encoded = key.encode('utf-8')
+        encoded = key.encode("utf-8")
         for i in range(self._k):
-            salt = i.to_bytes(4, 'little')
+            salt = i.to_bytes(4, "little")
             digest = hashlib.sha256(salt + encoded).digest()
             # Take first 8 bytes as a 64-bit integer, then mod m
-            pos = int.from_bytes(digest[:8], 'little') % self._m
+            pos = int.from_bytes(digest[:8], "little") % self._m
             positions.append(pos)
         return positions
 
     def _set_bit(self, pos: int) -> None:
         byte_index = pos // 8
         bit_index = pos % 8
-        self._bits[byte_index] |= (1 << bit_index)
+        self._bits[byte_index] |= 1 << bit_index
 
     def _get_bit(self, pos: int) -> bool:
         byte_index = pos // 8
@@ -754,8 +784,9 @@ class BloomDedup:
 # ─── AsyncMergeExecutor ───────────────────────────────────────────────────────
 
 try:
-    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy import text as sa_text
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     _SQLALCHEMY_AVAILABLE = True
 except ImportError:
     _SQLALCHEMY_AVAILABLE = False
@@ -763,21 +794,38 @@ except ImportError:
     sa_text = None  # type: ignore[assignment]
 
 import uuid as _uuid_mod
-_SAFE_TABLE_RE = re.compile(r'^[a-z_][a-z0-9_]{1,62}$')
+
+_SAFE_TABLE_RE = re.compile(r"^[a-z_][a-z0-9_]{1,62}$")
 
 
 class AsyncMergeExecutor:
     """Execute merge plans against the PostgreSQL database."""
 
     REASSIGN_TABLES: tuple[str, ...] = (
-        "identifiers", "social_profiles", "addresses",
-        "employment_histories", "educations", "breach_records",
-        "media_assets", "watchlist_matches", "darkweb_mentions",
-        "crypto_wallets", "behavioural_profiles", "credit_risk_assessments",
-        "wealth_assessments", "burner_assessments", "relationships",
-        "crawl_jobs", "alerts", "criminal_records", "identity_documents",
-        "credit_profiles", "identifier_history", "marketing_tags",
-        "consumer_segments", "audit_log",
+        "identifiers",
+        "social_profiles",
+        "addresses",
+        "employment_histories",
+        "educations",
+        "breach_records",
+        "media_assets",
+        "watchlist_matches",
+        "darkweb_mentions",
+        "crypto_wallets",
+        "behavioural_profiles",
+        "credit_risk_assessments",
+        "wealth_assessments",
+        "burner_assessments",
+        "relationships",
+        "crawl_jobs",
+        "alerts",
+        "criminal_records",
+        "identity_documents",
+        "credit_profiles",
+        "identifier_history",
+        "marketing_tags",
+        "consumer_segments",
+        "audit_log",
     )
 
     async def execute(self, plan: dict, session: "AsyncSession") -> dict[str, Any]:
@@ -817,9 +865,7 @@ class AsyncMergeExecutor:
                 if not _SAFE_TABLE_RE.match(table):
                     logger.warning("AsyncMergeExecutor: skipping unsafe table name %r", table)
                     continue
-                stmt = sa_text(
-                    f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup"
-                )
+                stmt = sa_text(f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup")
                 result = await session.execute(
                     stmt,
                     {"canonical": canonical_id, "dup": duplicate_id},
@@ -837,7 +883,7 @@ class AsyncMergeExecutor:
                 "canonical_id": canonical_id,
                 "duplicate_id": duplicate_id,
                 "tables_updated": tables_updated,
-                "merged_at": datetime.now(timezone.utc).isoformat(),
+                "merged_at": datetime.now(UTC).isoformat(),
             }
 
         except Exception as exc:
@@ -857,6 +903,7 @@ class AsyncMergeExecutor:
 
 # ─── score_person_dedup — async enricher entrypoint ──────────────────────────
 
+
 async def score_person_dedup(
     person_id: str,
     session: "AsyncSession",
@@ -872,9 +919,9 @@ async def score_person_dedup(
       5. Return candidates (excluding self-matches) sorted by score desc.
     """
     try:
-        from shared.models.person import Person
-        from shared.models.identifier import Identifier
         from shared.models.address import Address
+        from shared.models.identifier import Identifier
+        from shared.models.person import Person
     except ImportError as exc:
         logger.warning("score_person_dedup: shared models not available — %s", exc)
         return []
@@ -899,44 +946,44 @@ async def score_person_dedup(
         phones: list[str] = [
             i.normalized_value or i.value
             for i in target_idents
-            if i.type == 'phone' and (i.normalized_value or i.value)
+            if i.type == "phone" and (i.normalized_value or i.value)
         ]
-        emails: list[str] = [
+        [
             i.normalized_value or i.value
             for i in target_idents
-            if i.type == 'email' and (i.normalized_value or i.value)
+            if i.type == "email" and (i.normalized_value or i.value)
         ]
         phone_prefixes: list[str] = [
-            re.sub(r'\D', '', p)[:3]
-            for p in phones
-            if len(re.sub(r'\D', '', p)) >= 3
+            re.sub(r"\D", "", p)[:3] for p in phones if len(re.sub(r"\D", "", p)) >= 3
         ]
 
         # ── Build blocking query — fetch candidates via blocking keys ────────
         candidate_ids: set[str] = set()
 
         # Block by birth year
-        dob = getattr(target_person, 'dob', None)
+        dob = getattr(target_person, "dob", None)
         if dob:
             birth_year = str(dob)[:4]
             if birth_year.isdigit():
-                by_stmt = sa_select(Person.id).where(
-                    sa_text(f"EXTRACT(YEAR FROM dob)::text = :yr")
-                ).params(yr=birth_year)
+                by_stmt = (
+                    sa_select(Person.id)
+                    .where(sa_text("EXTRACT(YEAR FROM dob)::text = :yr"))
+                    .params(yr=birth_year)
+                )
                 by_result = await session.execute(by_stmt)
                 candidate_ids.update(str(r[0]) for r in by_result.fetchall())
 
         # Block by soundex of last name
-        full_name = getattr(target_person, 'full_name', '') or ''
+        full_name = getattr(target_person, "full_name", "") or ""
         if full_name:
             parts = full_name.strip().split()
-            last_name = parts[-1] if parts else ''
+            last_name = parts[-1] if parts else ""
             if last_name:
-                sdx = soundex(last_name)
+                soundex(last_name)
                 # Blocking by last name; soundex key sdx={sdx} used for FuzzyDeduplicator blocking
-                ln_stmt = sa_select(Person.id).where(
-                    Person.full_name.ilike(f"%{last_name}%")
-                ).limit(500)
+                ln_stmt = (
+                    sa_select(Person.id).where(Person.full_name.ilike(f"%{last_name}%")).limit(500)
+                )
                 ln_result = await session.execute(ln_stmt)
                 candidate_ids.update(str(r[0]) for r in ln_result.fetchall())
 
@@ -944,7 +991,7 @@ async def score_person_dedup(
         for prefix in phone_prefixes:
             ph_stmt = (
                 sa_select(Identifier.person_id)
-                .where(Identifier.type == 'phone')
+                .where(Identifier.type == "phone")
                 .where(
                     sa_text(
                         "regexp_replace(normalized_value, '\\D', '', 'g') LIKE :prefix"
@@ -966,9 +1013,7 @@ async def score_person_dedup(
         candidate_persons = cand_result.scalars().all()
 
         all_ids = list(candidate_ids) + [str(person_id)]
-        cand_ident_stmt = sa_select(Identifier).where(
-            Identifier.person_id.in_(all_ids)
-        )
+        cand_ident_stmt = sa_select(Identifier).where(Identifier.person_id.in_(all_ids))
         cand_ident_result = await session.execute(cand_ident_stmt)
         all_idents = cand_ident_result.scalars().all()
 
@@ -976,14 +1021,14 @@ async def score_person_dedup(
         ident_map: dict[str, dict[str, list[str]]] = {}
         for ident in all_idents:
             pid = str(ident.person_id)
-            val = ident.normalized_value or ident.value or ''
-            ident_map.setdefault(pid, {'phones': [], 'emails': [], 'other': []})
-            if ident.type == 'phone':
-                ident_map[pid]['phones'].append(val)
-            elif ident.type == 'email':
-                ident_map[pid]['emails'].append(val)
+            val = ident.normalized_value or ident.value or ""
+            ident_map.setdefault(pid, {"phones": [], "emails": [], "other": []})
+            if ident.type == "phone":
+                ident_map[pid]["phones"].append(val)
+            elif ident.type == "email":
+                ident_map[pid]["emails"].append(val)
             else:
-                ident_map[pid]['other'].append(val)
+                ident_map[pid]["other"].append(val)
 
         # ── Load addresses for blocking set ──────────────────────────────────
         addr_stmt = sa_select(Address).where(Address.person_id.in_(all_ids))
@@ -993,22 +1038,24 @@ async def score_person_dedup(
         addr_map: dict[str, list[dict]] = {}
         for addr in all_addresses:
             pid = str(addr.person_id)
-            addr_map.setdefault(pid, []).append({
-                'city': getattr(addr, 'city', ''),
-                'state': getattr(addr, 'state', ''),
-            })
+            addr_map.setdefault(pid, []).append(
+                {
+                    "city": getattr(addr, "city", ""),
+                    "state": getattr(addr, "state", ""),
+                }
+            )
 
         def _to_dict(person: Any) -> dict:
             pid = str(person.id)
             im = ident_map.get(pid, {})
             return {
-                'id': pid,
-                'full_name': getattr(person, 'full_name', '') or '',
-                'dob': str(getattr(person, 'dob', '') or ''),
-                'phones': im.get('phones', []),
-                'emails': im.get('emails', []),
-                'identifiers': im.get('other', []),
-                'addresses': addr_map.get(pid, []),
+                "id": pid,
+                "full_name": getattr(person, "full_name", "") or "",
+                "dob": str(getattr(person, "dob", "") or ""),
+                "phones": im.get("phones", []),
+                "emails": im.get("emails", []),
+                "identifiers": im.get("other", []),
+                "addresses": addr_map.get(pid, []),
             }
 
         persons_dicts: list[dict] = [
@@ -1021,10 +1068,7 @@ async def score_person_dedup(
 
         # Keep only candidates involving the target person
         target_id_str = str(person_id)
-        filtered = [
-            c for c in candidates
-            if c.id_a == target_id_str or c.id_b == target_id_str
-        ]
+        filtered = [c for c in candidates if c.id_a == target_id_str or c.id_b == target_id_str]
 
         return filtered
 

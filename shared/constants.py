@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class SeedType(str, Enum):
+class SeedType(StrEnum):
     PHONE = "phone"
     EMAIL = "email"
     USERNAME = "username"
@@ -14,7 +14,7 @@ class SeedType(str, Enum):
     COMPANY_REG = "company_reg"
 
 
-class IdentifierType(str, Enum):
+class IdentifierType(StrEnum):
     PHONE = "phone"
     EMAIL = "email"
     USERNAME = "username"
@@ -30,7 +30,7 @@ class IdentifierType(str, Enum):
     IMEI = "imei"
 
 
-class RelType(str, Enum):
+class RelType(StrEnum):
     ASSOCIATE = "associate"
     FAMILY = "family"
     EMPLOYER = "employer"
@@ -45,7 +45,7 @@ class RelType(str, Enum):
     ALIAS_OF = "alias_of"
 
 
-class Platform(str, Enum):
+class Platform(StrEnum):
     INSTAGRAM = "instagram"
     TWITTER = "twitter"
     FACEBOOK = "facebook"
@@ -68,14 +68,14 @@ class Platform(str, Enum):
     UNKNOWN = "unknown"
 
 
-class AlertSeverity(str, Enum):
+class AlertSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
 
-class AlertType(str, Enum):
+class AlertType(StrEnum):
     NEW_IDENTIFIER = "new_identifier"
     NEW_ASSOCIATION = "new_association"
     DARKWEB_MENTION = "darkweb_mention"
@@ -87,7 +87,7 @@ class AlertType(str, Enum):
     WEALTH_CHANGE = "wealth_change"
 
 
-class CrawlStatus(str, Enum):
+class CrawlStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     DONE = "done"
@@ -96,17 +96,17 @@ class CrawlStatus(str, Enum):
     BLOCKED = "blocked"
 
 
-class WealthBand(str, Enum):
-    ULTRA_HNW = "ultra_hnw"       # > $10M
-    HIGH_HNW = "high_hnw"         # $1M - $10M
-    AFFLUENT = "affluent"          # $250K - $1M
-    MIDDLE = "middle"              # $50K - $250K
-    LOWER = "lower"                # $15K - $50K
-    STRESSED = "stressed"          # < $15K or distress signals
+class WealthBand(StrEnum):
+    ULTRA_HNW = "ultra_hnw"  # > $10M
+    HIGH_HNW = "high_hnw"  # $1M - $10M
+    AFFLUENT = "affluent"  # $250K - $1M
+    MIDDLE = "middle"  # $50K - $250K
+    LOWER = "lower"  # $15K - $50K
+    STRESSED = "stressed"  # < $15K or distress signals
     UNKNOWN = "unknown"
 
 
-class LineType(str, Enum):
+class LineType(StrEnum):
     MOBILE = "mobile"
     LANDLINE = "landline"
     VOIP = "voip"
@@ -115,22 +115,22 @@ class LineType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class BurnerConfidence(str, Enum):
-    CONFIRMED = "confirmed"       # >= 0.70
-    LIKELY = "likely"             # 0.40 - 0.69
-    POSSIBLE = "possible"         # 0.20 - 0.39
-    CLEAN = "clean"               # < 0.20
+class BurnerConfidence(StrEnum):
+    CONFIRMED = "confirmed"  # >= 0.70
+    LIKELY = "likely"  # 0.40 - 0.69
+    POSSIBLE = "possible"  # 0.20 - 0.39
+    CLEAN = "clean"  # < 0.20
 
 
-class DefaultRiskTier(str, Enum):
-    DO_NOT_LEND = "do_not_lend"   # 0.80 - 1.00
-    HIGH_RISK = "high_risk"       # 0.60 - 0.79
-    MEDIUM_RISK = "medium_risk"   # 0.40 - 0.59
-    LOW_RISK = "low_risk"         # 0.20 - 0.39
-    PREFERRED = "preferred"       # 0.00 - 0.19
+class DefaultRiskTier(StrEnum):
+    DO_NOT_LEND = "do_not_lend"  # 0.80 - 1.00
+    HIGH_RISK = "high_risk"  # 0.60 - 0.79
+    MEDIUM_RISK = "medium_risk"  # 0.40 - 0.59
+    LOW_RISK = "low_risk"  # 0.20 - 0.39
+    PREFERRED = "preferred"  # 0.00 - 0.19
 
 
-class CriminalSignalType(str, Enum):
+class CriminalSignalType(StrEnum):
     DRUG_DEALING = "drug_dealing"
     FRAUD = "fraud"
     MONEY_LAUNDERING = "money_laundering"
@@ -142,7 +142,7 @@ class CriminalSignalType(str, Enum):
     SANCTIONS_EVASION = "sanctions_evasion"
 
 
-class Chain(str, Enum):
+class Chain(StrEnum):
     BTC = "btc"
     ETH = "eth"
     USDT_TRC20 = "usdt_trc20"
@@ -155,10 +155,10 @@ class Chain(str, Enum):
     UNKNOWN = "unknown"
 
 
-class VerificationStatus(str, Enum):
+class VerificationStatus(StrEnum):
     UNVERIFIED = "unverified"
     CORROBORATED = "corroborated"  # same fact in 2+ sources
-    VERIFIED = "verified"          # active probe confirmed
+    VERIFIED = "verified"  # active probe confirmed
 
 
 # Source reliability scores (0.0 - 1.0)
@@ -175,7 +175,7 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "bankruptcy": 0.85,
     "company": 0.82,
     "property": 0.80,
-    "public": 0.78,          # public gov databases (NPI, FAA, NSOPW)
+    "public": 0.78,  # public gov databases (NPI, FAA, NSOPW)
     "gov": 0.78,
     # Professional / identity
     "linkedin": 0.75,
@@ -184,8 +184,8 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "fastpeoplesearch": 0.62,
     "truepeoplesearch": 0.62,
     "people": 0.60,
-    "phone": 0.65,           # phone_carrier, phone_truecaller etc.
-    "email": 0.60,           # email_hibp, email_holehe etc.
+    "phone": 0.65,  # phone_carrier, phone_truecaller etc.
+    "email": 0.60,  # email_hibp, email_holehe etc.
     "domain": 0.60,
     "ip": 0.55,
     "crypto": 0.55,
@@ -200,13 +200,13 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "snapchat": 0.45,
     "tiktok": 0.50,
     "telegram": 0.50,
-    "whatsapp": 0.65,        # phone confirmation via wa.me
+    "whatsapp": 0.65,  # phone confirmation via wa.me
     "discord": 0.45,
     "twitch": 0.45,
     "steam": 0.45,
     "pinterest": 0.40,
     "mastodon": 0.45,
-    "username": 0.40,        # username_sherlock sweeps
+    "username": 0.40,  # username_sherlock sweeps
     # Dark web / paste
     "paste_site": 0.35,
     "paste": 0.35,
@@ -223,24 +223,59 @@ FRESHNESS_HALF_LIFE: dict[str, float] = {
     "sanctions": 6.0,
     "watchlist": 6.0,
     "breach_database": 24.0,
-    "social_media_post": 72.0,       # 3 days
-    "social_media_profile": 168.0,   # 7 days
-    "phone_registration": 336.0,     # 14 days
-    "court_record": 720.0,           # 30 days
-    "employment": 1440.0,            # 60 days
-    "property": 2160.0,              # 90 days
-    "education": 8760.0,             # 365 days
-    "default": 168.0,                # 7 days
+    "social_media_post": 72.0,  # 3 days
+    "social_media_profile": 168.0,  # 7 days
+    "phone_registration": 336.0,  # 14 days
+    "court_record": 720.0,  # 30 days
+    "employment": 1440.0,  # 60 days
+    "property": 2160.0,  # 90 days
+    "education": 8760.0,  # 365 days
+    "default": 168.0,  # 7 days
 }
 
 # Known burner/VoIP carrier substrings (lowercase match)
-BURNER_CARRIERS = frozenset([
-    "textnow", "google voice", "hushed", "burner", "mysudo", "sideline",
-    "2ndline", "iplum", "talkatone", "bandwidth", "twilio", "vonage",
-    "telnyx", "flowroute", "magicjack", "ooma", "grasshopper", "openphone",
-    "dialpad", "ringcentral", "nextiva", "8x8", "textfree", "pinger",
-    "fongo", "textplus", "numberbarn", "skype", "viber", "line",
-    "textme", "choicetelecom", "tracfone", "safelink", "net10",
-    "boost mobile virtual", "cricket virtual", "metro virtual",
-    "visible wireless", "ultra mobile", "mint mobile virtual",
-])
+BURNER_CARRIERS = frozenset(
+    [
+        "textnow",
+        "google voice",
+        "hushed",
+        "burner",
+        "mysudo",
+        "sideline",
+        "2ndline",
+        "iplum",
+        "talkatone",
+        "bandwidth",
+        "twilio",
+        "vonage",
+        "telnyx",
+        "flowroute",
+        "magicjack",
+        "ooma",
+        "grasshopper",
+        "openphone",
+        "dialpad",
+        "ringcentral",
+        "nextiva",
+        "8x8",
+        "textfree",
+        "pinger",
+        "fongo",
+        "textplus",
+        "numberbarn",
+        "skype",
+        "viber",
+        "line",
+        "textme",
+        "choicetelecom",
+        "tracfone",
+        "safelink",
+        "net10",
+        "boost mobile virtual",
+        "cricket virtual",
+        "metro virtual",
+        "visible wireless",
+        "ultra mobile",
+        "mint mobile virtual",
+    ]
+)

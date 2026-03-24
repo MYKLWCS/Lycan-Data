@@ -4,6 +4,7 @@ Source: https://www.treasury.gov/ofac/downloads/sdn.csv
 
 Registered as: sanctions_ofac
 """
+
 from __future__ import annotations
 
 import csv
@@ -29,6 +30,7 @@ MATCH_THRESHOLD = 0.7
 # Cache helpers
 # ---------------------------------------------------------------------------
 
+
 def _cache_valid(path: str, max_age_hours: float = CACHE_MAX_AGE_HOURS) -> bool:
     """Return True if the cached file exists and is within the max age."""
     if not os.path.exists(path):
@@ -44,6 +46,7 @@ def _cache_path(name: str, ext: str) -> str:
 # ---------------------------------------------------------------------------
 # Name-matching helper
 # ---------------------------------------------------------------------------
+
 
 def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD) -> float:
     """
@@ -62,6 +65,7 @@ def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("sanctions_ofac")
 class SanctionsOFACCrawler(HttpxCrawler):
@@ -105,7 +109,7 @@ class SanctionsOFACCrawler(HttpxCrawler):
         if _cache_valid(CACHE_PATH):
             logger.debug("OFAC: using cached list at %s", CACHE_PATH)
             try:
-                with open(CACHE_PATH, "r", encoding="latin-1") as fh:
+                with open(CACHE_PATH, encoding="latin-1") as fh:
                     return fh.read()
             except OSError as exc:
                 logger.warning("OFAC: cache read failed: %s", exc)

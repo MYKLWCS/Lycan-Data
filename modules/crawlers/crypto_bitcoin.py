@@ -5,7 +5,9 @@ Fetches balance, transaction counts, and recent transactions for a
 Bitcoin address. No API key required.
 Registered as "crypto_bitcoin".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -30,11 +32,13 @@ def _parse_recent_txs(txs: list[dict], limit: int = 5) -> list[dict]:
     for tx in txs[:limit]:
         # Net value from output perspective; best effort
         amount_sat = sum(o.get("value", 0) for o in tx.get("out", []))
-        out.append({
-            "hash": tx.get("hash", ""),
-            "time": tx.get("time", 0),
-            "amount_btc": _satoshi_to_btc(amount_sat),
-        })
+        out.append(
+            {
+                "hash": tx.get("hash", ""),
+                "time": tx.get("time", 0),
+                "amount_btc": _satoshi_to_btc(amount_sat),
+            }
+        )
     return out
 
 

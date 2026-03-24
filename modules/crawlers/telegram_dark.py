@@ -7,7 +7,9 @@ to fetch message previews and searches for query mentions.
 
 Registered as "telegram_dark".
 """
+
 from __future__ import annotations
+
 import asyncio
 import logging
 import re

@@ -7,11 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
-from shared.constants import SeedType
-from shared.models.person import Person
-from shared.models.identifier import Identifier
 from modules.crawlers.registry import CRAWLER_REGISTRY
 from modules.dispatcher.dispatcher import dispatch_job
+from shared.constants import SeedType
+from shared.models.identifier import Identifier
+from shared.models.person import Person
 
 router = APIRouter()
 
@@ -19,76 +19,140 @@ router = APIRouter()
 SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
     SeedType.USERNAME: [
         # Social platforms (username-based only — NOT phone-based messengers)
-        "instagram", "twitter", "reddit", "github", "youtube", "tiktok",
-        "linkedin", "facebook", "snapchat", "pinterest", "discord",
-        "mastodon", "twitch", "steam",
+        "instagram",
+        "twitter",
+        "reddit",
+        "github",
+        "youtube",
+        "tiktok",
+        "linkedin",
+        "facebook",
+        "snapchat",
+        "pinterest",
+        "discord",
+        "mastodon",
+        "twitch",
+        "steam",
         # Username sweep
         "username_sherlock",
         # Dark web / paste username lookup
-        "darkweb_ahmia", "paste_pastebin", "paste_ghostbin", "paste_psbdmp",
+        "darkweb_ahmia",
+        "paste_pastebin",
+        "paste_ghostbin",
+        "paste_psbdmp",
         "telegram_dark",
     ],
     SeedType.PHONE: [
         # Carrier & enrichment
-        "phone_carrier", "phone_fonefinder", "phone_truecaller", "phone_numlookup",
+        "phone_carrier",
+        "phone_fonefinder",
+        "phone_truecaller",
+        "phone_numlookup",
         # Messaging confirmation
-        "whatsapp", "telegram",
+        "whatsapp",
+        "telegram",
     ],
     SeedType.EMAIL: [
         # Breach & leak databases
-        "email_hibp", "email_holehe", "email_leakcheck", "email_breach",
+        "email_hibp",
+        "email_holehe",
+        "email_leakcheck",
+        "email_breach",
         # Reputation & validation
-        "email_emailrep", "email_mx_validator",
+        "email_emailrep",
+        "email_mx_validator",
         # Dark web / paste exposure
-        "darkweb_ahmia", "darkweb_torch",
-        "paste_pastebin", "paste_ghostbin", "paste_psbdmp",
+        "darkweb_ahmia",
+        "darkweb_torch",
+        "paste_pastebin",
+        "paste_ghostbin",
+        "paste_psbdmp",
     ],
     SeedType.FULL_NAME: [
         # People-search aggregators
-        "whitepages", "fastpeoplesearch", "truepeoplesearch", "people_thatsthem",
+        "whitepages",
+        "fastpeoplesearch",
+        "truepeoplesearch",
+        "people_thatsthem",
         # Law enforcement / missing persons
-        "people_interpol", "people_namus", "people_usmarshals",
+        "people_interpol",
+        "people_namus",
+        "people_usmarshals",
         # Sanctions & watchlists — all major lists
-        "sanctions_ofac", "sanctions_un", "sanctions_fbi",
-        "sanctions_eu", "sanctions_uk", "sanctions_opensanctions", "sanctions_fatf",
+        "sanctions_ofac",
+        "sanctions_un",
+        "sanctions_fbi",
+        "sanctions_eu",
+        "sanctions_uk",
+        "sanctions_opensanctions",
+        "sanctions_fatf",
         # Court & legal
-        "court_courtlistener", "court_state", "bankruptcy_pacer",
+        "court_courtlistener",
+        "court_state",
+        "bankruptcy_pacer",
         # Corporate filings
-        "company_opencorporates", "company_sec", "company_companies_house",
+        "company_opencorporates",
+        "company_sec",
+        "company_companies_house",
         # Public government databases
-        "public_npi", "public_faa", "public_nsopw",
-        "gov_fec", "gov_propublica", "gov_usaspending",
+        "public_npi",
+        "public_faa",
+        "public_nsopw",
+        "gov_fec",
+        "gov_propublica",
+        "gov_usaspending",
         # Property & vehicle
-        "vehicle_ownership", "property_zillow",
+        "vehicle_ownership",
+        "property_zillow",
         # Media & web
-        "news_search", "obituary_search",
+        "news_search",
+        "obituary_search",
         # Dark web name sweep
-        "darkweb_ahmia", "darkweb_torch",
-        "paste_pastebin", "paste_psbdmp",
+        "darkweb_ahmia",
+        "darkweb_torch",
+        "paste_pastebin",
+        "paste_psbdmp",
     ],
     SeedType.DOMAIN: [
-        "domain_whois", "domain_harvester",
+        "domain_whois",
+        "domain_harvester",
         # Cyber intel on the domain
-        "cyber_crt", "cyber_urlscan", "cyber_wayback",
-        "cyber_virustotal", "cyber_alienvault",
+        "cyber_crt",
+        "cyber_urlscan",
+        "cyber_wayback",
+        "cyber_virustotal",
+        "cyber_alienvault",
     ],
     SeedType.CRYPTO_WALLET: [
-        "crypto_bitcoin", "crypto_ethereum", "crypto_blockchair",
+        "crypto_bitcoin",
+        "crypto_ethereum",
+        "crypto_blockchair",
         "crypto_polygonscan",
     ],
     SeedType.IP_ADDRESS: [
-        "ip_whois", "ip_geolocation", "ip_threatfeed",
+        "ip_whois",
+        "ip_geolocation",
+        "ip_threatfeed",
         # Threat intelligence
-        "cyber_abuseipdb", "cyber_shodan", "cyber_greynoise", "cyber_alienvault",
+        "cyber_abuseipdb",
+        "cyber_shodan",
+        "cyber_greynoise",
+        "cyber_alienvault",
         "geo_ip",
     ],
     SeedType.NATIONAL_ID: [
-        "sanctions_ofac", "sanctions_un", "sanctions_eu", "sanctions_uk",
+        "sanctions_ofac",
+        "sanctions_un",
+        "sanctions_eu",
+        "sanctions_uk",
         "sanctions_opensanctions",
     ],
     SeedType.COMPANY_REG: [
-        "company_opencorporates", "company_sec", "company_companies_house",
-        "gov_fdic", "gov_gleif",
+        "company_opencorporates",
+        "company_sec",
+        "company_companies_house",
+        "gov_fdic",
+        "gov_gleif",
     ],
 }
 
@@ -107,7 +171,9 @@ def _auto_detect_type(value: str) -> SeedType:
         return SeedType.CRYPTO_WALLET
 
     # Bitcoin mainnet address (P2PKH / P2SH / bech32)
-    if re.match(r"^(1|3)[a-km-zA-HJ-NP-Z1-9]{25,34}$", value) or re.match(r"^bc1[a-z0-9]{6,87}$", value):
+    if re.match(r"^(1|3)[a-km-zA-HJ-NP-Z1-9]{25,34}$", value) or re.match(
+        r"^bc1[a-z0-9]{6,87}$", value
+    ):
         return SeedType.CRYPTO_WALLET
 
     # Generic long hex hash (Monero, etc.)
@@ -115,11 +181,16 @@ def _auto_detect_type(value: str) -> SeedType:
         return SeedType.CRYPTO_WALLET
 
     # IPv4 / IPv6
-    if re.match(r"^(\d{1,3}\.){3}\d{1,3}$", value) or re.match(r"^[0-9a-fA-F:]+:[0-9a-fA-F:]+$", value):
+    if re.match(r"^(\d{1,3}\.){3}\d{1,3}$", value) or re.match(
+        r"^[0-9a-fA-F:]+:[0-9a-fA-F:]+$", value
+    ):
         return SeedType.IP_ADDRESS
 
     # Domain (has a dot, no spaces)
-    if re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$", value) and "." in value:
+    if (
+        re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$", value)
+        and "." in value
+    ):
         return SeedType.DOMAIN
 
     # Multi-word string → full name
@@ -131,12 +202,13 @@ def _auto_detect_type(value: str) -> SeedType:
 
 # ── Request / Response schemas ────────────────────────────────────────────────
 
+
 class SearchRequest(BaseModel):
     value: str
     seed_type: SeedType | None = None
-    context: str = "general"   # "risk", "wealth", "identity", "general"
+    context: str = "general"  # "risk", "wealth", "identity", "general"
     max_depth: int = 2
-    priority: str = "normal"   # "high", "normal", "low"
+    priority: str = "normal"  # "high", "normal", "low"
 
 
 class SearchResponse(BaseModel):
@@ -158,16 +230,18 @@ class BatchSearchResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchResponse:
     seed_type = req.seed_type or _auto_detect_type(req.value)
     priority = req.priority if req.priority in ("high", "normal", "low") else "normal"
 
     # ── Check for existing identifier ────────────────────────────────────────
     norm_val = req.value.strip().lower()
-    q = select(Identifier).where(
-        Identifier.type == seed_type.value,
-        Identifier.normalized_value == norm_val
-    ).limit(1)
+    q = (
+        select(Identifier)
+        .where(Identifier.type == seed_type.value, Identifier.normalized_value == norm_val)
+        .limit(1)
+    )
     existing_ident = (await session.execute(q)).scalar_one_or_none()
 
     if existing_ident and existing_ident.person_id:
@@ -201,8 +275,8 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
     await session.commit()
 
     # Enqueue crawl jobs for all matching registered platforms
-    from shared.models.crawl import CrawlJob
     from shared.constants import CrawlStatus
+    from shared.models.crawl import CrawlJob
 
     platforms = SEED_PLATFORM_MAP.get(seed_type, [])
     queued: list[str] = []
@@ -240,6 +314,7 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("", response_model=SearchResponse)
 async def search(req: SearchRequest, session: AsyncSession = DbDep):

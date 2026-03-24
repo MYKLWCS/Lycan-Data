@@ -10,6 +10,7 @@ Registered as "public_npi".
 
 identifier format: "First Last" (individual) or "org:Organization Name"
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,12 +24,8 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://npiregistry.cms.hhs.gov/api/"
-_INDIVIDUAL_URL = (
-    _BASE_URL + "?version=2.1&first_name={first}&last_name={last}&limit=10"
-)
-_ORG_URL = (
-    _BASE_URL + "?version=2.1&organization_name={org}&limit=10"
-)
+_INDIVIDUAL_URL = _BASE_URL + "?version=2.1&first_name={first}&last_name={last}&limit=10"
+_ORG_URL = _BASE_URL + "?version=2.1&organization_name={org}&limit=10"
 
 _MAX_RESULTS = 10
 
@@ -36,6 +33,7 @@ _MAX_RESULTS = 10
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _split_name(identifier: str) -> tuple[str, str]:
     """
@@ -74,11 +72,7 @@ def _parse_providers(data: dict) -> list[dict[str, Any]]:
             ).strip()
             org_name = basic.get("organization_name", "")
         else:
-            name = (
-                basic.get("first_name", "")
-                + " "
-                + basic.get("last_name", "")
-            ).strip()
+            name = (basic.get("first_name", "") + " " + basic.get("last_name", "")).strip()
             org_name = basic.get("organization_name", "")
 
         # Primary address
@@ -95,18 +89,18 @@ def _parse_providers(data: dict) -> list[dict[str, Any]]:
 
         providers.append(
             {
-                "npi":        item.get("number", ""),
-                "name":       name or org_name,
-                "org_name":   org_name,
+                "npi": item.get("number", ""),
+                "name": name or org_name,
+                "org_name": org_name,
                 "credential": basic.get("credential", ""),
-                "status":     basic.get("status", ""),
-                "gender":     basic.get("gender", ""),
+                "status": basic.get("status", ""),
+                "gender": basic.get("gender", ""),
                 "enumeration_date": basic.get("enumeration_date", ""),
-                "specialty":  primary_tax.get("desc", ""),
-                "address":    primary_addr.get("address_1", ""),
-                "city":       primary_addr.get("city", ""),
-                "state":      primary_addr.get("state", ""),
-                "zip":        primary_addr.get("postal_code", ""),
+                "specialty": primary_tax.get("desc", ""),
+                "address": primary_addr.get("address_1", ""),
+                "city": primary_addr.get("city", ""),
+                "state": primary_addr.get("state", ""),
+                "zip": primary_addr.get("postal_code", ""),
             }
         )
     return providers
@@ -115,6 +109,7 @@ def _parse_providers(data: dict) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("public_npi")
 class PublicNPICrawler(HttpxCrawler):

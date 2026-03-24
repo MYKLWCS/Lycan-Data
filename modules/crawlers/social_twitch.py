@@ -10,15 +10,16 @@ Requires TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables
 Source: https://api.twitch.tv/helix/users
 Registered as "social_twitch".
 """
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 

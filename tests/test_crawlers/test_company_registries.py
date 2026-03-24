@@ -6,37 +6,46 @@ Tests for Company Registry scrapers — Task 24.
 
 15 tests total — all HTTP calls are mocked.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Trigger @register decorators
-import modules.crawlers.company_opencorporates   # noqa: F401
-import modules.crawlers.company_sec              # noqa: F401
 import modules.crawlers.company_companies_house  # noqa: F401
 
+# Trigger @register decorators
+import modules.crawlers.company_opencorporates  # noqa: F401
+import modules.crawlers.company_sec  # noqa: F401
+from modules.crawlers.company_companies_house import (
+    CompaniesHouseCrawler,
+)
+from modules.crawlers.company_companies_house import (
+    _parse_companies as ch_parse_companies,
+)
+from modules.crawlers.company_companies_house import (
+    _parse_officers as ch_parse_officers,
+)
 from modules.crawlers.company_opencorporates import (
     OpenCorporatesCrawler,
+)
+from modules.crawlers.company_opencorporates import (
     _parse_companies as oc_parse_companies,
-    _parse_officers  as oc_parse_officers,
+)
+from modules.crawlers.company_opencorporates import (
+    _parse_officers as oc_parse_officers,
 )
 from modules.crawlers.company_sec import (
     SECEdgarCrawler,
     _parse_atom_feed,
 )
-from modules.crawlers.company_companies_house import (
-    CompaniesHouseCrawler,
-    _parse_companies as ch_parse_companies,
-    _parse_officers  as ch_parse_officers,
-)
 from modules.crawlers.registry import is_registered
-
 
 # ===========================================================================
 # Helpers
 # ===========================================================================
+
 
 def _mock_resp(status: int = 200, json_data: dict | None = None, text: str = ""):
     resp = MagicMock()
@@ -141,6 +150,7 @@ CH_OFFICER_JSON = {
 # 1. Registry tests
 # ===========================================================================
 
+
 def test_opencorporates_registered():
     assert is_registered("company_opencorporates")
 
@@ -156,6 +166,7 @@ def test_companies_house_registered():
 # ===========================================================================
 # 2. _parse_companies / _parse_officers — OpenCorporates
 # ===========================================================================
+
 
 def test_oc_parse_companies():
     companies = oc_parse_companies(OC_COMPANY_JSON)
@@ -179,6 +190,7 @@ def test_oc_parse_officers():
 # ===========================================================================
 # 3. OpenCorporatesCrawler — scrape()
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_oc_company_found():
@@ -229,6 +241,7 @@ async def test_oc_http_error():
 # 4. _parse_atom_feed — SEC
 # ===========================================================================
 
+
 def test_sec_parse_atom_feed():
     filings = _parse_atom_feed(SAMPLE_ATOM_XML)
     assert len(filings) == 2
@@ -250,6 +263,7 @@ def test_sec_parse_atom_feed_invalid_xml():
 # ===========================================================================
 # 5. SECEdgarCrawler — scrape()
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_sec_filings_found():
@@ -288,6 +302,7 @@ async def test_sec_http_error():
 # 6. _parse_companies / _parse_officers — Companies House
 # ===========================================================================
 
+
 def test_ch_parse_companies():
     companies = ch_parse_companies(CH_COMPANY_JSON)
     assert len(companies) == 1
@@ -310,6 +325,7 @@ def test_ch_parse_officers():
 # ===========================================================================
 # 7. CompaniesHouseCrawler — scrape()
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_ch_company_found():

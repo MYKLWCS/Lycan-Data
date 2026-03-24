@@ -14,6 +14,7 @@ Sources:
   1. vehiclehistory.com/owners/ — HTML scrape (Playwright)
   2. beenverified.com/people/  — HTML scrape (Playwright, vehicle section)
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,12 +30,13 @@ from shared.tor import TorInstance
 logger = logging.getLogger(__name__)
 
 _VEHHISTORY_OWNER_URL = "https://www.vehiclehistory.com/owners/{first}-{last}/"
-_BEENVERIFIED_URL     = "https://www.beenverified.com/people/{first}-{last}/"
+_BEENVERIFIED_URL = "https://www.beenverified.com/people/{first}-{last}/"
 
 
 # ---------------------------------------------------------------------------
 # Identifier parsing
 # ---------------------------------------------------------------------------
+
 
 def _parse_identifier(identifier: str) -> tuple[str, str, str, str]:
     """
@@ -48,7 +50,7 @@ def _parse_identifier(identifier: str) -> tuple[str, str, str, str]:
         name_part, loc_part = identifier.split("|", 1)
         if "," in loc_part:
             city, state = loc_part.split(",", 1)
-            city  = city.strip()
+            city = city.strip()
             state = state.strip()
         else:
             city = loc_part.strip()
@@ -57,10 +59,10 @@ def _parse_identifier(identifier: str) -> tuple[str, str, str, str]:
     parts = name_part.split()
     if len(parts) >= 2:
         first = parts[0]
-        last  = parts[-1]
+        last = parts[-1]
     elif parts:
         first = parts[0]
-        last  = ""
+        last = ""
     else:
         first = last = ""
 
@@ -71,6 +73,7 @@ def _parse_identifier(identifier: str) -> tuple[str, str, str, str]:
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_vehicle_cards_html(html: str) -> list[dict[str, Any]]:
     """
     Parse HTML from vehicle ownership pages.
@@ -79,6 +82,7 @@ def _parse_vehicle_cards_html(html: str) -> list[dict[str, Any]]:
     vehicles: list[dict[str, Any]] = []
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
 
         # Look for vehicle blocks — common selectors used by aggregators
@@ -98,31 +102,31 @@ def _parse_vehicle_cards_html(html: str) -> list[dict[str, Any]]:
             text = el.get_text(" ", strip=True)
             v: dict[str, Any] = {}
 
-            year_m = re.search(r'\b(19[7-9]\d|20[0-2]\d)\b', text)
+            year_m = re.search(r"\b(19[7-9]\d|20[0-2]\d)\b", text)
             if year_m:
                 v["year"] = year_m.group(1)
 
-            vin_m = re.search(r'\b([A-HJ-NPR-Z0-9]{17})\b', text)
+            vin_m = re.search(r"\b([A-HJ-NPR-Z0-9]{17})\b", text)
             if vin_m:
                 v["vin"] = vin_m.group(1)
 
-            plate_m = re.search(r'(?:Plate|License)[:\s]+([A-Z0-9\-]{4,10})', text, re.I)
+            plate_m = re.search(r"(?:Plate|License)[:\s]+([A-Z0-9\-]{4,10})", text, re.I)
             if plate_m:
                 v["plate"] = plate_m.group(1).strip()
 
-            state_m = re.search(r'(?:State|Reg)[:\s]+([A-Z]{2})\b', text, re.I)
+            state_m = re.search(r"(?:State|Reg)[:\s]+([A-Z]{2})\b", text, re.I)
             if state_m:
                 v["state"] = state_m.group(1)
 
-            make_m = re.search(r'(?:Make|Brand)[:\s]+([A-Za-z]+)', text, re.I)
+            make_m = re.search(r"(?:Make|Brand)[:\s]+([A-Za-z]+)", text, re.I)
             if make_m:
                 v["make"] = make_m.group(1)
 
-            model_m = re.search(r'(?:Model)[:\s]+([A-Za-z0-9\s]+?)(?:\s{2,}|\|)', text, re.I)
+            model_m = re.search(r"(?:Model)[:\s]+([A-Za-z0-9\s]+?)(?:\s{2,}|\|)", text, re.I)
             if model_m:
                 v["model"] = model_m.group(1).strip()
 
-            color_m = re.search(r'(?:Color|Colour)[:\s]+([A-Za-z]+)', text, re.I)
+            color_m = re.search(r"(?:Color|Colour)[:\s]+([A-Za-z]+)", text, re.I)
             if color_m:
                 v["color"] = color_m.group(1)
 
@@ -132,15 +136,15 @@ def _parse_vehicle_cards_html(html: str) -> list[dict[str, Any]]:
         # Regex sweep fallback if no structured elements found
         if not vehicles:
             for block in re.finditer(
-                r'((?:19[7-9]\d|20[0-2]\d)\s+[A-Za-z]+\s+[A-Za-z0-9]+)',
+                r"((?:19[7-9]\d|20[0-2]\d)\s+[A-Za-z]+\s+[A-Za-z0-9]+)",
                 html,
             ):
                 parts = block.group(1).split()
                 if len(parts) >= 3:
                     vehicles.append(
                         {
-                            "year":  parts[0],
-                            "make":  parts[1],
+                            "year": parts[0],
+                            "make": parts[1],
                             "model": " ".join(parts[2:]),
                         }
                     )
@@ -156,6 +160,7 @@ def _parse_vehicle_cards_html(html: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("vehicle_ownership")
 class VehicleOwnershipCrawler(PlaywrightCrawler):

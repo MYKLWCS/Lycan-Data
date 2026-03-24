@@ -9,6 +9,7 @@ CSV URL: https://www.dfat.gov.au/sites/default/files/regulation8_consolidated.cs
 
 Registered as "sanctions_australia".
 """
+
 from __future__ import annotations
 
 import csv
@@ -34,6 +35,7 @@ _MATCH_THRESHOLD = 0.7
 # Cache helpers (mirrored from sanctions_ofac.py)
 # ---------------------------------------------------------------------------
 
+
 def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool:
     if not os.path.exists(path):
         return False
@@ -44,6 +46,7 @@ def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool
 # ---------------------------------------------------------------------------
 # Name-matching helper (same algorithm as sanctions_ofac.py)
 # ---------------------------------------------------------------------------
+
 
 def _name_matches(query: str, candidate: str, threshold: float = _MATCH_THRESHOLD) -> float:
     q_words = set(query.lower().split())
@@ -57,6 +60,7 @@ def _name_matches(query: str, candidate: str, threshold: float = _MATCH_THRESHOL
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("sanctions_australia")
 class SanctionsAustraliaCrawler(HttpxCrawler):
@@ -100,7 +104,7 @@ class SanctionsAustraliaCrawler(HttpxCrawler):
         if _cache_valid(_CACHE_PATH):
             logger.debug("AUS sanctions: using cached list at %s", _CACHE_PATH)
             try:
-                with open(_CACHE_PATH, "r", encoding="utf-8-sig", errors="replace") as fh:
+                with open(_CACHE_PATH, encoding="utf-8-sig", errors="replace") as fh:
                     return fh.read()
             except OSError as exc:
                 logger.warning("AUS sanctions: cache read failed: %s", exc)

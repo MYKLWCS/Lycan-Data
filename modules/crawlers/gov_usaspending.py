@@ -6,6 +6,7 @@ returning award IDs, amounts, and awarding agencies.
 
 Registered as "gov_usaspending".
 """
+
 from __future__ import annotations
 
 import logging

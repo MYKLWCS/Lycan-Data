@@ -1,8 +1,10 @@
 import uuid
 from datetime import date
+
 from sqlalchemy import Date, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from shared.models.base import Base, TimestampMixin
 
 
@@ -13,8 +15,12 @@ class WatchlistMatch(Base, TimestampMixin):
     person_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    list_name: Mapped[str] = mapped_column(String(255), nullable=False)  # OFAC, UN, EU, FBI, Interpol
-    list_type: Mapped[str] = mapped_column(String(50), nullable=False)  # sanctions, pep, terrorist, fugitive
+    list_name: Mapped[str] = mapped_column(
+        String(255), nullable=False
+    )  # OFAC, UN, EU, FBI, Interpol
+    list_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # sanctions, pep, terrorist, fugitive
     match_score: Mapped[float] = mapped_column(default=0.0, nullable=False)
     match_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     listed_date: Mapped[date | None] = mapped_column(Date, nullable=True)

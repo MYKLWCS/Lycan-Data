@@ -1,12 +1,14 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from modules.crawlers.tiktok import TikTokCrawler
+
+import pytest
+
 from modules.crawlers.linkedin import LinkedInCrawler
 from modules.crawlers.reddit import RedditCrawler
-from modules.crawlers.youtube import YouTubeCrawler
-from modules.crawlers.telegram import TelegramCrawler
-from modules.crawlers.whatsapp import WhatsAppCrawler
 from modules.crawlers.registry import is_registered
+from modules.crawlers.telegram import TelegramCrawler
+from modules.crawlers.tiktok import TikTokCrawler
+from modules.crawlers.whatsapp import WhatsAppCrawler
+from modules.crawlers.youtube import YouTubeCrawler
 
 
 # --- Registry checks ---
@@ -21,18 +23,20 @@ async def test_reddit_profile_parsed():
     crawler = RedditCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json = MagicMock(return_value={
-        "data": {
-            "name": "testuser",
-            "id": "abc123",
-            "link_karma": 500,
-            "comment_karma": 1200,
-            "created_utc": 1609459200.0,
-            "verified": False,
-            "is_gold": False,
-            "has_verified_email": True,
+    mock_resp.json = MagicMock(
+        return_value={
+            "data": {
+                "name": "testuser",
+                "id": "abc123",
+                "link_karma": 500,
+                "comment_karma": 1200,
+                "created_utc": 1609459200.0,
+                "verified": False,
+                "is_gold": False,
+                "has_verified_email": True,
+            }
         }
-    })
+    )
 
     posts_resp = MagicMock()
     posts_resp.status_code = 200
@@ -75,6 +79,7 @@ async def test_tiktok_not_found():
 @pytest.mark.asyncio
 async def test_tiktok_parses_json_data():
     import json
+
     crawler = TikTokCrawler()
     mock_data = {
         "__DEFAULT_SCOPE__": {
@@ -91,7 +96,7 @@ async def test_tiktok_parses_json_data():
                         "followingCount": 100,
                         "videoCount": 200,
                         "heartCount": 1000000,
-                    }
+                    },
                 }
             }
         }
@@ -146,6 +151,7 @@ async def test_whatsapp_not_registered():
 async def test_telegram_phone_no_telethon():
     crawler = TelegramCrawler()
     import os
+
     with patch.dict(os.environ, {}, clear=False):
         # Ensure env vars not set
         for key in ["TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION"]:

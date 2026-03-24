@@ -7,7 +7,9 @@ Ahmia and parses the resulting .onion URLs and metadata.
 
 Registered as "darkweb_ahmia".
 """
+
 from __future__ import annotations
+
 import logging
 from urllib.parse import quote_plus
 

@@ -14,6 +14,7 @@ Sources (tried in order):
   2. licenseplatedata.com — HTML scrape
   3. vehiclehistory.com   — HTML scrape (fallback)
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,14 +29,15 @@ from shared.tor import TorInstance
 
 logger = logging.getLogger(__name__)
 
-_FAXVIN_URL      = "https://faxvin.com/license-plate-lookup/result?plate={plate}&state={state}"
-_PLATEDATA_URL   = "https://www.licenseplatedata.com/license-plate/{state}/{plate}/"
-_VEHHISTORY_URL  = "https://www.vehiclehistory.com/license-plate-search/?plate={plate}&state={state}"
+_FAXVIN_URL = "https://faxvin.com/license-plate-lookup/result?plate={plate}&state={state}"
+_PLATEDATA_URL = "https://www.licenseplatedata.com/license-plate/{state}/{plate}/"
+_VEHHISTORY_URL = "https://www.vehiclehistory.com/license-plate-search/?plate={plate}&state={state}"
 
 
 # ---------------------------------------------------------------------------
 # Identifier parsing
 # ---------------------------------------------------------------------------
+
 
 def _parse_identifier(identifier: str) -> tuple[str, str]:
     """
@@ -52,17 +54,18 @@ def _parse_identifier(identifier: str) -> tuple[str, str]:
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_faxvin_json(data: dict) -> dict[str, Any]:
     """Parse faxvin JSON response into normalised vehicle dict."""
     result: dict[str, Any] = {}
     # faxvin may nest under various keys
     vehicle = data.get("vehicle") or data.get("data") or data
     if isinstance(vehicle, dict):
-        result["year"]       = str(vehicle.get("year", "")) or None
-        result["make"]       = vehicle.get("make") or None
-        result["model"]      = vehicle.get("model") or None
-        result["vin"]        = vehicle.get("vin") or None
-        result["color"]      = vehicle.get("color") or vehicle.get("exterior_color") or None
+        result["year"] = str(vehicle.get("year", "")) or None
+        result["make"] = vehicle.get("make") or None
+        result["model"] = vehicle.get("model") or None
+        result["vin"] = vehicle.get("vin") or None
+        result["color"] = vehicle.get("color") or vehicle.get("exterior_color") or None
         result["body_style"] = vehicle.get("body_style") or vehicle.get("body_class") or None
     return {k: v for k, v in result.items() if v}
 
@@ -75,13 +78,14 @@ def _parse_licenseplatedata_html(html: str) -> dict[str, Any]:
     result: dict[str, Any] = {}
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
 
         # Try structured result-value divs
         labels = soup.find_all(class_=re.compile(r"result-label|label", re.I))
         values = soup.find_all(class_=re.compile(r"result-value|value", re.I))
-        for label_el, value_el in zip(labels, values):
-            key   = label_el.get_text(strip=True).lower().replace(" ", "_").rstrip(":")
+        for label_el, value_el in zip(labels, values, strict=False):
+            key = label_el.get_text(strip=True).lower().replace(" ", "_").rstrip(":")
             value = value_el.get_text(strip=True)
             if value:
                 result[key] = value
@@ -89,11 +93,11 @@ def _parse_licenseplatedata_html(html: str) -> dict[str, Any]:
         # Fallback: regex for common patterns in the HTML
         if not result:
             for pattern, field in [
-                (r"(?:Year|Model Year)[:\s]+(\d{4})",      "year"),
-                (r"Make[:\s]+([A-Za-z]+)",                  "make"),
-                (r"Model[:\s]+([A-Za-z0-9\s]+?)[\n<]",     "model"),
-                (r"VIN[:\s]+([A-HJ-NPR-Z0-9]{17})",        "vin"),
-                (r"Color[:\s]+([A-Za-z]+)",                 "color"),
+                (r"(?:Year|Model Year)[:\s]+(\d{4})", "year"),
+                (r"Make[:\s]+([A-Za-z]+)", "make"),
+                (r"Model[:\s]+([A-Za-z0-9\s]+?)[\n<]", "model"),
+                (r"VIN[:\s]+([A-HJ-NPR-Z0-9]{17})", "vin"),
+                (r"Color[:\s]+([A-Za-z]+)", "color"),
             ]:
                 m = re.search(pattern, html, re.I)
                 if m:
@@ -110,23 +114,24 @@ def _parse_vehiclehistory_html(html: str) -> dict[str, Any]:
     result: dict[str, Any] = {}
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
 
         # vehiclehistory wraps vehicle info in data-* attributes or span tags
         for span in soup.find_all("span", {"class": re.compile(r"vehicle|plate|result", re.I)}):
             text = span.get_text(strip=True)
-            if re.match(r'\d{4}', text):
+            if re.match(r"\d{4}", text):
                 result["year"] = text[:4]
-            elif re.match(r'^[A-HJ-NPR-Z0-9]{17}$', text):
+            elif re.match(r"^[A-HJ-NPR-Z0-9]{17}$", text):
                 result["vin"] = text
 
         # Regex fallback
         for pattern, field in [
-            (r'"year"\s*:\s*"?(\d{4})"?',           "year"),
-            (r'"make"\s*:\s*"([^"]+)"',              "make"),
-            (r'"model"\s*:\s*"([^"]+)"',             "model"),
+            (r'"year"\s*:\s*"?(\d{4})"?', "year"),
+            (r'"make"\s*:\s*"([^"]+)"', "make"),
+            (r'"model"\s*:\s*"([^"]+)"', "model"),
             (r'"vin"\s*:\s*"([A-HJ-NPR-Z0-9]{17})"', "vin"),
-            (r'"color"\s*:\s*"([^"]+)"',             "color"),
+            (r'"color"\s*:\s*"([^"]+)"', "color"),
         ]:
             m = re.search(pattern, html, re.I)
             if m:
@@ -141,6 +146,7 @@ def _parse_vehiclehistory_html(html: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("vehicle_plate")
 class VehiclePlateCrawler(HttpxCrawler):

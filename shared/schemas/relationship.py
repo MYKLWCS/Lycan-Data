@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
 class ScoreBreakdown(BaseModel):
     """Individual signal scores contributing to relationship score."""
+
     shared_identifiers: float = 0.0
     co_location: float = 0.0
     social_interaction: float = 0.0

@@ -4,16 +4,17 @@ Verification Engine.
 Promotes facts through: UNVERIFIED → CORROBORATED → VERIFIED.
 Detects conflicts when sources disagree on the same field.
 """
+
 import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from shared.constants import VerificationStatus, SOURCE_RELIABILITY
+from shared.constants import VerificationStatus
 
 logger = logging.getLogger(__name__)
 
-CORROBORATION_THRESHOLD = 2   # sources needed for CORROBORATED
-CONFLICT_DIVERGENCE = 0.20    # reliability-weighted divergence that triggers conflict flag
+CORROBORATION_THRESHOLD = 2  # sources needed for CORROBORATED
+CONFLICT_DIVERGENCE = 0.20  # reliability-weighted divergence that triggers conflict flag
 
 
 @dataclass
@@ -40,24 +41,27 @@ def verify_field(
     """
     if not observations:
         return VerificationResult(
-            field_name=field_name, value=None,
+            field_name=field_name,
+            value=None,
             status=VerificationStatus.UNVERIFIED,
-            source_count=0, sources=[], confidence=0.0,
+            source_count=0,
+            sources=[],
+            confidence=0.0,
         )
 
     # Group observations by normalized value
     value_groups: dict[str, list[dict]] = {}
     for obs in observations:
-        val = str(obs.get('value', '')).strip().lower()
+        val = str(obs.get("value", "")).strip().lower()
         value_groups.setdefault(val, []).append(obs)
 
     # Find the value with highest weighted support
     def _weight(group: list[dict]) -> float:
-        return sum(o.get('source_reliability', 0.5) for o in group)
+        return sum(o.get("source_reliability", 0.5) for o in group)
 
     best_val_key = max(value_groups, key=lambda v: _weight(value_groups[v]))
     best_group = value_groups[best_val_key]
-    best_value = best_group[0]['value']  # original (non-lowercased)
+    best_value = best_group[0]["value"]  # original (non-lowercased)
 
     # Detect conflict: another value has significant weighted support
     conflict = False
@@ -67,11 +71,11 @@ def verify_field(
             continue
         if _weight(group) >= CONFLICT_DIVERGENCE:
             conflict = True
-            conflict_values.append(group[0]['value'])
+            conflict_values.append(group[0]["value"])
 
     # Determine status
     source_count = len(best_group)
-    sources = [o.get('source', 'unknown') for o in best_group]
+    sources = [o.get("source", "unknown") for o in best_group]
 
     if source_count >= CORROBORATION_THRESHOLD:
         status = VerificationStatus.CORROBORATED
@@ -106,19 +110,20 @@ def verify_person(
     # Collect per-field observations
     field_obs: dict[str, list[dict]] = {}
     for obs in source_observations:
-        source = obs.get('source', 'unknown')
-        reliability = obs.get('source_reliability', 0.5)
-        for field_name, value in obs.get('fields', {}).items():
+        source = obs.get("source", "unknown")
+        reliability = obs.get("source_reliability", 0.5)
+        for field_name, value in obs.get("fields", {}).items():
             if value is not None:
-                field_obs.setdefault(field_name, []).append({
-                    'value': value,
-                    'source': source,
-                    'source_reliability': reliability,
-                })
+                field_obs.setdefault(field_name, []).append(
+                    {
+                        "value": value,
+                        "source": source,
+                        "source_reliability": reliability,
+                    }
+                )
 
     return {
-        field_name: verify_field(field_name, obs_list)
-        for field_name, obs_list in field_obs.items()
+        field_name: verify_field(field_name, obs_list) for field_name, obs_list in field_obs.items()
     }
 
 

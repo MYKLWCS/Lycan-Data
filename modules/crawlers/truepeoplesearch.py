@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import random
 from urllib.parse import quote
@@ -83,10 +84,13 @@ def _extract_tps_card(card) -> dict | None:
     """Extract person data from a TruePeopleSearch .card element."""
     try:
         import re
+
         data: dict = {}
 
         # Full name
-        name_el = card.find(["h2", "h3", "div"], class_=lambda c: c and "name" in c.lower() if c else False)
+        name_el = card.find(
+            ["h2", "h3", "div"], class_=lambda c: c and "name" in c.lower() if c else False
+        )
         if not name_el:
             name_el = card.find(["h2", "h3"])
         data["full_name"] = name_el.get_text(strip=True) if name_el else ""
@@ -107,7 +111,9 @@ def _extract_tps_card(card) -> dict | None:
             phone_links = card.find_all("a", href=lambda h: h and h.startswith("tel:"))
             data["phone_numbers"] = [a.get_text(strip=True) for a in phone_links]
         else:
-            data["phone_numbers"] = [el.get_text(strip=True) for el in phone_els if el.get_text(strip=True)]
+            data["phone_numbers"] = [
+                el.get_text(strip=True) for el in phone_els if el.get_text(strip=True)
+            ]
 
         # Relatives
         rel_el = card.find(class_=lambda c: c and "relative" in c.lower() if c else False)

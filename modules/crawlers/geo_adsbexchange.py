@@ -5,6 +5,7 @@ Resolves an aircraft registration (N-number, G-reg, etc.) to type,
 manufacturer, operator, country, and ICAO hex code information.
 Registered as "geo_adsbexchange".
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,12 +41,9 @@ def _parse_aircraft(payload: dict) -> dict[str, Any]:
         "registration": aircraft.get("registration", ""),
         "type": aircraft.get("type", ""),
         "manufacturer": aircraft.get("manufacturer", ""),
-        "operator": aircraft.get("registered_owner", "")
-                    or aircraft.get("operator", ""),
-        "country": aircraft.get("registered_owner_country_name", "")
-                   or aircraft.get("country", ""),
-        "modes": aircraft.get("mode_s", "")
-                 or aircraft.get("icao_hex", ""),
+        "operator": aircraft.get("registered_owner", "") or aircraft.get("operator", ""),
+        "country": aircraft.get("registered_owner_country_name", "") or aircraft.get("country", ""),
+        "modes": aircraft.get("mode_s", "") or aircraft.get("icao_hex", ""),
         "url": aircraft.get("url", ""),
     }
 

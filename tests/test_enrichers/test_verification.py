@@ -1,18 +1,19 @@
 """Tests for modules/enrichers/verification.py — 15 tests."""
+
 import pytest
 
-from shared.constants import VerificationStatus
 from modules.enrichers.verification import (
-    VerificationResult,
     CORROBORATION_THRESHOLD,
-    verify_field,
-    verify_person,
+    VerificationResult,
     compute_corroboration_score,
     detect_conflicts,
+    verify_field,
+    verify_person,
 )
-
+from shared.constants import VerificationStatus
 
 # ─── verify_field ─────────────────────────────────────────────────────────────
+
 
 def test_verify_field_no_observations():
     """Empty observation list → UNVERIFIED, confidence=0.0, value=None."""
@@ -89,6 +90,7 @@ def test_verify_field_case_insensitive_grouping():
 
 # ─── verify_person ────────────────────────────────────────────────────────────
 
+
 def test_verify_person_returns_per_field_results():
     """verify_person returns a dict keyed by field name."""
     person = {}
@@ -127,18 +129,25 @@ def test_verify_person_missing_fields_skipped():
 
 # ─── compute_corroboration_score ─────────────────────────────────────────────
 
+
 def test_compute_corroboration_score_all_corroborated():
     """All CORROBORATED high-confidence results → score close to 1.0."""
     results = {
         "full_name": VerificationResult(
-            field_name="full_name", value="Alice",
+            field_name="full_name",
+            value="Alice",
             status=VerificationStatus.CORROBORATED,
-            source_count=3, sources=["a", "b", "c"], confidence=0.90,
+            source_count=3,
+            sources=["a", "b", "c"],
+            confidence=0.90,
         ),
         "city": VerificationResult(
-            field_name="city", value="NYC",
+            field_name="city",
+            value="NYC",
             status=VerificationStatus.CORROBORATED,
-            source_count=2, sources=["a", "b"], confidence=0.85,
+            source_count=2,
+            sources=["a", "b"],
+            confidence=0.85,
         ),
     }
     score = compute_corroboration_score(results)
@@ -149,16 +158,22 @@ def test_compute_corroboration_score_all_unverified():
     """All UNVERIFIED low-confidence results → lower score than corroborated."""
     corroborated_results = {
         "full_name": VerificationResult(
-            field_name="full_name", value="Alice",
+            field_name="full_name",
+            value="Alice",
             status=VerificationStatus.CORROBORATED,
-            source_count=2, sources=["a", "b"], confidence=0.90,
+            source_count=2,
+            sources=["a", "b"],
+            confidence=0.90,
         ),
     }
     unverified_results = {
         "full_name": VerificationResult(
-            field_name="full_name", value="Alice",
+            field_name="full_name",
+            value="Alice",
             status=VerificationStatus.UNVERIFIED,
-            source_count=1, sources=["a"], confidence=0.30,
+            source_count=1,
+            sources=["a"],
+            confidence=0.30,
         ),
     }
     score_corr = compute_corroboration_score(corroborated_results)
@@ -173,19 +188,27 @@ def test_compute_corroboration_score_empty():
 
 # ─── detect_conflicts ────────────────────────────────────────────────────────
 
+
 def test_detect_conflicts_returns_conflict_fields():
     """Fields with conflict=True appear in the returned list."""
     results = {
         "city": VerificationResult(
-            field_name="city", value="New York",
+            field_name="city",
+            value="New York",
             status=VerificationStatus.UNVERIFIED,
-            source_count=1, sources=["linkedin"], confidence=0.75,
-            conflict=True, conflict_values=["Los Angeles"],
+            source_count=1,
+            sources=["linkedin"],
+            confidence=0.75,
+            conflict=True,
+            conflict_values=["Los Angeles"],
         ),
         "full_name": VerificationResult(
-            field_name="full_name", value="Alice",
+            field_name="full_name",
+            value="Alice",
             status=VerificationStatus.CORROBORATED,
-            source_count=2, sources=["a", "b"], confidence=0.85,
+            source_count=2,
+            sources=["a", "b"],
+            confidence=0.85,
             conflict=False,
         ),
     }
@@ -200,15 +223,19 @@ def test_detect_conflicts_no_conflicts_empty_list():
     """No conflicted fields → empty list."""
     results = {
         "full_name": VerificationResult(
-            field_name="full_name", value="Alice",
+            field_name="full_name",
+            value="Alice",
             status=VerificationStatus.CORROBORATED,
-            source_count=2, sources=["a", "b"], confidence=0.85,
+            source_count=2,
+            sources=["a", "b"],
+            confidence=0.85,
         ),
     }
     assert detect_conflicts(results) == []
 
 
 # ─── CORROBORATION_THRESHOLD boundary ────────────────────────────────────────
+
 
 def test_corroboration_threshold_exactly_two_sources():
     """Exactly CORROBORATION_THRESHOLD (2) sources with same value → CORROBORATED."""

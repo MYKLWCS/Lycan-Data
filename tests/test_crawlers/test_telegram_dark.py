@@ -2,25 +2,27 @@
 Tests for the Telegram dark channel scanner:
   - TelegramDarkCrawler (telegram_dark) — 10 tests
 """
+
 from __future__ import annotations
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import modules.crawlers.telegram_dark   # noqa: F401
+import pytest
 
-from modules.crawlers.telegram_dark import (
-    TelegramDarkCrawler,
-    DARK_CHANNELS,
-    _parse_channel_messages,
-    _filter_mentions,
-)
+import modules.crawlers.telegram_dark  # noqa: F401
 from modules.crawlers.registry import is_registered
+from modules.crawlers.telegram_dark import (
+    DARK_CHANNELS,
+    TelegramDarkCrawler,
+    _filter_mentions,
+    _parse_channel_messages,
+)
 from shared.tor import TorInstance
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_resp(status_code: int = 200, text: str = "") -> MagicMock:
     mock = MagicMock()
@@ -57,6 +59,7 @@ _EMPTY_CHANNEL_HTML = "<html><body><div class='tgme_no_messages'>No posts yet.</
 # TelegramDarkCrawler — 10 tests
 # ---------------------------------------------------------------------------
 
+
 def test_telegram_dark_registered():
     """telegram_dark must appear in the crawler registry."""
     assert is_registered("telegram_dark")
@@ -87,8 +90,16 @@ def test_parse_channel_messages_empty_html():
 def test_filter_mentions_case_insensitive():
     """_filter_mentions matches query case-insensitively."""
     messages = [
-        {"message_text": "Breach at EXAMPLE.COM today", "message_url": "https://t.me/ch/1", "date": "2024-01-01"},
-        {"message_text": "Unrelated content", "message_url": "https://t.me/ch/2", "date": "2024-01-01"},
+        {
+            "message_text": "Breach at EXAMPLE.COM today",
+            "message_url": "https://t.me/ch/1",
+            "date": "2024-01-01",
+        },
+        {
+            "message_text": "Unrelated content",
+            "message_url": "https://t.me/ch/2",
+            "date": "2024-01-01",
+        },
     ]
     hits = _filter_mentions(messages, "example.com", "testchannel")
     assert len(hits) == 1
@@ -99,7 +110,11 @@ def test_filter_mentions_case_insensitive():
 def test_filter_mentions_no_match():
     """_filter_mentions returns empty list when query does not appear."""
     messages = [
-        {"message_text": "Nothing relevant here at all", "message_url": "https://t.me/ch/3", "date": "2024-01-01"},
+        {
+            "message_text": "Nothing relevant here at all",
+            "message_url": "https://t.me/ch/3",
+            "date": "2024-01-01",
+        },
     ]
     hits = _filter_mentions(messages, "example.com", "testchannel")
     assert hits == []
@@ -137,7 +152,9 @@ async def test_telegram_dark_scrape_no_mentions():
     """When no channel contains the query, returns found=False with empty list."""
     crawler = TelegramDarkCrawler()
 
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, _EMPTY_CHANNEL_HTML))):
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_resp(200, _EMPTY_CHANNEL_HTML))
+    ):
         with patch("modules.crawlers.telegram_dark.asyncio.sleep", new=AsyncMock()):
             result = await crawler.scrape("xyznonexistentquery999")
 

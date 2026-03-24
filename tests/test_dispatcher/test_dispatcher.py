@@ -2,27 +2,28 @@
 Tests for the Crawl Job Dispatcher — Task 27.
 15 tests covering routing, status updates, retries, error handling, and enqueueing.
 """
+
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from datetime import UTC, datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
 from modules.crawlers.result import CrawlerResult
 from modules.dispatcher.dispatcher import (
-    CrawlDispatcher,
-    dispatch_job,
     MAX_RETRIES,
     RETRY_DELAYS,
+    CrawlDispatcher,
+    dispatch_job,
 )
 from shared.constants import CrawlStatus
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_job_dict(**kwargs) -> dict:
     base = {
@@ -36,7 +37,9 @@ def _make_job_dict(**kwargs) -> dict:
     return base
 
 
-def _make_result(found: bool = True, error: str | None = None, platform: str = "instagram") -> CrawlerResult:
+def _make_result(
+    found: bool = True, error: str | None = None, platform: str = "instagram"
+) -> CrawlerResult:
     return CrawlerResult(
         platform=platform,
         identifier="testuser",
@@ -50,6 +53,7 @@ def _make_result(found: bool = True, error: str | None = None, platform: str = "
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def dispatcher():
@@ -84,7 +88,11 @@ async def test_process_one_routes_to_correct_crawler(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch(
+            "modules.dispatcher.dispatcher.aggregate_result",
+            new_callable=AsyncMock,
+            return_value={"person_id": None},
+        ),
         patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
@@ -171,7 +179,11 @@ async def test_rate_limited_error_sets_rate_limited_and_requeues(dispatcher, moc
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch(
+            "modules.dispatcher.dispatcher.aggregate_result",
+            new_callable=AsyncMock,
+            return_value={"person_id": None},
+        ),
         patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
@@ -204,7 +216,11 @@ async def test_blocked_error_sets_blocked_status(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch(
+            "modules.dispatcher.dispatcher.aggregate_result",
+            new_callable=AsyncMock,
+            return_value={"person_id": None},
+        ),
         patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
@@ -234,7 +250,11 @@ async def test_exception_causes_failed_and_retry(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch(
+            "modules.dispatcher.dispatcher.aggregate_result",
+            new_callable=AsyncMock,
+            return_value={"person_id": None},
+        ),
         patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
@@ -265,7 +285,11 @@ async def test_max_retries_exceeded_no_requeue(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch(
+            "modules.dispatcher.dispatcher.aggregate_result",
+            new_callable=AsyncMock,
+            return_value={"person_id": None},
+        ),
         patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
@@ -354,7 +378,7 @@ async def test_requeue_backoff_first_retry():
     enqueued_job = mock_bus.enqueue.call_args[0][0]
     assert enqueued_job["retry_count"] == 1
     assert enqueued_job["run_after"] == pytest.approx(
-        datetime.now(timezone.utc).timestamp() + RETRY_DELAYS[0], abs=2
+        datetime.now(UTC).timestamp() + RETRY_DELAYS[0], abs=2
     )
     assert mock_bus.enqueue.call_args[1]["priority"] == "normal"
 
@@ -377,7 +401,7 @@ async def test_requeue_backoff_second_retry_uses_low_priority():
     enqueued_job = mock_bus.enqueue.call_args[0][0]
     assert enqueued_job["retry_count"] == 2
     assert enqueued_job["run_after"] == pytest.approx(
-        datetime.now(timezone.utc).timestamp() + RETRY_DELAYS[1], abs=2
+        datetime.now(UTC).timestamp() + RETRY_DELAYS[1], abs=2
     )
 
 
@@ -415,7 +439,11 @@ async def test_found_result_publishes_enrichment_event(dispatcher, mock_session)
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch(
+            "modules.dispatcher.dispatcher.aggregate_result",
+            new_callable=AsyncMock,
+            return_value={"person_id": None},
+        ),
         patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
@@ -452,7 +480,11 @@ async def test_not_found_no_error_sets_done(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch(
+            "modules.dispatcher.dispatcher.aggregate_result",
+            new_callable=AsyncMock,
+            return_value={"person_id": None},
+        ),
         patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):

@@ -4,14 +4,15 @@ crypto_bscscan.py — BNB Smart Chain wallet lookup via BscScan API.
 Fetches BNB balance and recent transactions for a BSC wallet address.
 Registered as "crypto_bscscan".
 """
+
 from __future__ import annotations
 
 import logging
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,7 @@ _BASE = "https://api.bscscan.com/api"
 _WEI = 1e18
 
 _BALANCE_URL = (
-    _BASE
-    + "?module=account&action=balance"
-    + "&address={address}&tag=latest&apikey={key}"
+    _BASE + "?module=account&action=balance" + "&address={address}&tag=latest&apikey={key}"
 )
 _TXLIST_URL = (
     _BASE
@@ -122,9 +121,7 @@ class CryptoBscscanCrawler(HttpxCrawler):
             try:
                 tx_data = tx_resp.json()
                 if tx_data.get("status") == "1":
-                    recent_transactions = _parse_transactions(
-                        tx_data.get("result", [])
-                    )
+                    recent_transactions = _parse_transactions(tx_data.get("result", []))
             except Exception as exc:
                 logger.warning("BscScan txlist parse error: %s", exc)
 

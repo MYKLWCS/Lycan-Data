@@ -6,11 +6,14 @@ Add to settings.py in each Scrapy spider:
         'shared.scrapy_middleware.TorProxyMiddleware': 350,
     }
 """
+
 import logging
+
 from scrapy import signals
 from scrapy.http import Request
-from shared.tor import tor_manager, TorInstance
+
 from shared.config import settings
+from shared.tor import tor_manager
 
 logger = logging.getLogger(__name__)
 

@@ -6,6 +6,7 @@ and officer/director appointments globally.
 
 Registered as "company_opencorporates".
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,16 +32,16 @@ def _parse_companies(data: dict) -> list[dict[str, Any]]:
         co = item.get("company", item)
         companies.append(
             {
-                "name":               co.get("name", ""),
-                "company_number":     co.get("company_number", ""),
-                "jurisdiction":       co.get("jurisdiction_code", ""),
+                "name": co.get("name", ""),
+                "company_number": co.get("company_number", ""),
+                "jurisdiction": co.get("jurisdiction_code", ""),
                 "registered_address": co.get("registered_address", {}).get("in_full", "")
-                                      if isinstance(co.get("registered_address"), dict)
-                                      else str(co.get("registered_address", "")),
-                "status":             co.get("current_status", ""),
+                if isinstance(co.get("registered_address"), dict)
+                else str(co.get("registered_address", "")),
+                "status": co.get("current_status", ""),
                 "incorporation_date": co.get("incorporation_date", ""),
-                "company_type":       co.get("company_type", ""),
-                "url":                co.get("opencorporates_url", ""),
+                "company_type": co.get("company_type", ""),
+                "url": co.get("opencorporates_url", ""),
             }
         )
     return companies
@@ -55,13 +56,13 @@ def _parse_officers(data: dict) -> list[dict[str, Any]]:
         company = officer.get("company", {}) or {}
         officers.append(
             {
-                "name":          officer.get("name", ""),
-                "position":      officer.get("position", ""),
-                "company_name":  company.get("name", ""),
-                "jurisdiction":  company.get("jurisdiction_code", ""),
-                "company_url":   company.get("opencorporates_url", ""),
-                "start_date":    officer.get("start_date", ""),
-                "end_date":      officer.get("end_date", ""),
+                "name": officer.get("name", ""),
+                "position": officer.get("position", ""),
+                "company_name": company.get("name", ""),
+                "jurisdiction": company.get("jurisdiction_code", ""),
+                "company_url": company.get("opencorporates_url", ""),
+                "start_date": officer.get("start_date", ""),
+                "end_date": officer.get("end_date", ""),
             }
         )
     return officers

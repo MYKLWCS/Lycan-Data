@@ -1,21 +1,22 @@
 """Tests for modules/enrichers/deduplication.py — 15 tests."""
+
 import pytest
 
 from modules.enrichers.deduplication import (
-    MergeCandidate,
     MERGE_THRESHOLD,
-    normalize_name,
-    name_similarity,
-    normalize_phone,
-    normalize_email,
-    normalize_username,
+    MergeCandidate,
     find_duplicate_identifiers,
     find_duplicate_persons,
     merge_persons,
+    name_similarity,
+    normalize_email,
+    normalize_name,
+    normalize_phone,
+    normalize_username,
 )
 
-
 # ─── normalize_name ───────────────────────────────────────────────────────────
+
 
 def test_normalize_name_strips_honorifics():
     """Honorifics like Mr, Mrs, Dr are removed from the token list."""
@@ -32,6 +33,7 @@ def test_normalize_name_dr_john_smith_jr():
 
 
 # ─── name_similarity ──────────────────────────────────────────────────────────
+
 
 def test_name_similarity_identical():
     assert name_similarity("John Smith", "John Smith") == 1.0
@@ -55,6 +57,7 @@ def test_name_similarity_partial_overlap():
 
 # ─── Identifier normalizers ───────────────────────────────────────────────────
 
+
 def test_normalize_phone_10_digit():
     """10-digit US number gets +1 prefix."""
     result = normalize_phone("2025551234")
@@ -74,6 +77,7 @@ def test_normalize_username_at_prefix():
 
 
 # ─── find_duplicate_identifiers ───────────────────────────────────────────────
+
 
 def test_find_duplicate_identifiers_same_phone():
     """Two phone identifiers that normalize identically → one MergeCandidate."""
@@ -101,6 +105,7 @@ def test_find_duplicate_identifiers_different_types_not_merged():
 
 # ─── find_duplicate_persons ───────────────────────────────────────────────────
 
+
 def test_find_duplicate_persons_same_name_and_dob():
     """Same full name + same DOB + shared identifier → similarity >= MERGE_THRESHOLD.
 
@@ -108,11 +113,15 @@ def test_find_duplicate_persons_same_name_and_dob():
     """
     persons = [
         {
-            "id": "p1", "full_name": "John Smith", "dob": "1985-06-15",
+            "id": "p1",
+            "full_name": "John Smith",
+            "dob": "1985-06-15",
             "identifiers": ["john@example.com"],
         },
         {
-            "id": "p2", "full_name": "John Smith", "dob": "1985-06-15",
+            "id": "p2",
+            "full_name": "John Smith",
+            "dob": "1985-06-15",
             "identifiers": ["john@example.com"],
         },
     ]
@@ -143,8 +152,18 @@ def test_find_duplicate_persons_shared_identifier_adds_to_score():
     a_no = {"id": "p1", "full_name": "John Smith", "dob": "1990-01-01", "identifiers": []}
     b_no = {"id": "p2", "full_name": "John Smith", "dob": "1990-01-01", "identifiers": []}
 
-    a_yes = {"id": "p1", "full_name": "John Smith", "dob": "1990-01-01", "identifiers": ["alice@example.com"]}
-    b_yes = {"id": "p2", "full_name": "John Smith", "dob": "1990-01-01", "identifiers": ["alice@example.com"]}
+    a_yes = {
+        "id": "p1",
+        "full_name": "John Smith",
+        "dob": "1990-01-01",
+        "identifiers": ["alice@example.com"],
+    }
+    b_yes = {
+        "id": "p2",
+        "full_name": "John Smith",
+        "dob": "1990-01-01",
+        "identifiers": ["alice@example.com"],
+    }
 
     score_no, _ = _person_similarity(a_no, b_no)
     score_yes, reasons_yes = _person_similarity(a_yes, b_yes)
@@ -154,6 +173,7 @@ def test_find_duplicate_persons_shared_identifier_adds_to_score():
 
 
 # ─── merge_persons ────────────────────────────────────────────────────────────
+
 
 def test_merge_persons_structure():
     """merge_persons returns the correct canonical/duplicate merge plan."""

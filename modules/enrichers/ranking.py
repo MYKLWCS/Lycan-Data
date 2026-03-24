@@ -10,12 +10,9 @@ Scores and sorts any list of result dicts by a composite of:
 Every algorithm is auditable: scores are returned alongside results.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
-
-from shared.constants import SOURCE_RELIABILITY
-
 
 AUTHORITY_WEIGHTS: dict[str, float] = {
     "government_registry": 1.00,
@@ -43,12 +40,32 @@ AUTHORITY_WEIGHTS: dict[str, float] = {
     "unknown": 0.20,
 }
 
-RISK_KEYWORDS: frozenset[str] = frozenset([
-    "fraud", "scam", "criminal", "arrest", "conviction", "warrant",
-    "sanction", "watchlist", "ofac", "interpol", "drug", "trafficking",
-    "money laundering", "burner", "dark web", "breach", "leaked",
-    "sex offender", "bankrupt", "default", "foreclosure", "repossess",
-])
+RISK_KEYWORDS: frozenset[str] = frozenset(
+    [
+        "fraud",
+        "scam",
+        "criminal",
+        "arrest",
+        "conviction",
+        "warrant",
+        "sanction",
+        "watchlist",
+        "ofac",
+        "interpol",
+        "drug",
+        "trafficking",
+        "money laundering",
+        "burner",
+        "dark web",
+        "breach",
+        "leaked",
+        "sex offender",
+        "bankrupt",
+        "default",
+        "foreclosure",
+        "repossess",
+    ]
+)
 
 
 @dataclass
@@ -88,7 +105,9 @@ def rank_results(
     for item in results:
         score, breakdown = _score_result(item, w)
         source = item.get("platform") or item.get("source_type") or "unknown"
-        ranked.append(RankedResult(data=item, rank_score=score, score_breakdown=breakdown, source=source))
+        ranked.append(
+            RankedResult(data=item, rank_score=score, score_breakdown=breakdown, source=source)
+        )
 
     ranked.sort(key=lambda r: r.rank_score, reverse=True)
     return ranked
@@ -106,7 +125,9 @@ def _context_weights(context: str) -> dict[str, float]:
         return {"quality": 0.35, "authority": 0.25, "risk_relevance": 0.20, "recency": 0.20}
 
 
-def _score_result(item: dict[str, Any], weights: dict[str, float]) -> tuple[float, dict[str, float]]:
+def _score_result(
+    item: dict[str, Any], weights: dict[str, float]
+) -> tuple[float, dict[str, float]]:
     """Compute composite rank score for a single result dict."""
     quality = float(item.get("composite_quality", item.get("source_reliability", 0.5)))
 
@@ -152,9 +173,9 @@ def _compute_recency(item: dict[str, Any]) -> float:
         except ValueError:
             return 0.5
     if scraped_at.tzinfo is None:
-        scraped_at = scraped_at.replace(tzinfo=timezone.utc)
+        scraped_at = scraped_at.replace(tzinfo=UTC)
 
-    age_days = (datetime.now(timezone.utc) - scraped_at).total_seconds() / 86400
+    age_days = (datetime.now(UTC) - scraped_at).total_seconds() / 86400
     return max(0.0, 1.0 - age_days / 30)
 
 

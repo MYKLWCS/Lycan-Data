@@ -6,19 +6,22 @@ Tests for phone enrichment scrapers:
 
 4 tests per scraper = 12 total.
 """
+
 from __future__ import annotations
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from modules.crawlers.phone_carrier import CarrierLookupCrawler, parse_phone_parts
 from modules.crawlers.phone_fonefinder import FoneFinderCrawler
 from modules.crawlers.phone_truecaller import TruecallerCrawler
 from modules.crawlers.registry import is_registered
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_response(status_code: int = 200, text: str = "", json_data: dict | None = None):
     """Build a fake httpx.Response-like MagicMock."""
@@ -35,6 +38,7 @@ def _mock_response(status_code: int = 200, text: str = "", json_data: dict | Non
 # ---------------------------------------------------------------------------
 # parse_phone_parts utility
 # ---------------------------------------------------------------------------
+
 
 def test_parse_phone_parts_us_e164():
     parts = parse_phone_parts("+12025551234")
@@ -55,6 +59,7 @@ def test_parse_phone_parts_us_11digit():
 # Registry checks
 # ---------------------------------------------------------------------------
 
+
 def test_phone_carrier_registered():
     assert is_registered("phone_carrier")
 
@@ -70,6 +75,7 @@ def test_phone_truecaller_registered():
 # ---------------------------------------------------------------------------
 # CarrierLookupCrawler — 4 tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_carrier_us_found():
@@ -138,6 +144,7 @@ async def test_carrier_burner_detected():
 # ---------------------------------------------------------------------------
 # FoneFinderCrawler — 4 tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_fonefinder_us_found():

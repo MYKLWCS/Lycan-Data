@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 
@@ -60,6 +61,7 @@ class FacebookCrawler(PlaywrightCrawler):
             )
             if followers_match:
                 from modules.crawlers.instagram import _parse_count
+
                 data["follower_count"] = _parse_count(followers_match.group(1))
 
             loc_match = re.search(r'"location":\s*"([^"]+)"', content)

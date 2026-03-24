@@ -1,5 +1,5 @@
 """Inverted attribute index — Redis/Dragonfly-backed for reverse entity lookups."""
-import json
+
 import logging
 from typing import Any
 
@@ -74,9 +74,7 @@ class AttributeInvertedIndex:
         except Exception:
             logger.exception("AttributeInvertedIndex.remove_entity failed")
 
-    async def remove_entity_from_field(
-        self, entity_id: str, entity_data: dict[str, Any]
-    ) -> None:
+    async def remove_entity_from_field(self, entity_id: str, entity_data: dict[str, Any]) -> None:
         """
         Remove an entity from ALL indexed field:value entries.
         Use this when an entity is deleted or fully re-indexed.

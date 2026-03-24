@@ -1,12 +1,14 @@
 import asyncio
 import json
 import logging
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any, Callable, AsyncGenerator
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 import redis.asyncio as aioredis
+
 from shared.config import settings
 
 logger = logging.getLogger(__name__)
@@ -108,7 +110,7 @@ class EventBus:
 
     async def enqueue(self, job: dict[str, Any], priority: str = "normal") -> None:
         """Push a job to the appropriate priority queue."""
-        job.setdefault("enqueued_at", datetime.now(timezone.utc).isoformat())
+        job.setdefault("enqueued_at", datetime.now(UTC).isoformat())
         queue = self.QUEUES.get(priority, self.QUEUES["normal"])
         await self.redis.lpush(queue, _serialize(job))
 

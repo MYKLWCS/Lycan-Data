@@ -1,7 +1,9 @@
 import uuid
+
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from shared.models.base import Base, TimestampMixin
 
 
@@ -20,7 +22,9 @@ class Web(Base, TimestampMixin):
     person_count: Mapped[int] = mapped_column(default=0, nullable=False)
     edge_count: Mapped[int] = mapped_column(default=0, nullable=False)
 
-    memberships: Mapped[list["WebMembership"]] = relationship(back_populates="web", cascade="all, delete-orphan")
+    memberships: Mapped[list["WebMembership"]] = relationship(
+        back_populates="web", cascade="all, delete-orphan"
+    )
 
 
 class WebMembership(Base, TimestampMixin):
@@ -33,7 +37,9 @@ class WebMembership(Base, TimestampMixin):
     person_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    role: Mapped[str] = mapped_column(String(50), default="member", nullable=False)  # seed, discovered
+    role: Mapped[str] = mapped_column(
+        String(50), default="member", nullable=False
+    )  # seed, discovered
     depth_found: Mapped[int] = mapped_column(default=0, nullable=False)
 
     web: Mapped["Web"] = relationship(back_populates="memberships")

@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import text
-from shared.models import Person, Identifier, Relationship, SocialProfile, Web
+
+from shared.models import Identifier, Person, Relationship, SocialProfile, Web
 
 
 def test_person_model_has_risk_fields():

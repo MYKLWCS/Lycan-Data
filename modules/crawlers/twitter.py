@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 
@@ -76,7 +77,7 @@ class TwitterCrawler(HttpxCrawler):
 
             stats = soup.find_all(class_="profile-stat-num")
             labels = soup.find_all(class_="profile-stat-header")
-            for stat, label in zip(stats, labels):
+            for stat, label in zip(stats, labels, strict=False):
                 label_text = label.get_text(strip=True).lower()
                 val = _parse_stat(stat.get_text(strip=True))
                 if "tweet" in label_text:

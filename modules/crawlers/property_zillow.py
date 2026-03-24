@@ -6,6 +6,7 @@ pages via Playwright for Zestimate, beds/baths, sqft, and sale history.
 
 Registered as "property_zillow".
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,10 +21,7 @@ from shared.tor import TorInstance
 
 logger = logging.getLogger(__name__)
 
-_SUGGEST_URL = (
-    "https://www.zillowstatic.com/autocomplete/v3/suggestions"
-    "?q={query}&resultCount=5"
-)
+_SUGGEST_URL = "https://www.zillowstatic.com/autocomplete/v3/suggestions?q={query}&resultCount=5"
 _PROPERTY_URL = "https://www.zillow.com/homes/{address}_rb/"
 
 _MAX_RESULTS = 5
@@ -32,6 +30,7 @@ _MAX_RESULTS = 5
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_suggestions(data: dict) -> list[dict[str, Any]]:
     """
@@ -46,20 +45,20 @@ def _parse_suggestions(data: dict) -> list[dict[str, Any]]:
         meta = item.get("metaData", {})
         properties.append(
             {
-                "address":    item.get("display", ""),
-                "city":       meta.get("addressCity", ""),
-                "state":      meta.get("addressState", ""),
-                "zip":        meta.get("addressZip", ""),
-                "lat":        meta.get("lat"),
-                "lng":        meta.get("lng"),
-                "zpid":       meta.get("zpid"),
+                "address": item.get("display", ""),
+                "city": meta.get("addressCity", ""),
+                "state": meta.get("addressState", ""),
+                "zip": meta.get("addressZip", ""),
+                "lat": meta.get("lat"),
+                "lng": meta.get("lng"),
+                "zpid": meta.get("zpid"),
                 # detail fields populated by _parse_property_page
-                "zestimate":       None,
-                "beds":            None,
-                "baths":           None,
-                "sqft":            None,
+                "zestimate": None,
+                "beds": None,
+                "baths": None,
+                "sqft": None,
                 "last_sold_price": None,
-                "last_sold_date":  None,
+                "last_sold_date": None,
             }
         )
     return properties
@@ -73,12 +72,12 @@ def _parse_property_page(html: str) -> dict[str, Any]:
     We pull what we can from that, falling back to regex patterns.
     """
     details: dict[str, Any] = {
-        "zestimate":       None,
-        "beds":            None,
-        "baths":           None,
-        "sqft":            None,
+        "zestimate": None,
+        "beds": None,
+        "baths": None,
+        "sqft": None,
         "last_sold_price": None,
-        "last_sold_date":  None,
+        "last_sold_date": None,
     }
 
     # --- Try to extract Next.js page props JSON ---
@@ -149,6 +148,7 @@ def _parse_property_page(html: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("property_zillow")
 class PropertyZillowCrawler(PlaywrightCrawler):

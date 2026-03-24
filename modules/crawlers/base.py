@@ -1,16 +1,14 @@
 from __future__ import annotations
+
 import asyncio
 import logging
 import random
 from abc import ABC, abstractmethod
 from typing import Any
 
-import httpx
-
-from shared.config import settings
-from shared.constants import SOURCE_RELIABILITY
-from shared.tor import tor_manager, TorInstance
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
+from shared.tor import TorInstance, tor_manager
 
 logger = logging.getLogger(__name__)
 

@@ -3,11 +3,12 @@ News Search crawler — searches multiple free news sources for mentions of a
 person or company. Aggregates results from DuckDuckGo News, Google News RSS,
 and Bing News RSS.
 """
+
 from __future__ import annotations
 
 import logging
 import re
-from urllib.parse import quote, quote_plus
+from urllib.parse import quote_plus
 from xml.etree import ElementTree
 
 from bs4 import BeautifulSoup
@@ -23,22 +24,51 @@ logger = logging.getLogger(__name__)
 
 ARTICLE_TAGS: dict[str, list[str]] = {
     "legal": [
-        "lawsuit", "sued", "court", "judge", "verdict", "settlement",
-        "attorney", "lawyer", "indicted",
+        "lawsuit",
+        "sued",
+        "court",
+        "judge",
+        "verdict",
+        "settlement",
+        "attorney",
+        "lawyer",
+        "indicted",
     ],
     "financial": [
-        "bankruptcy", "fraud", "sec", "fine", "penalty", "ipo",
-        "funding", "acquisition",
+        "bankruptcy",
+        "fraud",
+        "sec",
+        "fine",
+        "penalty",
+        "ipo",
+        "funding",
+        "acquisition",
     ],
     "criminal": [
-        "arrested", "charged", "convicted", "prison", "jail",
-        "sentence", "criminal",
+        "arrested",
+        "charged",
+        "convicted",
+        "prison",
+        "jail",
+        "sentence",
+        "criminal",
     ],
     "obituary": [
-        "died", "passed away", "death", "funeral", "obituary", "in memoriam",
+        "died",
+        "passed away",
+        "death",
+        "funeral",
+        "obituary",
+        "in memoriam",
     ],
     "corporate": [
-        "ceo", "founder", "appointed", "resigned", "merger", "company", "startup",
+        "ceo",
+        "founder",
+        "appointed",
+        "resigned",
+        "merger",
+        "company",
+        "startup",
     ],
 }
 
@@ -207,7 +237,7 @@ def _parse_rss(xml_text: str, source: str) -> list[dict]:
         return results
 
     # Handle namespace stripping
-    ns_strip = re.compile(r"\{[^}]*\}")
+    re.compile(r"\{[^}]*\}")
     channel = root.find("channel")
     if channel is None:
         # Some feeds put items directly under root
@@ -216,6 +246,7 @@ def _parse_rss(xml_text: str, source: str) -> list[dict]:
         items = channel.findall("item")
 
     for item in items[:20]:
+
         def _text(tag: str) -> str:
             el = item.find(tag)
             return el.text.strip() if el is not None and el.text else ""
@@ -233,13 +264,15 @@ def _parse_rss(xml_text: str, source: str) -> list[dict]:
             snippet = BeautifulSoup(snippet, "html.parser").get_text(strip=True)
 
         categories = _tag_article(title, snippet)
-        results.append({
-            "title": title,
-            "url": url,
-            "date": date,
-            "source": source,
-            "snippet": snippet,
-            "categories": categories,
-        })
+        results.append(
+            {
+                "title": title,
+                "url": url,
+                "date": date,
+                "source": source,
+                "snippet": snippet,
+                "categories": categories,
+            }
+        )
 
     return results

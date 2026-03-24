@@ -1,13 +1,18 @@
+from datetime import UTC, datetime, timezone
+
 import pytest
+
 from shared.data_quality import (
+    CONFLICT_PENALTY,
+    WEIGHT_CORROBORATION,
+    WEIGHT_FRESHNESS,
+    WEIGHT_RELIABILITY,
+    apply_quality_to_model,
+    assess_quality,
     compute_composite_quality,
     corroboration_score_from_count,
     get_source_reliability,
-    assess_quality,
-    apply_quality_to_model,
-    WEIGHT_FRESHNESS, WEIGHT_RELIABILITY, WEIGHT_CORROBORATION, CONFLICT_PENALTY,
 )
-from datetime import datetime, timezone
 
 
 def test_composite_quality_max():
@@ -55,15 +60,22 @@ def test_get_source_reliability_unknown():
 
 
 def test_assess_quality_returns_all_fields():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = assess_quality(
         last_scraped_at=now,
         source_type="social_media_profile",
         source_name="instagram",
         corroboration_count=2,
     )
-    required_keys = {"freshness_score", "source_reliability", "corroboration_count",
-                     "corroboration_score", "conflict_flag", "composite_quality", "data_quality"}
+    required_keys = {
+        "freshness_score",
+        "source_reliability",
+        "corroboration_count",
+        "corroboration_score",
+        "conflict_flag",
+        "composite_quality",
+        "data_quality",
+    }
     assert required_keys.issubset(result.keys())
 
 
@@ -78,7 +90,7 @@ def test_apply_quality_to_model():
         data_quality = {}
 
     model = FakeModel()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     apply_quality_to_model(
         model,
         last_scraped_at=now,

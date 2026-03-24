@@ -20,11 +20,12 @@ Usage:
         await cb.record_failure("twitter.com")
         raise
 """
+
 from __future__ import annotations
 
 import logging
 import time
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -33,13 +34,13 @@ _KEY_PREFIX = "lycan:cb:"
 _KEY_TTL = 86400  # 24h — auto-expire idle circuit breakers
 
 # Defaults — can be overridden per-key
-_DEFAULT_FAILURE_THRESHOLD = 5      # failures before OPEN
-_DEFAULT_SUCCESS_THRESHOLD = 2      # successes in HALF_OPEN before CLOSED
-_DEFAULT_OPEN_DURATION_S = 60       # seconds to stay OPEN before HALF_OPEN
-_DEFAULT_HALF_OPEN_TIMEOUT_S = 30   # seconds to stay HALF_OPEN before auto-OPEN
+_DEFAULT_FAILURE_THRESHOLD = 5  # failures before OPEN
+_DEFAULT_SUCCESS_THRESHOLD = 2  # successes in HALF_OPEN before CLOSED
+_DEFAULT_OPEN_DURATION_S = 60  # seconds to stay OPEN before HALF_OPEN
+_DEFAULT_HALF_OPEN_TIMEOUT_S = 30  # seconds to stay HALF_OPEN before auto-OPEN
 
 
-class CircuitState(str, Enum):
+class CircuitState(StrEnum):
     CLOSED = "CLOSED"
     OPEN = "OPEN"
     HALF_OPEN = "HALF_OPEN"
@@ -115,9 +116,7 @@ class CircuitBreaker:
             if now - half_opened_at >= self.half_open_timeout_s:
                 # Timeout in HALF_OPEN → back to OPEN
                 await self._transition(key, CircuitState.OPEN, opened_at=now)
-                logger.warning(
-                    "CircuitBreaker %r: HALF_OPEN timed out → OPEN", key
-                )
+                logger.warning("CircuitBreaker %r: HALF_OPEN timed out → OPEN", key)
                 return True
             return False  # allow probe
 
@@ -140,7 +139,8 @@ class CircuitBreaker:
                 await self._transition(key, CircuitState.CLOSED)
                 logger.info(
                     "CircuitBreaker %r: HALF_OPEN → CLOSED (%d successes)",
-                    key, successes,
+                    key,
+                    successes,
                 )
             else:
                 await self._set_field(key, "successes", str(successes))
@@ -162,9 +162,7 @@ class CircuitBreaker:
 
         if state == CircuitState.HALF_OPEN:
             await self._transition(key, CircuitState.OPEN, opened_at=now)
-            logger.warning(
-                "CircuitBreaker %r: HALF_OPEN → OPEN (probe failed)", key
-            )
+            logger.warning("CircuitBreaker %r: HALF_OPEN → OPEN (probe failed)", key)
             return
 
         failures = int(state_data.get("failures", 0)) + 1
@@ -172,9 +170,7 @@ class CircuitBreaker:
 
         if state == CircuitState.CLOSED and failures >= self.failure_threshold:
             await self._transition(key, CircuitState.OPEN, opened_at=now)
-            logger.warning(
-                "CircuitBreaker %r: CLOSED → OPEN (%d failures)", key, failures
-            )
+            logger.warning("CircuitBreaker %r: CLOSED → OPEN (%d failures)", key, failures)
 
     async def get_state(self, key: str) -> dict[str, Any]:
         """Return the full circuit state dict for a key."""

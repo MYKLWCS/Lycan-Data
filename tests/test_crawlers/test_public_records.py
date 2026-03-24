@@ -7,45 +7,54 @@ Tests for Public Records scrapers — Task 26.
 
 16 tests total — all HTTP calls are mocked.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import modules.crawlers.public_faa  # noqa: F401
+
 # Trigger @register decorators
-import modules.crawlers.public_npi    # noqa: F401
-import modules.crawlers.public_faa    # noqa: F401
+import modules.crawlers.public_npi  # noqa: F401
 import modules.crawlers.public_nsopw  # noqa: F401
 import modules.crawlers.public_voter  # noqa: F401
-
-from modules.crawlers.public_npi import (
-    PublicNPICrawler,
-    _split_name as npi_split_name,
-    _parse_providers,
-)
 from modules.crawlers.public_faa import (
     PublicFAACrawler,
-    _split_name as faa_split_name,
-    _parse_airmen_html,
     _extract_viewstate,
+    _parse_airmen_html,
+)
+from modules.crawlers.public_faa import (
+    _split_name as faa_split_name,
+)
+from modules.crawlers.public_npi import (
+    PublicNPICrawler,
+    _parse_providers,
+)
+from modules.crawlers.public_npi import (
+    _split_name as npi_split_name,
 )
 from modules.crawlers.public_nsopw import (
     PublicNSOPWCrawler,
-    _split_name as nsopw_split_name,
     _parse_offenders,
+)
+from modules.crawlers.public_nsopw import (
+    _split_name as nsopw_split_name,
 )
 from modules.crawlers.public_voter import (
     PublicVoterCrawler,
-    _parse_identifier as voter_parse_identifier,
     _parse_voter_response,
 )
+from modules.crawlers.public_voter import (
+    _parse_identifier as voter_parse_identifier,
+)
 from modules.crawlers.registry import is_registered
-
 
 # ===========================================================================
 # Helper factories
 # ===========================================================================
+
 
 def _mock_resp(status: int = 200, json_data=None, text: str = ""):
     resp = MagicMock()
@@ -84,9 +93,7 @@ SAMPLE_NPI_JSON = {
                     "address_purpose": "LOCATION",
                 }
             ],
-            "taxonomies": [
-                {"desc": "Internal Medicine", "primary": True}
-            ],
+            "taxonomies": [{"desc": "Internal Medicine", "primary": True}],
         },
         {
             "number": "0987654321",
@@ -107,9 +114,7 @@ SAMPLE_NPI_JSON = {
                     "address_purpose": "LOCATION",
                 }
             ],
-            "taxonomies": [
-                {"desc": "Family Medicine", "primary": True}
-            ],
+            "taxonomies": [{"desc": "Family Medicine", "primary": True}],
         },
     ],
 }
@@ -173,6 +178,7 @@ SAMPLE_VOTER_JSON = {
 # 1. Registry tests
 # ===========================================================================
 
+
 def test_npi_registered():
     assert is_registered("public_npi")
 
@@ -192,6 +198,7 @@ def test_voter_registered():
 # ===========================================================================
 # 2. Utility function tests
 # ===========================================================================
+
 
 def test_npi_split_name():
     first, last = npi_split_name("Jane Doe")
@@ -226,6 +233,7 @@ def test_faa_extract_viewstate():
 # ===========================================================================
 # 3. Parse helpers
 # ===========================================================================
+
 
 def test_parse_providers():
     providers = _parse_providers(SAMPLE_NPI_JSON)
@@ -262,6 +270,7 @@ def test_parse_voter_response():
 # ===========================================================================
 # 4. PublicNPICrawler.scrape() — mocked
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_npi_found():
@@ -302,14 +311,17 @@ async def test_npi_http_error():
 # 5. PublicFAACrawler.scrape() — mocked
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_faa_found():
     crawler = PublicFAACrawler()
-    get_resp  = _mock_resp(200, text=SAMPLE_FAA_GET_HTML)
+    get_resp = _mock_resp(200, text=SAMPLE_FAA_GET_HTML)
     post_resp = _mock_resp(200, text=SAMPLE_FAA_POST_HTML)
     # get returns GET response, post returns POST response
-    with patch.object(crawler, "get", new=AsyncMock(return_value=get_resp)), \
-         patch.object(crawler, "post", new=AsyncMock(return_value=post_resp)):
+    with (
+        patch.object(crawler, "get", new=AsyncMock(return_value=get_resp)),
+        patch.object(crawler, "post", new=AsyncMock(return_value=post_resp)),
+    ):
         result = await crawler.scrape("John Smith")
 
     assert result.found is True
@@ -329,6 +341,7 @@ async def test_faa_http_error_on_get():
 # ===========================================================================
 # 6. PublicNSOPWCrawler.scrape() — mocked
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_nsopw_found():
@@ -367,6 +380,7 @@ async def test_nsopw_http_error():
 # 7. PublicVoterCrawler.scrape() — mocked
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_voter_registered():
     crawler = PublicVoterCrawler()
@@ -386,7 +400,12 @@ async def test_voter_not_registered():
     crawler = PublicVoterCrawler()
     mock_resp = _mock_resp(
         200,
-        json_data={"Registered": False, "CountyName": None, "JurisdictionName": None, "VoterStatus": "Inactive"},
+        json_data={
+            "Registered": False,
+            "CountyName": None,
+            "JurisdictionName": None,
+            "VoterStatus": "Inactive",
+        },
     )
 
     with patch.object(crawler, "post", new=AsyncMock(return_value=mock_resp)):

@@ -6,6 +6,7 @@ Tests for Vehicle Records scrapers — Tasks 35.
 
 15 tests total — HTTP/Playwright calls are mocked.
 """
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -14,33 +15,36 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Trigger @register decorators
-import modules.crawlers.vehicle_nhtsa     # noqa: F401
-import modules.crawlers.vehicle_plate     # noqa: F401
+import modules.crawlers.vehicle_nhtsa  # noqa: F401
 import modules.crawlers.vehicle_ownership  # noqa: F401
-
+import modules.crawlers.vehicle_plate  # noqa: F401
+from modules.crawlers.registry import is_registered
 from modules.crawlers.vehicle_nhtsa import (
     VehicleNhtsaCrawler,
-    _validate_vin,
     _parse_decode_results,
     _parse_recalls,
-)
-from modules.crawlers.vehicle_plate import (
-    VehiclePlateCrawler,
-    _parse_identifier as _plate_parse_id,
-    _parse_faxvin_json,
-    _parse_licenseplatedata_html,
+    _validate_vin,
 )
 from modules.crawlers.vehicle_ownership import (
     VehicleOwnershipCrawler,
-    _parse_identifier as _owner_parse_id,
     _parse_vehicle_cards_html,
 )
-from modules.crawlers.registry import is_registered
-
+from modules.crawlers.vehicle_ownership import (
+    _parse_identifier as _owner_parse_id,
+)
+from modules.crawlers.vehicle_plate import (
+    VehiclePlateCrawler,
+    _parse_faxvin_json,
+    _parse_licenseplatedata_html,
+)
+from modules.crawlers.vehicle_plate import (
+    _parse_identifier as _plate_parse_id,
+)
 
 # ===========================================================================
 # Helpers
 # ===========================================================================
+
 
 def _mock_resp(status: int = 200, json_data: dict | None = None, text: str = ""):
     resp = MagicMock()
@@ -55,20 +59,20 @@ def _mock_resp(status: int = 200, json_data: dict | None = None, text: str = "")
 SAMPLE_NHTSA_DECODE = {
     "Count": 136,
     "Results": [
-        {"Variable": "Make",                 "Value": "HONDA",            "ValueId": ""},
-        {"Variable": "Model",                "Value": "Civic",            "ValueId": ""},
-        {"Variable": "Model Year",           "Value": "2022",             "ValueId": ""},
-        {"Variable": "Body Class",           "Value": "Sedan/Saloon",     "ValueId": ""},
-        {"Variable": "Engine Configuration", "Value": "In-Line",          "ValueId": ""},
-        {"Variable": "Fuel Type - Primary",  "Value": "Gasoline",         "ValueId": ""},
-        {"Variable": "Manufacturer Name",    "Value": "HONDA OF AMERICA", "ValueId": ""},
-        {"Variable": "Plant Country",        "Value": "UNITED STATES",    "ValueId": ""},
-        {"Variable": "Plant State",          "Value": "OHIO",             "ValueId": ""},
-        {"Variable": "Vehicle Type",         "Value": "PASSENGER CAR",   "ValueId": ""},
-        {"Variable": "Drive Type",           "Value": "FWD/Front Wheel Drive", "ValueId": ""},
-        {"Variable": "Transmission Style",   "Value": "Automatic",        "ValueId": ""},
+        {"Variable": "Make", "Value": "HONDA", "ValueId": ""},
+        {"Variable": "Model", "Value": "Civic", "ValueId": ""},
+        {"Variable": "Model Year", "Value": "2022", "ValueId": ""},
+        {"Variable": "Body Class", "Value": "Sedan/Saloon", "ValueId": ""},
+        {"Variable": "Engine Configuration", "Value": "In-Line", "ValueId": ""},
+        {"Variable": "Fuel Type - Primary", "Value": "Gasoline", "ValueId": ""},
+        {"Variable": "Manufacturer Name", "Value": "HONDA OF AMERICA", "ValueId": ""},
+        {"Variable": "Plant Country", "Value": "UNITED STATES", "ValueId": ""},
+        {"Variable": "Plant State", "Value": "OHIO", "ValueId": ""},
+        {"Variable": "Vehicle Type", "Value": "PASSENGER CAR", "ValueId": ""},
+        {"Variable": "Drive Type", "Value": "FWD/Front Wheel Drive", "ValueId": ""},
+        {"Variable": "Transmission Style", "Value": "Automatic", "ValueId": ""},
         # Junk entry — should be ignored
-        {"Variable": "ErrorCode",            "Value": "0",                "ValueId": ""},
+        {"Variable": "ErrorCode", "Value": "0", "ValueId": ""},
     ],
 }
 
@@ -76,10 +80,10 @@ SAMPLE_NHTSA_RECALLS = {
     "Count": 1,
     "results": [
         {
-            "Component":           "AIR BAGS",
-            "Summary":             "Takata airbag inflator may rupture.",
-            "Consequence":         "Metal fragments could cause injury.",
-            "Remedy":              "Dealers will replace the airbag inflator.",
+            "Component": "AIR BAGS",
+            "Summary": "Takata airbag inflator may rupture.",
+            "Consequence": "Metal fragments could cause injury.",
+            "Remedy": "Dealers will replace the airbag inflator.",
             "NHTSACampaignNumber": "21V123456",
         }
     ],
@@ -87,11 +91,11 @@ SAMPLE_NHTSA_RECALLS = {
 
 SAMPLE_FAXVIN_JSON = {
     "vehicle": {
-        "year":       "2019",
-        "make":       "Toyota",
-        "model":      "Camry",
-        "vin":        "4T1B11HK3KU123456",
-        "color":      "Silver",
+        "year": "2019",
+        "make": "Toyota",
+        "model": "Camry",
+        "vin": "4T1B11HK3KU123456",
+        "color": "Silver",
         "body_style": "Sedan",
     }
 }
@@ -128,6 +132,7 @@ SAMPLE_OWNERSHIP_HTML = """
 # 1. Registry tests
 # ===========================================================================
 
+
 def test_vehicle_nhtsa_registered():
     assert is_registered("vehicle_nhtsa")
 
@@ -143,6 +148,7 @@ def test_vehicle_ownership_registered():
 # ===========================================================================
 # 2. VIN validation
 # ===========================================================================
+
 
 def test_validate_vin_valid():
     assert _validate_vin("1HGBH41JXMN109186") is True
@@ -165,6 +171,7 @@ def test_validate_vin_lowercase_accepted():
 # ===========================================================================
 # 3. _parse_decode_results
 # ===========================================================================
+
 
 def test_parse_decode_results_extracts_fields():
     data = _parse_decode_results(SAMPLE_NHTSA_DECODE["Results"])
@@ -194,11 +201,12 @@ def test_parse_recalls_extracts_fields():
 # 4. VehicleNhtsaCrawler — scrape()
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_nhtsa_found():
     """Valid VIN returns make/model/year + recalls."""
     crawler = VehicleNhtsaCrawler()
-    mock_decode  = _mock_resp(200, json_data=SAMPLE_NHTSA_DECODE)
+    mock_decode = _mock_resp(200, json_data=SAMPLE_NHTSA_DECODE)
     mock_recalls = _mock_resp(200, json_data=SAMPLE_NHTSA_RECALLS)
 
     with patch.object(crawler, "get", new=AsyncMock(side_effect=[mock_decode, mock_recalls])):
@@ -235,6 +243,7 @@ async def test_nhtsa_http_error():
 # 5. _parse_identifier (plate)
 # ===========================================================================
 
+
 def test_plate_parse_identifier_with_state():
     plate, state = _plate_parse_id("ABC1234|TX")
     assert plate == "ABC1234"
@@ -251,6 +260,7 @@ def test_plate_parse_identifier_no_state():
 # 6. _parse_faxvin_json
 # ===========================================================================
 
+
 def test_parse_faxvin_json_full():
     result = _parse_faxvin_json(SAMPLE_FAXVIN_JSON)
     assert result["make"] == "Toyota"
@@ -262,6 +272,7 @@ def test_parse_faxvin_json_full():
 # ===========================================================================
 # 7. VehiclePlateCrawler — scrape()
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_plate_found_via_faxvin():
@@ -290,6 +301,7 @@ async def test_plate_not_found():
 # 8. _parse_vehicle_cards_html (ownership)
 # ===========================================================================
 
+
 def test_parse_vehicle_cards_html_finds_vehicles():
     vehicles = _parse_vehicle_cards_html(SAMPLE_OWNERSHIP_HTML)
     assert len(vehicles) >= 1
@@ -301,6 +313,7 @@ def test_parse_vehicle_cards_html_finds_vehicles():
 # ===========================================================================
 # 9. VehicleOwnershipCrawler — scrape() with mocked Playwright
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_ownership_found():

@@ -1,8 +1,10 @@
 """Email normalization and validation."""
+
 from __future__ import annotations
+
 import re
 
-_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
 
 
 def normalize_email(raw: str) -> str | None:
@@ -33,12 +35,28 @@ def is_valid_email(raw: str) -> bool:
 
 def is_disposable_domain(domain: str) -> bool:
     """Check if domain is a known disposable/temp email provider."""
-    DISPOSABLE = frozenset([
-        "mailinator.com", "guerrillamail.com", "tempmail.com",
-        "throwaway.email", "yopmail.com", "sharklasers.com",
-        "guerrillamailblock.com", "grr.la", "guerrillamail.info",
-        "spam4.me", "trashmail.at", "trashmail.com", "dispostable.com",
-        "maildrop.cc", "fakeinbox.com", "tempinbox.com", "10minutemail.com",
-        "getnada.com", "spamgourmet.com", "mailnull.com",
-    ])
+    DISPOSABLE = frozenset(
+        [
+            "mailinator.com",
+            "guerrillamail.com",
+            "tempmail.com",
+            "throwaway.email",
+            "yopmail.com",
+            "sharklasers.com",
+            "guerrillamailblock.com",
+            "grr.la",
+            "guerrillamail.info",
+            "spam4.me",
+            "trashmail.at",
+            "trashmail.com",
+            "dispostable.com",
+            "maildrop.cc",
+            "fakeinbox.com",
+            "tempinbox.com",
+            "10minutemail.com",
+            "getnada.com",
+            "spamgourmet.com",
+            "mailnull.com",
+        ]
+    )
     return domain.lower() in DISPOSABLE

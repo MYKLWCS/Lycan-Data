@@ -6,6 +6,7 @@ and officer/director appointments. No API key required for basic search.
 
 Registered as "company_companies_house".
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,14 +30,14 @@ def _parse_companies(data: dict) -> list[dict[str, Any]]:
     for item in data.get("items", []):
         companies.append(
             {
-                "name":             item.get("title", ""),
-                "company_number":   item.get("company_number", ""),
-                "status":           item.get("company_status", ""),
+                "name": item.get("title", ""),
+                "company_number": item.get("company_number", ""),
+                "status": item.get("company_status", ""),
                 "incorporation_date": item.get("date_of_creation", ""),
-                "address":          item.get("address_snippet", ""),
-                "company_type":     item.get("company_type", ""),
-                "url":              "https://find-and-update.company-information.service.gov.uk/company/"
-                                    + item.get("company_number", ""),
+                "address": item.get("address_snippet", ""),
+                "company_type": item.get("company_type", ""),
+                "url": "https://find-and-update.company-information.service.gov.uk/company/"
+                + item.get("company_number", ""),
             }
         )
     return companies
@@ -49,11 +50,11 @@ def _parse_officers(data: dict) -> list[dict[str, Any]]:
         dob = item.get("date_of_birth", {}) or {}
         officers.append(
             {
-                "name":              item.get("title", ""),
-                "dob_month":         dob.get("month", ""),
-                "dob_year":          dob.get("year", ""),
+                "name": item.get("title", ""),
+                "dob_month": dob.get("month", ""),
+                "dob_year": dob.get("year", ""),
                 "appointment_count": item.get("appointment_count", 0),
-                "links":             item.get("links", {}).get("self", ""),
+                "links": item.get("links", {}).get("self", ""),
             }
         )
     return officers

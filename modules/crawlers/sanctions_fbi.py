@@ -4,6 +4,7 @@ Source: https://api.fbi.gov/wanted/v1/list
 
 Registered as: sanctions_fbi
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,6 +25,7 @@ MATCH_THRESHOLD = 0.7
 # Name-matching helper
 # ---------------------------------------------------------------------------
 
+
 def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD) -> float:
     """Returns a match score 0.0–1.0 based on word overlap."""
     q_words = set(query.lower().split())
@@ -38,6 +40,7 @@ def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("sanctions_fbi")
 class SanctionsFBICrawler(HttpxCrawler):
@@ -56,7 +59,9 @@ class SanctionsFBICrawler(HttpxCrawler):
         response = await self.get(url)
 
         if response is None or response.status_code != 200:
-            logger.error("FBI: API request failed (status=%s)", getattr(response, "status_code", "N/A"))
+            logger.error(
+                "FBI: API request failed (status=%s)", getattr(response, "status_code", "N/A")
+            )
             return self._result(
                 identifier,
                 found=False,

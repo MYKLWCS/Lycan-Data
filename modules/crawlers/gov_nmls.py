@@ -6,6 +6,7 @@ by name, returning entity names, primary state, license status, and license list
 
 Registered as "gov_nmls".
 """
+
 from __future__ import annotations
 
 import logging
@@ -17,9 +18,7 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_NMLS_URL = (
-    "https://www.nmlsconsumeraccess.org/api/Search/GetIndividualSearchResult"
-)
+_NMLS_URL = "https://www.nmlsconsumeraccess.org/api/Search/GetIndividualSearchResult"
 _NMLS_HEADERS = {
     "Content-Type": "application/json",
     "Accept": "application/json",

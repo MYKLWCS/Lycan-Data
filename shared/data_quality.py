@@ -14,13 +14,14 @@ Weights:
   corroboration  0.25
   conflict       -0.10 penalty if True
 """
+
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
-from typing import Any, TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from shared.constants import SOURCE_RELIABILITY, FRESHNESS_HALF_LIFE
+from shared.constants import SOURCE_RELIABILITY
 from shared.freshness import compute_freshness
 
 if TYPE_CHECKING:

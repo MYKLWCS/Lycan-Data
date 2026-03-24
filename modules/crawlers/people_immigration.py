@@ -6,6 +6,7 @@ Searches for immigration court case information via CourtListener public API
 EOIR alien registration number (A-number: "A" + 9 digits).
 Registered as "people_immigration".
 """
+
 from __future__ import annotations
 
 import logging
@@ -48,8 +49,7 @@ def _parse_dockets(payload: dict) -> tuple[list[dict[str, Any]], int]:
                 "court": item.get("court", ""),
                 "date_filed": item.get("date_filed", ""),
                 "date_terminated": item.get("date_terminated", ""),
-                "absolute_url": "https://www.courtlistener.com"
-                + item.get("absolute_url", ""),
+                "absolute_url": "https://www.courtlistener.com" + item.get("absolute_url", ""),
             }
         )
     return cases, total

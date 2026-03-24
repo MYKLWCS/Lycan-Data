@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
+
 from pydantic import BaseModel
-from shared.constants import SeedType
 
 
 class WebConfig(BaseModel):
     """Configuration for a web crawl."""
+
     max_depth: int = 3
     enable_darkweb: bool = True
     enable_social: bool = True

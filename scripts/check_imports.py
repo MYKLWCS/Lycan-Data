@@ -4,16 +4,22 @@ Quick import sanity check — tries to import every non-test Python module
 and reports any that fail due to missing dependencies or syntax errors.
 Does NOT raise on import errors that require running services.
 """
-import sys
+
 import importlib
-import os
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 SKIP_DIRS = {".venv", "__pycache__", "migrations", "node_modules", "scripts"}
 SKIP_RUNTIME_ERRORS = {
-    "playwright", "scrapy", "crawlee", "weasyprint", "cv2",
-    "spacy", "torch", "transformers",
+    "playwright",
+    "scrapy",
+    "crawlee",
+    "weasyprint",
+    "cv2",
+    "spacy",
+    "torch",
+    "transformers",
 }
 
 errors = []

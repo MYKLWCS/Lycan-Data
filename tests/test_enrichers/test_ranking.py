@@ -2,36 +2,37 @@
 Tests for Result Ranking & Sorting Engine — Task 30.
 15 tests covering scoring, context weights, authority, recency, and convenience functions.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
 from modules.enrichers.ranking import (
-    RankedResult,
     AUTHORITY_WEIGHTS,
     RISK_KEYWORDS,
-    rank_results,
-    sort_by_risk,
-    sort_by_wealth,
-    sort_by_freshness,
+    RankedResult,
     _compute_recency,
     _compute_risk_relevance,
     _context_weights,
+    rank_results,
+    sort_by_freshness,
+    sort_by_risk,
+    sort_by_wealth,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _days_ago_iso(days: float) -> str:
-    dt = datetime.now(timezone.utc) - timedelta(days=days)
+    dt = datetime.now(UTC) - timedelta(days=days)
     return dt.isoformat()
 
 
@@ -165,7 +166,9 @@ def test_custom_weights_override_defaults():
     results = [{"composite_quality": 0.8, "source_type": "dark_paste", "scraped_at": _now_iso()}]
 
     default_ranked = rank_results(results)
-    custom_ranked = rank_results(results, weights={"quality": 1.0, "authority": 0.0, "risk_relevance": 0.0, "recency": 0.0})
+    custom_ranked = rank_results(
+        results, weights={"quality": 1.0, "authority": 0.0, "risk_relevance": 0.0, "recency": 0.0}
+    )
 
     assert custom_ranked[0].rank_score != default_ranked[0].rank_score
     # With quality weight=1.0 and quality=0.8, score should be 0.8
@@ -240,7 +243,11 @@ def test_empty_results_returns_empty():
 def test_sort_by_freshness_ranks_recent_first():
     """sort_by_freshness should put the most recently scraped result first."""
     results = [
-        {"composite_quality": 0.9, "source_type": "government_registry", "scraped_at": _days_ago_iso(20)},
+        {
+            "composite_quality": 0.9,
+            "source_type": "government_registry",
+            "scraped_at": _days_ago_iso(20),
+        },
         {"composite_quality": 0.1, "source_type": "dark_paste", "scraped_at": _now_iso()},
     ]
     ranked = sort_by_freshness(results)

@@ -7,20 +7,17 @@ on every applicable platform — respecting max_depth, kill switches, and
 deduplication (don't re-enqueue if a fresh crawl exists).
 """
 
-import asyncio
-import json
 import logging
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 
+from modules.dispatcher.dispatcher import dispatch_job
 from shared.config import settings
-from shared.constants import CrawlStatus, IdentifierType, Platform
+from shared.constants import CrawlStatus
 from shared.db import AsyncSessionLocal
 from shared.events import event_bus
 from shared.models.crawl import CrawlJob
 from shared.models.identifier import Identifier
-from modules.dispatcher.dispatcher import dispatch_job
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +119,7 @@ class GrowthDaemon:
             await self._fan_out(ident, person_id, depth)
 
     async def _get_person_identifiers(self, session, person_id: str) -> list[Identifier]:
-        result = await session.execute(
-            select(Identifier).where(Identifier.person_id == person_id)
-        )
+        result = await session.execute(select(Identifier).where(Identifier.person_id == person_id))
         return result.scalars().all()
 
     async def _fan_out(self, identifier: Identifier, person_id: str, depth: int) -> None:
@@ -155,17 +150,20 @@ class GrowthDaemon:
 
     async def _job_exists(self, person_id: str, platform: str, identifier: str) -> bool:
         """Return True if a non-failed job for this triple exists in the last 24h."""
-        from sqlalchemy import and_, cast, String
+        from sqlalchemy import and_
+
         async with AsyncSessionLocal() as session:
             result = await session.execute(
-                select(CrawlJob).where(
+                select(CrawlJob)
+                .where(
                     and_(
                         CrawlJob.person_id == person_id,
                         CrawlJob.seed_identifier == identifier,
                         CrawlJob.status != CrawlStatus.FAILED.value,
                         CrawlJob.meta["platform"].as_string() == platform,
                     )
-                ).limit(1)
+                )
+                .limit(1)
             )
             return result.scalar() is not None
 

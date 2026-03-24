@@ -10,6 +10,7 @@ Registered as "bankruptcy_pacer".
 identifier: person name or company name
   e.g. "John Smith" or "Acme Corp"
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,24 +25,24 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _COURTLISTENER_RECAP_URL = (
-    "https://www.courtlistener.com/api/rest/v3/search/"
-    "?q={query}&type=r&format=json"
+    "https://www.courtlistener.com/api/rest/v3/search/?q={query}&type=r&format=json"
 )
 _CFPB_COMPLAINTS_URL = (
     "https://www.consumerfinance.gov/data-research/consumer-complaints/search/api/v1/"
     "?field=all&size=10&search_term={query}"
 )
 
-_MAX_CASES      = 15
+_MAX_CASES = 15
 _MAX_COMPLAINTS = 10
 
 # Chapter number extraction
-_CHAPTER_RE = re.compile(r'(?:chapter|ch\.?)\s*(\d+)', re.I)
+_CHAPTER_RE = re.compile(r"(?:chapter|ch\.?)\s*(\d+)", re.I)
 
 
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_recap_results(data: dict) -> list[dict[str, Any]]:
     """
@@ -64,14 +65,14 @@ def _parse_recap_results(data: dict) -> list[dict[str, Any]]:
 
         cases.append(
             {
-                "case_name":   case_name,
-                "court":       item.get("court", ""),
-                "chapter":     chapter,
-                "filed_date":  item.get("dateFiled") or item.get("date_filed", ""),
-                "status":      item.get("status", ""),
-                "assets":      item.get("assets", None),
+                "case_name": case_name,
+                "court": item.get("court", ""),
+                "chapter": chapter,
+                "filed_date": item.get("dateFiled") or item.get("date_filed", ""),
+                "status": item.get("status", ""),
+                "assets": item.get("assets", None),
                 "liabilities": item.get("liabilities", None),
-                "docket_url":  (
+                "docket_url": (
                     "https://www.courtlistener.com" + item.get("absolute_url", "")
                     if item.get("absolute_url", "").startswith("/")
                     else item.get("absolute_url", "")
@@ -98,12 +99,12 @@ def _parse_cfpb_complaints(data: dict) -> list[dict[str, Any]]:
         src = hit.get("_source", hit)
         complaints.append(
             {
-                "product":      src.get("product", ""),
-                "sub_product":  src.get("sub_product", ""),
-                "issue":        src.get("issue", ""),
-                "company":      src.get("company", ""),
-                "date":         src.get("date_received", ""),
-                "status":       src.get("company_response", src.get("status", "")),
+                "product": src.get("product", ""),
+                "sub_product": src.get("sub_product", ""),
+                "issue": src.get("issue", ""),
+                "company": src.get("company", ""),
+                "date": src.get("date_received", ""),
+                "status": src.get("company_response", src.get("status", "")),
                 "complaint_id": src.get("complaint_id", ""),
             }
         )
@@ -113,12 +114,12 @@ def _parse_cfpb_complaints(data: dict) -> list[dict[str, Any]]:
         for item in data.get("results", [])[:_MAX_COMPLAINTS]:
             complaints.append(
                 {
-                    "product":      item.get("product", ""),
-                    "sub_product":  item.get("sub_product", ""),
-                    "issue":        item.get("issue", ""),
-                    "company":      item.get("company", ""),
-                    "date":         item.get("date_received", ""),
-                    "status":       item.get("company_response", ""),
+                    "product": item.get("product", ""),
+                    "sub_product": item.get("sub_product", ""),
+                    "issue": item.get("issue", ""),
+                    "company": item.get("company", ""),
+                    "date": item.get("date_received", ""),
+                    "status": item.get("company_response", ""),
                     "complaint_id": item.get("complaint_id", ""),
                 }
             )
@@ -129,6 +130,7 @@ def _parse_cfpb_complaints(data: dict) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("bankruptcy_pacer")
 class BankruptcyPacerCrawler(HttpxCrawler):
@@ -152,8 +154,13 @@ class BankruptcyPacerCrawler(HttpxCrawler):
 
         if not query:
             return self._result(
-                identifier, found=False, error="invalid_identifier",
-                query=query, cases=[], case_count=0, complaints=[],
+                identifier,
+                found=False,
+                error="invalid_identifier",
+                query=query,
+                cases=[],
+                case_count=0,
+                complaints=[],
             )
 
         encoded = quote_plus(query)
@@ -166,14 +173,24 @@ class BankruptcyPacerCrawler(HttpxCrawler):
 
         if recap_resp is None:
             return self._result(
-                identifier, found=False, error="http_error",
-                query=query, cases=[], case_count=0, complaints=[],
+                identifier,
+                found=False,
+                error="http_error",
+                query=query,
+                cases=[],
+                case_count=0,
+                complaints=[],
             )
 
         if recap_resp.status_code != 200:
             return self._result(
-                identifier, found=False, error=f"http_{recap_resp.status_code}",
-                query=query, cases=[], case_count=0, complaints=[],
+                identifier,
+                found=False,
+                error=f"http_{recap_resp.status_code}",
+                query=query,
+                cases=[],
+                case_count=0,
+                complaints=[],
             )
 
         try:
@@ -181,8 +198,13 @@ class BankruptcyPacerCrawler(HttpxCrawler):
         except Exception as exc:
             logger.warning("RECAP JSON parse error: %s", exc)
             return self._result(
-                identifier, found=False, error="json_parse_error",
-                query=query, cases=[], case_count=0, complaints=[],
+                identifier,
+                found=False,
+                error="json_parse_error",
+                query=query,
+                cases=[],
+                case_count=0,
+                complaints=[],
             )
 
         cases = _parse_recap_results(recap_data)

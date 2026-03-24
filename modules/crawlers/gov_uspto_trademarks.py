@@ -5,6 +5,7 @@ Searches the USPTO Integrated Business Databases API for trademark records
 by mark name or owner name. No authentication required.
 Registered as "gov_uspto_trademarks".
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,8 +19,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _SEARCH_URL = (
-    "https://developer.uspto.gov/ibd-api/v1/application/status"
-    "?searchText={query}&start=0&rows=10"
+    "https://developer.uspto.gov/ibd-api/v1/application/status?searchText={query}&start=0&rows=10"
 )
 
 

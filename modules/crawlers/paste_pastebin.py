@@ -6,7 +6,9 @@ HTML search results page rather than using the Pro API.
 
 Registered as "paste_pastebin".
 """
+
 from __future__ import annotations
+
 import logging
 from urllib.parse import quote_plus
 

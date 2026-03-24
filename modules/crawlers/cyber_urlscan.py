@@ -5,13 +5,15 @@ Queries the URLScan.io search API for scan results associated with a domain or U
 Registered as "cyber_urlscan".
 Optional API key (settings.urlscan_api_key) — works without one at reduced rate limits.
 """
+
 from __future__ import annotations
+
 import logging
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +28,15 @@ def _parse_results(raw_results: list[dict]) -> list[dict]:
         stats = entry.get("stats", {})
         verdicts = entry.get("verdicts", {})
         overall = verdicts.get("overall", {})
-        out.append({
-            "url": task.get("url"),
-            "time": task.get("time"),
-            "malicious_requests": stats.get("malicious"),
-            "verdict_malicious": overall.get("malicious"),
-            "verdict_score": overall.get("score"),
-        })
+        out.append(
+            {
+                "url": task.get("url"),
+                "time": task.get("time"),
+                "malicious_requests": stats.get("malicious"),
+                "verdict_malicious": overall.get("malicious"),
+                "verdict_score": overall.get("score"),
+            }
+        )
     return out
 
 

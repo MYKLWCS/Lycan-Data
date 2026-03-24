@@ -6,31 +6,31 @@ Tests for deep enrichment crawlers — Task 33.
 
 15 tests — all HTTP calls are mocked.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# Trigger @register decorators
-import modules.crawlers.news_search   # noqa: F401
-import modules.crawlers.google_maps   # noqa: F401
-import modules.crawlers.social_graph  # noqa: F401
+import modules.crawlers.google_maps  # noqa: F401
 
+# Trigger @register decorators
+import modules.crawlers.news_search  # noqa: F401
+import modules.crawlers.social_graph  # noqa: F401
+from modules.crawlers.google_maps import GoogleMapsCrawler, _parse_nominatim_result
 from modules.crawlers.news_search import (
     NewsSearchCrawler,
     _parse_ddg_html,
     _parse_rss,
     _tag_article,
 )
-from modules.crawlers.google_maps import GoogleMapsCrawler, _parse_nominatim_result
+from modules.crawlers.registry import is_registered
 from modules.crawlers.social_graph import (
     SocialGraphCrawler,
-    _extract_mentions,
     _build_connections,
+    _extract_mentions,
 )
-from modules.crawlers.registry import is_registered
-
 
 # ===========================================================================
 # Sample HTML / XML fixtures
@@ -92,6 +92,7 @@ NOMINATIM_JSON = [
 # Helper
 # ===========================================================================
 
+
 def _mock_response(status: int = 200, text: str = "", json_data=None):
     resp = MagicMock()
     resp.status_code = status
@@ -104,6 +105,7 @@ def _mock_response(status: int = 200, text: str = "", json_data=None):
 # ===========================================================================
 # 1. news_search — DDG HTML parsing
 # ===========================================================================
+
 
 def test_news_ddg_html_article_parsed():
     """DDG HTML → at least one article extracted."""
@@ -121,6 +123,7 @@ def test_news_ddg_html_article_parsed():
 # 2. news_search — RSS feed parsing
 # ===========================================================================
 
+
 def test_news_rss_feed_items_parsed():
     """RSS feed XML → items extracted with correct fields."""
     articles = _parse_rss(RSS_SAMPLE, source="google_news")
@@ -136,6 +139,7 @@ def test_news_rss_feed_items_parsed():
 # 3. news_search — article tagged "criminal" when "arrested" in text
 # ===========================================================================
 
+
 def test_news_article_tagged_criminal():
     """Article with 'arrested' in title → tagged 'criminal'."""
     tags = _tag_article("Crime boss arrested in sting", "Police arrested the suspect.")
@@ -146,6 +150,7 @@ def test_news_article_tagged_criminal():
 # 4. news_search — article tagged "legal" when "lawsuit" in text
 # ===========================================================================
 
+
 def test_news_article_tagged_legal():
     """Article with 'lawsuit' in snippet → tagged 'legal'."""
     tags = _tag_article("Court news", "The lawsuit was filed last week.")
@@ -155,6 +160,7 @@ def test_news_article_tagged_legal():
 # ===========================================================================
 # 5. news_search — deduplication by URL
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_news_deduplication_by_url():
@@ -190,6 +196,7 @@ async def test_news_deduplication_by_url():
 # 6. news_search — HTTP error → found=False CrawlerResult
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_news_http_error_returns_result():
     """When all sources return HTTP errors, crawler still returns a valid result."""
@@ -207,6 +214,7 @@ async def test_news_http_error_returns_result():
 # 7. google_maps — Nominatim JSON → location parsed
 # ===========================================================================
 
+
 def test_google_maps_nominatim_parsed():
     """_parse_nominatim_result converts OSM JSON to our location schema."""
     location = _parse_nominatim_result(NOMINATIM_JSON[0])
@@ -219,6 +227,7 @@ def test_google_maps_nominatim_parsed():
 # ===========================================================================
 # 8. google_maps — empty Nominatim response → found=True, locations=[]
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_google_maps_empty_nominatim():
@@ -242,6 +251,7 @@ async def test_google_maps_empty_nominatim():
 # 9. social_graph — @mention extraction from text
 # ===========================================================================
 
+
 def test_social_graph_mention_extraction():
     """@mentions are extracted and counted correctly."""
     text = "Follow @johndoe and @johndoe on twitter. Also check @janesmith."
@@ -253,6 +263,7 @@ def test_social_graph_mention_extraction():
 # ===========================================================================
 # 10. social_graph — cross-platform username matching
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_social_graph_cross_platform_match():
@@ -273,6 +284,7 @@ async def test_social_graph_cross_platform_match():
 # 11. social_graph — @mention deduplication
 # ===========================================================================
 
+
 def test_social_graph_mention_deduplication():
     """Same username (@JohnDoe vs @johndoe) is deduplicated (case-insensitive)."""
     text = "@JohnDoe posted something. @johndoe replied. @JOHNDOE agreed."
@@ -288,6 +300,7 @@ def test_social_graph_mention_deduplication():
 # 12. registry — all three crawlers registered
 # ===========================================================================
 
+
 def test_all_deep_enrichment_crawlers_registered():
     """news_search, google_maps, social_graph must all be registered."""
     assert is_registered("news_search")
@@ -298,6 +311,7 @@ def test_all_deep_enrichment_crawlers_registered():
 # ===========================================================================
 # 13. news_search — no articles → found=True, article_count=0
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_news_no_articles_returns_empty():
@@ -323,6 +337,7 @@ async def test_news_no_articles_returns_empty():
 # 14. article tagging — multiple categories can apply to one article
 # ===========================================================================
 
+
 def test_article_multiple_categories():
     """An article can receive multiple category tags."""
     tags = _tag_article(
@@ -338,6 +353,7 @@ def test_article_multiple_categories():
 # ===========================================================================
 # 15. social_graph — connection_count matches connections length
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_social_graph_connection_count_matches():

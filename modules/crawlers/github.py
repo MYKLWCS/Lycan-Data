@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -9,8 +10,16 @@ logger = logging.getLogger(__name__)
 
 API_URL = "https://api.github.com/users/{username}"
 GITHUB_FIELDS = (
-    "name", "bio", "public_repos", "followers", "following",
-    "company", "location", "blog", "avatar_url", "created_at",
+    "name",
+    "bio",
+    "public_repos",
+    "followers",
+    "following",
+    "company",
+    "location",
+    "blog",
+    "avatar_url",
+    "created_at",
 )
 
 
@@ -35,7 +44,8 @@ class GitHubCrawler(HttpxCrawler):
 
         if response.status_code != 200:
             return self._result(
-                username, found=False,
+                username,
+                found=False,
                 error=f"unexpected_status_{response.status_code}",
             )
 

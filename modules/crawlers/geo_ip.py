@@ -6,7 +6,9 @@ the ip-api.com free JSON endpoint. Runs direct (no Tor) because ip-api.com
 actively blocks Tor exit nodes.
 Registered as "geo_ip".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler

@@ -6,13 +6,15 @@ data on a given phone number. Uses an API key from settings when available;
 falls back to the keyless free-tier endpoint.
 Registered as "phone_numlookup".
 """
+
 from __future__ import annotations
+
 import logging
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 

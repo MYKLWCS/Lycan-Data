@@ -1,9 +1,11 @@
 import uuid
 from datetime import date
+
 from sqlalchemy import Date, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from shared.models.base import Base, TimestampMixin, DataQualityMixin
+
+from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
 
 class EmploymentHistory(Base, TimestampMixin, DataQualityMixin):

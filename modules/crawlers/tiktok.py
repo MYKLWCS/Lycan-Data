@@ -1,6 +1,6 @@
 from __future__ import annotations
+
 import logging
-import re
 
 from bs4 import BeautifulSoup
 
@@ -28,7 +28,10 @@ class TikTokCrawler(HttpxCrawler):
         if response is None or response.status_code != 200:
             return self._result(handle, found=False, error="http_error")
 
-        if "Couldn't find this account" in response.text or "not available" in response.text.lower():
+        if (
+            "Couldn't find this account" in response.text
+            or "not available" in response.text.lower()
+        ):
             return self._result(handle, found=False, handle=handle)
 
         data = self._parse(response.text, handle)
@@ -49,11 +52,11 @@ class TikTokCrawler(HttpxCrawler):
         script = soup.find("script", {"id": "__UNIVERSAL_DATA_FOR_REHYDRATION__"})
         if script and script.string:
             import json
+
             try:
                 jdata = json.loads(script.string)
                 user = (
-                    jdata
-                    .get("__DEFAULT_SCOPE__", {})
+                    jdata.get("__DEFAULT_SCOPE__", {})
                     .get("webapp.user-detail", {})
                     .get("userInfo", {})
                 )

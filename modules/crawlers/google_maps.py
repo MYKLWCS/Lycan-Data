@@ -5,6 +5,7 @@ Uses Nominatim (OpenStreetMap geocoding — free, no API key) to resolve
 person names and business names to geographic locations. Also scrapes
 Google Search Knowledge Graph for address/phone data.
 """
+
 from __future__ import annotations
 
 import logging
@@ -128,8 +129,17 @@ def _parse_nominatim_result(item: dict) -> dict:
     address = item.get("address", {})
     # Build human-readable address
     parts = []
-    for field in ("house_number", "road", "suburb", "city", "town", "village",
-                  "state", "postcode", "country"):
+    for field in (
+        "house_number",
+        "road",
+        "suburb",
+        "city",
+        "town",
+        "village",
+        "state",
+        "postcode",
+        "country",
+    ):
         val = address.get(field)
         if val:
             parts.append(val)

@@ -1,7 +1,9 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from shared.tor import TorManager, TorInstance, TorEndpoint
+
 from shared.config import settings
+from shared.tor import TorEndpoint, TorInstance, TorManager
 
 
 def test_get_proxy_returns_socks_url():

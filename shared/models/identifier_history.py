@@ -3,8 +3,10 @@
 When an identifier changes or a new one is discovered, the old value is
 archived here so we never lose alternate numbers, past emails, old handles.
 """
+
 import uuid
 from datetime import datetime
+
 from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,6 +20,7 @@ class IdentifierHistory(Base, TimestampMixin):
     This is append-only. Never delete rows — they represent historical fact.
     Deduplication is enforced by the unique constraint on (person_id, type, value).
     """
+
     __tablename__ = "identifier_history"
     __table_args__ = (
         UniqueConstraint("person_id", "type", "value", name="uq_idhistory_person_type_value"),
@@ -28,8 +31,7 @@ class IdentifierHistory(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     person_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"),
-        nullable=False
+        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"), nullable=False
     )
 
     type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -39,12 +41,8 @@ class IdentifierHistory(Base, TimestampMixin):
     normalized_value: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     # When this value was first and last observed
-    first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Status of this historical identifier
     is_current: Mapped[bool] = mapped_column(default=False, nullable=False)

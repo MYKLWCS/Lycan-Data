@@ -1,26 +1,29 @@
 """
 Persons API — CRUD, reporting, deduplication, and merge endpoints.
 """
+
 import uuid
+from datetime import UTC
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select, func, update, delete
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
-from shared.models.person import Person, Alias
-from shared.models.identifier import Identifier
-from shared.models.social_profile import SocialProfile
 from shared.models.address import Address
 from shared.models.criminal import CriminalRecord
-from shared.models.identity_document import IdentityDocument, CreditProfile
+from shared.models.identifier import Identifier
 from shared.models.identifier_history import IdentifierHistory
+from shared.models.identity_document import CreditProfile, IdentityDocument
+from shared.models.person import Alias, Person
+from shared.models.social_profile import SocialProfile
 
 router = APIRouter()
 
 # ── Serialization helpers ──────────────────────────────────────────────────────
+
 
 def _model_to_dict(obj) -> dict:
     """Serialize a SQLAlchemy model row to a plain dict."""
@@ -39,8 +42,9 @@ def _model_to_dict(obj) -> dict:
 
 
 def _person_summary(p: Person, addresses: list[Address] | None = None) -> dict:
-    current_addr = next((a for a in (addresses or []) if a.is_current), None) or \
-                   next(iter(addresses or []), None)
+    current_addr = next((a for a in (addresses or []) if a.is_current), None) or next(
+        iter(addresses or []), None
+    )
     return {
         "id": str(p.id),
         "full_name": p.full_name,
@@ -66,26 +70,27 @@ def _person_summary(p: Person, addresses: list[Address] | None = None) -> dict:
 # ── SORT config ────────────────────────────────────────────────────────────────
 
 _SORT_COLUMNS = {
-    "created_at":        Person.created_at,
-    "updated_at":        Person.updated_at,
+    "created_at": Person.created_at,
+    "updated_at": Person.updated_at,
     "default_risk_score": Person.default_risk_score,
-    "behavioural_risk":  Person.behavioural_risk,
-    "darkweb_exposure":  Person.darkweb_exposure,
+    "behavioural_risk": Person.behavioural_risk,
+    "darkweb_exposure": Person.darkweb_exposure,
     "relationship_score": Person.relationship_score,
     "composite_quality": Person.composite_quality,
     "corroboration_count": Person.corroboration_count,
-    "full_name":         Person.full_name,
+    "full_name": Person.full_name,
 }
 
 
 # ── List / search ──────────────────────────────────────────────────────────────
+
 
 @router.get("")
 async def list_persons(
     limit: int = Query(20, le=200),
     offset: int = Query(0, ge=0),
     # Sorting
-    sort_by: str  = Query("created_at", description="Field to sort by"),
+    sort_by: str = Query("created_at", description="Field to sort by"),
     sort_dir: Literal["asc", "desc"] = Query("desc"),
     # Risk filter
     risk_tier: str | None = None,
@@ -107,10 +112,10 @@ async def list_persons(
     if risk_tier:
         tier_ranges = {
             "do_not_lend": (0.80, 1.01),
-            "high_risk":   (0.60, 0.80),
+            "high_risk": (0.60, 0.80),
             "medium_risk": (0.40, 0.60),
-            "low_risk":    (0.20, 0.40),
-            "preferred":   (0.00, 0.20),
+            "low_risk": (0.20, 0.40),
+            "preferred": (0.00, 0.20),
         }
         if risk_tier in tier_ranges:
             lo, hi = tier_ranges[risk_tier]
@@ -145,9 +150,11 @@ async def list_persons(
     # Bulk-load addresses for persons in this page
     if persons:
         person_ids = [p.id for p in persons]
-        addr_rows = (await session.execute(
-            select(Address).where(Address.person_id.in_(person_ids))
-        )).scalars().all()
+        addr_rows = (
+            (await session.execute(select(Address).where(Address.person_id.in_(person_ids))))
+            .scalars()
+            .all()
+        )
         addr_by_person: dict = {}
         for a in addr_rows:
             addr_by_person.setdefault(a.person_id, []).append(a)
@@ -166,14 +173,25 @@ async def list_persons(
 
 # ── Single person ──────────────────────────────────────────────────────────────
 
+
 @router.get("/{person_id}")
 async def get_person(person_id: str, session: AsyncSession = DbDep):
     uid = _parse_uuid(person_id)
     p = await _require_person(session, uid)
 
-    idents   = (await session.execute(select(Identifier).where(Identifier.person_id == p.id))).scalars().all()
-    profiles = (await session.execute(select(SocialProfile).where(SocialProfile.person_id == p.id))).scalars().all()
-    addresses = (await session.execute(select(Address).where(Address.person_id == p.id))).scalars().all()
+    idents = (
+        (await session.execute(select(Identifier).where(Identifier.person_id == p.id)))
+        .scalars()
+        .all()
+    )
+    profiles = (
+        (await session.execute(select(SocialProfile).where(SocialProfile.person_id == p.id)))
+        .scalars()
+        .all()
+    )
+    addresses = (
+        (await session.execute(select(Address).where(Address.person_id == p.id))).scalars().all()
+    )
 
     return {
         "id": str(p.id),
@@ -185,17 +203,17 @@ async def get_person(person_id: str, session: AsyncSession = DbDep):
         "bio": p.bio,
         "profile_image_url": p.profile_image_url,
         # Risk scores
-        "relationship_score":  p.relationship_score,
-        "behavioural_risk":    p.behavioural_risk,
-        "darkweb_exposure":    p.darkweb_exposure,
-        "default_risk_score":  p.default_risk_score,
+        "relationship_score": p.relationship_score,
+        "behavioural_risk": p.behavioural_risk,
+        "darkweb_exposure": p.darkweb_exposure,
+        "default_risk_score": p.default_risk_score,
         # Data quality
-        "source_reliability":  p.source_reliability,
-        "freshness_score":     p.freshness_score,
+        "source_reliability": p.source_reliability,
+        "freshness_score": p.freshness_score,
         "corroboration_count": p.corroboration_count,
-        "composite_quality":   p.composite_quality,
+        "composite_quality": p.composite_quality,
         "verification_status": p.verification_status,
-        "conflict_flag":       p.conflict_flag,
+        "conflict_flag": p.conflict_flag,
         # Relations
         "identifiers": [
             {
@@ -232,7 +250,11 @@ async def get_person(person_id: str, session: AsyncSession = DbDep):
 async def get_identifiers(person_id: str, session: AsyncSession = DbDep):
     uid = _parse_uuid(person_id)
     await _require_person(session, uid)
-    idents = (await session.execute(select(Identifier).where(Identifier.person_id == uid))).scalars().all()
+    idents = (
+        (await session.execute(select(Identifier).where(Identifier.person_id == uid)))
+        .scalars()
+        .all()
+    )
     return {"person_id": person_id, "identifiers": [_model_to_dict(i) for i in idents]}
 
 
@@ -240,7 +262,11 @@ async def get_identifiers(person_id: str, session: AsyncSession = DbDep):
 async def get_social_profiles(person_id: str, session: AsyncSession = DbDep):
     uid = _parse_uuid(person_id)
     await _require_person(session, uid)
-    profiles = (await session.execute(select(SocialProfile).where(SocialProfile.person_id == uid))).scalars().all()
+    profiles = (
+        (await session.execute(select(SocialProfile).where(SocialProfile.person_id == uid)))
+        .scalars()
+        .all()
+    )
     return {"person_id": person_id, "social_profiles": [_model_to_dict(s) for s in profiles]}
 
 
@@ -248,9 +274,15 @@ async def get_social_profiles(person_id: str, session: AsyncSession = DbDep):
 async def get_addresses(person_id: str, session: AsyncSession = DbDep):
     uid = _parse_uuid(person_id)
     await _require_person(session, uid)
-    addresses = (await session.execute(
-        select(Address).where(Address.person_id == uid).order_by(Address.is_current.desc())
-    )).scalars().all()
+    addresses = (
+        (
+            await session.execute(
+                select(Address).where(Address.person_id == uid).order_by(Address.is_current.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {"person_id": person_id, "addresses": [_model_to_dict(a) for a in addresses]}
 
 
@@ -259,8 +291,16 @@ async def get_certificate(person_id: str, session: AsyncSession = DbDep):
     uid = _parse_uuid(person_id)
     p = await _require_person(session, uid)
 
-    idents   = (await session.execute(select(Identifier).where(Identifier.person_id == uid))).scalars().all()
-    profiles = (await session.execute(select(SocialProfile).where(SocialProfile.person_id == uid))).scalars().all()
+    idents = (
+        (await session.execute(select(Identifier).where(Identifier.person_id == uid)))
+        .scalars()
+        .all()
+    )
+    profiles = (
+        (await session.execute(select(SocialProfile).where(SocialProfile.person_id == uid)))
+        .scalars()
+        .all()
+    )
 
     from modules.enrichers.certification import certify_person
 
@@ -301,14 +341,14 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
     uid = _parse_uuid(person_id)
     p = await _require_person(session, uid)
 
-    from shared.models.employment import EmploymentHistory
-    from shared.models.darkweb import DarkwebMention, CryptoWallet
-    from shared.models.watchlist import WatchlistMatch
-    from shared.models.breach import BreachRecord
-    from shared.models.behavioural import BehaviouralProfile
-    from shared.models.burner import BurnerAssessment
     from shared.models.alert import Alert
+    from shared.models.behavioural import BehaviouralProfile
+    from shared.models.breach import BreachRecord
+    from shared.models.burner import BurnerAssessment
+    from shared.models.darkweb import CryptoWallet, DarkwebMention
+    from shared.models.employment import EmploymentHistory
     from shared.models.media import MediaAsset
+    from shared.models.watchlist import WatchlistMatch
 
     async def _fetch(model, order_by=None):
         q = select(model).where(model.person_id == uid)
@@ -318,19 +358,19 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
         return r.scalars().all()
 
     # asyncpg does not allow concurrent queries on the same session — sequential only
-    idents     = await _fetch(Identifier)
-    profiles   = await _fetch(SocialProfile)
-    aliases    = await _fetch(Alias)
-    addresses  = await _fetch(Address)
+    idents = await _fetch(Identifier)
+    profiles = await _fetch(SocialProfile)
+    aliases = await _fetch(Alias)
+    addresses = await _fetch(Address)
     employment = await _fetch(EmploymentHistory)
-    darkweb    = await _fetch(DarkwebMention)
-    watchlist  = await _fetch(WatchlistMatch)
-    breaches   = await _fetch(BreachRecord)
-    criminal   = await _fetch(CriminalRecord)
-    documents  = await _fetch(IdentityDocument)
-    credit     = await _fetch(CreditProfile)
-    history    = await _fetch(IdentifierHistory)
-    behavioural= await _fetch(BehaviouralProfile)
+    darkweb = await _fetch(DarkwebMention)
+    watchlist = await _fetch(WatchlistMatch)
+    breaches = await _fetch(BreachRecord)
+    criminal = await _fetch(CriminalRecord)
+    documents = await _fetch(IdentityDocument)
+    credit = await _fetch(CreditProfile)
+    history = await _fetch(IdentifierHistory)
+    behavioural = await _fetch(BehaviouralProfile)
     # BurnerAssessment links to Identifier (not person) — join via identifiers
     ident_ids = [i.id for i in idents]
     if ident_ids:
@@ -340,15 +380,15 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
         burners = b_res.scalars().all()
     else:
         burners = []
-    wallets    = await _fetch(CryptoWallet)
-    alerts     = await _fetch(Alert)
-    media      = await _fetch(MediaAsset)
+    wallets = await _fetch(CryptoWallet)
+    alerts = await _fetch(Alert)
+    media = await _fetch(MediaAsset)
 
     # Phone identifiers confirmed by WhatsApp/Telegram get a special flag
     phone_idents = [i for i in idents if i.type == "phone"]
     for pi in phone_idents:
         meta = pi.meta or {}
-        pi_dict_extra = {
+        {
             "whatsapp_confirmed": meta.get("confirmed_whatsapp", False),
             "telegram_confirmed": meta.get("confirmed_telegram", False),
         }
@@ -357,9 +397,11 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
         "person": _model_to_dict(p),
         "aliases": [_model_to_dict(a) for a in aliases],
         "identifiers": [
-            {**_model_to_dict(i),
-             "whatsapp_confirmed": (i.meta or {}).get("confirmed_whatsapp", False),
-             "telegram_confirmed": (i.meta or {}).get("confirmed_telegram", False)}
+            {
+                **_model_to_dict(i),
+                "whatsapp_confirmed": (i.meta or {}).get("confirmed_whatsapp", False),
+                "telegram_confirmed": (i.meta or {}).get("confirmed_telegram", False),
+            }
             for i in idents
         ],
         "social_profiles": [_model_to_dict(s) for s in profiles],
@@ -378,24 +420,24 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
         "alerts": [_model_to_dict(a) for a in alerts],
         "media_assets": [_model_to_dict(m) for m in media],
         "summary": {
-            "identifier_count":   len(idents),
-            "phone_count":        len(phone_idents),
-            "alias_count":        len(aliases),
-            "platform_count":     len(profiles),
-            "address_count":      len(addresses),
-            "employment_count":   len(employment),
-            "darkweb_hits":       len(darkweb),
-            "watchlist_hits":     len(watchlist),
-            "breach_count":       len(breaches),
-            "criminal_count":     len(criminal),
-            "document_count":     len(documents),
+            "identifier_count": len(idents),
+            "phone_count": len(phone_idents),
+            "alias_count": len(aliases),
+            "platform_count": len(profiles),
+            "address_count": len(addresses),
+            "employment_count": len(employment),
+            "darkweb_hits": len(darkweb),
+            "watchlist_hits": len(watchlist),
+            "breach_count": len(breaches),
+            "criminal_count": len(criminal),
+            "document_count": len(documents),
             "has_criminal_record": len(criminal) > 0,
-            "has_sex_offender":   any(r.is_sex_offender for r in criminal),
-            "has_bankruptcy":     any(c.has_bankruptcy for c in credit),
-            "has_sanctions":      len(watchlist) > 0,
-            "has_darkweb":        len(darkweb) > 0,
+            "has_sex_offender": any(r.is_sex_offender for r in criminal),
+            "has_bankruptcy": any(c.has_bankruptcy for c in credit),
+            "has_sanctions": len(watchlist) > 0,
+            "has_darkweb": len(darkweb) > 0,
             "crypto_wallet_count": len(wallets),
-            "alert_count":        len(alerts),
+            "alert_count": len(alerts),
             "identifier_history_count": len(history),
         },
     }
@@ -407,8 +449,13 @@ async def update_person(person_id: str, updates: dict, session: AsyncSession = D
     p = await _require_person(session, uid)
 
     ALLOWED = {
-        "full_name", "gender", "nationality", "primary_language",
-        "bio", "profile_image_url", "meta",
+        "full_name",
+        "gender",
+        "nationality",
+        "primary_language",
+        "bio",
+        "profile_image_url",
+        "meta",
     }
     for field, value in updates.items():
         if field in ALLOWED:
@@ -420,12 +467,13 @@ async def update_person(person_id: str, updates: dict, session: AsyncSession = D
 
 @router.delete("/{person_id}")
 async def delete_person(person_id: str, session: AsyncSession = DbDep):
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     uid = _parse_uuid(person_id)
     p = await _require_person(session, uid)
 
     if hasattr(p, "deleted_at"):
-        p.deleted_at = datetime.now(timezone.utc)
+        p.deleted_at = datetime.now(UTC)
         await session.commit()
         return {"message": "Person soft-deleted", "person_id": person_id}
     else:
@@ -435,6 +483,7 @@ async def delete_person(person_id: str, session: AsyncSession = DbDep):
 
 
 # ── Deduplication ──────────────────────────────────────────────────────────────
+
 
 @router.post("/deduplicate")
 async def scan_duplicates(
@@ -448,13 +497,17 @@ async def scan_duplicates(
     """
     from modules.enrichers.deduplication import find_duplicate_persons
 
-    persons = (await session.execute(
-        select(Person).limit(limit)
-    )).scalars().all()
+    persons = (await session.execute(select(Person).limit(limit))).scalars().all()
 
-    idents_all = (await session.execute(
-        select(Identifier).where(Identifier.person_id.in_([p.id for p in persons]))
-    )).scalars().all()
+    idents_all = (
+        (
+            await session.execute(
+                select(Identifier).where(Identifier.person_id.in_([p.id for p in persons]))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     idents_by_person: dict = {}
     for i in idents_all:
@@ -470,8 +523,6 @@ async def scan_duplicates(
         for p in persons
     ]
 
-    from modules.enrichers.deduplication import MERGE_THRESHOLD
-    old_threshold = MERGE_THRESHOLD
     candidates = find_duplicate_persons(person_dicts)
 
     # Filter by requested threshold
@@ -518,38 +569,46 @@ async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
     canonical = await _require_person(session, can_uid)
     duplicate = await _require_person(session, dup_uid)
 
-    from shared.models.employment import EmploymentHistory
-    from shared.models.darkweb import DarkwebMention
-    from shared.models.watchlist import WatchlistMatch
-    from shared.models.breach import BreachRecord
-    from shared.models.behavioural import BehaviouralProfile
-    from shared.models.burner import BurnerAssessment
-    from shared.models.crawl import CrawlJob
     from shared.models.alert import Alert
+    from shared.models.behavioural import BehaviouralProfile
+    from shared.models.breach import BreachRecord
+    from shared.models.crawl import CrawlJob
+    from shared.models.darkweb import DarkwebMention
+    from shared.models.employment import EmploymentHistory
+    from shared.models.watchlist import WatchlistMatch
 
     # All models with person_id FK — reassign them all to the canonical person
     reassign_models = [
-        Identifier, SocialProfile, Alias, Address,
-        EmploymentHistory, DarkwebMention, WatchlistMatch,
-        BreachRecord, BehaviouralProfile, CrawlJob, Alert,
-        CriminalRecord, IdentityDocument, CreditProfile, IdentifierHistory,
+        Identifier,
+        SocialProfile,
+        Alias,
+        Address,
+        EmploymentHistory,
+        DarkwebMention,
+        WatchlistMatch,
+        BreachRecord,
+        BehaviouralProfile,
+        CrawlJob,
+        Alert,
+        CriminalRecord,
+        IdentityDocument,
+        CreditProfile,
+        IdentifierHistory,
     ]
 
     for model in reassign_models:
         try:
             await session.execute(
-                update(model)
-                .where(model.person_id == dup_uid)
-                .values(person_id=can_uid)
+                update(model).where(model.person_id == dup_uid).values(person_id=can_uid)
             )
-        except Exception as e:
+        except Exception:
             # Model may not have person_id — skip
             pass
 
     # Merge quality scores (take better values)
     canonical.corroboration_count += duplicate.corroboration_count
     canonical.source_reliability = max(canonical.source_reliability, duplicate.source_reliability)
-    canonical.composite_quality  = max(canonical.composite_quality,  duplicate.composite_quality)
+    canonical.composite_quality = max(canonical.composite_quality, duplicate.composite_quality)
     if duplicate.default_risk_score > canonical.default_risk_score:
         canonical.default_risk_score = duplicate.default_risk_score
 
@@ -560,6 +619,7 @@ async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
     # Re-index the canonical person
     try:
         from shared.events import event_bus
+
         await event_bus.enqueue({"person_id": str(can_uid)}, priority="index")
     except Exception:
         pass
@@ -574,11 +634,12 @@ async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
 
 # ── Region-scoped re-enrichment ────────────────────────────────────────────────
 
+
 class RegionGrowRequest(BaseModel):
     city: str | None = None
     state: str | None = None
     country: str | None = None
-    limit: int = 20   # number of surnames to sweep (each hits 3 platforms = ~60 jobs)
+    limit: int = 20  # number of surnames to sweep (each hits 3 platforms = ~60 jobs)
     priority: str = "normal"
 
 
@@ -591,10 +652,10 @@ async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
     and truepeoplesearch to find real people in that area. Each discovered person
     is added to the DB and fully enriched.
     """
-    from modules.dispatcher.dispatcher import dispatch_job
-    from shared.models.crawl import CrawlJob
-    from shared.constants import CrawlStatus, SeedType
     from modules.crawlers.registry import CRAWLER_REGISTRY
+    from modules.dispatcher.dispatcher import dispatch_job
+    from shared.constants import CrawlStatus
+    from shared.models.crawl import CrawlJob
 
     if not any([req.city, req.state, req.country]):
         raise HTTPException(400, "At least one of city, state, country is required")
@@ -609,18 +670,36 @@ async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
 
     # Common surnames to seed discovery — produces a broad sweep
     SEED_SURNAMES = [
-        "Smith", "Johnson", "Williams", "Brown", "Jones",
-        "Miller", "Davis", "Wilson", "Taylor", "Anderson",
-        "Thomas", "Jackson", "White", "Harris", "Martin",
-        "Thompson", "Garcia", "Martinez", "Robinson", "Clark",
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Miller",
+        "Davis",
+        "Wilson",
+        "Taylor",
+        "Anderson",
+        "Thomas",
+        "Jackson",
+        "White",
+        "Harris",
+        "Martin",
+        "Thompson",
+        "Garcia",
+        "Martinez",
+        "Robinson",
+        "Clark",
     ]
 
     # Location-aware people-search crawlers
-    LOCATION_PLATFORMS = [p for p in ("whitepages", "fastpeoplesearch", "truepeoplesearch") if p in CRAWLER_REGISTRY]
+    LOCATION_PLATFORMS = [
+        p for p in ("whitepages", "fastpeoplesearch", "truepeoplesearch") if p in CRAWLER_REGISTRY
+    ]
 
     queued_searches: list[str] = []
 
-    for surname in SEED_SURNAMES[:req.limit]:
+    for surname in SEED_SURNAMES[: req.limit]:
         identifier = f"{surname}|{location_str}" if location_str else surname
 
         # No placeholder Person — let the aggregator create real persons
@@ -649,7 +728,7 @@ async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
 
     return {
         "message": f"Region grow launched — discovering people in {location_str}",
-        "seed_searches": len(SEED_SURNAMES[:req.limit]),
+        "seed_searches": len(SEED_SURNAMES[: req.limit]),
         "platforms_used": LOCATION_PLATFORMS,
         "jobs_queued": len(queued_searches),
         "region": {"city": req.city, "state": req.state, "country": req.country},
@@ -659,16 +738,23 @@ async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
 
 # ── Criminal records ───────────────────────────────────────────────────────────
 
+
 @router.get("/{person_id}/criminal")
 async def get_criminal_records(person_id: str, session: AsyncSession = DbDep):
     """All criminal records for a person — arrests, charges, convictions, warrants."""
     uid = _parse_uuid(person_id)
     await _require_person(session, uid)
-    records = (await session.execute(
-        select(CriminalRecord)
-        .where(CriminalRecord.person_id == uid)
-        .order_by(CriminalRecord.arrest_date.desc().nullslast())
-    )).scalars().all()
+    records = (
+        (
+            await session.execute(
+                select(CriminalRecord)
+                .where(CriminalRecord.person_id == uid)
+                .order_by(CriminalRecord.arrest_date.desc().nullslast())
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {
         "person_id": person_id,
         "criminal_records": [_model_to_dict(r) for r in records],
@@ -681,16 +767,23 @@ async def get_criminal_records(person_id: str, session: AsyncSession = DbDep):
 
 # ── Identity documents ─────────────────────────────────────────────────────────
 
+
 @router.get("/{person_id}/documents")
 async def get_identity_documents(person_id: str, session: AsyncSession = DbDep):
     """Identity documents (driver's license, passport, SSN partial, etc.)."""
     uid = _parse_uuid(person_id)
     await _require_person(session, uid)
-    docs = (await session.execute(
-        select(IdentityDocument)
-        .where(IdentityDocument.person_id == uid)
-        .order_by(IdentityDocument.is_active.desc())
-    )).scalars().all()
+    docs = (
+        (
+            await session.execute(
+                select(IdentityDocument)
+                .where(IdentityDocument.person_id == uid)
+                .order_by(IdentityDocument.is_active.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {
         "person_id": person_id,
         "documents": [_model_to_dict(d) for d in docs],
@@ -700,16 +793,23 @@ async def get_identity_documents(person_id: str, session: AsyncSession = DbDep):
 
 # ── Credit profile ─────────────────────────────────────────────────────────────
 
+
 @router.get("/{person_id}/credit")
 async def get_credit_profile(person_id: str, session: AsyncSession = DbDep):
     """Credit/financial profile — public record signals, inferred credit tier."""
     uid = _parse_uuid(person_id)
     await _require_person(session, uid)
-    profiles = (await session.execute(
-        select(CreditProfile)
-        .where(CreditProfile.person_id == uid)
-        .order_by(CreditProfile.created_at.desc())
-    )).scalars().all()
+    profiles = (
+        (
+            await session.execute(
+                select(CreditProfile)
+                .where(CreditProfile.person_id == uid)
+                .order_by(CreditProfile.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {
         "person_id": person_id,
         "credit_profiles": [_model_to_dict(cp) for cp in profiles],
@@ -721,6 +821,7 @@ async def get_credit_profile(person_id: str, session: AsyncSession = DbDep):
 
 
 # ── Identifier history ─────────────────────────────────────────────────────────
+
 
 @router.get("/{person_id}/history")
 async def get_identifier_history(
@@ -749,6 +850,7 @@ async def get_identifier_history(
 
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
+
 
 def _parse_uuid(value: str) -> uuid.UUID:
     try:

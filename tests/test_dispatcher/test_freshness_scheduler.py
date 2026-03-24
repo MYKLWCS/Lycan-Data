@@ -2,27 +2,28 @@
 Tests for the Freshness Scheduler — Task 29.
 12 tests covering scan/queue logic, staleness detection, dedup, and sleep interval.
 """
+
 from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from datetime import UTC, datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
 from modules.dispatcher.freshness_scheduler import (
-    FreshnessScheduler,
-    SCAN_INTERVAL_SECONDS,
     BATCH_SIZE,
+    SCAN_INTERVAL_SECONDS,
+    FreshnessScheduler,
 )
-from shared.models.social_profile import SocialProfile
 from shared.models.quality import FreshnessQueue
-
+from shared.models.social_profile import SocialProfile
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_profile(
     freshness_score: float = 0.1,
@@ -48,7 +49,7 @@ def _make_profile(
     profile.profile_created_at = None
     profile.profile_data = {}
     profile.freshness_score = freshness_score
-    profile.last_scraped_at = datetime.now(timezone.utc)
+    profile.last_scraped_at = datetime.now(UTC)
     profile.source_reliability = 0.5
     profile.corroboration_count = 1
     profile.corroboration_score = 0.5
@@ -77,7 +78,9 @@ async def test_scan_and_queue_no_stale_profiles(scheduler):
     mock_session.commit = AsyncMock()
 
     with (
-        patch("modules.dispatcher.freshness_scheduler.AsyncSessionLocal", return_value=mock_session),
+        patch(
+            "modules.dispatcher.freshness_scheduler.AsyncSessionLocal", return_value=mock_session
+        ),
         patch.object(scheduler, "_find_stale_profiles", return_value=[]),
         patch.object(scheduler, "_enqueue_rescrape") as mock_enqueue,
     ):
@@ -100,7 +103,9 @@ async def test_scan_and_queue_calls_enqueue_rescrape_for_stale(scheduler):
     mock_session.commit = AsyncMock()
 
     with (
-        patch("modules.dispatcher.freshness_scheduler.AsyncSessionLocal", return_value=mock_session),
+        patch(
+            "modules.dispatcher.freshness_scheduler.AsyncSessionLocal", return_value=mock_session
+        ),
         patch.object(scheduler, "_find_stale_profiles", return_value=[profile]),
         patch.object(scheduler, "_enqueue_rescrape", return_value=True) as mock_enqueue,
     ):
@@ -197,6 +202,7 @@ async def test_enqueue_rescrape_no_dispatch_when_staleness_disabled(scheduler):
     mock_dispatch = AsyncMock()
 
     from shared.config import Settings
+
     fake_settings = MagicMock(spec=Settings)
     fake_settings.rescrape_on_staleness = False
     fake_settings.freshness_threshold = 0.40

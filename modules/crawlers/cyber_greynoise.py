@@ -6,15 +6,16 @@ otherwise falls back to the unauthenticated community endpoint (v3).
 
 Registered as "cyber_greynoise".
 """
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +78,7 @@ class GreyNoiseCrawler(HttpxCrawler):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _scrape_full(
-        self, identifier: str, ip: str, api_key: str
-    ) -> CrawlerResult:
+    async def _scrape_full(self, identifier: str, ip: str, api_key: str) -> CrawlerResult:
         url = _FULL_URL.format(ip=ip)
         headers = {
             "key": api_key,
@@ -103,9 +102,7 @@ class GreyNoiseCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="rate_limited", ip=ip)
 
         if resp.status_code != 200:
-            return self._result(
-                identifier, found=False, error=f"http_{resp.status_code}", ip=ip
-            )
+            return self._result(identifier, found=False, error=f"http_{resp.status_code}", ip=ip)
 
         try:
             data = resp.json()
@@ -117,9 +114,7 @@ class GreyNoiseCrawler(HttpxCrawler):
         found = parsed.get("noise", False) or parsed.get("riot", False)
         return self._result(identifier, found=found, api="full", **parsed)
 
-    async def _scrape_community(
-        self, identifier: str, ip: str
-    ) -> CrawlerResult:
+    async def _scrape_community(self, identifier: str, ip: str) -> CrawlerResult:
         url = _COMMUNITY_URL.format(ip=ip)
         resp = await self.get(url)
 
@@ -133,9 +128,7 @@ class GreyNoiseCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="rate_limited", ip=ip)
 
         if resp.status_code != 200:
-            return self._result(
-                identifier, found=False, error=f"http_{resp.status_code}", ip=ip
-            )
+            return self._result(identifier, found=False, error=f"http_{resp.status_code}", ip=ip)
 
         try:
             data = resp.json()

@@ -10,6 +10,7 @@ API:    https://www.usmarshals.gov/api/v1/fugitives (GET, name param)
 Fallback: HTML page scrape of the 15 Most Wanted list.
 Registered as "people_usmarshals".
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,12 +24,8 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_USMS_API_URL = (
-    "https://www.usmarshals.gov/api/v1/fugitives?name={name}&limit=20"
-)
-_USMS_WANTED_URL = (
-    "https://www.usmarshals.gov/what-we-do/investigations/15-most-wanted"
-)
+_USMS_API_URL = "https://www.usmarshals.gov/api/v1/fugitives?name={name}&limit=20"
+_USMS_WANTED_URL = "https://www.usmarshals.gov/what-we-do/investigations/15-most-wanted"
 _HEADERS = {
     "Accept": "application/json",
     "User-Agent": "Mozilla/5.0 (compatible; LycanBot/1.0)",
@@ -73,9 +70,10 @@ def _parse_html_page(html: str, query: str) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     # Extract basic card-like blocks — USMS page typically has h2/h3 for names
     name_pattern = re.compile(
-        r'<(?:h2|h3)[^>]*>(.*?)</(?:h2|h3)>',
+        r"<(?:h2|h3)[^>]*>(.*?)</(?:h2|h3)>",
         re.IGNORECASE | re.DOTALL,
     )
+
     # Strip HTML tags for clean text
     def strip_tags(s: str) -> str:
         return re.sub(r"<[^>]+>", "", s).strip()
@@ -143,8 +141,7 @@ class USMarshalsCrawler(HttpxCrawler):
                 # Filter by name match if we got more than needed
                 if fugitives:
                     fugitives = [
-                        f for f in fugitives
-                        if _name_overlap_score(query, f.get("name", "")) >= 0.3
+                        f for f in fugitives if _name_overlap_score(query, f.get("name", "")) >= 0.3
                     ]
                 return self._result(
                     identifier,

@@ -6,6 +6,7 @@ enforcement/recall actions by recalling firm name.
 
 Registered as "gov_fda".
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,15 +21,9 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://api.fda.gov"
 _EVENTS_URL = (
-    _BASE
-    + "/drug/event.json"
-    + "?search=patient.drug.openfda.generic_name:{query}&limit=5"
+    _BASE + "/drug/event.json" + "?search=patient.drug.openfda.generic_name:{query}&limit=5"
 )
-_ENFORCEMENT_URL = (
-    _BASE
-    + "/drug/enforcement.json"
-    + "?search=recalling_firm:{query}&limit=5"
-)
+_ENFORCEMENT_URL = _BASE + "/drug/enforcement.json" + "?search=recalling_firm:{query}&limit=5"
 
 
 def _parse_events(data: dict) -> list[dict[str, Any]]:
@@ -50,8 +45,7 @@ def _parse_events(data: dict) -> list[dict[str, Any]]:
                 "serious": item.get("serious"),
                 "drugs": drug_names,
                 "reactions": [
-                    r.get("reactionmeddrapt", "")
-                    for r in patient.get("reaction", [])[:5]
+                    r.get("reactionmeddrapt", "") for r in patient.get("reaction", [])[:5]
                 ],
             }
         )

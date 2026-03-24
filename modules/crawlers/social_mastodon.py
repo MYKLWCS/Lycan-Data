@@ -7,6 +7,7 @@ matching a username or display name. No authentication required.
 Source: https://mastodon.social/api/v2/search
 Registered as "social_mastodon".
 """
+
 from __future__ import annotations
 
 import logging
@@ -55,6 +56,7 @@ def _parse_account(account: dict) -> dict[str, Any]:
 def _strip_html(html: str) -> str:
     """Remove HTML tags from Mastodon bio/note text."""
     import re
+
     return re.sub(r"<[^>]+>", "", html).strip()
 
 

@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
+
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from shared.models.base import Base, TimestampMixin, DataQualityMixin
+
+from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
 
 class SocialProfile(Base, TimestampMixin, DataQualityMixin):
@@ -28,7 +30,9 @@ class SocialProfile(Base, TimestampMixin, DataQualityMixin):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    profile_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    profile_created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     profile_data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
     person: Mapped["Person | None"] = relationship(back_populates="social_profiles")

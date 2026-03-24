@@ -7,6 +7,7 @@ and searches it by name using fuzzy word-overlap matching.
 Source: https://webgate.ec.europa.eu/fsd/fsf/public/files/csvFullSanctionsList/content
 Registered as "sanctions_eu".
 """
+
 from __future__ import annotations
 
 import csv
@@ -23,8 +24,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _EU_CSV_URL = (
-    "https://webgate.ec.europa.eu/fsd/fsf/public/files/csvFullSanctionsList/content"
-    "?token=n/a"
+    "https://webgate.ec.europa.eu/fsd/fsf/public/files/csvFullSanctionsList/content?token=n/a"
 )
 _CACHE_PATH = "/tmp/lycan_eu_sanctions.csv"
 _CACHE_MAX_AGE_HOURS = 6.0
@@ -93,7 +93,7 @@ class EUSanctionsCrawler(HttpxCrawler):
         if _cache_valid(_CACHE_PATH):
             logger.debug("EU sanctions: using cached list at %s", _CACHE_PATH)
             try:
-                with open(_CACHE_PATH, "r", encoding="utf-8", errors="replace") as fh:
+                with open(_CACHE_PATH, encoding="utf-8", errors="replace") as fh:
                     return fh.read()
             except OSError as exc:
                 logger.warning("EU sanctions: cache read failed: %s", exc)

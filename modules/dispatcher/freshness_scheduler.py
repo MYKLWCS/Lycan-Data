@@ -8,18 +8,15 @@ The dispatcher picks up FreshnessQueue items as low-priority crawl jobs.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
+from modules.dispatcher.dispatcher import dispatch_job
 from shared.config import settings
 from shared.db import AsyncSessionLocal
-from shared.freshness import compute_freshness, is_stale
 from shared.models.quality import FreshnessQueue
 from shared.models.social_profile import SocialProfile
-from shared.models.identifier import Identifier
-from shared.constants import CrawlStatus
-from modules.dispatcher.dispatcher import dispatch_job
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +25,6 @@ BATCH_SIZE = 100  # process 100 stale records per scan
 
 
 class FreshnessScheduler:
-
     def __init__(self):
         self._running = False
 
@@ -74,10 +70,12 @@ class FreshnessScheduler:
         """Add to FreshnessQueue and dispatch low-priority job. Returns True if enqueued."""
         # Check if already queued
         existing = await session.execute(
-            select(FreshnessQueue).where(
+            select(FreshnessQueue)
+            .where(
                 FreshnessQueue.record_id == str(profile.id),
                 FreshnessQueue.table_name == "social_profiles",
-            ).limit(1)
+            )
+            .limit(1)
         )
         if existing.scalar():
             return False
@@ -88,7 +86,7 @@ class FreshnessScheduler:
             record_id=str(profile.id),
             current_freshness=profile.freshness_score or 0.0,
             source_type=profile.platform,
-            scheduled_at=datetime.now(timezone.utc),
+            scheduled_at=datetime.now(UTC),
         )
         session.add(fq)
 

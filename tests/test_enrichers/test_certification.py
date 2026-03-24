@@ -3,24 +3,25 @@ Tests for Data Certification System — Task 34.
 15 tests covering compute_coverage, _grade_from_score, certify_person,
 and _improvement_actions.
 """
+
 from __future__ import annotations
 
 import pytest
 
 from modules.enrichers.certification import (
+    COVERAGE_CATEGORIES,
     CertificateGrade,
     DataCertificate,
-    COVERAGE_CATEGORIES,
-    compute_coverage,
-    certify_person,
     _grade_from_score,
     _improvement_actions,
+    certify_person,
+    compute_coverage,
 )
-
 
 # ===========================================================================
 # Helper fixtures
 # ===========================================================================
+
 
 def _full_person_data() -> dict:
     """A person dict with every coverage field populated."""
@@ -50,6 +51,7 @@ def _good_metrics(source_count: int = 5, corroborated: int = 3) -> dict:
 # 1. compute_coverage — all fields populated → all categories covered
 # ===========================================================================
 
+
 def test_compute_coverage_all_populated():
     """When every field in every category is set, all categories are covered."""
     person = _full_person_data()
@@ -63,6 +65,7 @@ def test_compute_coverage_all_populated():
 # 2. compute_coverage — empty person data → all missing, coverage_score=0.0
 # ===========================================================================
 
+
 def test_compute_coverage_empty_data():
     """Empty person dict → all categories missing, score=0.0."""
     covered, missing, score = compute_coverage({})
@@ -74,6 +77,7 @@ def test_compute_coverage_empty_data():
 # ===========================================================================
 # 3. compute_coverage — some categories covered → correct split
 # ===========================================================================
+
 
 def test_compute_coverage_partial():
     """Populate only identity and contact fields → only those two covered."""
@@ -93,6 +97,7 @@ def test_compute_coverage_partial():
 # 4. coverage_score: 0/9 → 0.0, 9/9 → 1.0
 # ===========================================================================
 
+
 def test_coverage_score_zero_and_full():
     """Boundary coverage scores."""
     _, _, zero_score = compute_coverage({})
@@ -105,6 +110,7 @@ def test_coverage_score_zero_and_full():
 # 5. _grade_from_score: PLATINUM
 # ===========================================================================
 
+
 def test_grade_platinum():
     """0.90 score + 5 sources + 3 corroborated → PLATINUM."""
     grade = _grade_from_score(0.90, 5, 3)
@@ -114,6 +120,7 @@ def test_grade_platinum():
 # ===========================================================================
 # 6. _grade_from_score: GOLD
 # ===========================================================================
+
 
 def test_grade_gold():
     """0.75 score + 3 sources + 2 corroborated → GOLD."""
@@ -125,6 +132,7 @@ def test_grade_gold():
 # 7. _grade_from_score: SILVER
 # ===========================================================================
 
+
 def test_grade_silver():
     """0.55 score + 2 sources → SILVER."""
     grade = _grade_from_score(0.55, 2, 0)
@@ -135,6 +143,7 @@ def test_grade_silver():
 # 8. _grade_from_score: BRONZE
 # ===========================================================================
 
+
 def test_grade_bronze():
     """0.35 score + 1 source → BRONZE."""
     grade = _grade_from_score(0.35, 1, 0)
@@ -144,6 +153,7 @@ def test_grade_bronze():
 # ===========================================================================
 # 9. _grade_from_score: UNRATED (low score or no sources)
 # ===========================================================================
+
 
 def test_grade_unrated_low_score():
     """0.20 score → UNRATED (below bronze threshold)."""
@@ -160,6 +170,7 @@ def test_grade_unrated_no_sources():
 # ===========================================================================
 # 10. certify_person — returns DataCertificate with correct grade
 # ===========================================================================
+
 
 def test_certify_person_returns_certificate():
     """certify_person returns a DataCertificate with grade, score, and person_id."""
@@ -179,6 +190,7 @@ def test_certify_person_returns_certificate():
 # 11. certify_person — conflicts reduce overall_score
 # ===========================================================================
 
+
 def test_certify_person_conflicts_reduce_score():
     """More conflicts lower the overall score."""
     no_conflict_cert = certify_person(
@@ -197,6 +209,7 @@ def test_certify_person_conflicts_reduce_score():
 # ===========================================================================
 # 12. certify_person — conflict penalty capped at 0.20
 # ===========================================================================
+
 
 def test_certify_person_conflict_penalty_capped():
     """Conflict penalty never exceeds 0.20 even with many conflicts."""
@@ -220,6 +233,7 @@ def test_certify_person_conflict_penalty_capped():
 # 13. overall_score capped at 1.0
 # ===========================================================================
 
+
 def test_certify_person_score_capped_at_one():
     """overall_score never exceeds 1.0 regardless of input values."""
     cert = certify_person(
@@ -240,6 +254,7 @@ def test_certify_person_score_capped_at_one():
 # 14. improvement_actions — missing categories → correct action strings
 # ===========================================================================
 
+
 def test_improvement_actions_missing_categories():
     """Missing 'criminal' category → action mentions sanctions and darkweb."""
     actions = _improvement_actions(["criminal"], CertificateGrade.BRONZE)
@@ -251,6 +266,7 @@ def test_improvement_actions_missing_categories():
 # ===========================================================================
 # 15. improvement_actions — UNRATED → urgent action prepended
 # ===========================================================================
+
 
 def test_improvement_actions_unrated_urgent_prepended():
     """UNRATED grade → urgent seed enrichment action is first in the list."""

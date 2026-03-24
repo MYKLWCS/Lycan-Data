@@ -6,6 +6,7 @@ produces a BurnerScore (0.0-1.0) + BurnerConfidence classification.
 
 Also provides `persist_burner_assessment` for upsert into the DB.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -14,18 +15,28 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.constants import BurnerConfidence, LineType, BURNER_CARRIERS
+from shared.constants import BURNER_CARRIERS, BurnerConfidence, LineType
 from shared.models.burner import BurnerAssessment
-
 
 # ---------------------------------------------------------------------------
 # Area codes that are strongly associated with toll-free / VoIP blocks
 # ---------------------------------------------------------------------------
-BURNER_AREA_CODES: frozenset[str] = frozenset([
-    "800", "888", "877", "866", "855", "844", "833",  # toll-free
-    "900",                                              # 900 numbers
-    "521", "522", "523", "524",                        # some VoIP blocks
-])
+BURNER_AREA_CODES: frozenset[str] = frozenset(
+    [
+        "800",
+        "888",
+        "877",
+        "866",
+        "855",
+        "844",
+        "833",  # toll-free
+        "900",  # 900 numbers
+        "521",
+        "522",
+        "523",
+        "524",  # some VoIP blocks
+    ]
+)
 
 
 # ---------------------------------------------------------------------------
@@ -34,8 +45,8 @@ BURNER_AREA_CODES: frozenset[str] = frozenset([
 @dataclass
 class BurnerScore:
     phone: str
-    score: float                            # 0.0 – 1.0
-    confidence: BurnerConfidence            # derived from score at construction time
+    score: float  # 0.0 – 1.0
+    confidence: BurnerConfidence  # derived from score at construction time
     signals: dict[str, float] = field(default_factory=dict)  # signal_name → weight that fired
     carrier_name: str | None = None
     line_type: LineType | None = None
@@ -169,9 +180,7 @@ async def persist_burner_assessment(
     assessment: BurnerAssessment | None = result.scalar_one_or_none()
 
     # Resolve line_type to its string value for storage
-    line_type_value: str | None = (
-        score.line_type.value if score.line_type is not None else None
-    )
+    line_type_value: str | None = score.line_type.value if score.line_type is not None else None
 
     if assessment is None:
         assessment = BurnerAssessment(

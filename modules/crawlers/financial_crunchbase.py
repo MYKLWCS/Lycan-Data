@@ -6,6 +6,7 @@ Fallback: Scrapes the public Crunchbase search page when no key is configured.
 
 Registered as "financial_crunchbase".
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,10 +14,10 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,7 @@ _FIELD_IDS = [
     "num_employees_enum",
 ]
 
-_SCRAPE_ORG_RE = re.compile(
-    r'"identifier"\s*:\s*\{[^}]*"value"\s*:\s*"([^"]+)"', re.DOTALL
-)
+_SCRAPE_ORG_RE = re.compile(r'"identifier"\s*:\s*\{[^}]*"value"\s*:\s*"([^"]+)"', re.DOTALL)
 
 
 def _build_api_payload(identifier: str) -> dict[str, Any]:
@@ -124,27 +123,19 @@ class CrunchbaseCrawler(HttpxCrawler):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _scrape_api(
-        self, identifier: str, api_key: str
-    ) -> CrawlerResult:
+    async def _scrape_api(self, identifier: str, api_key: str) -> CrawlerResult:
         payload = _build_api_payload(identifier.strip())
         params = {"user_key": api_key}
         resp = await self.post(_API_URL, json=payload, params=params)
 
         if resp is None:
-            return self._result(
-                identifier, found=False, error="http_error", organizations=[]
-            )
+            return self._result(identifier, found=False, error="http_error", organizations=[])
 
         if resp.status_code == 401:
-            return self._result(
-                identifier, found=False, error="invalid_api_key", organizations=[]
-            )
+            return self._result(identifier, found=False, error="invalid_api_key", organizations=[])
 
         if resp.status_code == 429:
-            return self._result(
-                identifier, found=False, error="rate_limited", organizations=[]
-            )
+            return self._result(identifier, found=False, error="rate_limited", organizations=[])
 
         if resp.status_code != 200:
             return self._result(
@@ -158,9 +149,7 @@ class CrunchbaseCrawler(HttpxCrawler):
             data = resp.json()
         except Exception as exc:
             logger.warning("Crunchbase API JSON parse error: %s", exc)
-            return self._result(
-                identifier, found=False, error="parse_error", organizations=[]
-            )
+            return self._result(identifier, found=False, error="parse_error", organizations=[])
 
         organizations = _parse_api_response(data)
         return self._result(
@@ -185,14 +174,10 @@ class CrunchbaseCrawler(HttpxCrawler):
         resp = await self.get(url, headers=headers)
 
         if resp is None:
-            return self._result(
-                identifier, found=False, error="http_error", organizations=[]
-            )
+            return self._result(identifier, found=False, error="http_error", organizations=[])
 
         if resp.status_code == 429:
-            return self._result(
-                identifier, found=False, error="rate_limited", organizations=[]
-            )
+            return self._result(identifier, found=False, error="rate_limited", organizations=[])
 
         if resp.status_code != 200:
             return self._result(

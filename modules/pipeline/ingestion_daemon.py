@@ -9,17 +9,13 @@ to the 'index' queue for MeiliSearch to pick up asynchronously.
 import asyncio
 import json
 import logging
-import uuid
-from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from shared.db import AsyncSessionLocal
-from shared.events import event_bus
 from modules.crawlers.result import CrawlerResult
 from modules.pipeline.aggregator import aggregate_result
 from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
 from modules.pipeline.pivot_enricher import pivot_from_result
+from shared.db import AsyncSessionLocal
+from shared.events import event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -77,15 +73,16 @@ class IngestionDaemon:
             error=error,
             profile_url=result_dict.get("profile_url"),
             # Read from top-level first (set by dispatcher); fall back to nested result dict
-            source_reliability=payload.get("source_reliability",
-                                           result_dict.get("source_reliability", 0.5)),
+            source_reliability=payload.get(
+                "source_reliability", result_dict.get("source_reliability", 0.5)
+            ),
         )
 
         async with AsyncSessionLocal() as session:
             try:
                 written = await aggregate_result(session, result, person_id=person_id)
                 # Note: aggregate_result commits internally if successful.
-                
+
                 # Push to Index Queue
                 pid = written.get("person_id")
                 if pid:
@@ -96,7 +93,9 @@ class IngestionDaemon:
                         try:
                             n = await pivot_from_result(pid, platform, data)
                             if n:
-                                logger.info("Pivot queued %d new jobs from %s/%s", n, platform, identifier)
+                                logger.info(
+                                    "Pivot queued %d new jobs from %s/%s", n, platform, identifier
+                                )
                         except Exception as pivot_exc:
                             logger.warning("Pivot failed for %s: %s", pid, pivot_exc)
 
@@ -106,8 +105,7 @@ class IngestionDaemon:
                             await _orchestrator.enrich_person(pid, enrich_session)
                     except Exception as enrich_exc:
                         logger.warning("Auto-enrichment failed for %s: %s", pid, enrich_exc)
-                    
+
             except Exception as e:
                 logger.error(f"Error aggregating result for {platform}/{identifier}: {e}")
                 await session.rollback()
-

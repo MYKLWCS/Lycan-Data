@@ -1,7 +1,10 @@
 """Phone number normalisation and analysis using libphonenumber."""
+
 from __future__ import annotations
+
 import phonenumbers
 from phonenumbers import NumberParseException, PhoneNumberType
+
 from shared.constants import LineType
 
 
@@ -50,7 +53,6 @@ def get_country_code(raw: str, default_region: str = "US") -> str | None:
         parsed = phonenumbers.parse(raw, default_region)
         if not phonenumbers.is_valid_number(parsed):
             return None
-        from phonenumbers.geocoder import country_name_for_number
         region = phonenumbers.region_code_for_number(parsed)
         return region
     except NumberParseException:

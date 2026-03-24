@@ -8,6 +8,7 @@ No API key required. Nominatim User-Agent header is required.
 
 Registered as "geo_openstreetmap".
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,8 +23,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _NOMINATIM_URL = (
-    "https://nominatim.openstreetmap.org/search"
-    "?q={query}&format=json&addressdetails=1&limit=10"
+    "https://nominatim.openstreetmap.org/search?q={query}&format=json&addressdetails=1&limit=10"
 )
 _OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
@@ -34,9 +34,7 @@ _HEADERS = {
 }
 
 # Match "lat,lon" with optional spaces and decimal values
-_LATLON_RE = re.compile(
-    r"^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$"
-)
+_LATLON_RE = re.compile(r"^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$")
 
 # Default POI search radius in metres
 _OVERPASS_RADIUS = 500
@@ -140,9 +138,7 @@ class OpenStreetMapCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="http_error", places=[])
 
         if resp.status_code == 429:
-            return self._result(
-                identifier, found=False, error="rate_limited", places=[]
-            )
+            return self._result(identifier, found=False, error="rate_limited", places=[])
 
         if resp.status_code != 200:
             return self._result(
@@ -159,13 +155,9 @@ class OpenStreetMapCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="parse_error", places=[])
 
         places = _parse_nominatim(raw)
-        return self._result(
-            identifier, found=len(places) > 0, mode="geocode", places=places
-        )
+        return self._result(identifier, found=len(places) > 0, mode="geocode", places=places)
 
-    async def _scrape_overpass(
-        self, identifier: str, lat: float, lon: float
-    ) -> CrawlerResult:
+    async def _scrape_overpass(self, identifier: str, lat: float, lon: float) -> CrawlerResult:
         query = _overpass_query(lat, lon)
         resp = await self.post(
             _OVERPASS_URL,
@@ -177,9 +169,7 @@ class OpenStreetMapCrawler(HttpxCrawler):
             return self._result(identifier, found=False, error="http_error", places=[])
 
         if resp.status_code == 429:
-            return self._result(
-                identifier, found=False, error="rate_limited", places=[]
-            )
+            return self._result(identifier, found=False, error="rate_limited", places=[])
 
         if resp.status_code != 200:
             return self._result(

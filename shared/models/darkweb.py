@@ -1,7 +1,9 @@
 import uuid
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+
+from sqlalchemy import Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from shared.models.base import Base, TimestampMixin
 
 
@@ -15,8 +17,12 @@ class DarkwebMention(Base, TimestampMixin):
     identifier_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("identifiers.id", ondelete="SET NULL"), nullable=True
     )
-    source_type: Mapped[str] = mapped_column(String(30), nullable=False)  # dark_paste, dark_forum, dark_market, paste_site
-    source_url_hashed: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA256 of URL
+    source_type: Mapped[str] = mapped_column(
+        String(30), nullable=False
+    )  # dark_paste, dark_forum, dark_market, paste_site
+    source_url_hashed: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )  # SHA256 of URL
     mention_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
     exposure_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
@@ -46,7 +52,10 @@ class CryptoTransaction(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     wallet_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("crypto_wallets.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("crypto_wallets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     tx_hash: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     counterparty_address: Mapped[str | None] = mapped_column(String(255), nullable=True)

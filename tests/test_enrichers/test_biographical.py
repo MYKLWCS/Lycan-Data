@@ -2,7 +2,9 @@
 Tests for modules/enrichers/biographical.py — 15 tests covering DOB
 extraction, marital status, children count, parent status and profile building.
 """
+
 from __future__ import annotations
+
 from datetime import date
 
 import pytest
@@ -16,8 +18,8 @@ from modules.enrichers.biographical import (
     extract_parent_status,
 )
 
-
 # ── extract_dob ───────────────────────────────────────────────────────────────
+
 
 class TestExtractDob:
     def test_iso_date_format(self):
@@ -86,6 +88,7 @@ class TestExtractDob:
 
 # ── extract_marital_status ────────────────────────────────────────────────────
 
+
 class TestExtractMaritalStatus:
     def test_married_keyword(self):
         status = extract_marital_status(["happily married for 10 years"])
@@ -106,6 +109,7 @@ class TestExtractMaritalStatus:
 
 
 # ── extract_children ──────────────────────────────────────────────────────────
+
 
 class TestExtractChildren:
     def test_explicit_count_kids(self):
@@ -131,6 +135,7 @@ class TestExtractChildren:
 
 # ── extract_parent_status ─────────────────────────────────────────────────────
 
+
 class TestExtractParentStatus:
     def test_father_deceased_signal(self):
         result = extract_parent_status(["miss my dad who passed away last year"])
@@ -148,6 +153,7 @@ class TestExtractParentStatus:
 
 
 # ── build_biographical_profile ────────────────────────────────────────────────
+
 
 class TestBuildBiographicalProfile:
     def test_returns_biographical_profile_instance(self):

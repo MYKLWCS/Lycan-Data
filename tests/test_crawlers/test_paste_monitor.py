@@ -6,24 +6,26 @@ Tests for paste monitor crawlers:
 
 Total: 12 tests.
 """
+
 from __future__ import annotations
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import modules.crawlers.paste_pastebin   # noqa: F401
-import modules.crawlers.paste_ghostbin   # noqa: F401
-import modules.crawlers.paste_psbdmp     # noqa: F401
+import pytest
 
-from modules.crawlers.paste_pastebin import PastePastebinCrawler, _parse_pastebin_html
+import modules.crawlers.paste_ghostbin  # noqa: F401
+import modules.crawlers.paste_pastebin  # noqa: F401
+import modules.crawlers.paste_psbdmp  # noqa: F401
 from modules.crawlers.paste_ghostbin import PasteGhostbinCrawler, _parse_rentry_html
+from modules.crawlers.paste_pastebin import PastePastebinCrawler, _parse_pastebin_html
 from modules.crawlers.paste_psbdmp import PastePsbdmpCrawler, _parse_psbdmp_response
 from modules.crawlers.registry import is_registered
 from shared.tor import TorInstance
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mock_resp(status_code: int = 200, text: str = "", json_data=None) -> MagicMock:
     mock = MagicMock()
@@ -71,6 +73,7 @@ _EMPTY_HTML = "<html><body><p>No results.</p></body></html>"
 # ---------------------------------------------------------------------------
 # PastePastebinCrawler — 4 tests
 # ---------------------------------------------------------------------------
+
 
 def test_paste_pastebin_registered():
     """paste_pastebin must be in the crawler registry."""
@@ -125,6 +128,7 @@ def test_pastebin_tor_and_reliability():
 # PasteGhostbinCrawler — 4 tests
 # ---------------------------------------------------------------------------
 
+
 def test_paste_ghostbin_registered():
     """paste_ghostbin must be in the crawler registry."""
     assert is_registered("paste_ghostbin")
@@ -175,6 +179,7 @@ def test_ghostbin_tor_and_reliability():
 # ---------------------------------------------------------------------------
 # PastePsbdmpCrawler — 4 tests
 # ---------------------------------------------------------------------------
+
 
 def test_paste_psbdmp_registered():
     """paste_psbdmp must be in the crawler registry."""

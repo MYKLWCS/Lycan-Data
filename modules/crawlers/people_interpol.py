@@ -6,7 +6,9 @@ The identifier is split on the first space into forename and surname for the
 query parameters. Returns notice list, total count, and individual entity IDs.
 Registered as "people_interpol".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -16,8 +18,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _INTERPOL_BASE = (
-    "https://ws-public.interpol.int/notices/v1/red"
-    "?name={last}&forename={first}&resultPerPage=20"
+    "https://ws-public.interpol.int/notices/v1/red?name={last}&forename={first}&resultPerPage=20"
 )
 _INTERPOL_HEADERS = {"Accept": "application/json"}
 

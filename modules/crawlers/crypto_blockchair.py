@@ -5,7 +5,9 @@ Supports BTC, ETH, LTC, DOGE, BCH, XRP, SOL, BNB, MATIC and more.
 Identifier format: "{chain}:{address}" e.g. "btc:1A1z..." or "eth:0x..."
 Registered as "crypto_blockchair".
 """
+
 from __future__ import annotations
+
 import logging
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -51,7 +53,7 @@ def _parse_blockchair_response(json_data: dict, address: str) -> dict | None:
         return None
 
     addr_stats = addr_data.get("address", {})
-    context = json_data.get("context", {})
+    json_data.get("context", {})
 
     return {
         "balance": addr_stats.get("balance", 0),

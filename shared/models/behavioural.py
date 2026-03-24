@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime
+
 from sqlalchemy import DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from shared.models.base import Base, TimestampMixin
 
 
@@ -11,7 +13,11 @@ class BehaviouralProfile(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     person_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("persons.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     gambling_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     drug_signal_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
@@ -24,7 +30,9 @@ class BehaviouralProfile(Base, TimestampMixin):
     interests: Mapped[list] = mapped_column(ARRAY(String), default=list, nullable=False)
     languages_used: Mapped[list] = mapped_column(ARRAY(String), default=list, nullable=False)
     sentiment_avg: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    last_assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_assessed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
 
@@ -33,7 +41,10 @@ class BehaviouralSignal(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     profile_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("behavioural_profiles.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("behavioural_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # CriminalSignalType enum
     score: Mapped[float] = mapped_column(Float, nullable=False)

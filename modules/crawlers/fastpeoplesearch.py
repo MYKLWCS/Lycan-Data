@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import random
 from urllib.parse import quote
@@ -85,6 +86,7 @@ def _extract_fps_card(card) -> dict | None:
     """Extract person data from a FastPeopleSearch card-block."""
     try:
         import re
+
         data: dict = {}
 
         # Full name — typically in an <h2> or <strong>
@@ -97,7 +99,9 @@ def _extract_fps_card(card) -> dict | None:
         data["age"] = int(age_match.group(1)) if age_match else None
 
         # City/state — look for location element
-        loc_el = card.find(class_=lambda c: c and ("location" in c.lower() or "city" in c.lower()) if c else False)
+        loc_el = card.find(
+            class_=lambda c: c and ("location" in c.lower() or "city" in c.lower()) if c else False
+        )
         data["city_state"] = loc_el.get_text(strip=True) if loc_el else ""
 
         # Phone numbers
@@ -107,7 +111,9 @@ def _extract_fps_card(card) -> dict | None:
             phone_links = card.find_all("a", href=lambda h: h and h.startswith("tel:"))
             data["phone_numbers"] = [a.get_text(strip=True) for a in phone_links]
         else:
-            data["phone_numbers"] = [el.get_text(strip=True) for el in phone_els if el.get_text(strip=True)]
+            data["phone_numbers"] = [
+                el.get_text(strip=True) for el in phone_els if el.get_text(strip=True)
+            ]
 
         # Addresses
         addr_els = card.find_all(class_=lambda c: c and "address" in c.lower() if c else False)

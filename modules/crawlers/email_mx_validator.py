@@ -6,7 +6,9 @@ the domain against a curated list of known disposable/throwaway email providers.
 No external HTTP required — all stdlib + optional dnspython.
 Registered as "email_mx_validator".
 """
+
 from __future__ import annotations
+
 import logging
 import socket
 
@@ -65,10 +67,9 @@ class EmailMXValidatorCrawler(HttpxCrawler):
 
         try:
             import dns.resolver  # type: ignore[import-untyped]
+
             answers = dns.resolver.resolve(domain, "MX")
-            mx_records = sorted(
-                [(r.preference, str(r.exchange)) for r in answers]
-            )
+            mx_records = sorted([(r.preference, str(r.exchange)) for r in answers])
             mx_available = True
         except Exception:
             # Fallback: check if domain resolves at all via socket

@@ -1,15 +1,14 @@
 from __future__ import annotations
+
 import logging
 import uuid
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.models import SocialProfile, Person, Identifier
-from shared.constants import Platform, IdentifierType
-from shared.data_quality import apply_quality_to_model
 from modules.crawlers.result import CrawlerResult
+from shared.data_quality import apply_quality_to_model
+from shared.models import SocialProfile
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ async def upsert_social_profile(
     If handle+platform already exists, updates it. Otherwise inserts.
     """
     handle = result.data.get("handle") or result.identifier
-    platform_uid = result.data.get("platform_user_id")
+    result.data.get("platform_user_id")
 
     # Try to find existing
     stmt = select(SocialProfile).where(

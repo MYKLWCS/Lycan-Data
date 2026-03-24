@@ -8,12 +8,12 @@ No external DNS library required — uses socket + httpx (via self.get).
 
 Registered as "cyber_dns".
 """
+
 from __future__ import annotations
 
 import logging
 import re
 import socket
-from typing import Any
 from urllib.parse import quote
 
 from modules.crawlers.httpx_base import HttpxCrawler
@@ -133,9 +133,7 @@ class DnsCrawler(HttpxCrawler):
     # Google DNS-over-HTTPS helper
     # ------------------------------------------------------------------
 
-    async def _doh_lookup(
-        self, domain: str, rtype: str, strip_dot: bool = True
-    ) -> list[str]:
+    async def _doh_lookup(self, domain: str, rtype: str, strip_dot: bool = True) -> list[str]:
         url = _doh_url(domain, rtype)
         resp = await self.get(url, headers=_DOH_HEADERS)
 

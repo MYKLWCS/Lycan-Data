@@ -5,13 +5,15 @@ Checks an IP address against the AbuseIPDB database for abuse reports.
 Registered as "cyber_abuseipdb".
 Requires ABUSEIPDB_API_KEY in settings.
 """
+
 from __future__ import annotations
+
 import logging
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 

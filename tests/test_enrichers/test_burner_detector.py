@@ -2,6 +2,7 @@
 Tests for the burner detector scoring engine.
 Task 13 — 15 tests covering all 9 signals + persistence.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -9,13 +10,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from shared.constants import BurnerConfidence, LineType
 from modules.enrichers.burner_detector import (
-    BurnerScore,
     BURNER_AREA_CODES,
+    BurnerScore,
     compute_burner_score,
     persist_burner_assessment,
 )
+from shared.constants import BurnerConfidence, LineType
 
 
 # ---------------------------------------------------------------------------
@@ -100,8 +101,8 @@ def test_carrier_mismatch_and_no_truecaller_adds_score():
         whatsapp_registered=True,
         telegram_registered=True,
         fonefinder_city="Dallas",
-        truecaller_name=None,           # +0.05
-        secondary_carrier="T-Mobile",   # +0.05
+        truecaller_name=None,  # +0.05
+        secondary_carrier="T-Mobile",  # +0.05
     )
     assert score_with.score == score_without.score + 0.10
     assert "multiple_carrier_hits" in score_with.signals

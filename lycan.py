@@ -12,11 +12,11 @@ Usage:
     python lycan.py --name "John Smith" --no-tor  (skip Tor-required scrapers)
     python lycan.py --name "John Smith" --only github,reddit,news_search
 """
+
 import argparse
 import asyncio
 import importlib
 import json
-import os
 import pkgutil
 import sys
 import time
@@ -26,22 +26,44 @@ from pathlib import Path
 # Ensure project root is in path
 sys.path.insert(0, str(Path(__file__).parent))
 
+
 # ── Colour helpers ────────────────────────────────────────────────────────────
 def _c(code: str, text: str) -> str:
     return f"\033[{code}m{text}\033[0m"
 
-GREEN  = lambda t: _c("92", t)
-YELLOW = lambda t: _c("93", t)
-CYAN   = lambda t: _c("96", t)
-RED    = lambda t: _c("91", t)
-BOLD   = lambda t: _c("1",  t)
-DIM    = lambda t: _c("2",  t)
-BLUE   = lambda t: _c("94", t)
+
+def GREEN(t):
+    return _c("92", t)
+
+
+def YELLOW(t):
+    return _c("93", t)
+
+
+def CYAN(t):
+    return _c("96", t)
+
+
+def RED(t):
+    return _c("91", t)
+
+
+def BOLD(t):
+    return _c("1", t)
+
+
+def DIM(t):
+    return _c("2", t)
+
+
+def BLUE(t):
+    return _c("94", t)
 
 
 # ── Auto-import all crawler modules so they self-register ─────────────────────
 def _import_all_crawlers() -> list[str]:
     import modules.crawlers as pkg
+
     loaded = []
     for _, name, _ in pkgutil.iter_modules(pkg.__path__):
         try:
@@ -55,24 +77,45 @@ def _import_all_crawlers() -> list[str]:
 # ── Decide which crawlers to run for a given identifier type ──────────────────
 PLATFORM_MAP = {
     "username": [
-        "instagram", "twitter", "reddit", "github", "youtube",
-        "tiktok", "linkedin", "facebook", "snapchat", "pinterest",
-        "discord", "telegram", "whatsapp",
+        "instagram",
+        "twitter",
+        "reddit",
+        "github",
+        "youtube",
+        "tiktok",
+        "linkedin",
+        "facebook",
+        "snapchat",
+        "pinterest",
+        "discord",
+        "telegram",
+        "whatsapp",
         "username_sherlock",
     ],
     "phone": [
-        "phone_carrier", "phone_fonefinder", "phone_truecaller",
-        "whatsapp", "telegram",
+        "phone_carrier",
+        "phone_fonefinder",
+        "phone_truecaller",
+        "whatsapp",
+        "telegram",
     ],
     "email": [
-        "email_hibp", "email_holehe",
+        "email_hibp",
+        "email_holehe",
     ],
     "name": [
-        "whitepages", "fastpeoplesearch", "truepeoplesearch",
-        "sanctions_ofac", "sanctions_un", "sanctions_fbi",
+        "whitepages",
+        "fastpeoplesearch",
+        "truepeoplesearch",
+        "sanctions_ofac",
+        "sanctions_un",
+        "sanctions_fbi",
         "court_courtlistener",
-        "company_opencorporates", "company_sec",
-        "public_npi", "public_faa", "public_nsopw",
+        "company_opencorporates",
+        "company_sec",
+        "public_npi",
+        "public_faa",
+        "public_nsopw",
         "vehicle_ownership",
         "news_search",
         "obituary_search",
@@ -84,15 +127,31 @@ PLATFORM_MAP = {
 
 # Scrapers that require Tor (skip when --no-tor)
 REQUIRES_TOR = {
-    "instagram", "facebook", "tiktok", "linkedin", "snapchat",
-    "pinterest", "discord", "whatsapp",
-    "phone_carrier", "phone_fonefinder", "phone_truecaller",
+    "instagram",
+    "facebook",
+    "tiktok",
+    "linkedin",
+    "snapchat",
+    "pinterest",
+    "discord",
+    "whatsapp",
+    "phone_carrier",
+    "phone_fonefinder",
+    "phone_truecaller",
     "email_holehe",
-    "whitepages", "fastpeoplesearch", "truepeoplesearch",
-    "darkweb_ahmia", "darkweb_torch",
-    "paste_pastebin", "paste_ghostbin", "paste_psbdmp", "telegram_dark",
-    "property_zillow", "property_county",
-    "vehicle_plate", "vehicle_ownership",
+    "whitepages",
+    "fastpeoplesearch",
+    "truepeoplesearch",
+    "darkweb_ahmia",
+    "darkweb_torch",
+    "paste_pastebin",
+    "paste_ghostbin",
+    "paste_psbdmp",
+    "telegram_dark",
+    "property_zillow",
+    "property_county",
+    "vehicle_plate",
+    "vehicle_ownership",
     "mortgage_deed",
     "domain_whois",
     "obituary_search",
@@ -111,6 +170,7 @@ SUBPROCESS_SCRAPERS = {
 
 def _check_tool(tool: str) -> bool:
     import shutil
+
     return shutil.which(tool) is not None
 
 
@@ -127,17 +187,37 @@ def _print_result(platform: str, result, elapsed: float) -> None:
     data = result.data or {}
     # Print the most interesting fields
     interesting = [
-        "name", "display_name", "full_name", "username", "handle",
-        "follower_count", "following_count", "bio",
-        "carrier_name", "line_type", "is_burner",
-        "balance_btc", "balance_eth",
-        "breach_count", "breaches",
-        "found_on", "site_count",
-        "cases", "case_count", "matches", "match_count",
-        "result_count", "results",
-        "make", "model", "year", "vin",
-        "total_loans", "median_loan_amount",
-        "articles", "article_count",
+        "name",
+        "display_name",
+        "full_name",
+        "username",
+        "handle",
+        "follower_count",
+        "following_count",
+        "bio",
+        "carrier_name",
+        "line_type",
+        "is_burner",
+        "balance_btc",
+        "balance_eth",
+        "breach_count",
+        "breaches",
+        "found_on",
+        "site_count",
+        "cases",
+        "case_count",
+        "matches",
+        "match_count",
+        "result_count",
+        "results",
+        "make",
+        "model",
+        "year",
+        "vin",
+        "total_loans",
+        "median_loan_amount",
+        "articles",
+        "article_count",
         "locations",
         "providers",
         "pilots",
@@ -154,7 +234,7 @@ def _print_result(platform: str, result, elapsed: float) -> None:
             # Show first 2 items
             preview = json.dumps(val[:2], default=str)
             if len(val) > 2:
-                preview = preview[:-1] + f", ... +{len(val)-2} more]"
+                preview = preview[:-1] + f", ... +{len(val) - 2} more]"
             print(f"    {CYAN(key)}: {preview}")
         elif isinstance(val, (dict,)):
             print(f"    {CYAN(key)}: {json.dumps(val, default=str)[:120]}")
@@ -162,9 +242,9 @@ def _print_result(platform: str, result, elapsed: float) -> None:
             print(f"    {CYAN(key)}: {val}")
         shown += 1
         if shown >= 6:
-            remaining = len([k for k in data if k not in interesting[:interesting.index(key)+1]])
+            remaining = len([k for k in data if k not in interesting[: interesting.index(key) + 1]])
             if remaining:
-                print(f"    {DIM(f'... +{len(data)-shown} more fields')}")
+                print(f"    {DIM(f'... +{len(data) - shown} more fields')}")
             break
 
 
@@ -199,9 +279,11 @@ async def run_search(
 
     print()
     print(BOLD(f"  Lycan OSINT — {id_type.upper()}: {CYAN(identifier)}"))
-    print(f"  {DIM(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}  "
-          f"Running {GREEN(str(len(to_run)))} scrapers"
-          + (f"  {DIM(f'({len(skipped)} skipped)')}" if skipped else ""))
+    print(
+        f"  {DIM(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}  "
+        f"Running {GREEN(str(len(to_run)))} scrapers"
+        + (f"  {DIM(f'({len(skipped)} skipped)')}" if skipped else "")
+    )
     print()
 
     # Run in batches for concurrency limit
@@ -216,6 +298,7 @@ async def run_search(
                 result = await crawler.run(identifier)
             except Exception as exc:
                 from modules.crawlers.result import CrawlerResult
+
                 result = CrawlerResult(
                     platform=platform,
                     identifier=identifier,
@@ -235,8 +318,10 @@ async def run_search(
             found_count += 1
 
     print()
-    print(f"  {BOLD('Summary:')} {GREEN(str(found_count))} sources returned data "
-          f"out of {len(to_run)} scrapers run.")
+    print(
+        f"  {BOLD('Summary:')} {GREEN(str(found_count))} sources returned data "
+        f"out of {len(to_run)} scrapers run."
+    )
 
     if skipped:
         print(f"\n  {BOLD('Skipped:')}")
@@ -258,8 +343,8 @@ async def run_search(
     if texts and sum(len(t.split()) for t in texts) >= 20:
         print()
         print(BOLD("  Psychological Profile (from scraped bio/post text):"))
-        from modules.enrichers.psychological import build_psychological_profile
         from modules.enrichers.biographical import build_biographical_profile
+        from modules.enrichers.psychological import build_psychological_profile
 
         psych = build_psychological_profile(texts)
         bio_profile = build_biographical_profile(texts)
@@ -282,14 +367,19 @@ async def run_search(
             if psych.product_predispositions:
                 print(f"    Products: {BLUE(', '.join(psych.product_predispositions[:5]))}")
             flags = []
-            if psych.financial_stress_language: flags.append(RED("financial-stress"))
-            if psych.gambling_language:          flags.append(RED("gambling"))
-            if psych.substance_language:         flags.append(RED("substance"))
+            if psych.financial_stress_language:
+                flags.append(RED("financial-stress"))
+            if psych.gambling_language:
+                flags.append(RED("gambling"))
+            if psych.substance_language:
+                flags.append(RED("substance"))
             if flags:
                 print(f"    Risk:     {', '.join(flags)}")
 
         if bio_profile.dob:
-            print(f"    DOB:      {CYAN(str(bio_profile.dob))} {DIM(f'(conf {bio_profile.dob_confidence:.0%})')}")
+            print(
+                f"    DOB:      {CYAN(str(bio_profile.dob))} {DIM(f'(conf {bio_profile.dob_confidence:.0%})')}"
+            )
         if bio_profile.marital_status:
             print(f"    Marital:  {bio_profile.marital_status}")
 
@@ -303,18 +393,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--name",     metavar="NAME",     help='Full name, e.g. "John Smith"')
-    group.add_argument("--username", metavar="USER",     help="Username across platforms")
-    group.add_argument("--phone",    metavar="PHONE",    help="Phone number (E.164 or plain)")
-    group.add_argument("--email",    metavar="EMAIL",    help="Email address")
-    group.add_argument("--vin",      metavar="VIN",      help="Vehicle VIN (17 chars)")
-    group.add_argument("--domain",   metavar="DOMAIN",   help="Domain name")
-    group.add_argument("--crypto",   metavar="ADDR",     help="Crypto wallet (btc:addr or eth:addr)")
+    group.add_argument("--name", metavar="NAME", help='Full name, e.g. "John Smith"')
+    group.add_argument("--username", metavar="USER", help="Username across platforms")
+    group.add_argument("--phone", metavar="PHONE", help="Phone number (E.164 or plain)")
+    group.add_argument("--email", metavar="EMAIL", help="Email address")
+    group.add_argument("--vin", metavar="VIN", help="Vehicle VIN (17 chars)")
+    group.add_argument("--domain", metavar="DOMAIN", help="Domain name")
+    group.add_argument("--crypto", metavar="ADDR", help="Crypto wallet (btc:addr or eth:addr)")
 
-    parser.add_argument("--no-tor",    action="store_true", help="Skip scrapers that require Tor")
-    parser.add_argument("--only",      metavar="SCRAPERS",  help="Comma-separated scraper list, e.g. github,reddit")
-    parser.add_argument("--jobs",      type=int, default=8,  help="Concurrent scrapers (default 8)")
-    parser.add_argument("--json",      action="store_true",  help="Output raw JSON instead")
+    parser.add_argument("--no-tor", action="store_true", help="Skip scrapers that require Tor")
+    parser.add_argument(
+        "--only", metavar="SCRAPERS", help="Comma-separated scraper list, e.g. github,reddit"
+    )
+    parser.add_argument("--jobs", type=int, default=8, help="Concurrent scrapers (default 8)")
+    parser.add_argument("--json", action="store_true", help="Output raw JSON instead")
 
     args = parser.parse_args()
 
@@ -339,13 +431,15 @@ def main():
 
     only = [s.strip() for s in args.only.split(",")] if args.only else None
 
-    asyncio.run(run_search(
-        identifier=identifier,
-        id_type=id_type,
-        no_tor=args.no_tor,
-        only=only,
-        concurrency=args.jobs,
-    ))
+    asyncio.run(
+        run_search(
+            identifier=identifier,
+            id_type=id_type,
+            no_tor=args.no_tor,
+            only=only,
+            concurrency=args.jobs,
+        )
+    )
 
 
 if __name__ == "__main__":

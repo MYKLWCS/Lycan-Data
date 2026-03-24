@@ -8,6 +8,7 @@ CSV URL: https://www.osfi-bsif.gc.ca/Eng/fi-if/amlc-clrpc/atf-fat/Documents/Cons
 
 Registered as "sanctions_canada".
 """
+
 from __future__ import annotations
 
 import csv
@@ -39,6 +40,7 @@ _NAME_COLUMNS = ["LastName", "FirstName", "MiddleName", "Aliases", "AliasType"]
 # Cache helpers (mirrored from sanctions_ofac.py)
 # ---------------------------------------------------------------------------
 
+
 def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool:
     if not os.path.exists(path):
         return False
@@ -49,6 +51,7 @@ def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool
 # ---------------------------------------------------------------------------
 # Name-matching helper (same algorithm as sanctions_ofac.py)
 # ---------------------------------------------------------------------------
+
 
 def _name_matches(query: str, candidate: str, threshold: float = _MATCH_THRESHOLD) -> float:
     q_words = set(query.lower().split())
@@ -62,6 +65,7 @@ def _name_matches(query: str, candidate: str, threshold: float = _MATCH_THRESHOL
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------
+
 
 @register("sanctions_canada")
 class SanctionsCanadaCrawler(HttpxCrawler):
@@ -105,7 +109,7 @@ class SanctionsCanadaCrawler(HttpxCrawler):
         if _cache_valid(_CACHE_PATH):
             logger.debug("CAN sanctions: using cached list at %s", _CACHE_PATH)
             try:
-                with open(_CACHE_PATH, "r", encoding="utf-8-sig", errors="replace") as fh:
+                with open(_CACHE_PATH, encoding="utf-8-sig", errors="replace") as fh:
                     return fh.read()
             except OSError as exc:
                 logger.warning("CAN sanctions: cache read failed: %s", exc)

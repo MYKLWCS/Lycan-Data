@@ -4,10 +4,11 @@ from scraped text. Pure analytics, no external API calls.
 
 OCEAN = Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
 """
+
 from dataclasses import dataclass, field
-import re
 
 # ── Data model ────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class PsychologicalProfile:
@@ -41,30 +42,145 @@ class PsychologicalProfile:
 
 OCEAN_SIGNALS: dict[str, dict[str, list[str]]] = {
     "openness": {
-        "high": ["art", "music", "travel", "philosophy", "creative", "imagination", "poetry", "culture",
-                 "novel", "curious", "explore", "discovery", "innovation", "diversity", "ideas"],
-        "low": ["routine", "traditional", "conventional", "practical", "realistic", "conservative",
-                "stable", "familiar", "habit", "rule"],
+        "high": [
+            "art",
+            "music",
+            "travel",
+            "philosophy",
+            "creative",
+            "imagination",
+            "poetry",
+            "culture",
+            "novel",
+            "curious",
+            "explore",
+            "discovery",
+            "innovation",
+            "diversity",
+            "ideas",
+        ],
+        "low": [
+            "routine",
+            "traditional",
+            "conventional",
+            "practical",
+            "realistic",
+            "conservative",
+            "stable",
+            "familiar",
+            "habit",
+            "rule",
+        ],
     },
     "conscientiousness": {
-        "high": ["organized", "plan", "schedule", "discipline", "goal", "achieve", "productive",
-                 "responsible", "deadline", "detail", "professional", "focused", "committed"],
-        "low": ["procrastinat", "lazy", "careless", "forgot", "mess", "disorganized", "impulsive", "late"],
+        "high": [
+            "organized",
+            "plan",
+            "schedule",
+            "discipline",
+            "goal",
+            "achieve",
+            "productive",
+            "responsible",
+            "deadline",
+            "detail",
+            "professional",
+            "focused",
+            "committed",
+        ],
+        "low": [
+            "procrastinat",
+            "lazy",
+            "careless",
+            "forgot",
+            "mess",
+            "disorganized",
+            "impulsive",
+            "late",
+        ],
     },
     "extraversion": {
-        "high": ["party", "social", "friends", "outgoing", "energy", "fun", "love meeting", "crowd",
-                 "networking", "loud", "adventure", "spontaneous", "love people"],
-        "low": ["introvert", "alone", "quiet", "home", "solitude", "private", "reserved", "shy", "prefer staying in"],
+        "high": [
+            "party",
+            "social",
+            "friends",
+            "outgoing",
+            "energy",
+            "fun",
+            "love meeting",
+            "crowd",
+            "networking",
+            "loud",
+            "adventure",
+            "spontaneous",
+            "love people",
+        ],
+        "low": [
+            "introvert",
+            "alone",
+            "quiet",
+            "home",
+            "solitude",
+            "private",
+            "reserved",
+            "shy",
+            "prefer staying in",
+        ],
     },
     "agreeableness": {
-        "high": ["kind", "helpful", "empathy", "compassion", "volunteer", "caring", "supportive",
-                 "trust", "cooperat", "generous", "forgive", "patient"],
-        "low": ["compet", "argue", "disagree", "stubborn", "demand", "challenge", "fight", "confrontation"],
+        "high": [
+            "kind",
+            "helpful",
+            "empathy",
+            "compassion",
+            "volunteer",
+            "caring",
+            "supportive",
+            "trust",
+            "cooperat",
+            "generous",
+            "forgive",
+            "patient",
+        ],
+        "low": [
+            "compet",
+            "argue",
+            "disagree",
+            "stubborn",
+            "demand",
+            "challenge",
+            "fight",
+            "confrontation",
+        ],
     },
     "neuroticism": {
-        "high": ["anxious", "worry", "stress", "nervous", "overwhelm", "panic", "depressed", "sad",
-                 "fear", "insecure", "emotional", "cry", "struggle", "can't cope", "breaking"],
-        "low": ["calm", "stable", "relax", "confident", "secure", "content", "at peace", "balanced"],
+        "high": [
+            "anxious",
+            "worry",
+            "stress",
+            "nervous",
+            "overwhelm",
+            "panic",
+            "depressed",
+            "sad",
+            "fear",
+            "insecure",
+            "emotional",
+            "cry",
+            "struggle",
+            "can't cope",
+            "breaking",
+        ],
+        "low": [
+            "calm",
+            "stable",
+            "relax",
+            "confident",
+            "secure",
+            "content",
+            "at peace",
+            "balanced",
+        ],
     },
 }
 
@@ -72,23 +188,60 @@ OCEAN_SIGNALS: dict[str, dict[str, list[str]]] = {
 
 TRIGGER_CATEGORIES: dict[str, list[str]] = {
     "family": ["family", "children", "kids", "parents", "mother", "father", "sibling", "home"],
-    "money": ["money", "financial", "debt", "loan", "bills", "afford", "broke", "rich", "wealth", "salary"],
-    "health": ["health", "sick", "hospital", "cancer", "doctor", "mental health", "anxiety", "pain"],
+    "money": [
+        "money",
+        "financial",
+        "debt",
+        "loan",
+        "bills",
+        "afford",
+        "broke",
+        "rich",
+        "wealth",
+        "salary",
+    ],
+    "health": [
+        "health",
+        "sick",
+        "hospital",
+        "cancer",
+        "doctor",
+        "mental health",
+        "anxiety",
+        "pain",
+    ],
     "career": ["job", "work", "career", "boss", "fired", "promoted", "business", "success"],
-    "relationships": ["relationship", "love", "breakup", "divorce", "heartbreak", "lonely", "dating"],
+    "relationships": [
+        "relationship",
+        "love",
+        "breakup",
+        "divorce",
+        "heartbreak",
+        "lonely",
+        "dating",
+    ],
     "fairness": ["unfair", "justice", "rights", "discrimination", "cheated", "lied", "betrayed"],
     "status": ["respect", "recognition", "status", "achievement", "proud", "reputation"],
     "religion": ["god", "faith", "prayer", "church", "mosque", "temple", "spiritual", "blessed"],
-    "politics": ["political", "government", "election", "vote", "democrat", "republican", "liberal"],
+    "politics": [
+        "political",
+        "government",
+        "election",
+        "vote",
+        "democrat",
+        "republican",
+        "liberal",
+    ],
     "sports": ["team", "football", "soccer", "basketball", "match", "game", "win", "lose"],
 }
 
 
 # ── Scoring functions ─────────────────────────────────────────────────────────
 
+
 def analyze_ocean(texts: list[str]) -> dict[str, float]:
     """Score OCEAN dimensions from text keyword counts."""
-    combined = ' '.join(texts).lower()
+    combined = " ".join(texts).lower()
     scores = {}
 
     for dimension, signals in OCEAN_SIGNALS.items():
@@ -106,7 +259,7 @@ def analyze_ocean(texts: list[str]) -> dict[str, float]:
 
 def detect_emotional_triggers(texts: list[str]) -> list[str]:
     """Find which emotional trigger categories appear in text."""
-    combined = ' '.join(texts).lower()
+    combined = " ".join(texts).lower()
     triggers = []
     for category, keywords in TRIGGER_CATEGORIES.items():
         if any(kw in combined for kw in keywords):
@@ -116,30 +269,79 @@ def detect_emotional_triggers(texts: list[str]) -> list[str]:
 
 def detect_risk_language(texts: list[str]) -> dict[str, bool]:
     """Detect financial stress, gambling, substance, aggression language."""
-    combined = ' '.join(texts).lower()
+    combined = " ".join(texts).lower()
     return {
-        "financial_stress": any(kw in combined for kw in [
-            "can't pay", "overdue", "evict", "repo", "foreclos", "bankrupt", "broke",
-            "need money urgently", "desperate", "behind on", "debt collector",
-        ]),
-        "gambling": any(kw in combined for kw in [
-            "casino", "betting", "gambl", "slots", "poker", "roulette", "sports betting",
-            "bet365", "bovada", "draftkings", "fanduel", "winning streak", "jackpot",
-        ]),
-        "substance": any(kw in combined for kw in [
-            "drunk", "high", "weed", "cocaine", "meth", "pills", "addiction", "rehab",
-            "sober", "recovery", "aa meeting", "narcotics",
-        ]),
-        "aggression": any(kw in combined for kw in [
-            "going to hurt", "kill", "threaten", "fight", "attack", "revenge", "destroy you",
-            "beat your ass", "gonna get you",
-        ]),
+        "financial_stress": any(
+            kw in combined
+            for kw in [
+                "can't pay",
+                "overdue",
+                "evict",
+                "repo",
+                "foreclos",
+                "bankrupt",
+                "broke",
+                "need money urgently",
+                "desperate",
+                "behind on",
+                "debt collector",
+            ]
+        ),
+        "gambling": any(
+            kw in combined
+            for kw in [
+                "casino",
+                "betting",
+                "gambl",
+                "slots",
+                "poker",
+                "roulette",
+                "sports betting",
+                "bet365",
+                "bovada",
+                "draftkings",
+                "fanduel",
+                "winning streak",
+                "jackpot",
+            ]
+        ),
+        "substance": any(
+            kw in combined
+            for kw in [
+                "drunk",
+                "high",
+                "weed",
+                "cocaine",
+                "meth",
+                "pills",
+                "addiction",
+                "rehab",
+                "sober",
+                "recovery",
+                "aa meeting",
+                "narcotics",
+            ]
+        ),
+        "aggression": any(
+            kw in combined
+            for kw in [
+                "going to hurt",
+                "kill",
+                "threaten",
+                "fight",
+                "attack",
+                "revenge",
+                "destroy you",
+                "beat your ass",
+                "gonna get you",
+            ]
+        ),
     }
 
 
 def detect_dominant_themes(texts: list[str]) -> list[str]:
     """Return top themes by keyword frequency."""
-    combined = ' '.join(texts).lower()
+    combined = " ".join(texts).lower()
     theme_scores: dict[str, int] = {}
     for theme, keywords in TRIGGER_CATEGORIES.items():
         theme_scores[theme] = sum(combined.count(kw) for kw in keywords)
@@ -152,16 +354,21 @@ def detect_dominant_themes(texts: list[str]) -> list[str]:
 
 # ── Predisposition derivation ─────────────────────────────────────────────────
 
+
 def _derive_predispositions(profile: PsychologicalProfile, themes: list[str]) -> list[str]:
     predispositions: list[str] = []
 
     # High openness → experiences, travel, arts
     if profile.openness > 0.6:
-        predispositions.extend(["travel_insurance", "experience_products", "premium_subscriptions", "art_culture"])
+        predispositions.extend(
+            ["travel_insurance", "experience_products", "premium_subscriptions", "art_culture"]
+        )
 
     # High conscientiousness → financial products, insurance
     if profile.conscientiousness > 0.6:
-        predispositions.extend(["financial_planning", "insurance", "health_products", "productivity_tools"])
+        predispositions.extend(
+            ["financial_planning", "insurance", "health_products", "productivity_tools"]
+        )
 
     # High extraversion → social products, events
     if profile.extraversion > 0.6:
@@ -169,7 +376,9 @@ def _derive_predispositions(profile: PsychologicalProfile, themes: list[str]) ->
 
     # High neuroticism → insurance, mental health, security
     if profile.neuroticism > 0.6:
-        predispositions.extend(["health_insurance", "security_products", "mental_health_apps", "home_security"])
+        predispositions.extend(
+            ["health_insurance", "security_products", "mental_health_apps", "home_security"]
+        )
 
     # Low conscientiousness + money theme → high-risk borrower signal
     if profile.conscientiousness < 0.4 and "money" in themes:
@@ -196,6 +405,7 @@ def _derive_predispositions(profile: PsychologicalProfile, themes: list[str]) ->
 
 # ── Top-level builder ─────────────────────────────────────────────────────────
 
+
 def build_psychological_profile(
     texts: list[str],
     word_count_threshold: int = 20,
@@ -203,7 +413,7 @@ def build_psychological_profile(
     """Build full psychological profile from text corpus."""
     profile = PsychologicalProfile()
 
-    combined = ' '.join(texts)
+    combined = " ".join(texts)
     word_count = len(combined.split())
 
     if word_count < word_count_threshold:

@@ -6,6 +6,7 @@ GET parameters, then parses HTML result tables.
 
 Registered as "court_state".
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,13 +20,9 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 # Public court portals with GET-parameter search
-_TX_URL = (
-    "https://publicsite.courts.state.tx.us/HomeSearch/Search"
-    "?SearchMode=0&partyName={name}"
-)
+_TX_URL = "https://publicsite.courts.state.tx.us/HomeSearch/Search?SearchMode=0&partyName={name}"
 _NY_URL = (
-    "https://iapps.courts.state.ny.us/webcivil/FCASSearch"
-    "?param=I&party={name}&casetype=A&county="
+    "https://iapps.courts.state.ny.us/webcivil/FCASSearch?param=I&party={name}&casetype=A&county="
 )
 
 
@@ -69,11 +66,14 @@ def _parse_table_rows(html: str, state: str) -> list[dict[str, Any]]:
                 record[key] = cell.get_text(strip=True)
 
             # Normalise common column name variants
-            record.setdefault("case_number", record.pop("case no.", record.pop("case #", record.pop("case number", ""))))
-            record.setdefault("case_type",   record.pop("case type", record.pop("type", "")))
+            record.setdefault(
+                "case_number",
+                record.pop("case no.", record.pop("case #", record.pop("case number", ""))),
+            )
+            record.setdefault("case_type", record.pop("case type", record.pop("type", "")))
             record.setdefault("filing_date", record.pop("date filed", record.pop("filed", "")))
-            record.setdefault("parties",     record.pop("party name", record.pop("parties", "")))
-            record.setdefault("court",       record.pop("court", ""))
+            record.setdefault("parties", record.pop("party name", record.pop("parties", "")))
+            record.setdefault("court", record.pop("court", ""))
 
             if any(record.values()):
                 cases.append(record)
@@ -127,9 +127,7 @@ class CourtStateCrawler(PlaywrightCrawler):
             query=query,
         )
 
-    async def _scrape_portal(
-        self, url: str, state: str
-    ) -> list[dict[str, Any]]:
+    async def _scrape_portal(self, url: str, state: str) -> list[dict[str, Any]]:
         """Navigate to a portal URL and parse its result table."""
         try:
             async with self.page(url) as page:

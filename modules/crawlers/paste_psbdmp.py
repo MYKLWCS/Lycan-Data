@@ -7,7 +7,9 @@ content is accessible at pastebin.com/raw/{id}.
 
 Registered as "paste_psbdmp".
 """
+
 from __future__ import annotations
+
 import logging
 from urllib.parse import quote_plus
 

@@ -7,16 +7,17 @@ which is sufficient for low-volume OSINT queries.
 
 Registered as "gov_fred".
 """
+
 from __future__ import annotations
 
 import logging
 from typing import Any
 from urllib.parse import quote_plus
 
-from shared.config import settings
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 

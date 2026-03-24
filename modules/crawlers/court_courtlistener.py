@@ -6,6 +6,7 @@ public API. Also supports people (judge/attorney) lookup by name.
 
 Registered as "court_courtlistener".
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 _BASE = "https://www.courtlistener.com/api/rest/v3"
 _SEARCH_URL = _BASE + "/search/?q={query}&type=p&format=json"
 _OPINION_URL = _BASE + "/search/?q={query}&type=o&format=json"
-_PEOPLE_URL  = _BASE + "/people/?name_last={last}&name_first={first}&format=json"
+_PEOPLE_URL = _BASE + "/people/?name_last={last}&name_first={first}&format=json"
 
 _MAX_RESULTS = 10
 
@@ -43,14 +44,14 @@ def _parse_case_results(data: dict) -> list[dict[str, Any]]:
     for item in data.get("results", [])[:_MAX_RESULTS]:
         cases.append(
             {
-                "case_name":     item.get("caseName") or item.get("case_name", ""),
-                "court":         item.get("court", ""),
-                "date_filed":    item.get("dateFiled") or item.get("date_filed", ""),
-                "url":           "https://www.courtlistener.com" + item.get("absolute_url", "")
-                                 if item.get("absolute_url", "").startswith("/")
-                                 else item.get("absolute_url", ""),
+                "case_name": item.get("caseName") or item.get("case_name", ""),
+                "court": item.get("court", ""),
+                "date_filed": item.get("dateFiled") or item.get("date_filed", ""),
+                "url": "https://www.courtlistener.com" + item.get("absolute_url", "")
+                if item.get("absolute_url", "").startswith("/")
+                else item.get("absolute_url", ""),
                 "docket_number": item.get("docketNumber") or item.get("docket_number", ""),
-                "status":        item.get("status", ""),
+                "status": item.get("status", ""),
             }
         )
     return cases
@@ -120,9 +121,7 @@ class CourtListenerCrawler(HttpxCrawler):
         # --- Secondary: people search (judge/attorney) if name-shaped query ---
         first, last = _split_name(query)
         if first and last:
-            people_url = _PEOPLE_URL.format(
-                last=quote_plus(last), first=quote_plus(first)
-            )
+            people_url = _PEOPLE_URL.format(last=quote_plus(last), first=quote_plus(first))
             people_resp = await self.get(people_url)
             if people_resp is not None and people_resp.status_code == 200:
                 try:
@@ -130,19 +129,18 @@ class CourtListenerCrawler(HttpxCrawler):
                     for person in people_data.get("results", [])[:5]:
                         # Surface notable people cases as supplementary entries
                         name = (
-                            (person.get("name_first") or "") + " "
-                            + (person.get("name_last") or "")
+                            (person.get("name_first") or "") + " " + (person.get("name_last") or "")
                         ).strip()
                         if name:
                             cases.append(
                                 {
-                                    "case_name":     f"[Person record] {name}",
-                                    "court":         person.get("court", ""),
-                                    "date_filed":    person.get("date_start", ""),
-                                    "url":           "https://www.courtlistener.com"
-                                                     + person.get("resource_uri", ""),
+                                    "case_name": f"[Person record] {name}",
+                                    "court": person.get("court", ""),
+                                    "date_filed": person.get("date_start", ""),
+                                    "url": "https://www.courtlistener.com"
+                                    + person.get("resource_uri", ""),
                                     "docket_number": "",
-                                    "status":        "people_record",
+                                    "status": "people_record",
                                 }
                             )
                 except Exception as exc:

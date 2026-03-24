@@ -6,6 +6,7 @@ advisor records by full name, returning registration scope and disclosure flags.
 
 Registered as "gov_finra".
 """
+
 from __future__ import annotations
 
 import logging
@@ -52,9 +53,7 @@ def _parse_brokers(data: dict) -> list[dict[str, Any]]:
                 "ind_ia_disc_fl": source.get("ind_ia_disc_fl"),
                 "ind_bc_scope": source.get("ind_bc_scope"),
                 "ind_ia_scope": source.get("ind_ia_scope"),
-                "ind_industry_cal_yr_cnt": source.get(
-                    "ind_industry_cal_yr_cnt"
-                ),
+                "ind_industry_cal_yr_cnt": source.get("ind_industry_cal_yr_cnt"),
             }
         )
     return brokers
@@ -115,10 +114,10 @@ class FinraCrawler(HttpxCrawler):
             brokers = _parse_brokers(payload)
             hits_meta = payload.get("hits", {})
             if isinstance(hits_meta, dict):
-                total: int = hits_meta.get("total", {}).get(
-                    "value", len(brokers)
-                ) if isinstance(hits_meta.get("total"), dict) else int(
-                    hits_meta.get("total", len(brokers))
+                total: int = (
+                    hits_meta.get("total", {}).get("value", len(brokers))
+                    if isinstance(hits_meta.get("total"), dict)
+                    else int(hits_meta.get("total", len(brokers)))
                 )
             else:
                 total = len(brokers)
