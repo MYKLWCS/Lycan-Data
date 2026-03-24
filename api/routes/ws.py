@@ -71,7 +71,7 @@ async def sse_progress(person_id: str, request: Request):
     """SSE stream for real-time scrape progress updates."""
 
     async def event_stream():
-        if event_bus._redis is None:
+        if not event_bus.is_connected:
             yield f"data: {json.dumps({'event': 'error', 'detail': 'event bus unavailable'})}\n\n"
             return
 

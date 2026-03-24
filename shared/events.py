@@ -68,6 +68,11 @@ class EventBus:
             self._redis = None
 
     @property
+    def is_connected(self) -> bool:
+        """Return True if the EventBus has an active Redis/Dragonfly connection."""
+        return self._redis is not None
+
+    @property
     def redis(self) -> aioredis.Redis:
         if self._redis is None:
             raise RuntimeError("EventBus not connected. Call connect() first.")

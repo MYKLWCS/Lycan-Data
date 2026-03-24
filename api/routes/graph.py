@@ -1,13 +1,12 @@
 """Graph intelligence API routes — company search, entity networks, fraud rings."""
-import dataclasses
 import logging
-from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
+from api.serializers import _serialize
 from modules.graph.company_intel import CompanyIntelligenceEngine
 from modules.graph.entity_graph import EntityGraphBuilder
 
@@ -16,21 +15,6 @@ logger = logging.getLogger(__name__)
 
 _company_engine = CompanyIntelligenceEngine()
 _graph_builder = EntityGraphBuilder()
-
-
-# ── Serialisation helpers ─────────────────────────────────────────────────────
-
-def _serialize(obj):
-    """Recursively make dicts/lists/datetimes JSON-safe."""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return _serialize(dataclasses.asdict(obj))
-    if isinstance(obj, dict):
-        return {k: _serialize(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_serialize(i) for i in obj]
-    return obj
 
 
 # ── Request schemas ───────────────────────────────────────────────────────────
