@@ -9,6 +9,7 @@ env:
   PYTHONPATH: "."
 
 jobs:
+  # ── 1. Spec compliance + codebase audit ──────────────────────────────────────
   audit:
     name: Codebase Audit
     runs-on: [self-hosted, lycan]
@@ -20,6 +21,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Bootstrap venv
+        run: |
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
 
       - name: Install audit dependencies
         run: .venv/bin/python -m pip install --quiet anthropic PyGithub
@@ -39,6 +45,7 @@ jobs:
           path: audit_report.md
           retention-days: 90
 
+  # ── 2. Health check + self-heal ───────────────────────────────────────────────
   health-check:
     name: Health Check
     runs-on: [self-hosted, lycan]
@@ -55,10 +62,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Bootstrap venv
+        run: |
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+
       - name: Install test deps
         run: |
           .venv/bin/python -m pip install --quiet -r requirements.txt
           .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
 
-      - name: Run health report
+      - name: Pre-flight environment heal
+        run: |
+          docker exec osnit-postgres-1 psql -U lycan -c "ALTER USER lycan WITH PASSWORD 'lycan';" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan lycan_test -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
+          .venv/bin/python -m alembic upgrade head 2>/dev/null || true
+
+      - name: Health report
         run: .venv/bin/python scripts/selfheal.py --report
+
+      - name: Self-heal on failures
+        if: failure()
+        run: .venv/bin/python scripts/selfheal.py

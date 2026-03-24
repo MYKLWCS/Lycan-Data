@@ -27,6 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Bootstrap venv
+        run: |
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+
       - name: Ruff lint
         run: |
           .venv/bin/python -m pip install --quiet ruff
@@ -42,17 +47,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Bootstrap venv
+        run: |
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+
       - name: Install dependencies
         run: |
-          .venv/bin/python -m pip install --quiet --upgrade pip
           .venv/bin/python -m pip install --quiet -r requirements.txt
           .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
 
       - name: Pre-flight environment heal
         run: |
-          # Ensure test DB exists and is migrated
+          # Ensure lycan user has correct password for TCP connections
+          docker exec osnit-postgres-1 psql -U lycan -c "ALTER USER lycan WITH PASSWORD 'lycan';" 2>/dev/null || true
+          # Ensure test DB and extensions exist
           docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan lycan_test -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
           docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
+          # Run migrations
           .venv/bin/python -m alembic upgrade head 2>/dev/null || true
           # Flush stale queue items that live workers may have left
           docker exec osnit-dragonfly-1 redis-cli FLUSHDB 2>/dev/null || true
@@ -83,6 +96,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Bootstrap venv
+        run: |
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+
       - name: Install dependencies
         run: |
           .venv/bin/python -m pip install --quiet -r requirements.txt
@@ -98,9 +116,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install core deps
+      - name: Bootstrap venv
         run: |
-          .venv/bin/python -m pip install --quiet -r requirements.txt
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+
+      - name: Install core deps
+        run: .venv/bin/python -m pip install --quiet -r requirements.txt
 
       - name: Check all modules import cleanly
         run: .venv/bin/python scripts/check_imports.py
