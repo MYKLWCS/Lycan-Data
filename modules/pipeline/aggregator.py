@@ -92,6 +92,35 @@ async def aggregate_result(
     person = await _get_or_create_person(session, person_id, result)
     written["person_id"] = str(person.id)
 
+    # Backfill Person.full_name if still blank and result carries a real name
+    if not person.full_name and result.data:
+        candidate = (
+            result.data.get("full_name")
+            or result.data.get("name")
+            or result.data.get("display_name")
+            or result.data.get("owner_name")
+        )
+        import re as _re
+        _PLATFORM_WORDS = {
+            "youtube", "snapchat", "instagram", "twitter", "facebook", "tiktok",
+            "linkedin", "reddit", "telegram", "whatsapp", "discord", "twitch",
+            "steam", "pinterest", "mastodon", "github",
+            # Consent page markers
+            "cookie", "consent", "gdpr", "weitergehen", "continuer", "fortsätter",
+            "continuar", "continue", "privacy", "terms",
+        }
+        if candidate and isinstance(candidate, str):
+            c = candidate.strip()
+            words = c.lower().split()
+            # Must be 2-4 words (real names), all letters, no platform/consent words
+            if (
+                2 <= len(words) <= 4
+                and len(c) >= 5
+                and _re.match(r"^[A-Za-zÀ-ÖØ-öø-ÿ' \-\.]+$", c)
+                and not any(w in _PLATFORM_WORDS for w in words)
+            ):
+                person.full_name = c
+
     platform = (result.platform or "").lower()
 
     # Social profile ─────────────────────────────────────────────────────────
@@ -157,11 +186,15 @@ async def aggregate_result(
         written["behavioural"] = True
 
     # ── Update Person.source_reliability ────────────────────────────────────
-    # Raise person reliability toward the contributing crawler's score so it
-    # reflects the best data we have (not forever stuck at the 0.5 default).
-    # Any real source above the 0.5 default raises person reliability
+    # Raise person reliability toward the contributing crawler's score.
+    # Each additional source that confirms this person adds a corroboration
+    # bonus, so reliability climbs as evidence accumulates.
     if result.source_reliability > 0.5:
-        person.source_reliability = round(max(person.source_reliability, result.source_reliability), 3)
+        person.corroboration_count = (person.corroboration_count or 1) + 1
+        bonus = min(0.20, (person.corroboration_count - 1) * 0.05)
+        person.source_reliability = round(
+            min(0.95, max(person.source_reliability, result.source_reliability) + bonus), 3
+        )
 
     await session.commit()
     return written

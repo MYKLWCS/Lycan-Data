@@ -637,15 +637,27 @@ const App = {
         if (sidebarTorText) sidebarTorText.textContent = `Tor ${torActive}/${torTotal}`;
 
         const total = queues.total_pending || 0;
-        const ingest = queues.ingest_backlog || 0;
-        const index = queues.index_backlog || 0;
+        // Show cumulative throughput (crawls_found / crawls_total) — not queue depth
+        const crawlsFound = queues.crawls_found || 0;
+        const crawlsTotal = queues.crawls_total || 0;
+        const personsTotal = queues.persons_total || 0;
+        // Ingest = results found; Index = persons in DB
+        const ingestBacklog = queues.ingest_backlog || 0;
+        const indexBacklog  = queues.index_backlog  || 0;
 
         if (bannerQueued) {
-          bannerQueued.textContent = total;
-          bannerQueued.className = 'banner-count' + (total > 0 ? ' active' : '');
+          bannerQueued.textContent = total > 0 ? total : personsTotal;
+          bannerQueued.className = 'banner-count' + (total > 0 ? ' active' : (personsTotal > 0 ? ' active' : ''));
         }
-        if (bannerIngest) { bannerIngest.textContent = ingest; bannerIngest.className = 'banner-count' + (ingest > 0 ? ' warn' : ''); }
-        if (bannerIndex)  { bannerIndex.textContent = index;   bannerIndex.className  = 'banner-count' + (index  > 0 ? ' warn' : ''); }
+        // Show "found / total crawls" instead of queue depth
+        if (bannerIngest) {
+          bannerIngest.textContent = crawlsTotal > 0 ? `${crawlsFound}/${crawlsTotal}` : (ingestBacklog || '—');
+          bannerIngest.className = 'banner-count' + (crawlsFound > 0 ? ' active' : '');
+        }
+        if (bannerIndex) {
+          bannerIndex.textContent = personsTotal > 0 ? personsTotal : (indexBacklog || '—');
+          bannerIndex.className  = 'banner-count' + (personsTotal > 0 ? ' active' : '');
+        }
         if (bannerCrawlers) bannerCrawlers.textContent = health.crawlers_registered || '—';
 
         if (total > 0 || ingest > 0 || index > 0) {

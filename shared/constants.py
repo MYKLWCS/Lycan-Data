@@ -163,22 +163,58 @@ class VerificationStatus(str, Enum):
 
 # Source reliability scores (0.0 - 1.0)
 SOURCE_RELIABILITY: dict[str, float] = {
+    # Authoritative / official sources
     "government_registry": 0.95,
     "court_record": 0.92,
     "financial_record": 0.88,
     "company_registry": 0.85,
     "property_registry": 0.85,
+    "sanctions": 0.92,
+    "watchlist": 0.90,
+    "court": 0.88,
+    "bankruptcy": 0.85,
+    "company": 0.82,
+    "property": 0.80,
+    "public": 0.78,          # public gov databases (NPI, FAA, NSOPW)
+    "gov": 0.78,
+    # Professional / identity
     "linkedin": 0.75,
     "truecaller": 0.70,
     "whitepages": 0.65,
+    "fastpeoplesearch": 0.62,
+    "truepeoplesearch": 0.62,
+    "people": 0.60,
+    "phone": 0.65,           # phone_carrier, phone_truecaller etc.
+    "email": 0.60,           # email_hibp, email_holehe etc.
+    "domain": 0.60,
+    "ip": 0.55,
+    "crypto": 0.55,
+    "cyber": 0.55,
+    # Social media
     "facebook": 0.60,
     "instagram": 0.55,
     "twitter": 0.55,
+    "reddit": 0.50,
+    "youtube": 0.50,
+    "github": 0.55,
+    "snapchat": 0.45,
     "tiktok": 0.50,
     "telegram": 0.50,
+    "whatsapp": 0.65,        # phone confirmation via wa.me
+    "discord": 0.45,
+    "twitch": 0.45,
+    "steam": 0.45,
+    "pinterest": 0.40,
+    "mastodon": 0.45,
+    "username": 0.40,        # username_sherlock sweeps
+    # Dark web / paste
     "paste_site": 0.35,
+    "paste": 0.35,
     "dark_forum": 0.30,
     "dark_paste": 0.25,
+    "darkweb": 0.30,
+    "news": 0.50,
+    "obituary": 0.55,
     "unknown": 0.20,
 }
 

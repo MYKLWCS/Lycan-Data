@@ -2,8 +2,10 @@
 import logging
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import DbDep, db_session
 from modules.crawlers.registry import list_platforms, CRAWLER_REGISTRY
 from shared.tor import tor_manager
 
@@ -104,20 +106,36 @@ async def registry():
 
 
 @router.get("/queues")
-async def queue_stats():
-    """Return current queue depths for all Dragonfly queues."""
+async def queue_stats(session: AsyncSession = DbDep):
+    """Return queue depths + cumulative throughput stats for the pipeline banner."""
     from shared.events import event_bus
+    from sqlalchemy import text
 
     try:
         queues = {}
         for name in ("high", "normal", "low", "ingest", "index"):
             queues[name] = await event_bus.queue_length(name)
         total_pending = queues["high"] + queues["normal"] + queues["low"]
+
+        # Cumulative throughput from DB (shown as "X ingested / Y indexed")
+        row = (await session.execute(text(
+            "SELECT COUNT(*) as total_logs, "
+            "SUM(CASE WHEN meta->>'success'='true' THEN 1 ELSE 0 END) as found_count "
+            "FROM crawl_logs"
+        ))).mappings().one()
+        persons_row = (await session.execute(text(
+            "SELECT COUNT(*) as total FROM persons"
+        ))).mappings().one()
+
         return {
             "queues": queues,
             "total_pending": total_pending,
             "ingest_backlog": queues["ingest"],
             "index_backlog": queues["index"],
+            # Throughput counters for banner
+            "crawls_total": int(row["total_logs"] or 0),
+            "crawls_found": int(row["found_count"] or 0),
+            "persons_total": int(persons_row["total"] or 0),
         }
     except Exception as exc:
         return {"error": str(exc), "queues": {}}

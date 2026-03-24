@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: ["master", "main", "dev/**", "feature/**"]
+  pull_request:
+    branches: ["master", "main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── 1. Lint & Static Analysis ─────────────────────────────────────────────
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff lint
+        run: ruff check . --output-format=github
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+  # ─── 2. Tests ───────────────────────────────────────────────────────────────
+  test:
+    name: Tests (Python 3.12)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lycan
+          POSTGRES_PASSWORD: lycan
+          POSTGRES_DB: lycan_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      dragonfly:
+        image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
+      REDIS_URL: "redis://localhost:6379/0"
+      MEILI_URL: "http://localhost:7700"
+      MEILI_MASTER_KEY: ""
+      SECRET_KEY: "ci-test-secret-key-not-for-production"
+      ENVIRONMENT: "test"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            fastapi uvicorn sqlalchemy asyncpg alembic pydantic pydantic-settings \
+            redis httpx beautifulsoup4 aiofiles phonenumbers python-dateutil \
+            pytest pytest-asyncio pytest-cov anyio
+
+      - name: Run database migrations
+        run: alembic upgrade head
+        continue-on-error: true
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-omit="tests/*,migrations/*,scripts/*" \
+            -v --tb=short \
+            --ignore=tests/test_crawlers \
+            --ignore=tests/test_darkweb \
+            --ignore=tests/test_government \
+            -k "not integration and not playwright"
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  # ─── 3. Import Sanity Check ─────────────────────────────────────────────────
+  import-check:
+    name: Import Sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install core deps
+        run: |
+          pip install --upgrade pip
+          pip install fastapi pydantic pydantic-settings sqlalchemy asyncpg \
+            redis httpx beautifulsoup4 phonenumbers python-dateutil aiofiles networkx stem
+
+      - name: Check modules import cleanly
+        run: python scripts/check_imports.py
+        continue-on-error: true

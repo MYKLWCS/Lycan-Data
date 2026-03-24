@@ -18,10 +18,10 @@ router = APIRouter()
 # Seed type → applicable platform crawlers
 SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
     SeedType.USERNAME: [
-        # Social platforms
+        # Social platforms (username-based only — NOT phone-based messengers)
         "instagram", "twitter", "reddit", "github", "youtube", "tiktok",
         "linkedin", "facebook", "snapchat", "pinterest", "discord",
-        "telegram", "mastodon", "twitch", "steam",
+        "mastodon", "twitch", "steam",
         # Username sweep
         "username_sherlock",
         # Dark web / paste username lookup

@@ -51,6 +51,14 @@ class YouTubeCrawler(HttpxCrawler):
             source_reliability=self.source_reliability,
         )
 
+    # Consent / GDPR interstitial page markers (multilingual)
+    _CONSENT_MARKERS = [
+        "before you continue", "bevor sie zu youtube", "avant de continuer",
+        "innan du fortsätter", "antes de continuar", "prima di continuare",
+        "voordat je verdergaat", "zanim przejdziesz", "прежде чем продолжить",
+        "consent", "cookie", "gdpr",
+    ]
+
     def _parse(self, html: str, handle: str) -> dict:
         data: dict = {"handle": handle}
         soup = BeautifulSoup(html, "html.parser")
@@ -59,6 +67,10 @@ class YouTubeCrawler(HttpxCrawler):
         title_tag = soup.find("title")
         if title_tag:
             t = title_tag.get_text(strip=True)
+            # Reject consent/GDPR interstitial pages
+            t_lower = t.lower()
+            if any(marker in t_lower for marker in self._CONSENT_MARKERS):
+                return data  # empty — will cause found=False
             data["display_name"] = t.replace(" - YouTube", "").strip()
 
         # Description from meta

@@ -61,10 +61,14 @@ class InstagramCrawler(PlaywrightCrawler):
             if post_match:
                 data["post_count"] = _parse_count(post_match.group(1))
 
-            # Title format: "username (@handle) • Instagram photos and videos"
+            # Title format: "Display Name (@handle) • Instagram photos and videos"
             title = await page.title() or ""
             if "•" in title:
-                data["display_name"] = title.split("•")[0].strip()
+                name_part = title.split("•")[0].strip()
+                # Strip trailing (@handle) — e.g. "Juliana Bentel (@juliana_bentel)"
+                name_part = re.sub(r'\s*\(@[^)]+\)\s*$', '', name_part).strip()
+                if name_part:
+                    data["display_name"] = name_part
 
             og_desc = await page.get_attribute('meta[property="og:description"]', "content") or ""
             if og_desc:

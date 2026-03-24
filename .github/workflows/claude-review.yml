@@ -1,0 +1,66 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude-review:
+    name: Claude Code Review
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-opus-4-6
+          direct_prompt: |
+            You are reviewing a pull request for the Lycan OSINT platform.
+
+            Review this PR specifically for:
+
+            1. DATA QUALITY BUGS
+            - Crawlers returning consent/GDPR pages as real data (YouTube "Before you
+              continue to YouTube" becoming a person's name)
+            - Platform suffixes not stripped from display names ("Name sur Snapchat")
+            - False positive found=True results
+            - Pivot enricher running on garbage strings (platform names, consent phrases)
+
+            2. PIPELINE CORRECTNESS
+            - source_reliability values overwritten by apply_quality_to_model
+            - Person.full_name set from garbage display_names
+            - Enrichment orchestrator steps not persisting to Person model
+            - Missing transaction rollbacks on DB errors
+
+            3. SECURITY
+            - SQL injection risks in raw queries
+            - Unvalidated user input reaching crawler URLs
+            - Secrets hardcoded in code
+            - Tor bypass scenarios where real IPs could leak
+
+            4. SPEC COMPLIANCE
+            - Features required by lycan-osint-spec.md that are missing or stubbed
+            - Incorrect spec implementations
+
+            5. CODE QUALITY
+            - Missing error handling in crawlers (return found=False, not raise)
+            - N+1 query problems
+            - Unhandled async context manager leaks
+
+            Be specific. Point to exact files and line numbers.
+            Prioritize by severity. Skip style/formatting comments.

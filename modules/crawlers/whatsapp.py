@@ -22,6 +22,17 @@ class WhatsAppCrawler(HttpxCrawler):
     requires_tor = True
 
     async def scrape(self, identifier: str) -> CrawlerResult:
+        # Only accept phone numbers — reject usernames/handles
+        digits_only = re.sub(r"\D", "", identifier)
+        if len(digits_only) < 7:
+            return CrawlerResult(
+                platform=self.platform,
+                identifier=identifier,
+                found=False,
+                data={},
+                error="invalid_phone",
+            )
+
         # Normalize: remove + and spaces for wa.me URL
         phone = identifier.strip().replace(" ", "").replace("-", "")
         phone_clean = phone.lstrip("+")

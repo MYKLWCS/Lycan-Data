@@ -68,10 +68,23 @@ def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
         data.get("full_name") or data.get("name") or data.get("display_name") or
         data.get("owner_name") or data.get("registrant_name")
     )
+    _REJECT_WORDS = {
+        "youtube", "snapchat", "instagram", "twitter", "facebook", "tiktok",
+        "linkedin", "reddit", "telegram", "whatsapp", "discord", "twitch",
+        "steam", "pinterest", "mastodon", "github",
+        "cookie", "consent", "gdpr", "weitergehen", "continuer", "fortsätter",
+        "continuar", "continue", "privacy", "terms", "sur", "auf",
+    }
     if name and isinstance(name, str):
         clean = name.strip()
-        # Must look like a real name: 2+ words, letters only (no @ # digits)
-        if " " in clean and len(clean) >= 5 and re.match(r"^[A-Za-zÀ-ÖØ-öø-ÿ' \-\.]+$", clean):
+        words = clean.lower().split()
+        # 2-4 words, letters only, no platform/consent keywords
+        if (
+            2 <= len(words) <= 4
+            and len(clean) >= 5
+            and re.match(r"^[A-Za-zÀ-ÖØ-öø-ÿ' \-\.]+$", clean)
+            and not any(w in _REJECT_WORDS for w in words)
+        ):
             found.append(("full_name", clean))
 
     return found[:_MAX_PIVOTS]
