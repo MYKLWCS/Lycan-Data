@@ -660,7 +660,7 @@ const App = {
         }
         if (bannerCrawlers) bannerCrawlers.textContent = health.crawlers_registered || '—';
 
-        if (total > 0 || ingest > 0 || index > 0) {
+        if (total > 0 || ingestBacklog > 0 || indexBacklog > 0) {
           if (banner) banner.className = 'working';
           if (bannerDot) bannerDot.className = 'dot yellow pulse';
           if (bannerStatus) { bannerStatus.textContent = 'Enriching…'; bannerStatus.style.color = 'var(--yellow)'; }

@@ -50,7 +50,6 @@ def check_db_reachable():
         try:
             async for session in get_test_db():
                 await session.execute(__import__("sqlalchemy").text("SELECT 1"))
-                break
         except Exception as exc:
             logger.warning("Test database is not reachable: %s — DB-dependent tests may fail", exc)
 

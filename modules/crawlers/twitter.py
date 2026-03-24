@@ -35,7 +35,8 @@ class TwitterCrawler(HttpxCrawler):
 
         for instance in NITTER_INSTANCES:
             result = await self._try_instance(instance, handle)
-            if result.found or result.error != "not_found":
+            error_code = result.error or result.data.get("error")
+            if result.found or error_code != "not_found":
                 return result
 
         return self._result(handle, found=False, handle=handle, error="all_instances_failed")

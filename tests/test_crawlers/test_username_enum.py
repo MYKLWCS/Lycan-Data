@@ -244,9 +244,12 @@ async def test_sherlock_subprocess_args():
     mock_proc = MagicMock()
     mock_proc.communicate = AsyncMock(return_value=(fake_stdout, b""))
 
+    async def _passthrough_wait_for(coro, timeout):
+        return await coro
+
     with (
         patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec,
-        patch("asyncio.wait_for", new=AsyncMock(return_value=(fake_stdout, b""))),
+        patch("asyncio.wait_for", side_effect=_passthrough_wait_for),
     ):
         await _run_sherlock("targetuser")
 

@@ -4,7 +4,9 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
   "python.testing.pytestArgs": [
-    "tests"
+    "tests",
+    "--import-mode=importlib",
+    "--continue-on-collection-errors"
   ],
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
   "python.analysis.extraPaths": [
