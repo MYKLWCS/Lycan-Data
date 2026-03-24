@@ -84,12 +84,14 @@ async def test_process_one_routes_to_correct_crawler(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", new_callable=AsyncMock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 
@@ -133,21 +135,23 @@ async def test_found_result_triggers_upsert_and_done(dispatcher, mock_session):
     mock_crawler_inst.run = AsyncMock(return_value=found_result)
     mock_crawler_cls.return_value = mock_crawler_inst
 
-    upsert_mock = AsyncMock()
+    aggregate_mock = AsyncMock(return_value={"person_id": None})
 
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", upsert_mock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", aggregate_mock),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 
-    upsert_mock.assert_called_once()
+    aggregate_mock.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -167,12 +171,14 @@ async def test_rate_limited_error_sets_rate_limited_and_requeues(dispatcher, moc
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", new_callable=AsyncMock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 
@@ -198,12 +204,14 @@ async def test_blocked_error_sets_blocked_status(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", new_callable=AsyncMock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 
@@ -226,12 +234,14 @@ async def test_exception_causes_failed_and_retry(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", new_callable=AsyncMock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 
@@ -255,12 +265,14 @@ async def test_max_retries_exceeded_no_requeue(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", new_callable=AsyncMock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 
@@ -403,12 +415,14 @@ async def test_found_result_publishes_enrichment_event(dispatcher, mock_session)
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", new_callable=AsyncMock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 
@@ -438,12 +452,14 @@ async def test_not_found_no_error_sets_done(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.upsert_social_profile", new_callable=AsyncMock),
+        patch("modules.dispatcher.dispatcher.aggregate_result", new_callable=AsyncMock, return_value={"person_id": None}),
+        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
         mock_bus.publish = AsyncMock()
         mock_bus.enqueue = AsyncMock()
+        mock_meili.index_person = AsyncMock()
 
         await dispatcher._process_one()
 

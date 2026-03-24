@@ -9,17 +9,22 @@ updates CrawlJob status, and emits completion events.
 import asyncio
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.constants import CrawlStatus, Platform
 from shared.db import AsyncSessionLocal
 from shared.events import event_bus
 from shared.models.crawl import CrawlJob, CrawlLog
+from shared.models.person import Person
+from shared.models.identifier import Identifier
 from modules.crawlers.registry import get_crawler, CRAWLER_REGISTRY
-from modules.crawlers.db_writer import upsert_social_profile
+from modules.pipeline.aggregator import aggregate_result
+from modules.search.meili_indexer import meili_indexer, build_person_doc
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +103,31 @@ class CrawlDispatcher:
             duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
 
             if result.found:
-                await upsert_social_profile(session, result, person_id=person_id)
+                written = await aggregate_result(session, result, person_id=person_id)
                 await session.commit()
+
+                # Re-index in MeiliSearch
+                pid = written.get("person_id")
+                if pid:
+                    try:
+                        p = await session.get(Person, uuid.UUID(pid))
+                        if p:
+                            idents = (await session.execute(
+                                select(Identifier).where(Identifier.person_id == p.id)
+                            )).scalars().all()
+                            doc = build_person_doc(
+                                person_id=pid,
+                                full_name=p.full_name,
+                                phones=[i.value for i in idents if i.type == "phone"],
+                                emails=[i.value for i in idents if i.type == "email"],
+                                usernames=[i.value for i in idents if i.type == "username"],
+                                default_risk_score=p.default_risk_score,
+                                nationality=p.nationality,
+                            )
+                            await meili_indexer.index_person(doc)
+                    except Exception as meili_exc:
+                        logger.warning(f"MeiliSearch index failed for person {pid}: {meili_exc}")
+
                 await self._update_job_status(session, job_id, CrawlStatus.DONE)
                 await self._log_crawl(session, job_id, platform, identifier, True, duration_ms)
                 await event_bus.publish("enrichment", {
