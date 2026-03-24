@@ -31,7 +31,7 @@ def _person_node(person: Person) -> dict:
         "id": str(person.id),
         "type": "person",
         "label": person.full_name or str(person.id),
-        "risk_score": person.default_risk_score,
+        "risk_score": person.default_risk_score or 0.0,
     }
 
 
@@ -88,15 +88,67 @@ class EntityGraphBuilder:
                 visited_persons.add(pid)
                 nodes[pid_str] = _person_node(person)
 
-            # Process each person in the frontier
+            # Batch all associated data for the entire frontier at once
+            frontier_list = list(frontier)
+
+            addr_rows_batch = (await session.execute(
+                select(Address).where(Address.person_id.in_(frontier_list))
+            )).scalars().all()
+            addr_by_pid: dict[uuid.UUID, list] = defaultdict(list)
+            for a in addr_rows_batch:
+                addr_by_pid[a.person_id].append(a)
+
+            ident_rows_batch = (await session.execute(
+                select(Identifier).where(Identifier.person_id.in_(frontier_list))
+            )).scalars().all()
+            ident_by_pid: dict[uuid.UUID, list] = defaultdict(list)
+            for i in ident_rows_batch:
+                ident_by_pid[i.person_id].append(i)
+
+            emp_rows_batch = (await session.execute(
+                select(EmploymentHistory).where(
+                    EmploymentHistory.person_id.in_(frontier_list),
+                    EmploymentHistory.employer_name.isnot(None),
+                )
+            )).scalars().all()
+            emp_by_pid: dict[uuid.UUID, list] = defaultdict(list)
+            for e in emp_rows_batch:
+                emp_by_pid[e.person_id].append(e)
+
+            sp_rows_batch = (await session.execute(
+                select(SocialProfile).where(SocialProfile.person_id.in_(frontier_list))
+            )).scalars().all()
+            sp_by_pid: dict[uuid.UUID, list] = defaultdict(list)
+            for s in sp_rows_batch:
+                sp_by_pid[s.person_id].append(s)
+
+            rel_rows_batch = (await session.execute(
+                select(Relationship).where(
+                    (Relationship.person_a_id.in_(frontier_list))
+                    | (Relationship.person_b_id.in_(frontier_list))
+                )
+            )).scalars().all()
+            rel_by_pid: dict[uuid.UUID, list] = defaultdict(list)
+            for r in rel_rows_batch:
+                rel_by_pid[r.person_a_id].append(r)
+                rel_by_pid[r.person_b_id].append(r)
+
+            edge_keys: set[frozenset] = set()
+
+            def _add_edge_dedup(
+                source: str, target: str, etype: str, conf: float
+            ) -> None:
+                key = frozenset([source, target, etype])
+                if key not in edge_keys:
+                    edge_keys.add(key)
+                    edges.append(_edge(source, target, etype, conf))
+
             for person in person_rows:
                 pid = person.id
                 pid_str = str(pid)
 
                 # --- Addresses ---
-                addr_stmt = select(Address).where(Address.person_id == pid)
-                addr_result = await session.execute(addr_stmt)
-                for addr in addr_result.scalars().all():
+                for addr in addr_by_pid.get(pid, []):
                     addr_id = f"addr:{addr.id}"
                     label = ", ".join(
                         filter(None, [addr.street, addr.city, addr.state_province])
@@ -105,9 +157,7 @@ class EntityGraphBuilder:
                     edges.append(_edge(pid_str, addr_id, "lives_at", 0.95))
 
                 # --- Identifiers ---
-                id_stmt = select(Identifier).where(Identifier.person_id == pid)
-                id_result = await session.execute(id_stmt)
-                for ident in id_result.scalars().all():
+                for ident in ident_by_pid.get(pid, []):
                     itype = ident.type.lower()
                     if itype not in ("phone", "email", "ssn", "passport"):
                         continue
@@ -116,16 +166,11 @@ class EntityGraphBuilder:
                     iid = f"ident:{ident.id}"
                     nodes[iid] = _stub_node(iid, node_type, ident.value)
                     edges.append(
-                        _edge(pid_str, iid, edge_type, ident.confidence)
+                        _edge(pid_str, iid, edge_type, ident.confidence or 1.0)
                     )
 
                 # --- Employment / company nodes ---
-                emp_stmt = select(EmploymentHistory).where(
-                    EmploymentHistory.person_id == pid,
-                    EmploymentHistory.employer_name.isnot(None),
-                )
-                emp_result = await session.execute(emp_stmt)
-                for emp in emp_result.scalars().all():
+                for emp in emp_by_pid.get(pid, []):
                     emp_name = emp.employer_name or ""
                     cid = f"company:{uuid.uuid5(uuid.NAMESPACE_DNS, emp_name.lower().strip())}"
                     if cid not in nodes:
@@ -135,21 +180,18 @@ class EntityGraphBuilder:
                     edges.append(_edge(pid_str, cid, edge_type, conf))
 
                 # --- Social profiles ---
-                sp_stmt = select(SocialProfile).where(SocialProfile.person_id == pid)
-                sp_result = await session.execute(sp_stmt)
-                for sp in sp_result.scalars().all():
+                for sp in sp_by_pid.get(pid, []):
                     sp_id = f"social:{sp.id}"
                     label = f"{sp.platform}:{sp.handle or sp.platform_user_id}"
                     nodes[sp_id] = _stub_node(sp_id, "social_profile", label)
                     edges.append(_edge(pid_str, sp_id, "has_social", 1.0))
 
-                # --- Relationships → expand frontier ---
-                rel_stmt = select(Relationship).where(
-                    (Relationship.person_a_id == pid)
-                    | (Relationship.person_b_id == pid)
-                )
-                rel_result = await session.execute(rel_stmt)
-                for rel in rel_result.scalars().all():
+                # --- Relationships → expand frontier (deduplicated) ---
+                seen_rels: set[uuid.UUID] = set()
+                for rel in rel_by_pid.get(pid, []):
+                    if rel.id in seen_rels:
+                        continue
+                    seen_rels.add(rel.id)
                     other_id = (
                         rel.person_b_id
                         if rel.person_a_id == pid
@@ -160,9 +202,7 @@ class EntityGraphBuilder:
                         next_frontier.add(other_id)
                         if other_str not in nodes:
                             nodes[other_str] = _stub_node(other_str, "person", other_str)
-                    edges.append(
-                        _edge(pid_str, other_str, rel.rel_type, rel.score)
-                    )
+                    _add_edge_dedup(pid_str, other_str, rel.rel_type, rel.score or 0.5)
 
             frontier = next_frontier - visited_persons
 
@@ -193,11 +233,11 @@ class EntityGraphBuilder:
         id_result = await session.execute(id_stmt)
         ident_rows: list[Identifier] = list(id_result.scalars().all())
 
-        value_map: dict[tuple[str, str], list[str]] = defaultdict(list)
+        value_map: dict[tuple[str, str], set[str]] = defaultdict(set)
         for row in ident_rows:
             key = (row.type, (row.normalized_value or row.value).lower().strip())
             if row.person_id:
-                value_map[key].append(str(row.person_id))
+                value_map[key].add(str(row.person_id))
 
         for (itype, value), pids in value_map.items():
             if len(pids) > 1:
@@ -205,7 +245,7 @@ class EntityGraphBuilder:
                     {
                         "type": itype,
                         "value": value,
-                        "person_ids": pids,
+                        "person_ids": list(pids),
                         "risk_implication": "shared_identifier",
                     }
                 )

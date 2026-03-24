@@ -49,15 +49,6 @@ class CompanyRecord:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _name_similarity(a: str, b: str) -> float:
-    """Rough token-overlap similarity between two lowercased strings."""
-    tokens_a = set(a.lower().split())
-    tokens_b = set(b.lower().split())
-    if not tokens_a or not tokens_b:
-        return 0.0
-    return len(tokens_a & tokens_b) / max(len(tokens_a), len(tokens_b))
-
-
 def _build_record_from_rows(
     employer_name: str,
     employment_rows: list[EmploymentHistory],
@@ -84,7 +75,8 @@ def _build_record_from_rows(
     # Pull website from meta if present
     website: str | None = None
     for row in employment_rows:
-        website = row.meta.get("website") or row.meta.get("url")
+        meta = row.meta or {}
+        website = meta.get("website") or meta.get("url")
         if website:
             break
 
@@ -178,13 +170,12 @@ class CompanyIntelligenceEngine:
             p_result = await session.execute(p_stmt)
             person_rows = list(p_result.scalars().all())
 
-        records: list[CompanyRecord] = []
-        for employer_name, emp_rows in list(groups.items())[:10]:
-            display_name = emp_rows[0].employer_name or employer_name
-            record = _build_record_from_rows(display_name, emp_rows, person_rows)
-            records.append(record)
-
-        # Sort by confidence descending
+        records = [
+            _build_record_from_rows(
+                emp_rows[0].employer_name or employer_name, emp_rows, person_rows
+            )
+            for employer_name, emp_rows in groups.items()
+        ]
         records.sort(key=lambda r: r.confidence_score, reverse=True)
         return records[:10]
 
@@ -218,14 +209,14 @@ class CompanyIntelligenceEngine:
             person_rows = list(p_result.scalars().all())
 
         company_node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, name_lower))
-        nodes: list[dict] = [
-            {
+        nodes_dict: dict[str, dict] = {
+            company_node_id: {
                 "id": company_node_id,
                 "type": "company",
                 "label": company_name,
                 "risk_score": 0.0,
             }
-        ]
+        }
         edges: list[dict] = []
 
         person_map: dict[str, Person] = {str(p.id): p for p in person_rows}
@@ -236,11 +227,10 @@ class CompanyIntelligenceEngine:
                 continue
             person = person_map.get(pid)
             label = person.full_name if person else pid
-            risk = person.default_risk_score if person else 0.0
+            risk = (person.default_risk_score or 0.0) if person else 0.0
 
-            # Only add node once
-            if not any(n["id"] == pid for n in nodes):
-                nodes.append({"id": pid, "type": "person", "label": label, "risk_score": risk})
+            if pid not in nodes_dict:
+                nodes_dict[pid] = {"id": pid, "type": "person", "label": label, "risk_score": risk}
 
             edge_type = "officer" if row.job_title else "employee"
             edges.append(
@@ -272,7 +262,7 @@ class CompanyIntelligenceEngine:
                     }
                 )
 
-        return {"nodes": nodes, "edges": edges}
+        return {"nodes": list(nodes_dict.values()), "edges": edges}
 
     async def get_person_companies(
         self,
