@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.events import event_bus
 from shared.models.address import Address
+from shared.models.burner import BurnerAssessment
 from shared.models.credit_risk import CreditRiskAssessment
 from shared.models.criminal import CriminalRecord
 from shared.models.darkweb import CryptoWallet, DarkwebMention
@@ -34,7 +35,7 @@ class AMLResult:
     risk_score: float                    # 0.0–1.0
     is_pep: bool
     sanctions_hits: list[dict[str, Any]]
-    adverse_media_count: int
+    darkweb_mention_count: int
     risk_tier: str                       # low | medium | high | critical
 
 
@@ -66,7 +67,7 @@ _FRAUD_TIERS = [(0.75, "critical"), (0.50, "high"), (0.25, "medium"), (0.0, "low
 
 
 def _tier(value: float, tiers: list[tuple[float, str]]) -> str:
-    return next(label for threshold, label in tiers if value >= threshold)
+    return next((label for threshold, label in tiers if value >= threshold), tiers[-1][1])
 
 
 # ─── Alternative Credit Scorer ────────────────────────────────────────────────
@@ -119,7 +120,6 @@ class AlternativeCreditScorer:
     def _utilization(self, s: dict) -> float:
         v = 1.0
         v -= min(0.50, s.get("darkweb_mention_count", 0) * 0.15)
-        v -= min(0.30, s.get("adverse_media_count", 0) * 0.10)
         return max(0.0, v)
 
     def _trajectory(self, s: dict) -> float:
@@ -175,7 +175,7 @@ class AMLScreener:
             risk_score=risk,
             is_pep=is_pep,
             sanctions_hits=sanctions_hits,
-            adverse_media_count=len(darkweb_rows),
+            darkweb_mention_count=len(darkweb_rows),
             risk_tier=_tier(risk, _AML_TIERS),
         )
 
@@ -202,13 +202,16 @@ class FraudRiskScorer:
         # Address velocity
         n_addr = len(address_rows)
         if n_addr > 8:
-            fs += 0.20; indicators.append(f"high address velocity: {n_addr}")
+            fs += 0.20
+            indicators.append(f"high address velocity: {n_addr}")
         elif n_addr > 5:
-            fs += 0.10; indicators.append(f"elevated address velocity: {n_addr}")
+            fs += 0.10
+            indicators.append(f"elevated address velocity: {n_addr}")
 
         n_countries = len({a.country_code for a in address_rows if a.country_code})
         if n_countries > 3:
-            fs += 0.10; indicators.append(f"multi-country presence: {n_countries} countries")
+            fs += 0.10
+            indicators.append(f"multi-country presence: {n_countries} countries")
 
         # Identity document inconsistencies
         low_conf = [i for i in identifier_rows if i.confidence < 0.5]
@@ -296,6 +299,13 @@ class FinancialIntelligenceEngine:
             .limit(1)
         )).scalars().first()
 
+        identifier_ids = [i.id for i in identifiers]
+        burner_rows = []
+        if identifier_ids:
+            burner_rows = (await session.execute(
+                select(BurnerAssessment).where(BurnerAssessment.identifier_id.in_(identifier_ids))
+            )).scalars().all()
+
         # Run scorers
         aml = self._aml.screen(list(watchlist), list(darkweb), list(crypto))
         fraud = self._fraud.score(list(addresses), list(identifiers),
@@ -313,8 +323,7 @@ class FinancialIntelligenceEngine:
             "wealth_band": wealth_row.wealth_band if wealth_row else "unknown",
             "income_estimate_usd": wealth_row.income_estimate_usd if wealth_row else None,
             "identifier_count": len(identifiers),
-            "burner_flag": False,
-            "adverse_media_count": aml.adverse_media_count,
+            "burner_flag": any(b.is_burner for b in burner_rows),
             "pep_flag": aml.is_pep,
         }
         credit = self._credit.score(signals)
@@ -372,8 +381,9 @@ class FinancialIntelligenceEngine:
         base_income_max = round(base_income_min * 1.5, 2)
 
         if wealth_row:
-            # Update existing record
-            wealth_row.wealth_band = derived_wealth_band
+            # Update existing record — only set wealth_band if no existing value is present
+            if not wealth_row.wealth_band:
+                wealth_row.wealth_band = derived_wealth_band
             wealth_row.income_estimate_usd = base_income_min
             wealth_row.crypto_signal = crypto_signal_val
             wealth_row.confidence = round(
