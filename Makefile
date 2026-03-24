@@ -1,4 +1,4 @@
-.PHONY: dev test migrate shell logs down up install api worker worker-fast
+.PHONY: dev test test-ci selfheal migrate shell logs down up install api worker worker-fast
 
 dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
@@ -37,3 +37,18 @@ worker:
 
 worker-fast:
 	.venv/bin/python worker.py --workers 8
+
+test-ci:
+	pytest tests/ \
+		--cov=. \
+		--cov-report=xml \
+		--cov-report=term-missing \
+		--cov-omit="tests/*,migrations/*,scripts/*" \
+		-v --tb=short \
+		--ignore=tests/test_crawlers \
+		--ignore=tests/test_darkweb \
+		--ignore=tests/test_government \
+		-k "not integration and not playwright"
+
+selfheal:
+	.venv/bin/python scripts/selfheal.py
