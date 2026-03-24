@@ -90,7 +90,9 @@ Inherits from `HttpxCrawler`. Overrides `_client()` to build a `curl_cffi.AsyncS
 
 Inherits from `CurlCrawler`. Adds `fs_get(url)` and `fs_post(url, data)` methods. These POST to the FlareSolverr HTTP API at `FLARESOLVERR_URL` (env var, default `http://localhost:8191`). FlareSolverr runs a headless Chrome, solves the CF JS challenge, and returns rendered HTML + cookies.
 
-If FlareSolverr is unreachable (health check on first call, then cached per-instance), `fs_get` transparently delegates to `super().get()` (CurlCrawler) and returns `(response.text, {})`. No subclass code changes needed.
+If FlareSolverr is unreachable, `fs_get` transparently delegates to `super().get()` (CurlCrawler) and returns `(response.text, {})`. No subclass code changes needed.
+
+**Health check caching:** The FlareSolverr reachability result is cached at **class level** (shared across all instances), with a 60-second TTL on negative results. After 60 seconds of unavailability, the next `fs_get` call re-probes. A positive result (reachable) is cached indefinitely until a connection error occurs mid-request, which resets to a negative cache entry. This prevents repeated health probes on every request while allowing recovery detection within one minute.
 
 Session persistence: FlareSolverr sessions are created per-domain and reused to carry cookies through challenge flows.
 
@@ -177,7 +179,16 @@ TWITTER_HANDLE   = "twitter_handle"
 LINKEDIN_URL     = "linkedin_url"
 ```
 
-Add corresponding entries in `SEED_PLATFORM_MAP` in `search.py` or pivot-only identifiers will be stored but never dispatched.
+**These are pivot-only types — they are not valid seed inputs from the API.** A user will not type an Instagram handle as a seed; they will type the username and it will be detected as `USERNAME`. The new types exist so that when a WhitePages result contains an Instagram URL, the pivot enricher can store and dispatch it correctly as `instagram_handle` rather than conflating it with `USERNAME`.
+
+Because they are pivot-only, `_auto_detect_type()` does NOT need new detection branches for these types. They will never appear as seed input values at the API layer. `SEED_PLATFORM_MAP` must still have entries for them (so that when a pivot-created identifier is dispatched back through `dispatch_job`, the correct crawlers are selected).
+
+`SEED_PLATFORM_MAP` entries for new types:
+```
+SeedType.INSTAGRAM_HANDLE → ["instagram", "username_maigret", "username_sherlock"]
+SeedType.TWITTER_HANDLE   → ["twitter", "username_maigret", "username_sherlock"]
+SeedType.LINKEDIN_URL     → ["linkedin"]
+```
 
 ---
 
@@ -210,7 +221,18 @@ All free/open source. Follow `@register("platform")` pattern.
 
 CLI wrapper pattern: use `asyncio.wait_for(proc.communicate(), timeout=N)`. On `TimeoutError`, kill proc and return `error="timeout"` result. Parse stdout as JSON. All wrappers must pass identifier as a positional argument (never interpolated into a shell string) to prevent injection.
 
-All 6 added to `SEED_PLATFORM_MAP` and `_PIVOT_PLATFORMS`.
+**`SEED_PLATFORM_MAP` entries for new crawlers:**
+
+| Crawler | SeedType keys |
+|---|---|
+| `username_maigret` | `USERNAME`, `INSTAGRAM_HANDLE`, `TWITTER_HANDLE` |
+| `email_socialscan` | `EMAIL`, `USERNAME` |
+| `phone_phoneinfoga` | `PHONE` |
+| `people_phonebook` | `FULL_NAME`, `EMAIL`, `DOMAIN` |
+| `people_intelx` | `FULL_NAME`, `EMAIL`, `USERNAME`, `DOMAIN` |
+| `email_dehashed` | `EMAIL`, `FULL_NAME` |
+
+All 6 also added to `_PIVOT_PLATFORMS` under their primary identifier type.
 
 ---
 
