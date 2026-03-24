@@ -15,35 +15,37 @@ class HttpxCrawler(BaseCrawler):
     No browser — fast, low resource.
     """
 
+    def _client(self, **kwargs: Any) -> httpx.AsyncClient:
+        """Build AsyncClient with optional SOCKS5 proxy (httpx 0.28+ compatible)."""
+        proxy = self.get_proxy()
+        transport = None
+        if proxy:
+            try:
+                transport = httpx.AsyncHTTPTransport(proxy=proxy)
+            except Exception:
+                pass  # proxy unavailable — run direct
+        return httpx.AsyncClient(
+            transport=transport,
+            timeout=20.0,
+            follow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; LycanBot/1.0)"},
+            **kwargs,
+        )
+
     async def get(self, url: str, **kwargs: Any) -> httpx.Response | None:
         """GET with Tor proxy and timeout. Returns None on error."""
-        proxy = self.get_proxy()
-        proxies = {"all://": proxy} if proxy else None
         try:
-            async with httpx.AsyncClient(
-                proxies=proxies,
-                timeout=20.0,
-                follow_redirects=True,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; LycanBot/1.0)"},
-            ) as client:
-                response = await client.get(url, **kwargs)
-                return response
+            async with self._client() as client:
+                return await client.get(url, **kwargs)
         except Exception as exc:
             logger.warning("httpx GET failed for %s: %s", url, exc)
             return None
 
     async def post(self, url: str, **kwargs: Any) -> httpx.Response | None:
         """POST with Tor proxy."""
-        proxy = self.get_proxy()
-        proxies = {"all://": proxy} if proxy else None
         try:
-            async with httpx.AsyncClient(
-                proxies=proxies,
-                timeout=20.0,
-                follow_redirects=True,
-            ) as client:
-                response = await client.post(url, **kwargs)
-                return response
+            async with self._client() as client:
+                return await client.post(url, **kwargs)
         except Exception as exc:
             logger.warning("httpx POST failed for %s: %s", url, exc)
             return None
