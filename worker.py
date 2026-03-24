@@ -50,6 +50,8 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool):
     from modules.dispatcher.dispatcher import CrawlDispatcher
     from modules.dispatcher.growth_daemon import GrowthDaemon
     from modules.dispatcher.freshness_scheduler import FreshnessScheduler
+    from modules.pipeline.ingestion_daemon import IngestionDaemon
+    from modules.search.index_daemon import IndexDaemon
 
     await event_bus.connect()
     await tor_manager.connect_all()
@@ -61,11 +63,22 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool):
 
     tasks = []
 
-    # Dispatcher workers
+    # Dispatcher workers (Crawlers)
     for i in range(workers):
-        d = CrawlDispatcher(worker_id=f"worker-{i+1}")
+        d = CrawlDispatcher(worker_id=f"dispatcher-{i+1}")
         tasks.append(asyncio.create_task(d.start(), name=f"dispatcher-{i+1}"))
         logger.info(f"Started dispatcher worker-{i+1}")
+
+    # Ingestion workers (Database writes)
+    for i in range(2):  # 2 ingesters by default
+        ingest = IngestionDaemon(worker_id=f"ingester-{i+1}")
+        tasks.append(asyncio.create_task(ingest.start(), name=f"ingester-{i+1}"))
+        logger.info(f"Started ingestion daemon-{i+1}")
+
+    # Index worker (MeiliSearch writes)
+    indexer = IndexDaemon(worker_id="indexer-1")
+    tasks.append(asyncio.create_task(indexer.start(), name="indexer-1"))
+    logger.info("Started index daemon-1")
 
     # Growth daemon
     if enable_growth:

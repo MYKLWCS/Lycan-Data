@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, AsyncGenerator
 from uuid import UUID
 
@@ -27,6 +27,8 @@ class EventBus:
         lycan:queue:high    — priority 1-3 jobs
         lycan:queue:normal  — priority 4-7 jobs
         lycan:queue:low     — priority 8-10 jobs
+        lycan:queue:ingest  — raw crawler results waiting for DB insertion
+        lycan:queue:index   — parsed person states waiting for MeiliSearch
     """
 
     CHANNELS = {
@@ -41,6 +43,8 @@ class EventBus:
         "high": "lycan:queue:high",
         "normal": "lycan:queue:normal",
         "low": "lycan:queue:low",
+        "ingest": "lycan:queue:ingest",
+        "index": "lycan:queue:index",
     }
 
     def __init__(self, url: str | None = None) -> None:
@@ -99,7 +103,7 @@ class EventBus:
 
     async def enqueue(self, job: dict[str, Any], priority: str = "normal") -> None:
         """Push a job to the appropriate priority queue."""
-        job.setdefault("enqueued_at", datetime.utcnow().isoformat())
+        job.setdefault("enqueued_at", datetime.now(timezone.utc).isoformat())
         queue = self.QUEUES.get(priority, self.QUEUES["normal"])
         await self.redis.lpush(queue, _serialize(job))
 

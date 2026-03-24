@@ -28,6 +28,9 @@ from shared.models.watchlist import WatchlistMatch
 from shared.models.darkweb import DarkwebMention
 from shared.models.alert import Alert
 from shared.models.breach import BreachRecord
+from shared.models.criminal import CriminalRecord
+from shared.models.identity_document import IdentityDocument, CreditProfile
+from shared.models.identifier_history import IdentifierHistory
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +60,17 @@ _PEOPLE_SEARCH_PLATFORMS = {
     "whitepages", "fastpeoplesearch", "truepeoplesearch",
 }
 
-# Court record platform keys
+# Court / criminal record platform keys
 _COURT_PLATFORMS = {"court_courtlistener", "court_state"}
+
+# Sex offender registry
+_SEX_OFFENDER_PLATFORMS = {"public_nsopw"}
+
+# Government / voter / ID sources
+_GOVERNMENT_PLATFORMS = {"public_voter", "public_npi", "public_faa"}
+
+# Bankruptcy
+_BANKRUPTCY_PLATFORMS = {"bankruptcy_pacer"}
 
 
 async def aggregate_result(
@@ -115,8 +127,21 @@ async def aggregate_result(
 
     # Court / legal records ───────────────────────────────────────────────────
     if platform in _COURT_PLATFORMS:
-        await _handle_court_records(session, result, person.id)
-        written["court_records"] = True
+        count = await _handle_court_records(session, result, person.id)
+        written["criminal_records"] = count
+
+    # Sex offender registry
+    if platform in _SEX_OFFENDER_PLATFORMS:
+        count = await _handle_sex_offender(session, result, person.id)
+        written["sex_offender_records"] = count
+
+    # Bankruptcy
+    if platform in _BANKRUPTCY_PLATFORMS:
+        await _handle_bankruptcy(session, result, person.id)
+        written["bankruptcy"] = True
+
+    # Identifier history ───────────────────────────────────────────────────────
+    await _record_identifier_history(session, result, person.id)
 
     # Behavioural signals ─────────────────────────────────────────────────────
     if platform == "social_posts_analyzer":
@@ -131,26 +156,45 @@ async def aggregate_result(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+def _normalize_name(name: str) -> str:
+    """Lowercase, strip whitespace, collapse inner spaces for fuzzy matching."""
+    import re
+    return re.sub(r"\s+", " ", name.lower().strip())
+
+
 async def _get_or_create_person(
     session: AsyncSession,
     person_id: str | None,
     result: CrawlerResult,
 ) -> Person:
-    """Return an existing Person or create a new one."""
-    if person_id:
-        p = await session.get(Person, uuid.UUID(person_id))
-        if p:
-            return p
+    """Return an existing Person or create a new one.
 
-    # Try to find by full_name if result carries one
+    Resolution order:
+      1. person_id provided → look up directly
+      2. full_name match (normalized) on existing record
+      3. Create new Person
+    """
+    if person_id:
+        try:
+            p = await session.get(Person, uuid.UUID(person_id))
+            if p:
+                return p
+        except (ValueError, Exception):
+            pass
+
+    # Try to find by normalized full_name if result carries one
     full_name = (
         result.data.get("name")
         or result.data.get("full_name")
         or result.data.get("display_name")
     )
     if full_name:
+        norm = _normalize_name(full_name)
+        # Match on exact normalized name to avoid false-positive merges
         existing = (await session.execute(
-            select(Person).where(Person.full_name == full_name).limit(1)
+            select(Person).where(
+                Person.full_name.ilike(norm)
+            ).limit(1)
         )).scalar_one_or_none()
         if existing:
             return existing
@@ -485,23 +529,215 @@ async def _handle_court_records(
     session: AsyncSession,
     result: CrawlerResult,
     person_id: uuid.UUID,
-) -> None:
-    """Raise a MEDIUM alert when court records are found."""
+) -> int:
+    """Persist structured CriminalRecord rows and raise an alert."""
     data = result.data or {}
     cases = data.get("cases") or []
+    count = 0
+
+    for case in cases:
+        if not isinstance(case, dict):
+            continue
+
+        raw_arrest = case.get("arrest_date") or case.get("date")
+        arrest_date = None
+        if raw_arrest:
+            try:
+                from datetime import date as _date
+                arrest_date = _date.fromisoformat(str(raw_arrest)[:10])
+            except (ValueError, TypeError):
+                pass
+
+        raw_disp = case.get("disposition_date") or case.get("closed_date")
+        disposition_date = None
+        if raw_disp:
+            try:
+                from datetime import date as _date
+                disposition_date = _date.fromisoformat(str(raw_disp)[:10])
+            except (ValueError, TypeError):
+                pass
+
+        import hashlib
+        source_url = case.get("url") or case.get("case_url") or ""
+        url_hash = hashlib.sha256(source_url.encode()).hexdigest() if source_url else None
+
+        rec = CriminalRecord(
+            id=uuid.uuid4(),
+            person_id=person_id,
+            record_type="charge",
+            offense_level=_normalize_offense_level(case.get("level") or case.get("offense_level")),
+            charge=str(case.get("charge") or case.get("offense") or "")[:500] or None,
+            offense_description=str(case.get("description") or case.get("details") or "")[:2000] or None,
+            statute=str(case.get("statute") or case.get("code") or "")[:200] or None,
+            court_case_number=str(case.get("case_number") or case.get("docket") or "")[:200] or None,
+            court_name=str(case.get("court") or case.get("court_name") or "")[:300] or None,
+            jurisdiction=str(case.get("jurisdiction") or case.get("county") or "")[:200] or None,
+            arrest_date=arrest_date,
+            disposition_date=disposition_date,
+            disposition=str(case.get("disposition") or case.get("outcome") or "")[:100] or None,
+            sentence=str(case.get("sentence") or "")[:500] or None,
+            source_platform=result.platform,
+            source_url_hashed=url_hash,
+            meta={"raw": case, "source_platform": result.platform},
+            source_reliability=result.source_reliability,
+        )
+        session.add(rec)
+        count += 1
+
+    if count:
+        alert = Alert(
+            id=uuid.uuid4(),
+            person_id=person_id,
+            alert_type=AlertType.CRIMINAL_SIGNAL.value,
+            severity=AlertSeverity.MEDIUM.value,
+            title=f"Court records found — {result.platform}",
+            body=f"{count} case(s) recorded.",
+            payload={"case_count": count, "platform": result.platform},
+        )
+        session.add(alert)
+
+    return count
+
+
+async def _handle_sex_offender(
+    session: AsyncSession,
+    result: CrawlerResult,
+    person_id: uuid.UUID,
+) -> int:
+    """Persist sex offender registry hits as CriminalRecord rows."""
+    data = result.data or {}
+    hits = data.get("hits") or data.get("results") or data.get("offenders") or []
+    count = 0
+
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        rec = CriminalRecord(
+            id=uuid.uuid4(),
+            person_id=person_id,
+            record_type="conviction",
+            offense_level="felony",
+            charge=str(hit.get("offense") or "Sex Offender Registry")[:500],
+            jurisdiction=str(hit.get("jurisdiction") or hit.get("state") or "")[:200] or None,
+            is_sex_offender=True,
+            source_platform=result.platform,
+            meta={"raw": hit, "source_platform": "nsopw"},
+            source_reliability=result.source_reliability,
+        )
+        session.add(rec)
+        count += 1
+
+    if count:
+        alert = Alert(
+            id=uuid.uuid4(),
+            person_id=person_id,
+            alert_type=AlertType.CRIMINAL_SIGNAL.value,
+            severity=AlertSeverity.CRITICAL.value,
+            title="Sex offender registry match",
+            body=f"{count} match(es) found in NSOPW.",
+            payload={"count": count},
+        )
+        session.add(alert)
+
+    return count
+
+
+async def _handle_bankruptcy(
+    session: AsyncSession,
+    result: CrawlerResult,
+    person_id: uuid.UUID,
+) -> None:
+    """Update or create a CreditProfile with bankruptcy indicators."""
+    data = result.data or {}
+    cases = data.get("cases") or data.get("filings") or []
     if not cases:
         return
 
-    alert = Alert(
-        id=uuid.uuid4(),
-        person_id=person_id,
-        alert_type=AlertType.CRIMINAL_SIGNAL.value,
-        severity=AlertSeverity.MEDIUM.value,
-        title=f"Court records found via {result.platform}",
-        body=f"{len(cases)} case(s) found.",
-        payload={"case_count": len(cases), "platform": result.platform},
-    )
-    session.add(alert)
+    existing = (await session.execute(
+        select(CreditProfile).where(CreditProfile.person_id == person_id).limit(1)
+    )).scalar_one_or_none()
+
+    if existing:
+        existing.has_bankruptcy = True
+        existing.bankruptcy_count = max(existing.bankruptcy_count, len(cases))
+        existing.source_platform = result.platform
+    else:
+        cp = CreditProfile(
+            id=uuid.uuid4(),
+            person_id=person_id,
+            has_bankruptcy=True,
+            bankruptcy_count=len(cases),
+            source_platform=result.platform,
+            meta={"raw_cases": cases[:3]},
+            source_reliability=result.source_reliability,
+        )
+        session.add(cp)
+
+
+async def _record_identifier_history(
+    session: AsyncSession,
+    result: CrawlerResult,
+    person_id: uuid.UUID,
+) -> None:
+    """Append every observed identifier to identifier_history (upsert on conflict)."""
+    if not result.identifier:
+        return
+
+    now = datetime.now(timezone.utc)
+
+    # Determine type from platform context
+    platform = (result.platform or "").lower()
+    if "phone" in platform:
+        id_type = "phone"
+    elif "email" in platform:
+        id_type = "email"
+    elif platform in {"instagram", "twitter", "tiktok", "snapchat", "facebook",
+                      "linkedin", "reddit", "youtube", "telegram", "discord",
+                      "whatsapp", "pinterest", "github"}:
+        id_type = "handle"
+    else:
+        id_type = "identifier"
+
+    normalized = result.identifier.lower().strip()
+
+    existing = (await session.execute(
+        select(IdentifierHistory).where(
+            IdentifierHistory.person_id == person_id,
+            IdentifierHistory.type == id_type,
+            IdentifierHistory.value == result.identifier,
+        ).limit(1)
+    )).scalar_one_or_none()
+
+    if existing:
+        existing.last_seen_at = now
+        existing.is_current = True
+    else:
+        entry = IdentifierHistory(
+            id=uuid.uuid4(),
+            person_id=person_id,
+            type=id_type,
+            value=result.identifier,
+            normalized_value=normalized,
+            first_seen_at=now,
+            last_seen_at=now,
+            is_current=True,
+            confidence=result.source_reliability,
+            source_platform=result.platform,
+        )
+        session.add(entry)
+
+
+def _normalize_offense_level(level: str | None) -> str | None:
+    if not level:
+        return None
+    level = level.lower().strip()
+    if "felony" in level or "fel" == level:
+        return "felony"
+    if "misdemeanor" in level or "misd" in level:
+        return "misdemeanor"
+    if "infraction" in level or "violation" in level:
+        return "infraction"
+    return "unknown"
 
 
 async def _handle_behavioural(

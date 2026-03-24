@@ -103,30 +103,20 @@ class CrawlDispatcher:
             duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
 
             if result.found:
-                written = await aggregate_result(session, result, person_id=person_id)
-                await session.commit()
+                # ── DECOUPLED: Push to Ingest Queue ──
+                ingest_payload = {
+                    "result": result.to_db_dict() if hasattr(result, "to_db_dict") else result.__dict__,
+                    "platform": result.platform,
+                    "identifier": result.identifier,
+                    "found": result.found,
+                    "error": result.error,
+                    "person_id": person_id,
+                }
+                # Fix nested dicts (to_db_dict might leave data intact)
+                if hasattr(result, "data"):
+                    ingest_payload["data"] = result.data
 
-                # Re-index in MeiliSearch
-                pid = written.get("person_id")
-                if pid:
-                    try:
-                        p = await session.get(Person, uuid.UUID(pid))
-                        if p:
-                            idents = (await session.execute(
-                                select(Identifier).where(Identifier.person_id == p.id)
-                            )).scalars().all()
-                            doc = build_person_doc(
-                                person_id=pid,
-                                full_name=p.full_name,
-                                phones=[i.value for i in idents if i.type == "phone"],
-                                emails=[i.value for i in idents if i.type == "email"],
-                                usernames=[i.value for i in idents if i.type == "username"],
-                                default_risk_score=p.default_risk_score,
-                                nationality=p.nationality,
-                            )
-                            await meili_indexer.index_person(doc)
-                    except Exception as meili_exc:
-                        logger.warning(f"MeiliSearch index failed for person {pid}: {meili_exc}")
+                await event_bus.enqueue(ingest_payload, priority="ingest")
 
                 await self._update_job_status(session, job_id, CrawlStatus.DONE)
                 await self._log_crawl(session, job_id, platform, identifier, True, duration_ms)

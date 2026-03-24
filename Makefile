@@ -30,7 +30,7 @@ install:
 	playwright install chromium
 
 api:
-	.venv/bin/uvicorn api.main:app --reload --port 8000 --log-level info
+	.venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000 --log-level info --proxy-headers
 
 worker:
 	.venv/bin/python worker.py --workers 4

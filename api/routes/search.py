@@ -3,6 +3,7 @@ import uuid
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
@@ -101,8 +102,8 @@ class SearchRequest(BaseModel):
 class SearchResponse(BaseModel):
     person_id: str
     seed_type: str
-    platforms_queued: list[str]
-    job_count: int
+    platforms_queued: list[str] = []
+    job_count: int = 0
     message: str
 
 
@@ -121,39 +122,73 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
     seed_type = req.seed_type or _auto_detect_type(req.value)
     priority = req.priority if req.priority in ("high", "normal", "low") else "normal"
 
-    # Create person record
-    person = Person(id=uuid.uuid4())
-    session.add(person)
+    # ── Check for existing identifier ────────────────────────────────────────
+    norm_val = req.value.strip().lower()
+    q = select(Identifier).where(
+        Identifier.type == seed_type.value,
+        Identifier.normalized_value == norm_val
+    ).limit(1)
+    existing_ident = (await session.execute(q)).scalar_one_or_none()
 
-    # Create seed identifier
-    ident = Identifier(
-        id=uuid.uuid4(),
-        person_id=person.id,
-        type=seed_type.value,
-        value=req.value,
-        normalized_value=req.value.strip().lower(),
-        confidence=1.0,
-        is_primary=True,
-        meta={"context": req.context, "max_depth": req.max_depth},
-    )
-    session.add(ident)
+    if existing_ident and existing_ident.person_id:
+        person_id = existing_ident.person_id
+    else:
+        # Create person record
+        person = Person(id=uuid.uuid4())
+        session.add(person)
+        await session.flush()
+        person_id = person.id
+
+        if not existing_ident:
+            # Create seed identifier
+            ident = Identifier(
+                id=uuid.uuid4(),
+                person_id=person_id,
+                type=seed_type.value,
+                value=req.value,
+                normalized_value=norm_val,
+                confidence=1.0,
+                is_primary=True,
+                meta={"context": req.context, "max_depth": req.max_depth},
+            )
+            session.add(ident)
+        else:
+            existing_ident.person_id = person_id
+
     await session.commit()
 
     # Enqueue crawl jobs for all matching registered platforms
+    from shared.models.crawl import CrawlJob
+    from shared.constants import CrawlStatus
+
     platforms = SEED_PLATFORM_MAP.get(seed_type, [])
     queued: list[str] = []
     for platform in platforms:
         if platform in CRAWLER_REGISTRY:
+            job = CrawlJob(
+                id=uuid.uuid4(),
+                person_id=person_id,
+                status=CrawlStatus.PENDING.value,
+                job_type="crawl",
+                seed_identifier=req.value,
+                meta={"platform": platform},
+            )
+            session.add(job)
+            await session.flush()  # Ensure ID is generated/synced
+
             await dispatch_job(
                 platform=platform,
                 identifier=req.value,
-                person_id=str(person.id),
+                person_id=str(person_id),
                 priority=priority,
+                job_id=str(job.id),
             )
             queued.append(platform)
 
+    await session.commit()
+
     return SearchResponse(
-        person_id=str(person.id),
+        person_id=str(person_id),
         seed_type=seed_type.value,
         platforms_queued=queued,
         job_count=len(queued),

@@ -1,7 +1,7 @@
 """
 MeiliSearch indexer.
-Indexes Person records with all their identifiers, social profiles, and key fields
-for sub-millisecond full-text search.
+Indexes Person records with all their identifiers, social profiles, addresses,
+and key fields for sub-millisecond full-text + region search.
 """
 import logging
 from typing import Any
@@ -15,14 +15,17 @@ PERSONS_INDEX = "persons"
 MEILI_SETTINGS = {
     "searchableAttributes": [
         "full_name", "aliases", "phones", "emails", "usernames",
-        "platforms", "addresses", "employer", "notes",
+        "platforms", "addresses_text", "city", "state_province", "country",
+        "employer", "notes",
     ],
     "filterableAttributes": [
         "risk_tier", "wealth_band", "has_darkweb", "has_sanctions",
-        "nationality", "platform_count",
+        "nationality", "platform_count", "city", "state_province", "country",
+        "verification_status", "has_addresses",
     ],
     "sortableAttributes": [
         "default_risk_score", "created_at", "platform_count",
+        "city", "state_province", "composite_quality", "corroboration_count",
     ],
     "rankingRules": [
         "words", "typo", "proximity", "attribute", "sort", "exactness",
@@ -42,17 +45,14 @@ class MeiliIndexer:
     async def setup_index(self) -> bool:
         """Create index and configure settings. Idempotent."""
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # Create index
             r = await client.post(
                 f"{self.base}/indexes",
                 json={"uid": PERSONS_INDEX, "primaryKey": "id"},
                 headers=self._headers,
             )
             if r.status_code not in (200, 201, 202):
-                # May already exist — try updating settings
-                pass
+                pass  # May already exist — fall through to settings update
 
-            # Configure settings
             r2 = await client.patch(
                 f"{self.base}/indexes/{PERSONS_INDEX}/settings",
                 json=MEILI_SETTINGS,
@@ -86,6 +86,7 @@ class MeiliIndexer:
         self,
         query: str,
         filters: str | None = None,
+        sort: list[str] | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> dict[str, Any]:
@@ -94,10 +95,12 @@ class MeiliIndexer:
             "q": query,
             "limit": limit,
             "offset": offset,
-            "attributesToHighlight": ["full_name", "emails", "phones"],
+            "attributesToHighlight": ["full_name", "emails", "phones", "city"],
         }
         if filters:
             body["filter"] = filters
+        if sort:
+            body["sort"] = sort
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.post(
@@ -108,6 +111,37 @@ class MeiliIndexer:
             if r.status_code == 200:
                 return r.json()
             return {"hits": [], "estimatedTotalHits": 0, "query": query}
+
+    async def search_by_region(
+        self,
+        city: str | None = None,
+        state: str | None = None,
+        country: str | None = None,
+        query: str = "",
+        limit: int = 50,
+        offset: int = 0,
+        sort: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Search persons filtered to a geographic region."""
+        filter_parts: list[str] = []
+        if city:
+            safe = city.replace('"', '')
+            filter_parts.append(f'city = "{safe}"')
+        if state:
+            safe = state.replace('"', '')
+            filter_parts.append(f'state_province = "{safe}"')
+        if country:
+            safe = country.replace('"', '')
+            filter_parts.append(f'country = "{safe}"')
+
+        filters = " AND ".join(filter_parts) if filter_parts else None
+        return await self.search(
+            query=query,
+            filters=filters,
+            sort=sort or ["default_risk_score:desc"],
+            limit=limit,
+            offset=offset,
+        )
 
     async def delete_person(self, person_id: str) -> bool:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -129,13 +163,21 @@ def build_person_doc(
     emails: list[str] | None = None,
     usernames: list[str] | None = None,
     platforms: list[str] | None = None,
-    addresses: list[str] | None = None,
+    addresses_text: list[str] | None = None,
+    city: str | None = None,
+    state_province: str | None = None,
+    country: str | None = None,
+    employer: str | None = None,
     default_risk_score: float | None = None,
     risk_tier: str | None = None,
     wealth_band: str | None = None,
     nationality: str | None = None,
     has_darkweb: bool = False,
     has_sanctions: bool = False,
+    has_addresses: bool = False,
+    verification_status: str = "unverified",
+    composite_quality: float = 0.5,
+    corroboration_count: int = 1,
     created_at: str | None = None,
     **extra,
 ) -> dict[str, Any]:
@@ -149,13 +191,21 @@ def build_person_doc(
         "usernames": usernames or [],
         "platforms": platforms or [],
         "platform_count": len(platforms or []),
-        "addresses": addresses or [],
+        "addresses_text": addresses_text or [],
+        "city": city,
+        "state_province": state_province,
+        "country": country,
+        "employer": employer,
         "default_risk_score": default_risk_score or 0.0,
         "risk_tier": risk_tier or "unknown",
         "wealth_band": wealth_band or "unknown",
         "nationality": nationality,
         "has_darkweb": has_darkweb,
         "has_sanctions": has_sanctions,
+        "has_addresses": has_addresses,
+        "verification_status": verification_status,
+        "composite_quality": composite_quality,
+        "corroboration_count": corroboration_count,
         "created_at": created_at,
         **extra,
     }

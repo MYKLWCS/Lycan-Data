@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lycan OSINT</title>
+<style>
+/* ── Lycan OSINT — Dark JP Morgan premium aesthetic ── */
+:root {
+  --bg:        #080c10;
+  --bg2:       #0d1117;
+  --bg3:       #141a22;
+  --border:    #1e2a38;
+  --border2:   #253040;
+  --text:      #c9d6e3;
+  --text-dim:  #5a6f85;
+  --text-mute: #384a5c;
+  --accent:    #1a6ef5;
+  --accent2:   #0f4fc4;
+  --accent-lo: rgba(26,110,245,0.12);
+  --green:     #00c48c;
+  --green-lo:  rgba(0,196,140,0.12);
+  --red:       #e53e3e;
+  --red-lo:    rgba(229,62,62,0.12);
+  --yellow:    #f6ad55;
+  --yellow-lo: rgba(246,173,85,0.10);
+  --purple:    #9f7aea;
+  --purple-lo: rgba(159,122,234,0.12);
+  --font:      'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
+  --mono:      'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  --radius:    6px;
+  --sidebar-w: 220px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; line-height: 1.6; height: 100%; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: #5599ff; }
+
+/* ── Layout ── */
+.layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
+.logo { display: flex; align-items: center; gap: 10px; padding: 22px 20px 18px; border-bottom: 1px solid var(--border); }
+.logo-icon { color: var(--accent); font-size: 20px; line-height: 1; }
+.logo-text { font-size: 15px; font-weight: 700; letter-spacing: 0.15em; color: #e8eef5; }
+.nav-label { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--text-mute); padding: 18px 20px 6px; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 20px; color: var(--text-dim); font-size: 13px; transition: all 0.15s; border-left: 2px solid transparent; cursor: pointer; }
+.nav-item:hover { color: var(--text); background: var(--bg3); border-left-color: var(--border2); }
+.nav-item.active { color: #e8eef5; background: var(--accent-lo); border-left-color: var(--accent); }
+.sidebar-bottom { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.status-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot.green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.blue   { background: var(--accent); }
+.dot.yellow { background: var(--yellow); }
+.dot.red    { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.dot.pulse  { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+/* ── Main ── */
+.main { flex: 1; overflow-y: auto; padding: 40px; }
+
+/* ── Hero / Search ── */
+.hero { max-width: 760px; margin: 0 auto 48px; }
+.hero-title { font-size: 26px; font-weight: 700; color: #e8eef5; letter-spacing: -0.02em; margin-bottom: 6px; }
+.hero-sub { color: var(--text-dim); font-size: 14px; margin-bottom: 28px; }
+.search-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.search-type-row { display: flex; padding: 10px 10px 0; gap: 4px; flex-wrap: wrap; }
+.type-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 4px 11px; border-radius: 4px; font-size: 11px; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+.type-btn:hover { border-color: var(--border2); color: var(--text); }
+.type-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.search-row { display: flex; gap: 8px; padding: 10px; }
+.search-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: var(--font); padding: 10px 14px; outline: none; transition: border 0.15s; }
+.search-input::placeholder { color: var(--text-mute); }
+.search-input:focus { border-color: var(--accent); }
+.context-sel { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 12px; font-family: var(--font); padding: 0 10px; cursor: pointer; outline: none; }
+.context-sel:focus { border-color: var(--accent); }
+.search-btn { background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-size: 13px; font-weight: 600; font-family: var(--font); padding: 0 20px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+.search-btn:hover { background: var(--accent2); }
+.search-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Stats row ── */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; max-width: 760px; margin: 0 auto 36px; }
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.stat-num { font-size: 24px; font-weight: 700; color: #e8eef5; font-family: var(--mono); letter-spacing: -0.02em; margin-bottom: 4px; }
+.stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ── Cards ── */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: #c9d6e3; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.card-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.04em; background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim); }
+.card-body { padding: 18px; }
+
+/* ── Person header ── */
+.person-header { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
+.person-avatar { width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--border); background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--text-mute); flex-shrink: 0; object-fit: cover; }
+.person-meta { flex: 1; }
+.person-name { font-size: 22px; font-weight: 700; color: #e8eef5; letter-spacing: -0.01em; margin-bottom: 4px; }
+.person-sub { color: var(--text-dim); font-size: 13px; margin-bottom: 10px; }
+.tag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.04em; border: 1px solid; }
+.tag.blue   { color: #5599ff; border-color: rgba(85,153,255,0.3); background: rgba(85,153,255,0.08); }
+.tag.green  { color: var(--green); border-color: rgba(0,196,140,0.3); background: var(--green-lo); }
+.tag.red    { color: var(--red); border-color: rgba(229,62,62,0.3); background: var(--red-lo); }
+.tag.yellow { color: var(--yellow); border-color: rgba(246,173,85,0.3); background: var(--yellow-lo); }
+.tag.purple { color: var(--purple); border-color: rgba(159,122,234,0.3); background: var(--purple-lo); }
+.tag.muted  { color: var(--text-dim); border-color: var(--border); background: var(--bg3); }
+
+/* ── Risk scores ── */
+.risk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.risk-item { text-align: center; }
+.risk-dial { width: 64px; height: 64px; margin: 0 auto 6px; }
+.risk-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ── Reliability badge ── */
+.rel-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-family: var(--mono); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border); color: var(--text-mute); vertical-align: middle; }
+.rel-badge.high   { color: var(--green);  border-color: rgba(0,196,140,0.3);  background: var(--green-lo); }
+.rel-badge.medium { color: var(--yellow); border-color: rgba(246,173,85,0.3); background: var(--yellow-lo); }
+.rel-badge.low    { color: var(--red);    border-color: rgba(229,62,62,0.3);   background: var(--red-lo); }
+
+/* ── Tables ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { text-align: left; padding: 8px 12px; color: var(--text-mute); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+.data-table th:hover { color: var(--text); }
+.data-table th.sort-active { color: var(--accent); }
+.data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ── KV list ── */
+.kv-grid { display: grid; grid-template-columns: 140px 1fr; gap: 0; }
+.kv-row { display: contents; }
+.kv-key, .kv-val { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.kv-key { color: var(--text-mute); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; padding-right: 16px; }
+.kv-val { color: var(--text); word-break: break-all; }
+.kv-row:last-child .kv-key, .kv-row:last-child .kv-val { border-bottom: none; }
+
+/* ── Platform grid ── */
+.platform-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.platform-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; transition: border 0.15s; }
+.platform-card:hover { border-color: var(--border2); }
+.platform-card.found { border-color: rgba(0,196,140,0.3); }
+.platform-card.not-found { opacity: 0.45; }
+.platform-card.scanning { border-color: rgba(26,110,245,0.4); animation: border-pulse 1.5s ease-in-out infinite; }
+@keyframes border-pulse { 0%,100% { border-color: rgba(26,110,245,0.4); } 50% { border-color: rgba(26,110,245,0.8); } }
+.platform-name { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; text-transform: capitalize; }
+.platform-handle { font-size: 11px; color: var(--accent); font-family: var(--mono); word-break: break-all; }
+.platform-status { font-size: 10px; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+
+/* ── Live feed ── */
+.live-feed { height: 280px; overflow-y: auto; padding: 10px; background: var(--bg); border-radius: var(--radius); font-family: var(--mono); font-size: 11px; line-height: 1.8; }
+.feed-line { display: flex; gap: 10px; padding: 2px 0; }
+.feed-time { color: var(--text-mute); flex-shrink: 0; }
+.feed-platform { color: var(--accent); min-width: 120px; flex-shrink: 0; }
+.feed-msg { color: var(--text-dim); }
+.feed-msg.ok   { color: var(--green); }
+.feed-msg.fail { color: var(--red); }
+.feed-msg.warn { color: var(--yellow); }
+.progress-bar-wrap { background: var(--bg3); border-radius: 3px; height: 4px; overflow: hidden; margin-bottom: 12px; }
+.progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+
+/* ── Alerts ── */
+.alert-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.alert-item:last-child { border-bottom: none; }
+.alert-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; }
+.alert-icon.critical { background: var(--red-lo); color: var(--red); }
+.alert-icon.high     { background: var(--yellow-lo); color: var(--yellow); }
+.alert-icon.medium   { background: var(--purple-lo); color: var(--purple); }
+.alert-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.alert-sub   { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+/* ── Certificate ── */
+.cert-grade { font-size: 40px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+.cert-grade.PLATINUM { color: #e8f4ff; }
+.cert-grade.GOLD     { color: #f6ad55; }
+.cert-grade.SILVER   { color: #9ab4cc; }
+.cert-grade.BRONZE   { color: #c27b3e; }
+.cert-grade.UNRATED  { color: var(--text-mute); }
+.cert-bar { height: 6px; border-radius: 3px; background: var(--bg3); overflow: hidden; margin-top: 6px; }
+.cert-bar-inner { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.cert-bar-inner.PLATINUM { background: #1a6ef5; }
+.cert-bar-inner.GOLD     { background: var(--yellow); }
+.cert-bar-inner.SILVER   { background: #9ab4cc; }
+.cert-bar-inner.BRONZE   { background: #c27b3e; }
+.cert-bar-inner.UNRATED  { background: var(--text-mute); }
+
+/* ── OCEAN bars ── */
+.ocean-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.ocean-label { font-size: 11px; color: var(--text-dim); width: 120px; flex-shrink: 0; }
+.ocean-bar-wrap { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.ocean-bar-inner { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.5s ease; }
+.ocean-val { font-size: 11px; font-family: var(--mono); color: var(--text-dim); width: 36px; text-align: right; flex-shrink: 0; }
+
+/* ── Page header ── */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 20px; font-weight: 700; color: #e8eef5; letter-spacing: -0.01em; }
+.page-sub { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 12px; font-family: var(--font); padding: 7px 14px; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+.btn:hover { border-color: var(--border2); background: var(--bg2); color: var(--text); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent2); }
+.btn.danger { background: var(--red-lo); border-color: rgba(229,62,62,0.4); color: var(--red); }
+.btn.danger:hover { background: rgba(229,62,62,0.2); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Filter bar ── */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.filter-input { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 12px; font-family: var(--font); padding: 6px 12px; outline: none; transition: border 0.15s; min-width: 140px; }
+.filter-input:focus { border-color: var(--accent); }
+.filter-input::placeholder { color: var(--text-mute); }
+.filter-sel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 12px; font-family: var(--font); padding: 6px 10px; cursor: pointer; outline: none; }
+.filter-label { font-size: 11px; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ── Pagination ── */
+.pagination { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.page-info { font-size: 12px; color: var(--text-dim); margin: 0 8px; }
+
+/* ── Activity log ── */
+.activity-log { font-family: var(--mono); font-size: 11.5px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.activity-row { display: grid; grid-template-columns: 130px 100px 130px 1fr 80px 60px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.activity-row:hover { background: rgba(255,255,255,0.02); }
+.activity-row:last-child { border-bottom: none; }
+.activity-row.header { color: var(--text-mute); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; background: var(--bg2); }
+.status-pill { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em; display: inline-block; }
+.status-pill.done        { background: var(--green-lo); color: var(--green); }
+.status-pill.completed   { background: var(--green-lo); color: var(--green); }
+.status-pill.pending     { background: var(--accent-lo); color: var(--accent); }
+.status-pill.running     { background: rgba(246,173,85,0.12); color: var(--yellow); }
+.status-pill.failed      { background: var(--red-lo); color: var(--red); }
+.status-pill.blocked     { background: rgba(159,122,234,0.12); color: var(--purple); }
+.status-pill.rate_limited { background: rgba(246,173,85,0.12); color: var(--yellow); }
+
+/* ── Merge candidate card ── */
+.merge-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 16px; }
+.merge-score { font-size: 22px; font-weight: 800; font-family: var(--mono); min-width: 52px; text-align: center; }
+.merge-score.high   { color: var(--red); }
+.merge-score.medium { color: var(--yellow); }
+.merge-score.low    { color: var(--text-dim); }
+.merge-persons { flex: 1; }
+.merge-person { font-size: 13px; color: var(--text); font-weight: 600; }
+.merge-reason { font-size: 11px; color: var(--text-mute); margin-top: 2px; font-family: var(--mono); }
+.merge-actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* ── Region results ── */
+.region-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.region-badge { background: var(--accent-lo); border: 1px solid rgba(26,110,245,0.3); color: var(--accent); font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 4px; font-family: var(--mono); }
+
+/* ── Address card ── */
+.addr-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.addr-item:last-child { border-bottom: none; }
+.addr-line { font-size: 13px; color: var(--text); }
+.addr-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+/* ── Queue status bar ── */
+.queue-bar { display: flex; gap: 12px; flex-wrap: wrap; }
+.queue-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 12px; font-size: 12px; }
+.queue-name { color: var(--text-mute); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+.queue-count { font-family: var(--mono); font-size: 15px; font-weight: 700; color: #e8eef5; }
+
+/* ── Misc ── */
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text-dim); }
+.empty-state-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+.empty-state-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.empty-state-sub { font-size: 13px; }
+.section-gap { height: 32px; }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mono  { font-family: var(--mono); }
+.dim   { color: var(--text-dim); }
+.mute  { color: var(--text-mute); }
+.green-txt  { color: var(--green); }
+.red-txt    { color: var(--red); }
+.yellow-txt { color: var(--yellow); }
+.bold  { font-weight: 600; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hidden { display: none !important; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4f66; }
+
+@media (max-width: 900px) { .sidebar { display: none; } .main { padding: 20px 16px; } .stats-row { grid-template-columns: repeat(2, 1fr); } .risk-grid { grid-template-columns: repeat(2, 1fr); } .activity-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) { .search-row { flex-direction: column; } .stats-row { grid-template-columns: 1fr 1fr; } .platform-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">LYCAN</span>
+    </div>
+    <div class="nav-label">INTELLIGENCE</div>
+    <a href="#/" class="nav-item" id="nav-search">⬡ Search</a>
+    <a href="#/persons" class="nav-item" id="nav-persons">⬡ Persons</a>
+    <a href="#/region" class="nav-item" id="nav-region">⬡ Region Grow</a>
+    <a href="#/deduplicate" class="nav-item" id="nav-deduplicate">⬡ Deduplicator</a>
+    <div class="nav-label">SYSTEM</div>
+    <a href="#/activity" class="nav-item" id="nav-activity">⬡ Activity</a>
+    <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
+    <div class="sidebar-bottom">
+      <div class="status-row" id="sys-status"><span class="dot green pulse"></span><span>System Online</span></div>
+      <div class="status-row"><span class="dot blue"></span><span id="crawler-num">—</span>&nbsp;crawlers</div>
+      <div class="status-row" id="queue-status"><span class="dot yellow"></span><span id="queue-num">—</span>&nbsp;queued</div>
+    </div>
+  </nav>
+
+  <main class="main" id="app-root"></main>
+</div>
+
+<script>
+'use strict';
+
+// ── DOM helpers ────────────────────────────────────────────────────────
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls)  e.className   = cls;
+  if (text !== undefined && text !== null) e.textContent = String(text);
+  return e;
+}
+function span(cls, text) { return el('span', cls, text); }
+function div(cls, text)  { return el('div',  cls, text); }
+
+// ── API helpers ────────────────────────────────────────────────────────
+async function apiGet(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+async function apiPost(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Format helpers ─────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', {year:'numeric', month:'short', day:'numeric'});
+}
+function fmtNum(n) {
+  if (n == null || n === '') return '—';
+  return Number(n).toLocaleString();
+}
+function riskColor(score) {
+  if (score >= 0.7) return 'var(--red)';
+  if (score >= 0.4) return 'var(--yellow)';
+  return 'var(--green)';
+}
+function riskTier(score) {
+  if (score >= 0.8) return 'DNL';
+  if (score >= 0.6) return 'HIGH';
+  if (score >= 0.4) return 'MEDIUM';
+  if (score >= 0.2) return 'LOW';
+  return 'PREFERRED';
+}
+function reliabilityClass(score) {
+  if (score >= 0.7) return 'high';
+  if (score >= 0.4) return 'medium';
+  return 'low';
+}
+
+// ── Reliability badge (DOM) ────────────────────────────────────────────
+function relBadge(score) {
+  const pct = Math.round((score || 0) * 100);
+  const b = span('rel-badge ' + reliabilityClass(score), pct + '%');
+  return b;
+}
+
+// ── Risk dial (SVG, DOM-safe) ──────────────────────────────────────────
+function drawRiskDial(container, score, color) {
+  if (!container) return;
+  const pct   = Math.min(1, Math.max(0, score || 0));
+  const r=26, cx=32, cy=36;
+  const startA = -135 * Math.PI / 180;
+  const sweepA =  270 * Math.PI / 180;
+  const endA   = startA + pct * sweepA;
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('width','64'); svg.setAttribute('height','64'); svg.setAttribute('viewBox','0 0 64 64');
+
+  function arc(a1, a2, stroke) {
+    const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    const x2=cx+r*Math.cos(a2), y2=cy+r*Math.sin(a2);
+    const large = (a2-a1)>Math.PI?1:0;
+    const p = document.createElementNS(ns,'path');
+    p.setAttribute('d',`M${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2}`);
+    p.setAttribute('stroke', stroke);
+    p.setAttribute('stroke-width','4');
+    p.setAttribute('fill','none');
+    p.setAttribute('stroke-linecap','round');
+    return p;
+  }
+
+  svg.appendChild(arc(startA, startA+sweepA, 'var(--border)'));
+  if (pct > 0) svg.appendChild(arc(startA, endA, color));
+  const t = document.createElementNS(ns,'text');
+  t.setAttribute('x','32'); t.setAttribute('y','41'); t.setAttribute('text-anchor','middle');
+  t.setAttribute('font-size','12'); t.setAttribute('font-weight','700');
+  t.setAttribute('fill','var(--text)'); t.setAttribute('font-family','var(--mono)');
+  t.textContent = Math.round(pct*100);
+  svg.appendChild(t);
+  container.textContent = '';
+  container.appendChild(svg);
+}
+
+// ── WebSocket live progress ────────────────────────────────────────────
+class LiveProgress {
+  constructor(personId, opts={}) {
+    this.personId = personId;
+    this.feed = opts.feed||null;
+    this.bar  = opts.bar||null;
+    this.onUpdate = opts.onUpdate||null;
+    this.onDone   = opts.onDone||null;
+    this.total=0; this.done=0;
+    this.ws=null; this._reconnect=0;
+  }
+  connect() {
+    const proto = location.protocol==='https:' ? 'wss' : 'ws';
+    this.ws = new WebSocket(`${proto}://${location.host}/ws/progress/${this.personId}`);
+    this.ws.onopen  = () => { this._reconnect=0; this._log('system','Live connection established','ok'); };
+    this.ws.onmessage = (ev) => { try { this._handle(JSON.parse(ev.data)); } catch{} };
+    this.ws.onclose = () => {
+      if (this._reconnect<5) { this._reconnect++; setTimeout(()=>this.connect(), 2000*this._reconnect); }
+    };
+    // send keepalive pings
+    this._pingInterval = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send('ping');
+    }, 20000);
+  }
+  disconnect() {
+    clearInterval(this._pingInterval);
+    if (this.ws) { this.ws.close(); this.ws=null; }
+  }
+  _handle(msg) {
+    const {event, platform, found, error} = msg;
+    if (event==='job_started') { this.total++; this._log(platform,'scanning…',''); this._bar(); this._card(platform,'scanning'); }
+    if (event==='job_complete') { this.done++; this._log(platform, found?'found data':(error||'no results'), found?'ok':'fail'); this._bar(); this._card(platform, found?'found':'not-found'); if(this.onUpdate) this.onUpdate({platform,found}); }
+    if (event==='done') { this._log('system',`All done (${this.done}/${this.total})`,'ok'); if(this.onDone) this.onDone(); }
+  }
+  _log(platform, text, cls) {
+    if (!this.feed) return;
+    const now = new Date().toLocaleTimeString('en-GB',{hour12:false});
+    const line = div('feed-line');
+    line.appendChild(span('feed-time', now));
+    line.appendChild(span('feed-platform', platform));
+    line.appendChild(span('feed-msg'+(cls?' '+cls:''), text));
+    this.feed.appendChild(line);
+    this.feed.scrollTop = this.feed.scrollHeight;
+  }
+  _bar() {
+    if (!this.bar||!this.total) return;
+    this.bar.style.width = Math.round((this.done/this.total)*100)+'%';
+  }
+  _card(platform, state) {
+    const card = document.querySelector(`[data-platform="${platform}"]`);
+    if (!card) return;
+    card.classList.remove('scanning','found','not-found');
+    card.classList.add(state);
+    const statusEl = card.querySelector('.platform-status');
+    if (statusEl) {
+      const icons={scanning:'◌',found:'●','not-found':'○'};
+      const colors={scanning:'var(--accent)',found:'var(--green)','not-found':'var(--text-mute)'};
+      statusEl.style.color=colors[state]||'';
+      statusEl.textContent=(icons[state]||'')+' '+state.replace('-',' ');
+    }
+  }
+}
+
+// ── App router ─────────────────────────────────────────────────────────
+const App = {
+  root: document.getElementById('app-root'),
+  _lp: null,
+  _sortState: { by: 'created_at', dir: 'desc' },
+  _regionState: { city:'', state:'', country:'', q:'' },
+  _personsState: { offset:0, limit:20 },
+
+  async init() {
+    window.addEventListener('hashchange', () => this.route());
+    this.route();
+    this._pollSystem();
+  },
+
+  route() {
+    const hash = window.location.hash || '#/';
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    if (hash === '#/')                 { document.getElementById('nav-search')?.classList.add('active');      this.renderSearch(); }
+    else if (hash === '#/persons')     { document.getElementById('nav-persons')?.classList.add('active');     this.renderPersons(); }
+    else if (hash === '#/region')      { document.getElementById('nav-region')?.classList.add('active');      this.renderRegion(); }
+    else if (hash === '#/deduplicate') { document.getElementById('nav-deduplicate')?.classList.add('active'); this.renderDeduplicate(); }
+    else if (hash === '#/activity')    { document.getElementById('nav-activity')?.classList.add('active');    this.renderActivity(); }
+    else if (hash.startsWith('#/person/')) {
+      document.getElementById('nav-persons')?.classList.add('active');
+      this.renderPerson(hash.split('/')[2]);
+    } else { this.renderSearch(); }
+  },
+
+  async _pollSystem() {
+    const update = async () => {
+      try {
+        const [health, queues] = await Promise.all([
+          apiGet('/system/health'),
+          apiGet('/system/queues'),
+        ]);
+        const cn = document.getElementById('crawler-num');
+        if (cn) cn.textContent = health.crawlers_registered || '—';
+        const qn = document.getElementById('queue-num');
+        if (qn) qn.textContent = queues.total_pending ?? '—';
+        const qs = document.getElementById('queue-status');
+        if (qs) {
+          const dot = qs.querySelector('.dot');
+          if (dot) {
+            dot.className = 'dot ' + ((queues.total_pending||0) > 0 ? 'yellow pulse' : 'green');
+          }
+        }
+        const ss = document.getElementById('sys-status');
+        if (ss) {
+          const dot = ss.querySelector('.dot');
+          if (dot) dot.className = 'dot green pulse';
+        }
+      } catch(e) {
+        const ss = document.getElementById('sys-status');
+        if (ss) { const dot = ss.querySelector('.dot'); if(dot) dot.className='dot red'; }
+      }
+    };
+    await update();
+    setInterval(update, 15000);
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // SEARCH VIEW
+  // ──────────────────────────────────────────────────────────────────
+  async renderSearch() {
+    this.root.textContent = '';
+
+    const hero = div('hero');
+
+    const title = div('hero-title', 'Intelligence Search');
+    const errBox = div('card hidden');
+    errBox.id = 'search-error';
+    Object.assign(errBox.style, {borderColor:'var(--red)',background:'var(--red-lo)',color:'var(--red)',padding:'10px',marginBottom:'20px',textAlign:'center'});
+    const sub = div('hero-sub', 'Search any identifier — name, username, phone, email, domain, crypto wallet');
+
+    // Search box
+    const box = div('search-box');
+    const typeRow = div('search-type-row');
+    const types = ['auto','full_name','username','phone','email','domain','crypto_wallet'];
+    const typeLabels = {'auto':'Auto','full_name':'Name','username':'Username','phone':'Phone','email':'Email','domain':'Domain','crypto_wallet':'Crypto'};
+    types.forEach(t => {
+      const b = el('button', 'type-btn' + (t==='auto'?' active':''), typeLabels[t]);
+      b.dataset.type = t;
+      b.addEventListener('click', () => {
+        typeRow.querySelectorAll('.type-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+      });
+      typeRow.appendChild(b);
+    });
+
+    const searchRow = div('search-row');
+    const qInp = el('input', 'search-input');
+    qInp.id='query'; qInp.type='text'; qInp.placeholder='Enter identifier…'; qInp.autocomplete='off';
+    const ctx = el('select', 'context-sel');
+    [['general','General'],['risk','Risk'],['wealth','Wealth'],['identity','Identity']].forEach(([v,l]) => {
+      const o = el('option','',l); o.value=v; ctx.appendChild(o);
+    });
+    const sBtn = el('button', 'search-btn', 'Search');
+    sBtn.addEventListener('click', () => this.doSearch(qInp, typeRow, ctx, sBtn, errBox));
+    qInp.addEventListener('keydown', e => { if(e.key==='Enter') this.doSearch(qInp, typeRow, ctx, sBtn, errBox); });
+    searchRow.append(qInp, ctx, sBtn);
+    box.append(typeRow, searchRow);
+
+    // Stats
+    const statsRow = div('stats-row');
+    const statDefs = [
+      {id:'stat-persons', label:'Persons Indexed'},
+      {id:'stat-crawlers', label:'Active Scrapers'},
+      {id:'stat-queued',   label:'Jobs Queued'},
+      {id:'stat-tor',      label:'Tor Circuits'},
+    ];
+    statDefs.forEach(s => {
+      const card = div('stat-card');
+      const num = div('stat-num', '—'); num.id = s.id;
+      card.append(num, div('stat-label', s.label));
+      statsRow.appendChild(card);
+    });
+
+    hero.append(title, errBox, sub, box);
+    this.root.append(hero, statsRow);
+
+    // Populate stats async
+    try {
+      const [persons, health, queues] = await Promise.all([
+        apiGet('/persons?limit=1'),
+        apiGet('/system/health'),
+        apiGet('/system/queues'),
+      ]);
+      document.getElementById('stat-persons').textContent = fmtNum(persons.total);
+      document.getElementById('stat-crawlers').textContent = fmtNum(health.crawlers_registered);
+      document.getElementById('stat-queued').textContent = fmtNum(queues.total_pending);
+      const torStatus = health.tor || {};
+      const active = Object.values(torStatus).filter(Boolean).length;
+      document.getElementById('stat-tor').textContent = active + '/3';
+    } catch(e) {}
+  },
+
+  async doSearch(qInp, typeRow, ctx, sBtn, errBox) {
+    const q = qInp.value.trim();
+    if (!q) return;
+    const activeType = typeRow.querySelector('.type-btn.active');
+    const type = activeType?.dataset.type === 'auto' ? null : activeType?.dataset.type;
+
+    sBtn.textContent = 'Searching…'; sBtn.disabled = true;
+    errBox.classList.add('hidden');
+
+    try {
+      const d = await apiPost('/search', {value:q, seed_type:type, context:ctx.value, priority:'high'});
+      const recent = JSON.parse(localStorage.getItem('lycan_recent')||'[]');
+      recent.unshift({value:q, person_id:d.person_id, ts:Date.now()});
+      localStorage.setItem('lycan_recent', JSON.stringify(recent.slice(0,10)));
+      window.location.hash = '#/person/' + d.person_id;
+    } catch(e) {
+      sBtn.textContent = 'Search'; sBtn.disabled = false;
+      errBox.textContent = 'Search failed: ' + e.message;
+      errBox.classList.remove('hidden');
+    }
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // PERSONS LIST
+  // ──────────────────────────────────────────────────────────────────
+  async renderPersons(opts={}) {
+    this._personsState = {...this._personsState, ...opts};
+    const {offset, limit} = this._personsState;
+    const {by, dir} = this._sortState;
+
+    this.root.textContent = '';
+
+    // Header
+    const hdr = div('page-header');
+    const hdrLeft = div('');
+    const titleEl = div('page-title', 'Indexed Persons');
+    hdrLeft.appendChild(titleEl);
+    hdr.appendChild(hdrLeft);
+    this.root.appendChild(hdr);
+
+    // Filter bar
+    const filterBar = div('filter-bar');
+
+    const cityInp = el('input','filter-input'); cityInp.placeholder='Filter city…'; cityInp.value=this._regionState.city||'';
+    const stateInp = el('input','filter-input'); stateInp.placeholder='State/Province…'; stateInp.value=this._regionState.state||'';
+    const qInp = el('input','filter-input'); qInp.placeholder='Search name…'; qInp.style.minWidth='180px';
+
+    const riskSel = el('select','filter-sel');
+    [['','All Risk'],['do_not_lend','DNL'],['high_risk','High'],['medium_risk','Medium'],['low_risk','Low'],['preferred','Preferred']].forEach(([v,l]) => {
+      const o = el('option','',l); o.value=v; riskSel.appendChild(o);
+    });
+
+    const applyBtn = el('button','btn primary','Filter');
+    applyBtn.addEventListener('click', () => {
+      this._regionState.city  = cityInp.value.trim();
+      this._regionState.state = stateInp.value.trim();
+      this._personsState.offset = 0;
+      const params = new URLSearchParams({
+        limit, offset:0,
+        sort_by: by, sort_dir: dir,
+      });
+      if (cityInp.value.trim())  params.set('city', cityInp.value.trim());
+      if (stateInp.value.trim()) params.set('state', stateInp.value.trim());
+      if (qInp.value.trim())     params.set('q', qInp.value.trim());
+      if (riskSel.value)         params.set('risk_tier', riskSel.value);
+      this._loadPersons(params);
+    });
+
+    filterBar.append(
+      span('filter-label','City'), cityInp,
+      span('filter-label','State'), stateInp,
+      span('filter-label','Name'), qInp,
+      span('filter-label','Risk'), riskSel,
+      applyBtn,
+    );
+    this.root.appendChild(filterBar);
+
+    // Body (table)
+    const body = div('');
+    body.id = 'persons-body';
+    body.appendChild(div('', 'Loading…'));
+    this.root.appendChild(body);
+
+    // Pagination
+    const pagDiv = div('pagination');
+    pagDiv.id = 'persons-pagination';
+    this.root.appendChild(pagDiv);
+
+    const params = new URLSearchParams({limit, offset, sort_by:by, sort_dir:dir});
+    this._loadPersons(params);
+  },
+
+  async _loadPersons(params) {
+    const body = document.getElementById('persons-body');
+    const pagDiv = document.getElementById('persons-pagination');
+    if (!body) return;
+    body.textContent = '';
+    body.appendChild(span('dim', 'Loading…'));
+
+    try {
+      const d = await apiGet('/persons?' + params.toString());
+      body.textContent = '';
+
+      // Sort headers
+      const sortCols = [
+        {key:'full_name', label:'Name / ID'},
+        {key:'default_risk_score', label:'Risk'},
+        {key:'composite_quality', label:'Quality'},
+        {key:'created_at', label:'Added'},
+        {key:'', label:'Location'},
+        {key:'', label:'Actions'},
+      ];
+
+      const card = div('card');
+      const tbody = document.createElement('tbody');
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      sortCols.forEach(col => {
+        const th = el('th', col.key===this._sortState.by?'sort-active':'', '');
+        const label = span('', col.label);
+        th.appendChild(label);
+        if (col.key) {
+          if (col.key===this._sortState.by) {
+            th.appendChild(span('', ' ' + (this._sortState.dir==='asc'?'↑':'↓')));
+          }
+          th.addEventListener('click', () => {
+            if (this._sortState.by===col.key) {
+              this._sortState.dir = this._sortState.dir==='asc'?'desc':'asc';
+            } else {
+              this._sortState.by = col.key;
+              this._sortState.dir = 'desc';
+            }
+            const np = new URLSearchParams(params);
+            np.set('sort_by', this._sortState.by);
+            np.set('sort_dir', this._sortState.dir);
+            np.set('offset', '0');
+            this._loadPersons(np);
+          });
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      if (!d.persons || d.persons.length === 0) {
+        const row = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        const empty = div('empty-state');
+        empty.appendChild(div('empty-state-icon', '◎'));
+        empty.appendChild(div('empty-state-title', 'No persons found'));
+        empty.appendChild(div('empty-state-sub', 'Try different filters or run a search'));
+        td.appendChild(empty);
+        row.appendChild(td);
+        tbody.appendChild(row);
+      } else {
+        d.persons.forEach(p => {
+          const row = document.createElement('tr');
+
+          // Name
+          const tdName = document.createElement('td');
+          const nameDiv = div('bold', p.full_name || 'Unknown');
+          nameDiv.style.color = '#e8eef5';
+          const idDiv = div('dim mono'); idDiv.style.fontSize='10px'; idDiv.textContent = p.id.substring(0,16)+'…';
+          tdName.append(nameDiv, idDiv);
+
+          // Risk
+          const tdRisk = document.createElement('td');
+          const rTag = span('tag');
+          rTag.style.background = riskColor(p.default_risk_score);
+          rTag.style.color = '#fff';
+          rTag.style.border = 'none';
+          rTag.style.fontSize = '10px';
+          rTag.textContent = riskTier(p.default_risk_score) + ' ' + Math.round((p.default_risk_score||0)*100) + '%';
+          tdRisk.appendChild(rTag);
+
+          // Quality
+          const tdQual = document.createElement('td');
+          tdQual.appendChild(relBadge(p.composite_quality));
+
+          // Date
+          const tdDate = document.createElement('td');
+          tdDate.className = 'dim mono'; tdDate.style.fontSize='11px';
+          tdDate.textContent = fmtDate(p.created_at);
+
+          // Location
+          const tdLoc = document.createElement('td');
+          tdLoc.className = 'dim'; tdLoc.style.fontSize='11px';
+          const locParts = [p.city, p.state_province, p.country].filter(Boolean);
+          tdLoc.textContent = locParts.join(', ') || '—';
+
+          // Action
+          const tdAction = document.createElement('td');
+          const link = el('a','btn','View');
+          link.href = '#/person/' + p.id;
+          link.style.cssText = 'padding:4px 10px;font-size:11px';
+          tdAction.appendChild(link);
+
+          row.append(tdName, tdRisk, tdQual, tdDate, tdLoc, tdAction);
+          tbody.appendChild(row);
+        });
+      }
+
+      const tbl = el('table','data-table');
+      tbl.append(thead, tbody);
+      const wrap = div('card-body'); wrap.style.padding='0';
+      wrap.appendChild(tbl);
+      card.appendChild(wrap);
+      body.appendChild(card);
+
+      // Update header
+      const titleEl = document.querySelector('.page-title');
+      if (titleEl) titleEl.textContent = `Indexed Persons (${fmtNum(d.total)})`;
+
+      // Pagination
+      if (pagDiv) {
+        pagDiv.textContent = '';
+        const offset = parseInt(params.get('offset')||'0');
+        const limit  = parseInt(params.get('limit')||'20');
+        const total  = d.total || 0;
+
+        if (total > limit) {
+          const prevBtn = el('button','btn','← Prev');
+          prevBtn.disabled = offset === 0;
+          prevBtn.addEventListener('click', () => {
+            const np = new URLSearchParams(params);
+            np.set('offset', Math.max(0, offset-limit));
+            this._loadPersons(np);
+          });
+
+          const info = span('page-info',
+            `${offset+1}–${Math.min(offset+limit, total)} of ${fmtNum(total)}`
+          );
+
+          const nextBtn = el('button','btn','Next →');
+          nextBtn.disabled = offset+limit >= total;
+          nextBtn.addEventListener('click', () => {
+            const np = new URLSearchParams(params);
+            np.set('offset', offset+limit);
+            this._loadPersons(np);
+          });
+
+          pagDiv.append(prevBtn, info, nextBtn);
+        }
+      }
+    } catch(e) {
+      body.textContent = '';
+      const err = div('red-txt', 'Error: ' + e.message);
+      body.appendChild(err);
+    }
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // REGION GROW
+  // ──────────────────────────────────────────────────────────────────
+  async renderRegion() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Region Grow'), div('page-sub','Target a geographic region, retrieve all persons, and keep enriching'));
+    hdr.appendChild(left);
+    this.root.appendChild(hdr);
+
+    // Search controls card
+    const ctrlCard = div('card');
+    const ctrlHdr = div('card-header');
+    ctrlHdr.appendChild(span('card-title','⬡ Region Target'));
+    ctrlCard.appendChild(ctrlHdr);
+    const ctrlBody = div('card-body');
+
+    const row1 = div('filter-bar');
+    const cityInp  = el('input','filter-input'); cityInp.placeholder='City (e.g. Dallas)'; cityInp.style.flex='1';
+    const stateInp = el('input','filter-input'); stateInp.placeholder='State (e.g. TX)'; stateInp.style.flex='1';
+    const countryInp = el('input','filter-input'); countryInp.placeholder='Country (e.g. US)'; countryInp.style.flex='1';
+    const limitSel = el('select','filter-sel');
+    [['20','20'],['50','50'],['100','100'],['200','200']].forEach(([v,l]) => {
+      const o = el('option','',l); o.value=v; limitSel.appendChild(o);
+    });
+    limitSel.value='50';
+
+    const searchBtn = el('button','btn primary','Search Region');
+    const growBtn   = el('button','btn','Grow Data (re-enrich)');
+    growBtn.disabled = true;
+    growBtn.title = 'Run a search first';
+
+    row1.append(
+      span('filter-label','City'), cityInp,
+      span('filter-label','State'), stateInp,
+      span('filter-label','Country'), countryInp,
+      span('filter-label','Limit'), limitSel,
+      searchBtn,
+      growBtn,
+    );
+    ctrlBody.appendChild(row1);
+    ctrlCard.appendChild(ctrlBody);
+    this.root.appendChild(ctrlCard);
+
+    // Results area
+    const resultsDiv = div('');
+    resultsDiv.id = 'region-results';
+    this.root.appendChild(resultsDiv);
+
+    let lastPersonIds = [];
+
+    searchBtn.addEventListener('click', async () => {
+      const city    = cityInp.value.trim();
+      const state   = stateInp.value.trim();
+      const country = countryInp.value.trim();
+      if (!city && !state && !country) {
+        resultsDiv.textContent = '';
+        resultsDiv.appendChild(div('red-txt','Enter at least one of city, state, or country'));
+        return;
+      }
+
+      searchBtn.disabled = true; searchBtn.textContent = 'Searching…';
+      resultsDiv.textContent = '';
+      resultsDiv.appendChild(span('dim','Searching…'));
+
+      try {
+        const params = new URLSearchParams({limit: limitSel.value});
+        if (city)    params.set('city', city);
+        if (state)   params.set('state', state);
+        if (country) params.set('country', country);
+
+        const d = await apiGet('/query/region?' + params.toString());
+        const hits = d.hits || [];
+        lastPersonIds = hits.map(h => h.id);
+
+        resultsDiv.textContent = '';
+
+        // Region badge
+        const rh = div('region-header');
+        const parts = [city, state, country].filter(Boolean);
+        rh.appendChild(span('region-badge', parts.join(', ')));
+        rh.appendChild(span('dim', `${hits.length} person${hits.length!==1?'s':''} found`));
+        resultsDiv.appendChild(rh);
+
+        if (hits.length === 0) {
+          const empty = div('empty-state');
+          empty.append(div('empty-state-icon','◎'), div('empty-state-title','No persons in this region'), div('empty-state-sub','Try a broader search or run enrichment first'));
+          resultsDiv.appendChild(empty);
+        } else {
+          const card = div('card');
+          const tbody = document.createElement('tbody');
+          const thead = document.createElement('thead');
+          const hr = document.createElement('tr');
+          ['Name','Risk','Quality','Location','Actions'].forEach(h => hr.appendChild(el('th','',h)));
+          thead.appendChild(hr);
+
+          hits.forEach(p => {
+            const tr = document.createElement('tr');
+
+            const tdN = document.createElement('td');
+            const nm = div('bold', p.full_name||'Unknown'); nm.style.color='#e8eef5';
+            const id = div('dim mono'); id.style.fontSize='10px'; id.textContent=p.id.substring(0,16)+'…';
+            tdN.append(nm, id);
+
+            const tdR = document.createElement('td');
+            const rTag = span('tag');
+            rTag.style.cssText=`background:${riskColor(p.default_risk_score)};color:#fff;border:none;font-size:10px`;
+            rTag.textContent = riskTier(p.default_risk_score);
+            tdR.appendChild(rTag);
+
+            const tdQ = document.createElement('td');
+            tdQ.appendChild(relBadge(p.composite_quality));
+
+            const tdL = document.createElement('td');
+            tdL.className='dim'; tdL.style.fontSize='11px';
+            tdL.textContent = [p.city, p.state_province, p.country].filter(Boolean).join(', ')||'—';
+
+            const tdA = document.createElement('td');
+            const vLink = el('a','btn','View'); vLink.href='#/person/'+p.id; vLink.style.cssText='padding:4px 10px;font-size:11px';
+            tdA.appendChild(vLink);
+
+            tr.append(tdN, tdR, tdQ, tdL, tdA);
+            tbody.appendChild(tr);
+          });
+
+          const tbl = el('table','data-table'); tbl.append(thead, tbody);
+          const wb = div('card-body'); wb.style.padding='0'; wb.appendChild(tbl);
+          card.appendChild(wb);
+          resultsDiv.appendChild(card);
+
+          growBtn.disabled = false;
+          growBtn.title = `Re-enrich ${hits.length} persons in this region`;
+        }
+      } catch(e) {
+        resultsDiv.textContent = '';
+        resultsDiv.appendChild(div('red-txt','Error: '+e.message));
+      } finally {
+        searchBtn.disabled=false; searchBtn.textContent='Search Region';
+      }
+    });
+
+    growBtn.addEventListener('click', async () => {
+      const city    = cityInp.value.trim();
+      const state   = stateInp.value.trim();
+      const country = countryInp.value.trim();
+      if (!city && !state && !country) return;
+
+      growBtn.disabled = true; growBtn.textContent = 'Queuing…';
+      try {
+        const d = await apiPost('/persons/region/grow', {
+          city: city||null, state: state||null, country: country||null,
+          limit: parseInt(limitSel.value), priority: 'normal',
+        });
+        const msg = div('card'); msg.style.border='1px solid rgba(0,196,140,0.3)';
+        const mb = div('card-body');
+        mb.appendChild(span('green-txt', `✓ ${d.message} — ${d.queued} jobs enqueued`));
+        msg.appendChild(mb);
+        resultsDiv.prepend(msg);
+      } catch(e) {
+        const errDiv = div('red-txt','Grow failed: '+e.message);
+        resultsDiv.prepend(errDiv);
+      } finally {
+        growBtn.disabled=false; growBtn.textContent='Grow Data (re-enrich)';
+      }
+    });
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // DEDUPLICATOR
+  // ──────────────────────────────────────────────────────────────────
+  async renderDeduplicate() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Deduplicator'), div('page-sub','Find and merge duplicate person records'));
+    const scanBtn = el('button','btn primary','Scan for Duplicates');
+    hdr.append(left, scanBtn);
+    this.root.appendChild(hdr);
+
+    const filterBar = div('filter-bar');
+    const threshInp = el('input','filter-input'); threshInp.type='number'; threshInp.min='0.5'; threshInp.max='1'; threshInp.step='0.05'; threshInp.value='0.75'; threshInp.style.width='90px';
+    const limitInp  = el('input','filter-input'); limitInp.type='number'; limitInp.min='50'; limitInp.max='1000'; limitInp.value='200'; limitInp.style.width='90px';
+    filterBar.append(
+      span('filter-label','Threshold'), threshInp,
+      span('filter-label','Scan limit'), limitInp,
+    );
+    this.root.appendChild(filterBar);
+
+    const resultsDiv = div('');
+    resultsDiv.id = 'dedup-results';
+    this.root.appendChild(resultsDiv);
+
+    scanBtn.addEventListener('click', async () => {
+      scanBtn.disabled = true; scanBtn.textContent = 'Scanning…';
+      resultsDiv.textContent = '';
+      resultsDiv.appendChild(span('dim','Scanning up to '+limitInp.value+' persons…'));
+
+      try {
+        const d = await apiGet(`/persons/deduplicate?limit=${limitInp.value}&threshold=${threshInp.value}`);
+        resultsDiv.textContent = '';
+
+        const info = div('page-header');
+        info.style.marginBottom='16px';
+        info.appendChild(span('dim', `Scanned ${d.total_scanned} persons · ${d.candidates_found} candidate pair${d.candidates_found!==1?'s':''} found`));
+        resultsDiv.appendChild(info);
+
+        if (d.candidates.length === 0) {
+          const empty = div('empty-state');
+          empty.append(div('empty-state-icon','✓'), div('empty-state-title','No duplicates found'), div('empty-state-sub','All persons look unique at this threshold'));
+          resultsDiv.appendChild(empty);
+          return;
+        }
+
+        d.candidates.forEach(c => {
+          this._renderMergeCard(c, resultsDiv);
+        });
+      } catch(e) {
+        resultsDiv.textContent = '';
+        resultsDiv.appendChild(div('red-txt','Scan failed: '+e.message));
+      } finally {
+        scanBtn.disabled=false; scanBtn.textContent='Scan for Duplicates';
+      }
+    });
+  },
+
+  _renderMergeCard(c, container) {
+    const pct = Math.round(c.similarity_score * 100);
+    const tier = pct >= 90 ? 'high' : pct >= 75 ? 'medium' : 'low';
+
+    const card = div('merge-card');
+
+    const scoreDv = div('merge-score '+tier, pct+'%');
+
+    const infoDv = div('merge-persons');
+    const a = div('merge-person', (c.name_a||'Unknown') + ' ←→ ' + (c.name_b||'Unknown'));
+    const reasons = div('merge-reason', c.match_reasons.join(' · ').substring(0,120));
+    const ids = div(''); ids.style.cssText='font-size:10px;color:var(--text-mute);font-family:var(--mono);margin-top:4px';
+    ids.textContent = c.id_a.substring(0,8)+'… vs '+c.id_b.substring(0,8)+'…';
+    infoDv.append(a, reasons, ids);
+
+    const actions = div('merge-actions');
+    const mergeABtn = el('button','btn primary','Merge B→A');
+    const mergeBBtn = el('button','btn','Merge A→B');
+    const skipBtn   = el('button','btn','Skip');
+
+    const doMerge = async (canonical, duplicate) => {
+      mergeABtn.disabled=true; mergeBBtn.disabled=true;
+      try {
+        const r = await apiPost('/persons/merge', {canonical_id:canonical, duplicate_id:duplicate});
+        card.style.opacity='0.4';
+        card.style.pointerEvents='none';
+        const msg = span('green-txt',' ✓ Merged (corroboration: '+r.corroboration_count+')');
+        actions.appendChild(msg);
+      } catch(e) {
+        const errMsg = span('red-txt',' ✗ '+e.message);
+        actions.appendChild(errMsg);
+        mergeABtn.disabled=false; mergeBBtn.disabled=false;
+      }
+    };
+
+    mergeABtn.addEventListener('click', () => doMerge(c.id_a, c.id_b));
+    mergeBBtn.addEventListener('click', () => doMerge(c.id_b, c.id_a));
+    skipBtn.addEventListener('click',   () => { card.style.display='none'; });
+
+    actions.append(mergeABtn, mergeBBtn, skipBtn);
+    card.append(scoreDv, infoDv, actions);
+    container.appendChild(card);
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // ACTIVITY LOG
+  // ──────────────────────────────────────────────────────────────────
+  async renderActivity() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Activity Log'), div('page-sub','Recent crawl jobs'));
+    const refreshBtn = el('button','btn','Refresh');
+    const filterBar2 = div('filter-bar');
+    const statusSel = el('select','filter-sel');
+    [['','All'],['pending','Pending'],['running','Running'],['done','Done'],['failed','Failed'],['blocked','Blocked'],['rate_limited','Rate Limited']].forEach(([v,l]) => {
+      const o=el('option','',l); o.value=v; statusSel.appendChild(o);
+    });
+    filterBar2.append(span('filter-label','Status'), statusSel, refreshBtn);
+    hdr.append(left, filterBar2);
+    this.root.append(hdr);
+
+    const body = div('');
+    body.id='activity-body';
+    body.appendChild(span('dim','Loading…'));
+    this.root.appendChild(body);
+
+    const load = async () => {
+      body.textContent=''; body.appendChild(span('dim','Loading…'));
+      try {
+        const params = new URLSearchParams({limit:'100'});
+        if (statusSel.value) params.set('status', statusSel.value);
+        const d = await apiGet('/crawls?'+params.toString());
+
+        body.textContent='';
+        const log = div('activity-log');
+
+        // Header row
+        const hrow = div('activity-row header');
+        ['Platform','Identifier','Person','Status','Started','Retries'].forEach(h => hrow.appendChild(span('',h)));
+        log.appendChild(hrow);
+
+        if (!d.jobs || d.jobs.length === 0) {
+          const e = div('empty-state');
+          e.append(div('empty-state-icon','◎'), div('empty-state-title','No jobs found'));
+          log.appendChild(e);
+        } else {
+          d.jobs.forEach(j => {
+            const row = div('activity-row');
+            const platform = (j.meta && j.meta.platform) || j.job_type || '—';
+            row.appendChild(span('bold', platform));
+            row.appendChild(span('dim mono', (j.seed_identifier||'—').substring(0,20)));
+            const personSpan = span('mono');
+            if (j.person_id) {
+              const a = el('a','', j.person_id.substring(0,8)+'…');
+              a.href = '#/person/'+j.person_id;
+              personSpan.appendChild(a);
+            } else { personSpan.textContent='—'; }
+            row.appendChild(personSpan);
+            const pill = span('status-pill '+(j.status||'').toLowerCase(), j.status||'—');
+            row.appendChild(pill);
+            row.appendChild(span('dim mono', fmtDate(j.created_at)));
+            row.appendChild(span('dim', j.retry_count||'0'));
+            log.appendChild(row);
+          });
+        }
+
+        body.appendChild(log);
+      } catch(e) {
+        body.textContent=''; body.appendChild(div('red-txt','Error: '+e.message));
+      }
+    };
+
+    refreshBtn.addEventListener('click', load);
+    statusSel.addEventListener('change', load);
+    await load();
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // PERSON DOSSIER
+  // ──────────────────────────────────────────────────────────────────
+  async renderPerson(id) {
+    if (this._lp) { this._lp.disconnect(); this._lp=null; }
+    this.root.textContent='';
+
+    const backRow = div(''); backRow.style.marginBottom='20px';
+    const backLink = el('a','btn','← Back'); backLink.href='#/persons';
+    backRow.appendChild(backLink);
+    this.root.appendChild(backRow);
+
+    const body = div('');
+    body.id='person-body';
+    body.appendChild(span('dim','Loading dossier…'));
+    this.root.appendChild(body);
+
+    try {
+      const d = await apiGet('/persons/'+id+'/report');
+      const p = d.person;
+      body.textContent='';
+
+      // ── Header card ──
+      const hCard = div('card'); hCard.style.marginBottom='20px';
+      const hBody = div('card-body');
+      const ph = div('person-header');
+
+      // Avatar
+      const avatar = div('person-avatar','◎');
+      if (p.profile_image_url) {
+        const img = el('img','person-avatar');
+        img.src=p.profile_image_url; img.alt='';
+        img.onerror=()=>{ img.replaceWith(avatar); };
+        ph.appendChild(img);
+      } else { ph.appendChild(avatar); }
+
+      const meta = div('person-meta');
+      const nm = div('person-name', p.full_name||'Unknown Person');
+      const tags = div('tag-row');
+      const idTag = span('tag muted mono'); idTag.style.fontSize='10px'; idTag.textContent=p.id.substring(0,8);
+      const rTag = span('tag');
+      rTag.style.cssText=`background:${riskColor(p.default_risk_score)};color:#fff;border:none`;
+      rTag.textContent = riskTier(p.default_risk_score)+' RISK';
+      const qTag = span('tag muted');
+      qTag.textContent = 'Quality: '+Math.round((p.composite_quality||0)*100)+'%';
+      if (p.conflict_flag) {
+        const cf = span('tag red','⚠ CONFLICT');
+        tags.appendChild(cf);
+      }
+      if (p.verification_status === 'verified') {
+        const vt = span('tag green','✓ VERIFIED');
+        tags.appendChild(vt);
+      }
+      tags.prepend(idTag, rTag, qTag);
+      meta.append(nm, tags);
+      ph.appendChild(meta);
+      hBody.appendChild(ph);
+      hCard.appendChild(hBody);
+      body.appendChild(hCard);
+
+      // ── Two-column grid ──
+      const grid = div('');
+      grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start';
+
+      // LEFT column
+      const left = div('');
+
+      // Risk dials
+      const riskCard = div('card');
+      const riskHdr = div('card-header'); riskHdr.appendChild(span('card-title','⬡ Risk Assessment'));
+      const riskBody = div('card-body');
+      const riskGrid = div('risk-grid');
+      const dials = [
+        {id:'dial-default', label:'Default', score:p.default_risk_score},
+        {id:'dial-behaviour', label:'Behaviour', score:p.behavioural_risk},
+        {id:'dial-darkweb', label:'Dark Web', score:p.darkweb_exposure},
+        {id:'dial-relationship', label:'Relations', score:p.relationship_score},
+      ];
+      dials.forEach(dial => {
+        const item = div('risk-item');
+        const dialEl = div('risk-dial'); dialEl.id=dial.id;
+        item.append(dialEl, div('risk-label',dial.label));
+        riskGrid.appendChild(item);
+      });
+      riskBody.appendChild(riskGrid);
+      riskCard.append(riskHdr, riskBody);
+      left.appendChild(riskCard);
+
+      // Identifiers with reliability
+      const idCard = div('card'); idCard.style.marginTop='16px';
+      const idHdr = div('card-header');
+      idHdr.append(span('card-title','⬡ Identifiers'), span('card-badge',d.identifiers.length));
+      idCard.appendChild(idHdr);
+      const idBody = div('card-body'); idBody.style.padding='0';
+      const idTable = el('table','data-table');
+      const idThead = document.createElement('thead');
+      const idTr = document.createElement('tr');
+      ['Type','Value','Conf','Reliability','Status'].forEach(h => idTr.appendChild(el('th','',h)));
+      idThead.appendChild(idTr);
+      const idTbody = document.createElement('tbody');
+      d.identifiers.forEach(i => {
+        const tr = document.createElement('tr');
+        const tag = span('tag muted'); tag.style.fontSize='10px'; tag.textContent=i.type;
+        const tdType = document.createElement('td'); tdType.appendChild(tag);
+        const tdVal = document.createElement('td'); tdVal.className='mono'; tdVal.textContent=i.value||'—';
+        const tdConf = document.createElement('td'); tdConf.className='dim'; tdConf.textContent=Math.round((i.confidence||0)*100)+'%';
+        const tdRel = document.createElement('td'); tdRel.appendChild(relBadge(i.source_reliability));
+        const tdSt = document.createElement('td'); tdSt.className='dim'; tdSt.style.fontSize='10px'; tdSt.textContent=i.verification_status||'—';
+        tr.append(tdType, tdVal, tdConf, tdRel, tdSt);
+        idTbody.appendChild(tr);
+      });
+      idTable.append(idThead, idTbody);
+      idBody.appendChild(idTable);
+      idCard.appendChild(idBody);
+      left.appendChild(idCard);
+
+      // Addresses
+      if (d.addresses && d.addresses.length > 0) {
+        const addrCard = div('card'); addrCard.style.marginTop='16px';
+        const addrHdr = div('card-header');
+        addrHdr.append(span('card-title','⬡ Addresses'), span('card-badge',d.addresses.length));
+        const addrBody = div('card-body');
+        d.addresses.forEach(a => {
+          const item = div('addr-item');
+          const parts = [a.street, a.city, a.state_province, a.postal_code, a.country].filter(Boolean);
+          const line = div('addr-line', parts.join(', '));
+          const meta = div('addr-meta');
+          const metaParts = [];
+          if (a.address_type) metaParts.push(a.address_type);
+          if (a.is_current) metaParts.push('current');
+          if (a.last_scraped_at) metaParts.push('scraped '+fmtDate(a.last_scraped_at));
+          meta.textContent = metaParts.join(' · ');
+          item.append(line);
+          if (metaParts.length) item.appendChild(meta);
+          item.appendChild(relBadge(a.source_reliability));
+          addrBody.appendChild(item);
+        });
+        addrCard.append(addrHdr, addrBody);
+        left.appendChild(addrCard);
+      }
+
+      // Breach & watchlist summary
+      if ((d.breach_records && d.breach_records.length > 0) || (d.watchlist_matches && d.watchlist_matches.length > 0)) {
+        const alertCard = div('card'); alertCard.style.marginTop='16px';
+        const aHdr = div('card-header'); aHdr.appendChild(span('card-title','⬡ Alerts'));
+        const aBody = div('card-body');
+        if (d.watchlist_matches && d.watchlist_matches.length > 0) {
+          d.watchlist_matches.forEach(w => {
+            const ai = div('alert-item');
+            const ic = div('alert-icon critical','⚠');
+            const cnt = div('');
+            cnt.append(div('alert-title','Sanctions: '+w.list_name), div('alert-sub','Match: '+w.match_name+' ('+Math.round((w.match_score||0)*100)+'%)'));
+            ai.append(ic, cnt);
+            aBody.appendChild(ai);
+          });
+        }
+        if (d.breach_records && d.breach_records.length > 0) {
+          const ai = div('alert-item');
+          const ic = div('alert-icon high','◉');
+          const cnt = div('');
+          cnt.append(div('alert-title',d.breach_records.length+' breach record(s)'), div('alert-sub',d.breach_records.slice(0,3).map(b=>b.breach_name).join(', ')));
+          ai.append(ic, cnt);
+          aBody.appendChild(ai);
+        }
+        alertCard.append(aHdr, aBody);
+        left.appendChild(alertCard);
+      }
+
+      // RIGHT column
+      const right = div('');
+
+      // Live feed
+      const feedCard = div('card');
+      const fHdr = div('card-header');
+      const fLabel = span('card-badge','active'); fLabel.id='progress-label';
+      fHdr.append(span('card-title','⬡ Live Intelligence Feed'), fLabel);
+      const fBody = div('card-body'); fBody.style.padding='10px';
+      const pbarWrap = div('progress-bar-wrap');
+      const pbar = div('progress-bar'); pbar.style.width='0'; pbar.id='progress-bar';
+      pbarWrap.appendChild(pbar);
+      const feed = div('live-feed'); feed.id='live-feed';
+      fBody.append(pbarWrap, feed);
+      feedCard.append(fHdr, fBody);
+      right.appendChild(feedCard);
+
+      // Social profiles with reliability
+      if (d.social_profiles && d.social_profiles.length > 0) {
+        const spCard = div('card'); spCard.style.marginTop='16px';
+        const spHdr = div('card-header');
+        spHdr.append(span('card-title','⬡ Social Platforms'), span('card-badge',d.social_profiles.length));
+        const spBody = div('card-body');
+        const pg = div('platform-grid');
+        d.social_profiles.forEach(s => {
+          const pc = div('platform-card found');
+          pc.dataset.platform = s.platform||'';
+          const pn = div('platform-name', s.platform||'—');
+          const ph2 = div('platform-handle', s.handle||s.display_name||'—');
+          const ps = div('platform-status');
+          ps.style.color='var(--green)';
+          ps.textContent = '● found';
+          const pr = div(''); pr.style.marginTop='4px';
+          pr.appendChild(relBadge(s.source_reliability));
+          if (s.last_scraped_at) {
+            const ls = span('dim'); ls.style.fontSize='10px'; ls.textContent=' '+fmtDate(s.last_scraped_at);
+            pr.appendChild(ls);
+          }
+          pc.append(pn, ph2, ps, pr);
+          pg.appendChild(pc);
+        });
+        spBody.appendChild(pg);
+        spCard.append(spHdr, spBody);
+        right.appendChild(spCard);
+      }
+
+      // Dark web mentions
+      if (d.darkweb_mentions && d.darkweb_mentions.length > 0) {
+        const dwCard = div('card'); dwCard.style.marginTop='16px';
+        const dwHdr = div('card-header');
+        dwHdr.append(span('card-title','⬡ Dark Web Mentions'), span('card-badge red-txt',d.darkweb_mentions.length));
+        const dwBody = div('card-body');
+        d.darkweb_mentions.slice(0,5).forEach(m => {
+          const item = div('alert-item');
+          const ic = div('alert-icon high','◉');
+          const ct = div('');
+          ct.append(div('alert-title', m.source_type||'dark web'), div('alert-sub', (m.mention_context||'').substring(0,100)));
+          item.append(ic, ct);
+          dwBody.appendChild(item);
+        });
+        dwCard.append(dwHdr, dwBody);
+        right.appendChild(dwCard);
+      }
+
+      // Criminal records — loaded async
+      (async () => {
+        try {
+          const cr = await apiGet('/persons/'+id+'/criminal');
+          if (!cr.criminal_records || cr.criminal_records.length === 0) return;
+          const crCard = div('card'); crCard.style.marginTop='16px';
+          const crHdr = div('card-header');
+          const crBadge = span('card-badge red-txt', cr.total);
+          if (cr.has_sex_offender) {
+            const soTag = span('tag red'); soTag.style.marginLeft='8px'; soTag.textContent='SEX OFFENDER';
+            crHdr.append(span('card-title','⬡ Criminal Records'), crBadge, soTag);
+          } else {
+            crHdr.append(span('card-title','⬡ Criminal Records'), crBadge);
+          }
+          const crBody = div('card-body');
+          const crMeta = div(''); crMeta.style.cssText='font-size:11px;color:var(--text-dim);margin-bottom:10px';
+          crMeta.textContent = `${cr.felony_count} felony · ${cr.misdemeanor_count} misdemeanor`;
+          crBody.appendChild(crMeta);
+
+          cr.criminal_records.forEach(r => {
+            const item = div('alert-item');
+            item.style.marginBottom='8px';
+            const severity = r.offense_level === 'felony' ? 'critical' : r.offense_level === 'misdemeanor' ? 'high' : 'medium';
+            const ic = div(`alert-icon ${severity}`, r.offense_level === 'felony' ? '◉' : '○');
+            const ct = div('');
+            const titleEl = div('alert-title', r.charge || r.offense_description || 'Unknown Charge');
+            const subParts = [];
+            if (r.court_name) subParts.push(r.court_name);
+            if (r.jurisdiction) subParts.push(r.jurisdiction);
+            if (r.disposition) subParts.push('→ '+r.disposition);
+            if (r.arrest_date) subParts.push(fmtDate(r.arrest_date));
+            if (r.court_case_number) subParts.push('#'+r.court_case_number);
+            const subEl = div('alert-sub', subParts.join(' · '));
+            ct.append(titleEl, subEl);
+            if (r.sentence) {
+              const sent = div(''); sent.style.cssText='font-size:10px;color:var(--yellow);margin-top:3px';
+              sent.textContent = 'Sentence: '+r.sentence;
+              ct.appendChild(sent);
+            }
+            item.append(ic, ct);
+            crBody.appendChild(item);
+          });
+
+          crCard.append(crHdr, crBody);
+          right.appendChild(crCard);
+        } catch(e) {}
+      })();
+
+      // Identity documents — loaded async
+      (async () => {
+        try {
+          const docs = await apiGet('/persons/'+id+'/documents');
+          if (!docs.documents || docs.documents.length === 0) return;
+          const docCard = div('card'); docCard.style.marginTop='16px';
+          const docHdr = div('card-header');
+          docHdr.append(span('card-title','⬡ Identity Documents'), span('card-badge', docs.total));
+          const docBody = div('card-body');
+
+          const docTable = el('table','data-table');
+          const dHead = el('tr','');
+          ['Type','Partial #','Country','State','Expires','Status'].forEach(h => {
+            const th = el('th',''); th.textContent=h; dHead.appendChild(th);
+          });
+          docTable.appendChild(dHead);
+          docs.documents.forEach(d => {
+            const row = el('tr','');
+            const typeCell = el('td','');
+            const typeTag = span('tag muted'); typeTag.textContent=(d.doc_type||'—').replace(/_/g,' ').toUpperCase();
+            typeCell.appendChild(typeTag);
+            const partialCell = el('td','mono dim'); partialCell.textContent=d.doc_number_partial||'—';
+            const countryCell = el('td',''); countryCell.textContent=d.issuing_country||'—';
+            const stateCell = el('td',''); stateCell.textContent=d.issuing_state||'—';
+            const expCell = el('td','');
+            if (d.expiry_date) {
+              expCell.textContent=fmtDate(d.expiry_date);
+              if (d.is_expired) expCell.style.color='var(--red)';
+            } else { expCell.textContent='—'; }
+            const statusCell = el('td','');
+            if (d.is_revoked) { const s=span('tag red','REVOKED'); statusCell.appendChild(s); }
+            else if (d.is_expired) { const s=span('tag red-txt','EXPIRED'); statusCell.appendChild(s); }
+            else if (d.is_active) { const s=span('tag green','ACTIVE'); statusCell.appendChild(s); }
+            else { statusCell.textContent='—'; }
+            row.append(typeCell, partialCell, countryCell, stateCell, expCell, statusCell);
+            docTable.appendChild(row);
+          });
+          docBody.appendChild(docTable);
+          docCard.append(docHdr, docBody);
+          right.appendChild(docCard);
+        } catch(e) {}
+      })();
+
+      // Credit profile — loaded async
+      (async () => {
+        try {
+          const cp = await apiGet('/persons/'+id+'/credit');
+          if (!cp.credit_profiles || cp.credit_profiles.length === 0) return;
+          const cpCard = div('card'); cpCard.style.marginTop='16px';
+          const cpHdr = div('card-header');
+          cpHdr.append(span('card-title','⬡ Credit & Financial'));
+          const cpBody = div('card-body');
+          const latest = cp.credit_profiles[0];
+
+          const cpGrid = div('');
+          cpGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px';
+
+          const flags = [
+            {label:'Bankruptcy', val: cp.has_bankruptcy, count: latest.bankruptcy_count},
+            {label:'Tax Lien',   val: cp.has_tax_lien,   count: latest.lien_count},
+            {label:'Foreclosure',val: cp.has_foreclosure, count: latest.foreclosure_count},
+            {label:'Judgment',   val: latest.has_civil_judgment, count: latest.judgment_count},
+            {label:'Eviction',   val: latest.eviction_count > 0, count: latest.eviction_count},
+          ];
+          flags.forEach(f => {
+            const fc = div('stat-box');
+            const fv = div('stat-value');
+            fv.style.color = f.val ? 'var(--red)' : 'var(--green)';
+            fv.textContent = f.val ? (f.count > 1 ? f.count : '✗') : '✓';
+            const fl = div('stat-label', f.label);
+            fc.append(fv, fl);
+            cpGrid.appendChild(fc);
+          });
+          cpBody.appendChild(cpGrid);
+
+          if (latest.estimated_credit_tier) {
+            const tier = div('');
+            tier.style.cssText='font-size:11px;color:var(--text-dim)';
+            const tierColors = {excellent:'var(--green)',good:'var(--accent)',fair:'var(--yellow)',poor:'var(--red)'};
+            const tierSpan = span(''); tierSpan.style.color = tierColors[latest.estimated_credit_tier]||'var(--text)';
+            tierSpan.textContent = (latest.estimated_credit_tier||'').toUpperCase();
+            tier.append(document.createTextNode('Estimated credit tier: '), tierSpan);
+            if (latest.estimated_score_min && latest.estimated_score_max) {
+              tier.append(document.createTextNode(` (${latest.estimated_score_min}–${latest.estimated_score_max})`));
+            }
+            cpBody.appendChild(tier);
+          }
+
+          cpCard.append(cpHdr, cpBody);
+          right.appendChild(cpCard);
+        } catch(e) {}
+      })();
+
+      // Identifier history — loaded async
+      (async () => {
+        try {
+          const hist = await apiGet('/persons/'+id+'/history');
+          if (!hist.history || hist.history.length === 0) return;
+          const hCard = div('card'); hCard.style.marginTop='16px';
+          const hHdr = div('card-header');
+          hHdr.append(span('card-title','⬡ Identifier History'), span('card-badge', hist.total));
+          const hBody = div('card-body');
+
+          // Summary chips
+          const chipRow = div('tag-row'); chipRow.style.marginBottom='10px';
+          if (hist.phones.length) {
+            const c=span('tag muted'); c.textContent=`${hist.phones.length} phones`; chipRow.appendChild(c);
+          }
+          if (hist.emails.length) {
+            const c=span('tag muted'); c.textContent=`${hist.emails.length} emails`; chipRow.appendChild(c);
+          }
+          if (hist.handles.length) {
+            const c=span('tag muted'); c.textContent=`${hist.handles.length} handles`; chipRow.appendChild(c);
+          }
+          hBody.appendChild(chipRow);
+
+          const hTable = el('table','data-table');
+          const hHead = el('tr','');
+          ['Type','Value','First Seen','Last Seen','Status'].forEach(h => {
+            const th = el('th',''); th.textContent=h; hHead.appendChild(th);
+          });
+          hTable.appendChild(hHead);
+
+          hist.history.slice(0,20).forEach(h => {
+            const row = el('tr','');
+            const typeCell = el('td',''); typeCell.appendChild(span('tag muted', h.type||'—'));
+            const valCell = el('td','mono'); valCell.textContent=h.value||'—';
+            const firstCell = el('td','dim'); firstCell.textContent=h.first_seen_at?fmtDate(h.first_seen_at):'—';
+            const lastCell = el('td','dim'); lastCell.textContent=h.last_seen_at?fmtDate(h.last_seen_at):'—';
+            const statusCell = el('td','');
+            if (h.is_current) statusCell.appendChild(span('tag green','CURRENT'));
+            else if (!h.is_active) statusCell.appendChild(span('tag red','INACTIVE'));
+            else statusCell.appendChild(span('tag muted','HISTORICAL'));
+            row.append(typeCell, valCell, firstCell, lastCell, statusCell);
+            hTable.appendChild(row);
+          });
+          hBody.appendChild(hTable);
+          hCard.append(hHdr, hBody);
+          right.appendChild(hCard);
+        } catch(e) {}
+      })();
+
+      // Actions card
+      const actCard = div('card'); actCard.style.marginTop='16px';
+      const actHdr = div('card-header'); actHdr.appendChild(span('card-title','⬡ Actions'));
+      const actBody = div('card-body');
+      const actRow = div('tag-row');
+      const certBtn = el('a','btn','Certificate'); certBtn.href='/persons/'+id+'/certificate'; certBtn.target='_blank';
+      const reportBtn = el('a','btn','Full Report (JSON)'); reportBtn.href='/persons/'+id+'/report'; reportBtn.target='_blank';
+      const delBtn = el('button','btn danger','Delete');
+      delBtn.addEventListener('click', async () => {
+        if (!confirm('Delete this person and all their data?')) return;
+        try {
+          await fetch('/persons/'+id, {method:'DELETE'});
+          window.location.hash='#/persons';
+        } catch(e) { alert('Delete failed: '+e.message); }
+      });
+      actRow.append(certBtn, reportBtn, delBtn);
+      actBody.appendChild(actRow);
+      actCard.append(actHdr, actBody);
+      right.appendChild(actCard);
+
+      grid.append(left, right);
+      body.appendChild(grid);
+
+      // Draw risk dials after DOM is ready
+      requestAnimationFrame(() => {
+        dials.forEach(dial => {
+          const el2 = document.getElementById(dial.id);
+          if (el2) drawRiskDial(el2, dial.score, riskColor(dial.score));
+        });
+        // Override darkweb color
+        const dwEl = document.getElementById('dial-darkweb');
+        if (dwEl) drawRiskDial(dwEl, p.darkweb_exposure, p.darkweb_exposure>0 ? 'var(--purple)' : 'var(--green)');
+      });
+
+      // Connect WebSocket
+      this._lp = new LiveProgress(id, {
+        feed: document.getElementById('live-feed'),
+        bar:  document.getElementById('progress-bar'),
+        onDone: () => {
+          const lbl = document.getElementById('progress-label');
+          if (lbl) { lbl.textContent='complete'; lbl.style.color='var(--green)'; }
+        },
+      });
+      this._lp.connect();
+
+    } catch(e) {
+      body.textContent='';
+      body.appendChild(div('red-txt','Error: '+e.message));
+    }
+  },
+};
+
+App.init();
+</script>
+</body>
+</html>

@@ -34,6 +34,11 @@
   <main class="main">
     <div class="hero">
       <div class="hero-title">Intelligence Search</div>
+      {% if error %}
+      <div class="card" style="border-color:var(--red);background:var(--red-lo);color:var(--red);padding:10px;margin-bottom:20px;text-align:center">
+        {{ error }}
+      </div>
+      {% endif %}
       <div class="hero-sub">Search any identifier — name, username, phone, email, domain, VIN, crypto wallet</div>
 
       <div class="search-box">

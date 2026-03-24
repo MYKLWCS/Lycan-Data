@@ -158,35 +158,65 @@ def find_duplicate_persons(
 
 
 def _person_similarity(a: dict, b: dict) -> tuple[float, list[str]]:
-    """Compute similarity score and reasons for two person records."""
+    """Compute similarity score and reasons for two person records.
+
+    Scoring:
+      - Shared phone or email → 0.95 (near-certain match, early exit)
+      - Name similarity       → up to 0.40
+      - DOB exact match       → 0.30
+      - Other shared idents   → up to 0.20
+    """
     score = 0.0
     reasons = []
+
+    idents_a = set(str(i).lower().strip() for i in a.get('identifiers', []) if i)
+    idents_b = set(str(i).lower().strip() for i in b.get('identifiers', []) if i)
+
+    # Fast path: shared phone or email is near-certain same person
+    phones_a = set(str(i) for i in a.get('phones', [])) | {v for v in idents_a if _looks_like_phone(v)}
+    phones_b = set(str(i) for i in b.get('phones', [])) | {v for v in idents_b if _looks_like_phone(v)}
+    emails_a = set(str(i) for i in a.get('emails', [])) | {v for v in idents_a if '@' in v}
+    emails_b = set(str(i) for i in b.get('emails', [])) | {v for v in idents_b if '@' in v}
+
+    shared_phones = phones_a & phones_b
+    shared_emails = emails_a & emails_b
+
+    if shared_phones:
+        reasons.append(f"shared phone: {next(iter(shared_phones))}")
+        return 0.95, reasons
+    if shared_emails:
+        reasons.append(f"shared email: {next(iter(shared_emails))}")
+        return 0.95, reasons
 
     # Name similarity (weight 0.40)
     name_a = a.get('full_name', '')
     name_b = b.get('full_name', '')
     name_sim = name_similarity(name_a, name_b)
     score += name_sim * 0.40
-    if name_sim >= 0.8:
+    if name_sim >= 0.75:
         reasons.append(f"name match: '{name_a}' ≈ '{name_b}' ({name_sim:.2f})")
 
-    # DOB match (weight 0.30)
+    # DOB exact match (weight 0.30)
     dob_a = a.get('dob')
     dob_b = b.get('dob')
     if dob_a and dob_b and str(dob_a) == str(dob_b):
         score += 0.30
         reasons.append(f"DOB match: {dob_a}")
 
-    # Shared identifiers (weight 0.30)
-    idents_a = set(str(i).lower() for i in a.get('identifiers', []))
-    idents_b = set(str(i).lower() for i in b.get('identifiers', []))
+    # Other shared identifiers (weight up to 0.20)
     shared = idents_a & idents_b
     if shared:
-        shared_score = min(0.30, len(shared) * 0.15)
+        shared_score = min(0.20, len(shared) * 0.10)
         score += shared_score
         reasons.append(f"shared identifiers: {', '.join(list(shared)[:3])}")
 
     return min(1.0, score), reasons
+
+
+def _looks_like_phone(value: str) -> bool:
+    """Heuristic: string of mostly digits that's 7+ chars long."""
+    digits = re.sub(r'\D', '', value)
+    return len(digits) >= 7 and len(digits) <= 15
 
 
 def merge_persons(canonical_id: str, duplicate_id: str) -> dict[str, Any]:
@@ -205,6 +235,8 @@ def merge_persons(canonical_id: str, duplicate_id: str) -> dict[str, Any]:
             "crypto_wallets", "behavioural_profiles", "credit_risk_assessments",
             "wealth_assessments", "burner_assessments", "relationships",
             "crawl_jobs", "alerts",
+            "criminal_records", "identity_documents", "credit_profiles",
+            "identifier_history",
         ],
         "delete_duplicate": True,
         "merged_at": datetime.now(timezone.utc).isoformat(),

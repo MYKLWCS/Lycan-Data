@@ -29,6 +29,10 @@ class Person(Base, TimestampMixin, DataQualityMixin):
     identifiers: Mapped[list["Identifier"]] = relationship(back_populates="person", cascade="all, delete-orphan")
     social_profiles: Mapped[list["SocialProfile"]] = relationship(back_populates="person", cascade="all, delete-orphan")
     aliases: Mapped[list["Alias"]] = relationship(back_populates="person", cascade="all, delete-orphan")
+    criminal_records: Mapped[list["CriminalRecord"]] = relationship(back_populates="person", cascade="all, delete-orphan")
+    identity_documents: Mapped[list["IdentityDocument"]] = relationship(back_populates="person", cascade="all, delete-orphan")
+    credit_profiles: Mapped[list["CreditProfile"]] = relationship(back_populates="person", cascade="all, delete-orphan")
+    identifier_history: Mapped[list["IdentifierHistory"]] = relationship(back_populates="person", cascade="all, delete-orphan")
 
 
 class Alias(Base, TimestampMixin):
