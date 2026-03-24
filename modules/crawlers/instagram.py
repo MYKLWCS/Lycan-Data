@@ -69,6 +69,13 @@ class InstagramCrawler(PlaywrightCrawler):
             og_desc = await page.get_attribute('meta[property="og:description"]', "content") or ""
             if og_desc:
                 data["bio"] = og_desc[:500]
+                # Extract contact info from bio text
+                email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', og_desc)
+                if email_match:
+                    data["email"] = email_match.group(0).lower()
+                phone_match = re.search(r'(\+?\d[\d\s\-().]{7,15}\d)', og_desc)
+                if phone_match:
+                    data["phone"] = phone_match.group(0).strip()
 
             content = await page.content()
             data["is_verified"] = "is_verified\":true" in content or '"verified":true' in content

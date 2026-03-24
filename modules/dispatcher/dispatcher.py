@@ -111,6 +111,7 @@ class CrawlDispatcher:
                     "found": result.found,
                     "error": result.error,
                     "person_id": person_id,
+                    "source_reliability": result.source_reliability,  # preserve for aggregator
                 }
                 # Fix nested dicts (to_db_dict might leave data intact)
                 if hasattr(result, "data"):
