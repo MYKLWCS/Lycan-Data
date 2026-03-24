@@ -1,4 +1,6 @@
+import asyncio
 import importlib
+import logging
 import pkgutil
 import uuid
 from contextlib import asynccontextmanager
@@ -9,6 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+_log = logging.getLogger(__name__)
 
 from api.routes import crawls, dedup, enrichment, financial, graph, marketing, patterns, persons, search, search_query, system, ws
 from api.routes import behavioural, watchlist, alerts, compliance, export
@@ -67,11 +71,33 @@ async def lifespan(app: FastAPI):
         init_rate_limiter(redis)
         init_circuit_breaker(redis)
     except Exception:
-        import logging
-        logging.getLogger(__name__).warning(
-            "Rate limiter / circuit breaker init skipped (no Redis)"
-        )
+        _log.warning("Rate limiter / circuit breaker init skipped (no Redis)")
+
+    # ── Start background workers ───────────────────────────────────────────────
+    worker_tasks: list[asyncio.Task] = []
+    try:
+        from modules.dispatcher.dispatcher import CrawlDispatcher
+        from modules.pipeline.ingestion_daemon import IngestionDaemon
+
+        # 3 parallel crawl workers + 1 ingestion worker
+        for i in range(1, 4):
+            d = CrawlDispatcher(worker_id=f"worker-{i}")
+            worker_tasks.append(asyncio.create_task(d.start(), name=f"crawler-{i}"))
+
+        ingester = IngestionDaemon(worker_id="ingester-1")
+        worker_tasks.append(asyncio.create_task(ingester.start(), name="ingester-1"))
+
+        _log.info("Started %d background workers (3 crawl + 1 ingest)", len(worker_tasks))
+    except Exception:
+        _log.warning("Background workers failed to start", exc_info=True)
+
     yield
+
+    # ── Graceful shutdown ──────────────────────────────────────────────────────
+    for t in worker_tasks:
+        t.cancel()
+    if worker_tasks:
+        await asyncio.gather(*worker_tasks, return_exceptions=True)
     try:
         await event_bus.disconnect()
     except Exception:

@@ -167,7 +167,9 @@ class CrawlDispatcher:
         duration_ms: int,
         error: str | None = None,
     ) -> None:
-        """Write a CrawlLog entry. Uses meta JSONB for platform/identifier/success."""
+        """Write a CrawlLog entry. Skips if job_id is None (job_id is NOT NULL)."""
+        if not job_id:
+            return
         log = CrawlLog(
             job_id=job_id,
             response_time_ms=duration_ms,

@@ -133,8 +133,11 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
     if existing_ident and existing_ident.person_id:
         person_id = existing_ident.person_id
     else:
-        # Create person record
-        person = Person(id=uuid.uuid4())
+        # Create person record — set full_name when searching by name
+        person = Person(
+            id=uuid.uuid4(),
+            full_name=req.value.strip() if seed_type == SeedType.FULL_NAME else None,
+        )
         session.add(person)
         await session.flush()
         person_id = person.id

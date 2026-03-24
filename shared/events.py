@@ -57,7 +57,7 @@ class EventBus:
             encoding="utf-8",
             decode_responses=True,
             socket_connect_timeout=5,
-            socket_timeout=5,
+            socket_timeout=None,  # None required for blocking brpop — timeout handled by brpop arg
         )
         await self._redis.ping()
         logger.info("EventBus connected to Dragonfly at %s", self._url)
@@ -115,7 +115,10 @@ class EventBus:
     async def dequeue(self, priority: str = "normal", timeout: int = 5) -> dict[str, Any] | None:
         """Pop a job from the queue. Blocks for up to `timeout` seconds."""
         queue = self.QUEUES.get(priority, self.QUEUES["normal"])
-        result = await self.redis.brpop([queue], timeout=timeout)
+        try:
+            result = await self.redis.brpop([queue], timeout=timeout)
+        except Exception:
+            return None
         if result is None:
             return None
         _, raw = result
@@ -124,7 +127,10 @@ class EventBus:
     async def dequeue_any(self, timeout: int = 5) -> dict[str, Any] | None:
         """Pop from high → normal → low, whichever has a job first."""
         queues = [self.QUEUES["high"], self.QUEUES["normal"], self.QUEUES["low"]]
-        result = await self.redis.brpop(queues, timeout=timeout)
+        try:
+            result = await self.redis.brpop(queues, timeout=timeout)
+        except Exception:
+            return None
         if result is None:
             return None
         _, raw = result
