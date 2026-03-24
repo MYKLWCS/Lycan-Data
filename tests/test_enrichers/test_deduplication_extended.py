@@ -13,7 +13,6 @@ from modules.enrichers.deduplication import (
     soundex,
 )
 
-
 # ─── ExactMatchDeduplicator — normalize_string ────────────────────────────────
 
 
@@ -289,7 +288,14 @@ def test_looks_like_phone_email_not_phone():
 # ─── FuzzyDeduplicator ────────────────────────────────────────────────────────
 
 
-def _make_person(id: str, full_name: str, dob: str = "", phones: list | None = None, emails: list | None = None, identifiers: list | None = None) -> dict:
+def _make_person(
+    id: str,
+    full_name: str,
+    dob: str = "",
+    phones: list | None = None,
+    emails: list | None = None,
+    identifiers: list | None = None,
+) -> dict:
     return {
         "id": id,
         "full_name": full_name,

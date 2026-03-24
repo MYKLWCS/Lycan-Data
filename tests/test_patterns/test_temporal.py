@@ -89,9 +89,7 @@ async def test_find_address_change_patterns_db_error_returns_empty():
 
 
 async def test_find_identifier_change_patterns_returns_list():
-    rows = [
-        {"person_id": "xyz", "type": "phone", "identifier_count": 4, "distinct_values": 3}
-    ]
+    rows = [{"person_id": "xyz", "type": "phone", "identifier_count": 4, "distinct_values": 3}]
     session = _mock_session(rows)
     analyzer = TemporalPatternAnalyzer()
     result = await analyzer.find_identifier_change_patterns(session)

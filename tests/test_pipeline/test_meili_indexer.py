@@ -21,7 +21,6 @@ import pytest
 
 from modules.search.meili_indexer import MeiliIndexer, build_person_doc
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

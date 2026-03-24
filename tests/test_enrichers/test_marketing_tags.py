@@ -10,8 +10,8 @@ from modules.enrichers.marketing_tags import (
     BorrowerProfile,
     HighInterestBorrowerScorer,
     InvestmentTag,
-    LifeStageTag,
     LendingTag,
+    LifeStageTag,
     TagResult,
     _clamp,
     _compute_age,
@@ -26,7 +26,6 @@ from modules.enrichers.marketing_tags import (
     _score_title_loan,
     _social_text,
 )
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -88,7 +87,9 @@ def _make_identifier(type: str = "email", updated_at=None) -> MagicMock:
     return m
 
 
-def _make_crypto_wallet(mixer_exposure: bool = False, risk_score: float = 0.3, total_volume_usd: float = 0.0) -> MagicMock:
+def _make_crypto_wallet(
+    mixer_exposure: bool = False, risk_score: float = 0.3, total_volume_usd: float = 0.0
+) -> MagicMock:
     m = MagicMock()
     m.mixer_exposure = mixer_exposure
     m.risk_score = risk_score
@@ -169,7 +170,10 @@ def test_social_text_empty():
 
 
 def test_darkweb_text_combines_contexts():
-    mentions = [_make_darkweb(mention_context="poker forum"), _make_darkweb(mention_context="casino listing")]
+    mentions = [
+        _make_darkweb(mention_context="poker forum"),
+        _make_darkweb(mention_context="casino listing"),
+    ]
     text = _darkweb_text(mentions)
     assert "poker" in text
     assert "casino" in text
@@ -207,7 +211,9 @@ def test_title_loan_address_instability_triggers():
 
 
 def test_title_loan_no_signals_zero():
-    score, reasons = _score_title_loan([_make_address()], [], _make_wealth(wealth_band="high", vehicle_signal=0.0))
+    score, reasons = _score_title_loan(
+        [_make_address()], [], _make_wealth(wealth_band="high", vehicle_signal=0.0)
+    )
     assert score == 0.0
     assert reasons == []
 
@@ -280,7 +286,10 @@ def test_crypto_investor_no_signals_zero():
 
 
 def test_real_estate_investor_multiple_cities():
-    addresses = [_make_address(city="Austin", state_province="TX"), _make_address(city="Dallas", state_province="TX")]
+    addresses = [
+        _make_address(city="Austin", state_province="TX"),
+        _make_address(city="Dallas", state_province="TX"),
+    ]
     score, reasons = _score_real_estate_investor(addresses, [], None)
     assert score >= 0.5
     assert any("distinct address" in r for r in reasons)

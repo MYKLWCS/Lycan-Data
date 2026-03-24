@@ -7,7 +7,6 @@ import pytest
 
 from modules.search.index_daemon import IndexDaemon
 
-
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 
@@ -84,8 +83,10 @@ async def test_process_one_valid_dict_payload():
     d = IndexDaemon()
     pid = str(uuid.uuid4())
 
-    with patch("modules.search.index_daemon.event_bus") as mock_bus, \
-         patch("modules.search.index_daemon.AsyncSessionLocal") as mock_session_cls:
+    with (
+        patch("modules.search.index_daemon.event_bus") as mock_bus,
+        patch("modules.search.index_daemon.AsyncSessionLocal") as mock_session_cls,
+    ):
         mock_bus.dequeue = AsyncMock(return_value={"person_id": pid})
 
         # Set up async context manager
@@ -106,12 +107,15 @@ async def test_process_one_valid_dict_payload():
 @pytest.mark.asyncio
 async def test_process_one_json_string_payload():
     import json
+
     d = IndexDaemon()
     pid = str(uuid.uuid4())
     payload_str = json.dumps({"person_id": pid})
 
-    with patch("modules.search.index_daemon.event_bus") as mock_bus, \
-         patch("modules.search.index_daemon.AsyncSessionLocal") as mock_session_cls:
+    with (
+        patch("modules.search.index_daemon.event_bus") as mock_bus,
+        patch("modules.search.index_daemon.AsyncSessionLocal") as mock_session_cls,
+    ):
         mock_bus.dequeue = AsyncMock(return_value=payload_str)
 
         mock_session = AsyncMock()
@@ -173,13 +177,19 @@ async def test_index_person_successful():
         result.scalars.return_value = scalars
         return result
 
-    mock_session.execute = AsyncMock(side_effect=[
-        _make_scalars([]),  # identifiers
-        _make_scalars([]),  # addresses
-        _make_scalars([]),  # social profiles
-    ])
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            _make_scalars([]),  # identifiers
+            _make_scalars([]),  # addresses
+            _make_scalars([]),  # social profiles
+        ]
+    )
 
-    with patch("modules.search.meili_indexer.meili_indexer.index_person", new_callable=AsyncMock, return_value=True) as mock_meili:
+    with patch(
+        "modules.search.meili_indexer.meili_indexer.index_person",
+        new_callable=AsyncMock,
+        return_value=True,
+    ) as mock_meili:
         await d._index_person(mock_session, uid)
 
     mock_meili.assert_called_once()
@@ -212,14 +222,22 @@ async def test_index_person_meili_failure_logs_error():
         result.scalars.return_value = scalars
         return result
 
-    mock_session.execute = AsyncMock(side_effect=[
-        _make_scalars([]),
-        _make_scalars([]),
-        _make_scalars([]),
-    ])
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            _make_scalars([]),
+            _make_scalars([]),
+            _make_scalars([]),
+        ]
+    )
 
-    with patch("modules.search.meili_indexer.meili_indexer.index_person", new_callable=AsyncMock, return_value=False), \
-         patch("modules.search.index_daemon.logger") as mock_log:
+    with (
+        patch(
+            "modules.search.meili_indexer.meili_indexer.index_person",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+        patch("modules.search.index_daemon.logger") as mock_log,
+    ):
         await d._index_person(mock_session, uid)
 
     mock_log.error.assert_called_once()
@@ -267,18 +285,25 @@ async def test_index_person_risk_tiers():
             result.scalars.return_value = scalars
             return result
 
-        mock_session.execute = AsyncMock(side_effect=[
-            _make_scalars([]),
-            _make_scalars([]),
-            _make_scalars([]),
-        ])
+        mock_session.execute = AsyncMock(
+            side_effect=[
+                _make_scalars([]),
+                _make_scalars([]),
+                _make_scalars([]),
+            ]
+        )
 
         captured_doc = {}
+
         async def capture_doc(doc):
             captured_doc.update(doc)
             return True
 
-        with patch("modules.search.meili_indexer.meili_indexer.index_person", side_effect=capture_doc):
+        with patch(
+            "modules.search.meili_indexer.meili_indexer.index_person", side_effect=capture_doc
+        ):
             await d._index_person(mock_session, uid)
 
-        assert captured_doc.get("risk_tier") == expected_tier, f"score {score_val} → expected {expected_tier}, got {captured_doc.get('risk_tier')}"
+        assert captured_doc.get("risk_tier") == expected_tier, (
+            f"score {score_val} → expected {expected_tier}, got {captured_doc.get('risk_tier')}"
+        )

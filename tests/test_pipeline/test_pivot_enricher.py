@@ -21,7 +21,6 @@ import pytest
 
 from modules.pipeline.pivot_enricher import _extract_pivots, pivot_from_result
 
-
 # ---------------------------------------------------------------------------
 # Unit tests for _extract_pivots (pure function, no async)
 # ---------------------------------------------------------------------------
@@ -157,9 +156,7 @@ async def test_pivot_from_result_skips_existing_identifier():
         sys.modules["modules.crawlers.registry"] = fake_registry
         sys.modules["modules.dispatcher.dispatcher"] = fake_dispatcher
         try:
-            count = await pivot_from_result(
-                "00000000-0000-0000-0000-000000000002", "twitter", data
-            )
+            count = await pivot_from_result("00000000-0000-0000-0000-000000000002", "twitter", data)
         finally:
             if orig_reg is not None:
                 sys.modules["modules.crawlers.registry"] = orig_reg

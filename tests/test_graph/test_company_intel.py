@@ -15,7 +15,6 @@ from modules.graph.company_intel import (
     _build_record_from_rows,
 )
 
-
 # ---------------------------------------------------------------------------
 # _build_record_from_rows (pure helper — no DB)
 # ---------------------------------------------------------------------------
@@ -164,7 +163,7 @@ async def test_search_company_returns_records():
     person = _make_person(pid, "Frank")
 
     session = _make_session(
-        _scalars_result([emp]),     # employment search
+        _scalars_result([emp]),  # employment search
         _scalars_result([person]),  # person lookup
     )
     engine = CompanyIntelligenceEngine()
@@ -180,7 +179,7 @@ async def test_search_company_state_filter_removes_non_matching():
 
     session = _make_session(
         _scalars_result([emp_tx, emp_ca]),  # employment
-        _scalars_result([]),                # persons (filtered down to TX)
+        _scalars_result([]),  # persons (filtered down to TX)
     )
     engine = CompanyIntelligenceEngine()
     # State filter is applied after DB fetch; CA row should be excluded
@@ -200,7 +199,7 @@ async def test_get_company_network_returns_nodes_and_edges():
     person = _make_person(pid, "Grace")
 
     session = _make_session(
-        _scalars_result([emp]),     # employment
+        _scalars_result([emp]),  # employment
         _scalars_result([person]),  # persons
         # No relationship query because only 1 person
     )
@@ -246,7 +245,7 @@ async def test_get_person_companies_returns_one_record_per_employment():
     person = _make_person(pid_uuid, "Heidi")
 
     session = _make_session(
-        _scalars_result([emp1, emp2]),       # employment rows
+        _scalars_result([emp1, emp2]),  # employment rows
         _scalar_one_or_none_result(person),  # person lookup
     )
     engine = CompanyIntelligenceEngine()

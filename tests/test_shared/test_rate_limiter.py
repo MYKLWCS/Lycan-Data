@@ -14,13 +14,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from shared.rate_limiter import (
-    RateLimitSpec,
     RateLimiter,
+    RateLimitSpec,
     _spec_for,
     get_rate_limiter,
     init_rate_limiter,
 )
-
 
 # ── Fake Redis ────────────────────────────────────────────────────────────────
 
@@ -160,7 +159,6 @@ async def test_acquire_over_limit_sleeps():
 
     # Third call needs a token — should sleep (mock asyncio.sleep to intercept)
     sleep_calls = []
-    original_sleep = asyncio.sleep
 
     async def fake_sleep(s):
         sleep_calls.append(s)

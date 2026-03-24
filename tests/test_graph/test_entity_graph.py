@@ -10,7 +10,6 @@ import pytest
 
 from modules.graph.entity_graph import EntityGraphBuilder, _edge, _person_node, _stub_node
 
-
 # ---------------------------------------------------------------------------
 # Pure helper tests (no DB)
 # ---------------------------------------------------------------------------
@@ -85,14 +84,16 @@ async def test_build_person_graph_returns_nodes_and_edges_keys():
 
     # execute is called for: persons, addresses, identifiers, employment, social, relationships
     # (per hop, depth=1 means one pass)
-    session = _make_session([
-        _scalars_result([person]),  # persons
-        _empty_result(),            # addresses
-        _empty_result(),            # identifiers
-        _empty_result(),            # employment
-        _empty_result(),            # social profiles
-        _empty_result(),            # relationships
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),  # persons
+            _empty_result(),  # addresses
+            _empty_result(),  # identifiers
+            _empty_result(),  # employment
+            _empty_result(),  # social profiles
+            _empty_result(),  # relationships
+        ]
+    )
 
     builder = EntityGraphBuilder()
     graph = await builder.build_person_graph(person_id, session, depth=1)
@@ -116,14 +117,16 @@ async def test_build_person_graph_address_node_and_edge_created():
     addr.city = "Springfield"
     addr.state_province = "IL"
 
-    session = _make_session([
-        _scalars_result([person]),
-        _scalars_result([addr]),    # addresses
-        _empty_result(),
-        _empty_result(),
-        _empty_result(),
-        _empty_result(),
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _scalars_result([addr]),  # addresses
+            _empty_result(),
+            _empty_result(),
+            _empty_result(),
+            _empty_result(),
+        ]
+    )
 
     builder = EntityGraphBuilder()
     graph = await builder.build_person_graph(person_id, session, depth=1)
@@ -147,14 +150,16 @@ async def test_build_person_graph_employment_creates_company_node():
     emp.job_title = "Engineer"
     emp.is_current = True
 
-    session = _make_session([
-        _scalars_result([person]),
-        _empty_result(),            # addresses
-        _empty_result(),            # identifiers
-        _scalars_result([emp]),     # employment
-        _empty_result(),            # social
-        _empty_result(),            # relationships
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _empty_result(),  # addresses
+            _empty_result(),  # identifiers
+            _scalars_result([emp]),  # employment
+            _empty_result(),  # social
+            _empty_result(),  # relationships
+        ]
+    )
 
     builder = EntityGraphBuilder()
     graph = await builder.build_person_graph(person_id, session, depth=1)
@@ -198,11 +203,13 @@ async def test_find_shared_connections_detects_shared_phone():
     ident_b.value = shared_phone
     ident_b.normalized_value = shared_phone
 
-    session = _make_session([
-        _scalars_result([ident_a, ident_b]),  # identifiers
-        _empty_result(),                       # addresses
-        _empty_result(),                       # employment
-    ])
+    session = _make_session(
+        [
+            _scalars_result([ident_a, ident_b]),  # identifiers
+            _empty_result(),  # addresses
+            _empty_result(),  # employment
+        ]
+    )
 
     builder = EntityGraphBuilder()
     shared = await builder.find_shared_connections([pid_a, pid_b], session)
@@ -225,11 +232,13 @@ async def test_find_shared_connections_detects_shared_address():
         a.city = "Austin"
         return a
 
-    session = _make_session([
-        _empty_result(),                                         # identifiers
-        _scalars_result([_addr(pid_a_uuid), _addr(pid_b_uuid)]),  # addresses
-        _empty_result(),                                         # employment
-    ])
+    session = _make_session(
+        [
+            _empty_result(),  # identifiers
+            _scalars_result([_addr(pid_a_uuid), _addr(pid_b_uuid)]),  # addresses
+            _empty_result(),  # employment
+        ]
+    )
 
     builder = EntityGraphBuilder()
     shared = await builder.find_shared_connections([pid_a, pid_b], session)
@@ -244,10 +253,12 @@ async def test_find_shared_connections_detects_shared_address():
 
 
 async def test_detect_fraud_rings_returns_list():
-    session = _make_session([
-        _empty_result(),  # addresses
-        _empty_result(),  # phones
-    ])
+    session = _make_session(
+        [
+            _empty_result(),  # addresses
+            _empty_result(),  # phones
+        ]
+    )
     builder = EntityGraphBuilder()
     rings = await builder.detect_fraud_rings(session, min_connections=3)
     assert isinstance(rings, list)
@@ -265,10 +276,12 @@ async def test_detect_fraud_rings_address_cluster():
 
     addr_rows = [_addr(p) for p in pids]
 
-    session = _make_session([
-        _scalars_result(addr_rows),  # addresses
-        _empty_result(),             # phones
-    ])
+    session = _make_session(
+        [
+            _scalars_result(addr_rows),  # addresses
+            _empty_result(),  # phones
+        ]
+    )
 
     builder = EntityGraphBuilder()
     rings = await builder.detect_fraud_rings(session, min_connections=3)
@@ -295,10 +308,12 @@ async def test_detect_fraud_rings_sorted_by_risk_desc():
         _addr(p, "Small St") for p in pids_small
     ]
 
-    session = _make_session([
-        _scalars_result(addr_rows),
-        _empty_result(),
-    ])
+    session = _make_session(
+        [
+            _scalars_result(addr_rows),
+            _empty_result(),
+        ]
+    )
 
     builder = EntityGraphBuilder()
     rings = await builder.detect_fraud_rings(session, min_connections=3)

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, call
 
 import pytest
 
-from modules.patterns.inverted_index import AttributeInvertedIndex, _EXPIRY_SECONDS
+from modules.patterns.inverted_index import _EXPIRY_SECONDS, AttributeInvertedIndex
 
 
 def _make_redis() -> AsyncMock:

@@ -52,9 +52,7 @@ def check_db_reachable():
                 await session.execute(__import__("sqlalchemy").text("SELECT 1"))
                 break
         except Exception as exc:
-            logger.warning(
-                "Test database is not reachable: %s — DB-dependent tests may fail", exc
-            )
+            logger.warning("Test database is not reachable: %s — DB-dependent tests may fail", exc)
 
     loop = asyncio.new_event_loop()
     try:

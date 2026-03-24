@@ -19,7 +19,6 @@ from shared.circuit_breaker import (
     init_circuit_breaker,
 )
 
-
 # ── Fake Redis ────────────────────────────────────────────────────────────────
 
 

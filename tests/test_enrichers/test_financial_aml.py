@@ -5,20 +5,19 @@ from unittest.mock import MagicMock
 import pytest
 
 from modules.enrichers.financial_aml import (
+    _AML_TIERS,
+    _CREDIT_TIERS,
+    _FRAUD_TIERS,
+    _SCORE_MAX,
+    _SCORE_MIN,
+    AlternativeCreditScorer,
     AMLResult,
     AMLScreener,
-    AlternativeCreditScorer,
     CreditScoreResult,
     FraudRiskResult,
     FraudRiskScorer,
     _tier,
-    _CREDIT_TIERS,
-    _AML_TIERS,
-    _FRAUD_TIERS,
-    _SCORE_MIN,
-    _SCORE_MAX,
 )
-
 
 # ─── _tier helper ─────────────────────────────────────────────────────────────
 
@@ -182,7 +181,9 @@ def _make_darkweb(exposure_score: float = 0.5, severity: str = "high") -> MagicM
     return m
 
 
-def _make_crypto(mixer_exposure: bool = False, risk_score: float = 0.3, total_volume_usd: float = 0.0) -> MagicMock:
+def _make_crypto(
+    mixer_exposure: bool = False, risk_score: float = 0.3, total_volume_usd: float = 0.0
+) -> MagicMock:
     m = MagicMock()
     m.mixer_exposure = mixer_exposure
     m.risk_score = risk_score
@@ -266,7 +267,9 @@ def _make_identifier(type: str = "email", confidence: float = 0.9, updated_at=No
     return m
 
 
-def _make_criminal(charge: str = "fraud", offense_level: str = "felony", disposition: str = "guilty") -> MagicMock:
+def _make_criminal(
+    charge: str = "fraud", offense_level: str = "felony", disposition: str = "guilty"
+) -> MagicMock:
     m = MagicMock()
     m.charge = charge
     m.offense_level = offense_level
@@ -348,7 +351,10 @@ def test_fraud_mixer_wallet():
 def test_fraud_score_capped_at_one():
     scorer = FraudRiskScorer()
     addresses = [_make_address() for _ in range(12)]
-    ids = [_make_identifier(confidence=0.1) for _ in range(10)] + [_make_identifier(type="ssn"), _make_identifier(type="ssn")]
+    ids = [_make_identifier(confidence=0.1) for _ in range(10)] + [
+        _make_identifier(type="ssn"),
+        _make_identifier(type="ssn"),
+    ]
     darkweb = [_make_darkweb(severity="critical") for _ in range(10)]
     criminals = [_make_criminal(charge="wire fraud") for _ in range(5)]
     crypto = [_make_crypto(mixer_exposure=True) for _ in range(3)]

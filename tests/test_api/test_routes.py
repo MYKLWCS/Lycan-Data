@@ -15,10 +15,10 @@ from starlette.testclient import TestClient
 from api.deps import db_session
 from api.main import app
 
-
 # ---------------------------------------------------------------------------
 # Shared mock session factory
 # ---------------------------------------------------------------------------
+
 
 def _make_session(execute_return=None, scalars_return=None, get_return=None):
     """Build an AsyncMock session with sensible defaults for all common call patterns."""
@@ -51,16 +51,20 @@ def _make_session(execute_return=None, scalars_return=None, get_return=None):
 # Dependency override helpers
 # ---------------------------------------------------------------------------
 
+
 def _override_db(session):
     """Return a FastAPI dependency override that yields the given mock session."""
+
     async def _dep():
         yield session
+
     return _dep
 
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def reset_overrides():
@@ -72,6 +76,7 @@ def reset_overrides():
 # ===========================================================================
 # SYSTEM routes  (/system/...)
 # ===========================================================================
+
 
 class TestSystemHealth:
     def test_health_simple_returns_ok(self):
@@ -185,6 +190,7 @@ class TestSystemHealth:
 # ===========================================================================
 # PERSONS routes  (/persons/...)
 # ===========================================================================
+
 
 class TestPersonsList:
     def test_list_persons_empty(self):
@@ -451,12 +457,11 @@ class TestPersonMutation:
 # SEARCH routes  (/search/...)
 # ===========================================================================
 
+
 class TestSearchRoutes:
     def _search_session(self):
         session = AsyncMock()
-        session.execute.return_value = MagicMock(
-            scalar_one_or_none=MagicMock(return_value=None)
-        )
+        session.execute.return_value = MagicMock(scalar_one_or_none=MagicMock(return_value=None))
         # session.add() is synchronous in SQLAlchemy — use MagicMock to avoid
         # "coroutine never awaited" warnings from AsyncMock's default behaviour
         session.add = MagicMock()
@@ -545,6 +550,7 @@ class TestSearchRoutes:
 # ALERTS routes  (/alerts/...)
 # ===========================================================================
 
+
 class TestAlertRoutes:
     def test_list_alerts_empty(self):
         """GET /alerts/ returns empty list when DB has no alert rows."""
@@ -614,6 +620,7 @@ class TestAlertRoutes:
 # ===========================================================================
 # SPA / root routes
 # ===========================================================================
+
 
 class TestRootRoutes:
     def test_root_returns_spa(self):

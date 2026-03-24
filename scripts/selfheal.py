@@ -177,9 +177,7 @@ def diagnose(output: str) -> list[str]:
         fixes.append("flush_queues")
 
     # Coverage drop — log but don't add a fix action
-    if "coverage" in output.lower() and (
-        "fail" in output.lower() or "under" in output.lower()
-    ):
+    if "coverage" in output.lower() and ("fail" in output.lower() or "under" in output.lower()):
         print("  [warn] Coverage threshold not met — review coverage report")
 
     return fixes

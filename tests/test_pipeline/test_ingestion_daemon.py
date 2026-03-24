@@ -20,10 +20,10 @@ import pytest
 
 from modules.pipeline.ingestion_daemon import IngestionDaemon
 
-
 # ---------------------------------------------------------------------------
 # Helper: build a minimal valid ingest payload
 # ---------------------------------------------------------------------------
+
 
 def _make_payload(found: bool = True, platform: str = "instagram") -> dict:
     return {
