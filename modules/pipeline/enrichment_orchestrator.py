@@ -65,24 +65,28 @@ class EnrichmentOrchestrator:
         steps.append(await self._run_step(
             enricher="financial_aml",
             coro=self._run_financial_aml(person_id, session),
+            person_id=person_id,
         ))
 
         # ── Step 2: Marketing Tags ────────────────────────────────────────────
         steps.append(await self._run_step(
             enricher="marketing_tags",
             coro=self._run_marketing_tags(person_id, session),
+            person_id=person_id,
         ))
 
         # ── Step 3: Deduplication scoring ─────────────────────────────────────
         steps.append(await self._run_step(
             enricher="deduplication",
             coro=self._run_deduplication(person_id, session),
+            person_id=person_id,
         ))
 
         # ── Step 4: Burner assessment ─────────────────────────────────────────
         steps.append(await self._run_step(
             enricher="burner_assessment",
             coro=self._run_burner(person_id, session),
+            person_id=person_id,
         ))
 
         finished_at = datetime.now(timezone.utc)
@@ -102,7 +106,7 @@ class EnrichmentOrchestrator:
         return report
 
     async def _run_step(
-        self, enricher: str, coro
+        self, enricher: str, coro, person_id: str = ""
     ) -> EnrichmentStepResult:
         """Run a single enricher coroutine, catching all exceptions."""
         t0 = datetime.now(timezone.utc)
@@ -116,7 +120,7 @@ class EnrichmentOrchestrator:
             )
         except Exception as exc:
             duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
-            logger.exception("Enricher %r failed for person_id=%s", enricher, person_id if 'person_id' in dir() else "?")
+            logger.exception("Enricher %r failed for person_id=%s", enricher, person_id)
             return EnrichmentStepResult(
                 enricher=enricher,
                 status="error",
