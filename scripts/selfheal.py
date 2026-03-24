@@ -5,9 +5,9 @@ Self-healing test runner for Lycan-Data.
 Runs the test suite, diagnoses failures, applies known fixes, and re-runs to verify.
 """
 
+import re
 import subprocess
 import sys
-import re
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -200,7 +200,7 @@ def main():
             print(f"  {line}")
 
     if code2 == 0:
-        print(f"\nSelf-healed successfully!")
+        print("\nSelf-healed successfully!")
         print(f"  Applied: {', '.join(FIXES_APPLIED)}")
         return 0
     else:

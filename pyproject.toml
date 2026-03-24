@@ -42,6 +42,13 @@ anyio = "^4.7"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]
+addopts = "--tb=short"
+
+[tool.coverage.run]
+omit = ["tests/*", "migrations/*", "scripts/*"]
+
+[tool.coverage.report]
+omit = ["tests/*", "migrations/*", "scripts/*"]
 
 [tool.ruff]
 line-length = 100

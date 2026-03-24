@@ -72,8 +72,7 @@ jobs:
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-omit="tests/*,migrations/*,scripts/*" \
-            -v --tb=short \
+            -v \
             --ignore=tests/test_crawlers \
             --ignore=tests/test_darkweb \
             --ignore=tests/test_government \
