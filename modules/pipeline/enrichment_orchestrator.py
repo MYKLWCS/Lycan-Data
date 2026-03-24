@@ -1,0 +1,186 @@
+"""
+Enrichment Pipeline Orchestrator.
+
+Runs all enrichers for a person in sequence and publishes a completion event.
+Each enricher is independent — failures are logged and don't block subsequent enrichers.
+"""
+import asyncio
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from shared.events import event_bus
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EnrichmentStepResult:
+    enricher: str
+    status: str  # "ok" | "skipped" | "error"
+    detail: str = ""
+    duration_ms: float = 0.0
+
+
+@dataclass
+class EnrichmentReport:
+    person_id: str
+    started_at: str
+    finished_at: str
+    total_duration_ms: float
+    steps: list[EnrichmentStepResult] = field(default_factory=list)
+
+    @property
+    def ok_count(self) -> int:
+        return sum(1 for s in self.steps if s.status == "ok")
+
+    @property
+    def error_count(self) -> int:
+        return sum(1 for s in self.steps if s.status == "error")
+
+
+class EnrichmentOrchestrator:
+    """
+    Runs all available enrichers for a single person.
+
+    Enrichers run sequentially (shared DB session, no asyncio.gather).
+    Errors in one enricher don't stop others.
+    After all steps, publishes enrichment_complete event to event_bus.
+    """
+
+    async def enrich_person(
+        self, person_id: str, session: AsyncSession
+    ) -> EnrichmentReport:
+        """
+        Run the full enrichment pipeline for a person.
+        Returns a report of what ran, what succeeded, and what failed.
+        """
+        started_at = datetime.now(timezone.utc)
+        steps: list[EnrichmentStepResult] = []
+
+        # ── Step 1: Financial / AML ───────────────────────────────────────────
+        steps.append(await self._run_step(
+            enricher="financial_aml",
+            coro=self._run_financial_aml(person_id, session),
+        ))
+
+        # ── Step 2: Marketing Tags ────────────────────────────────────────────
+        steps.append(await self._run_step(
+            enricher="marketing_tags",
+            coro=self._run_marketing_tags(person_id, session),
+        ))
+
+        # ── Step 3: Deduplication scoring ─────────────────────────────────────
+        steps.append(await self._run_step(
+            enricher="deduplication",
+            coro=self._run_deduplication(person_id, session),
+        ))
+
+        # ── Step 4: Burner assessment ─────────────────────────────────────────
+        steps.append(await self._run_step(
+            enricher="burner_assessment",
+            coro=self._run_burner(person_id, session),
+        ))
+
+        finished_at = datetime.now(timezone.utc)
+        total_ms = (finished_at - started_at).total_seconds() * 1000
+
+        report = EnrichmentReport(
+            person_id=person_id,
+            started_at=started_at.isoformat(),
+            finished_at=finished_at.isoformat(),
+            total_duration_ms=round(total_ms, 2),
+            steps=steps,
+        )
+
+        # Publish completion event
+        await self._publish_completion(person_id, report)
+
+        return report
+
+    async def _run_step(
+        self, enricher: str, coro
+    ) -> EnrichmentStepResult:
+        """Run a single enricher coroutine, catching all exceptions."""
+        t0 = datetime.now(timezone.utc)
+        try:
+            await coro
+            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            return EnrichmentStepResult(
+                enricher=enricher,
+                status="ok",
+                duration_ms=round(duration, 2),
+            )
+        except Exception as exc:
+            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            logger.exception("Enricher %r failed for person_id=%s", enricher, person_id if 'person_id' in dir() else "?")
+            return EnrichmentStepResult(
+                enricher=enricher,
+                status="error",
+                detail=str(exc)[:200],
+                duration_ms=round(duration, 2),
+            )
+
+    async def _run_financial_aml(self, person_id: str, session: AsyncSession) -> None:
+        # The class is FinancialIntelligenceEngine, not FinancialAMLEngine.
+        from modules.enrichers.financial_aml import FinancialIntelligenceEngine
+        engine = FinancialIntelligenceEngine()
+        await engine.score_person(person_id, session)
+
+    async def _run_marketing_tags(self, person_id: str, session: AsyncSession) -> None:
+        from modules.enrichers.marketing_tags import MarketingTagsEngine
+        engine = MarketingTagsEngine()
+        await engine.tag_person(person_id, session)
+
+    async def _run_deduplication(self, person_id: str, session: AsyncSession) -> None:
+        from modules.enrichers.deduplication import score_person_dedup
+        await score_person_dedup(person_id, session)
+
+    async def _run_burner(self, person_id: str, session: AsyncSession) -> None:
+        # persist_burner_assessment signature: (session, identifier_id, score)
+        # It takes one identifier at a time with a BurnerScore.
+        # We load phone identifiers and run compute_burner_score on each, then persist.
+        from modules.enrichers.burner_detector import (
+            compute_burner_score,
+            persist_burner_assessment,
+        )
+        from shared.models.identifier import Identifier
+        from sqlalchemy import select
+
+        result = await session.execute(
+            select(Identifier).where(
+                Identifier.person_id == person_id,
+                Identifier.type == "phone",
+            )
+        )
+        identifiers = result.scalars().all()
+
+        if not identifiers:
+            return
+
+        for identifier in identifiers:
+            score = compute_burner_score(phone=identifier.value)
+            await persist_burner_assessment(
+                session=session,
+                identifier_id=identifier.id,
+                score=score,
+            )
+
+    async def _publish_completion(
+        self, person_id: str, report: EnrichmentReport
+    ) -> None:
+        if not event_bus.is_connected:
+            return
+        try:
+            await event_bus.publish("enrichment", {
+                "event": "enrichment_complete",
+                "person_id": person_id,
+                "ok_count": report.ok_count,
+                "error_count": report.error_count,
+                "total_duration_ms": report.total_duration_ms,
+            })
+        except Exception:
+            logger.exception("Failed to publish enrichment_complete for %s", person_id)

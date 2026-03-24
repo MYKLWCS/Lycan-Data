@@ -340,6 +340,7 @@ a:hover { color: #5599ff; }
     <a href="#/graph" class="nav-item" id="nav-graph">⬡ Knowledge Graph</a>
     <a href="#/dedup" class="nav-item" id="nav-dedup">⬡ Deduplication</a>
     <a href="#/patterns" class="nav-item" id="nav-patterns">⬡ Patterns</a>
+    <a href="#/enrichment" class="nav-item" id="nav-enrichment">⬡ Enrichment</a>
     <div class="nav-label">SYSTEM</div>
     <a href="#/activity" class="nav-item" id="nav-activity">⬡ Activity</a>
     <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
@@ -573,6 +574,7 @@ const App = {
     else if (hash === '#/graph')      { document.getElementById('nav-graph')?.classList.add('active');      this.renderGraph(); }
     else if (hash === '#/dedup')      { document.getElementById('nav-dedup')?.classList.add('active');      this.renderDedup(); }
     else if (hash === '#/patterns')   { document.getElementById('nav-patterns')?.classList.add('active');   this.renderPatterns(); }
+    else if (hash === '#/enrichment') { document.getElementById('nav-enrichment')?.classList.add('active'); this.renderEnrichment(); }
     else if (hash.startsWith('#/person/')) {
       document.getElementById('nav-persons')?.classList.add('active');
       this.renderPerson(hash.split('/')[2]);
@@ -2574,6 +2576,143 @@ const App = {
       } finally { netBtn.disabled=false; netBtn.textContent='Load Network Anomalies'; }
     };
     netBtn.addEventListener('click', doNet);
+  },
+
+  // ── Enrichment Pipeline ─────────────────────────────────────────────────
+  async renderEnrichment() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Enrichment Pipeline'), div('page-sub','Run all enrichers for a person: Financial/AML, Marketing Tags, Deduplication, Burner Assessment'));
+    hdr.appendChild(left);
+    this.root.appendChild(hdr);
+
+    const card = div('card');
+    const cardHdr = div('card-header'); cardHdr.appendChild(span('card-title','⬡ Run Enrichment'));
+    const cardBody = div('card-body');
+
+    // Person ID input row
+    const filterBar = div('filter-bar');
+    const pidInp = el('input','filter-input'); pidInp.type='text'; pidInp.placeholder='Person UUID…'; pidInp.style.width='320px'; pidInp.style.fontFamily='var(--mono)';
+    const syncBtn = el('button','btn primary','Run Full Enrichment');
+    const bgBtn = el('button','btn','Queue Background');
+    filterBar.append(pidInp, syncBtn, bgBtn);
+    cardBody.appendChild(filterBar);
+
+    // Status / result area
+    const resultArea = div(''); resultArea.style.marginTop='18px';
+    cardBody.appendChild(resultArea);
+    card.append(cardHdr, cardBody);
+    this.root.appendChild(card);
+
+    const showSpinner = () => {
+      resultArea.textContent = '';
+      resultArea.appendChild(span('spinner'));
+    };
+
+    const showError = (msg) => {
+      resultArea.textContent = '';
+      resultArea.appendChild(span('red-txt', 'Error: ' + msg));
+    };
+
+    const showQueued = (data) => {
+      resultArea.textContent = '';
+      const notice = div('');
+      notice.style.cssText = 'background:var(--green-lo);border:1px solid var(--green);border-radius:var(--radius);padding:14px 18px;color:var(--green);font-size:13px;';
+      notice.textContent = 'Queued — person_id: ' + data.person_id + ' — ' + (data.message || 'Enrichment started in background');
+      resultArea.appendChild(notice);
+    };
+
+    const showReport = (d) => {
+      resultArea.textContent = '';
+
+      // Summary strip
+      const summary = div('');
+      summary.style.cssText = 'display:flex;gap:24px;margin-bottom:18px;flex-wrap:wrap;';
+
+      const mkStat = (label, val, color) => {
+        const s = div(''); s.style.cssText='display:flex;flex-direction:column;gap:2px;';
+        const n = span(''); n.style.cssText='font-family:var(--mono);font-size:20px;font-weight:700;color:'+(color||'var(--text)');
+        n.textContent = val;
+        const l = span(''); l.style.cssText='font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;';
+        l.textContent = label;
+        s.append(n, l);
+        return s;
+      };
+      summary.append(
+        mkStat('Total Time', (d.total_duration_ms||0).toFixed(1)+'ms', 'var(--accent)'),
+        mkStat('Completed', d.ok_count||0, 'var(--green)'),
+        mkStat('Errors', d.error_count||0, d.error_count > 0 ? 'var(--red)' : 'var(--text-dim)'),
+        mkStat('Person ID', (d.person_id||'—').substring(0,12)+'…', 'var(--text-dim)')
+      );
+      resultArea.appendChild(summary);
+
+      // Steps table
+      if (!d.steps || d.steps.length === 0) {
+        const empty = div('empty-state');
+        empty.append(div('empty-state-icon','⬡'), div('empty-state-title','No steps ran'), div('empty-state-sub','No enrichment steps were executed'));
+        resultArea.appendChild(empty);
+        return;
+      }
+
+      const tbl = el('table','data-table');
+      const thead = el('tr','');
+      ['Enricher','Status','Duration','Detail'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+      tbl.appendChild(thead);
+
+      d.steps.forEach(s => {
+        const row = el('tr','');
+
+        const tdEnr = el('td',''); tdEnr.style.fontFamily='var(--mono)'; tdEnr.style.fontWeight='600'; tdEnr.textContent=s.enricher||'—';
+
+        const tdSt = el('td','');
+        const badge = span('');
+        const statusColors = { ok:'var(--green)', error:'var(--red)', skipped:'var(--yellow)' };
+        badge.style.cssText='font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px;background:'+(s.status==='ok'?'var(--green-lo)':s.status==='error'?'var(--red-lo)':'var(--yellow-lo)')+';color:'+(statusColors[s.status]||'var(--text-dim)')+';letter-spacing:0.04em;text-transform:uppercase;';
+        badge.textContent=s.status||'—'; tdSt.appendChild(badge);
+
+        const tdDur = el('td',''); tdDur.style.fontFamily='var(--mono)'; tdDur.style.color='var(--text-dim)'; tdDur.style.fontSize='12px';
+        tdDur.textContent = (s.duration_ms != null ? s.duration_ms.toFixed(1)+'ms' : '—');
+
+        const tdDet = el('td',''); tdDet.style.color='var(--text-dim)'; tdDet.style.fontSize='12px'; tdDet.style.fontFamily='var(--mono)';
+        tdDet.textContent = s.detail || '';
+
+        row.append(tdEnr, tdSt, tdDur, tdDet);
+        tbl.appendChild(row);
+      });
+      resultArea.appendChild(tbl);
+    };
+
+    syncBtn.addEventListener('click', async () => {
+      const pid = pidInp.value.trim();
+      if (!pid) { showError('Enter a Person UUID'); return; }
+      syncBtn.disabled=true; bgBtn.disabled=true; syncBtn.textContent='Running…';
+      showSpinner();
+      try {
+        const d = await apiPost('/enrich/'+pid+'/enrich', {});
+        showReport(d);
+      } catch(e) {
+        showError(e.message||'Request failed');
+      } finally {
+        syncBtn.disabled=false; bgBtn.disabled=false; syncBtn.textContent='Run Full Enrichment';
+      }
+    });
+
+    bgBtn.addEventListener('click', async () => {
+      const pid = pidInp.value.trim();
+      if (!pid) { showError('Enter a Person UUID'); return; }
+      syncBtn.disabled=true; bgBtn.disabled=true; bgBtn.textContent='Queuing…';
+      showSpinner();
+      try {
+        const d = await apiPost('/enrich/'+pid+'/enrich/background', {});
+        showQueued(d);
+      } catch(e) {
+        showError(e.message||'Request failed');
+      } finally {
+        syncBtn.disabled=false; bgBtn.disabled=false; bgBtn.textContent='Queue Background';
+      }
+    });
   },
 };
 
