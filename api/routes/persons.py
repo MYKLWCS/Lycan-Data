@@ -578,82 +578,102 @@ class RegionGrowRequest(BaseModel):
     city: str | None = None
     state: str | None = None
     country: str | None = None
-    limit: int = 50
+    limit: int = 20   # number of surnames to sweep (each hits 3 platforms = ~60 jobs)
     priority: str = "normal"
 
 
 @router.post("/region/grow")
 async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
     """
-    Re-enqueue enrichment jobs for all persons matching the given region.
-    Useful for targeted regional intelligence growth.
+    Discover new people in a geographic region by querying location-aware crawlers.
+
+    Seeds common surname + location queries against whitepages, fastpeoplesearch,
+    and truepeoplesearch to find real people in that area. Each discovered person
+    is added to the DB and fully enriched.
     """
     from modules.dispatcher.dispatcher import dispatch_job
     from shared.models.crawl import CrawlJob
-    from shared.constants import CrawlStatus
+    from shared.constants import CrawlStatus, SeedType
+    from modules.crawlers.registry import CRAWLER_REGISTRY
 
     if not any([req.city, req.state, req.country]):
         raise HTTPException(400, "At least one of city, state, country is required")
 
-    addr_q = select(Address.person_id).distinct()
+    # Build location string for crawlers that accept "Name|City,State" format
+    location_parts = []
     if req.city:
-        addr_q = addr_q.where(Address.city.ilike(f"%{req.city}%"))
+        location_parts.append(req.city)
     if req.state:
-        addr_q = addr_q.where(Address.state_province.ilike(f"%{req.state}%"))
-    if req.country:
-        addr_q = addr_q.where(Address.country.ilike(f"%{req.country}%"))
-    addr_q = addr_q.limit(req.limit)
+        location_parts.append(req.state)
+    location_str = ",".join(location_parts) if location_parts else (req.country or "")
 
-    person_ids = (await session.execute(addr_q)).scalars().all()
+    # Common surnames to seed discovery — produces a broad sweep
+    SEED_SURNAMES = [
+        "Smith", "Johnson", "Williams", "Brown", "Jones",
+        "Miller", "Davis", "Wilson", "Taylor", "Anderson",
+        "Thomas", "Jackson", "White", "Harris", "Martin",
+        "Thompson", "Garcia", "Martinez", "Robinson", "Clark",
+    ]
 
-    if not person_ids:
-        return {"message": "No persons found in region", "queued": 0}
+    # Location-aware people-search crawlers
+    LOCATION_PLATFORMS = [p for p in ("whitepages", "fastpeoplesearch", "truepeoplesearch") if p in CRAWLER_REGISTRY]
 
-    # For each person, re-queue enrichment on all known identifiers
-    queued = 0
-    for pid in person_ids:
-        idents = (await session.execute(
-            select(Identifier).where(Identifier.person_id == pid)
-        )).scalars().all()
+    queued_searches: list[str] = []
+    persons_created = 0
 
-        for ident in idents:
-            from api.routes.search import SEED_PLATFORM_MAP
-            from shared.constants import SeedType
-            from modules.crawlers.registry import CRAWLER_REGISTRY
+    for surname in SEED_SURNAMES[:req.limit]:
+        identifier = f"{surname}|{location_str}" if location_str else surname
 
-            try:
-                seed_type = SeedType(ident.type)
-            except ValueError:
-                continue
+        # Create a placeholder person to attach the jobs to
+        person = Person(id=uuid.uuid4(), full_name=f"{surname} ({location_str})")
+        session.add(person)
+        await session.flush()
+        persons_created += 1
 
-            platforms = SEED_PLATFORM_MAP.get(seed_type, [])
-            for platform in platforms:
-                if platform in CRAWLER_REGISTRY:
-                    job = CrawlJob(
-                        id=uuid.uuid4(),
-                        person_id=pid,
-                        status=CrawlStatus.PENDING.value,
-                        job_type="crawl",
-                        seed_identifier=ident.value,
-                        meta={"platform": platform, "region_grow": True},
-                    )
-                    session.add(job)
-                    await session.flush()
-                    await dispatch_job(
-                        platform=platform,
-                        identifier=ident.value,
-                        person_id=str(pid),
-                        priority=req.priority,
-                        job_id=str(job.id),
-                    )
-                    queued += 1
+        # Seed identifier
+        seed_ident = Identifier(
+            id=uuid.uuid4(),
+            person_id=person.id,
+            type=SeedType.FULL_NAME.value,
+            value=identifier,
+            normalized_value=identifier.lower(),
+            confidence=0.5,
+            is_primary=True,
+            meta={"region_grow": True, "location": location_str},
+        )
+        session.add(seed_ident)
+        await session.flush()
+
+        for platform in LOCATION_PLATFORMS:
+            job = CrawlJob(
+                id=uuid.uuid4(),
+                person_id=person.id,
+                status=CrawlStatus.PENDING.value,
+                job_type="crawl",
+                seed_identifier=identifier,
+                meta={"platform": platform, "region_grow": True, "location": location_str},
+            )
+            session.add(job)
+            await session.flush()
+            await dispatch_job(
+                platform=platform,
+                identifier=identifier,
+                person_id=str(person.id),
+                priority=req.priority,
+                job_id=str(job.id),
+            )
+            queued_searches.append(f"{platform}:{identifier}")
 
     await session.commit()
+
     return {
-        "message": f"Region grow queued for {len(person_ids)} person(s)",
-        "persons_targeted": len(person_ids),
-        "queued": queued,
+        "message": f"Region grow launched — discovering people in {location_str}",
+        "seed_searches": len(SEED_SURNAMES[:req.limit]),
+        "platforms_used": LOCATION_PLATFORMS,
+        "jobs_queued": len(queued_searches),
+        "persons_seeded": persons_created,
         "region": {"city": req.city, "state": req.state, "country": req.country},
+        "note": "Results will appear in /persons as crawlers complete. Each surname×platform discovers multiple individuals.",
     }
 
 

@@ -15,6 +15,7 @@ from shared.models.credit_risk import CreditRiskAssessment
 from shared.models.criminal import CriminalRecord
 from shared.models.darkweb import CryptoWallet, DarkwebMention
 from shared.models.identifier import Identifier
+from shared.models.person import Person
 from shared.models.watchlist import WatchlistMatch
 from shared.models.wealth import WealthAssessment
 
@@ -405,6 +406,15 @@ class FinancialIntelligenceEngine:
             ))
 
         await session.flush()
+
+        # Write computed scores back to Person so they surface everywhere
+        person_row = await session.get(Person, pid)
+        if person_row:
+            computed_risk = round(1.0 - (credit.score - _SCORE_MIN) / _SCORE_RANGE, 4)
+            person_row.default_risk_score = computed_risk
+            person_row.darkweb_exposure = round(min(1.0, len(darkweb) * 0.15), 4)
+            person_row.behavioural_risk = round(fraud.fraud_score, 4)
+            await session.flush()
 
         profile = FinancialProfile(person_id=str(pid), credit=credit,
                                    aml=aml, fraud=fraud, assessed_at=now)

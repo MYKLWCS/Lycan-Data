@@ -156,6 +156,14 @@ async def aggregate_result(
         await _handle_behavioural(session, result, person.id)
         written["behavioural"] = True
 
+    # ── Update Person.source_reliability ────────────────────────────────────
+    # Raise person reliability toward the contributing crawler's score so it
+    # reflects the best data we have (not forever stuck at the 0.5 default).
+    if result.source_reliability > person.source_reliability:
+        person.source_reliability = round(
+            max(person.source_reliability, result.source_reliability * 0.9), 3
+        )
+
     await session.commit()
     return written
 

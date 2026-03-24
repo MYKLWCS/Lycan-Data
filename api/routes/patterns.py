@@ -18,25 +18,51 @@ _temporal = TemporalPatternAnalyzer()
 _anomaly = StatisticalAnomalyDetector()
 
 
-class MultiFieldAnomalyRequest(BaseModel):
-    entities: list[dict] = Field(..., description="List of entity dicts with 'id' field")
-    fields: list[str] = Field(..., min_length=1, max_length=20, description="Fields to analyze")
+class AnomalyDetectRequest(BaseModel):
+    person_ids: list[uuid.UUID] | None = Field(None, description="Specific person IDs to analyze. If omitted, uses all persons.")
+    fields: list[str] = Field(
+        default=["default_risk_score", "source_reliability", "darkweb_exposure", "behavioural_risk"],
+        description="Person fields to analyze for anomalies",
+    )
+    min_score: float = Field(0.0, ge=0.0, le=1.0)
+    limit: int = Field(200, ge=3, le=5000)
 
 
 @router.post("/anomaly/detect")
-async def detect_anomalies(req: MultiFieldAnomalyRequest):
-    """Detect statistical anomalies across entity fields. No DB required — provide entities inline."""
-    if len(req.entities) < 3:
-        raise HTTPException(400, "At least 3 entities required for anomaly detection")
-    if len(req.entities) > 10000:
-        raise HTTPException(400, "Maximum 10000 entities per request")
+async def detect_anomalies(req: AnomalyDetectRequest, session: AsyncSession = DbDep):
+    """Detect statistical anomalies across persons. Loads data from DB automatically."""
+    from sqlalchemy import select
+    from shared.models.person import Person
 
-    results = _anomaly.detect_multi_field(req.entities, req.fields)
+    q = select(Person).limit(req.limit)
+    if req.person_ids:
+        q = q.where(Person.id.in_(req.person_ids))
+    persons = (await session.scalars(q)).all()
+
+    if len(persons) < 3:
+        return {"anomalies": {}, "fields_analyzed": req.fields, "entities_count": len(persons),
+                "message": "Need at least 3 persons in DB to detect anomalies"}
+
+    entities = [
+        {
+            "id": str(p.id),
+            "full_name": p.full_name,
+            "default_risk_score": p.default_risk_score or 0.0,
+            "source_reliability": p.source_reliability or 0.5,
+            "darkweb_exposure": p.darkweb_exposure or 0.0,
+            "behavioural_risk": p.behavioural_risk or 0.0,
+            "relationship_score": p.relationship_score or 0.0,
+        }
+        for p in persons
+    ]
+
+    results = _anomaly.detect_multi_field(entities, req.fields)
     return {
         "anomalies": {
             field: [
                 {
                     "entity_id": r.entity_id,
+                    "full_name": next((e["full_name"] for e in entities if e["id"] == r.entity_id), None),
                     "value": r.value,
                     "z_score": r.z_score,
                     "severity": r.severity,
@@ -47,7 +73,7 @@ async def detect_anomalies(req: MultiFieldAnomalyRequest):
             for field, field_results in results.items()
         },
         "fields_analyzed": req.fields,
-        "entities_count": len(req.entities),
+        "entities_count": len(entities),
     }
 
 
