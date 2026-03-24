@@ -89,6 +89,13 @@ class EnrichmentOrchestrator:
             person_id=person_id,
         ))
 
+        # ── Step 5: Relationship score ────────────────────────────────────────
+        steps.append(await self._run_step(
+            enricher="relationship_score",
+            coro=self._run_relationship_score(person_id, session),
+            person_id=person_id,
+        ))
+
         finished_at = datetime.now(timezone.utc)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
@@ -172,6 +179,43 @@ class EnrichmentOrchestrator:
                 identifier_id=identifier.id,
                 score=score,
             )
+
+    async def _run_relationship_score(self, person_id: str, session: AsyncSession) -> None:
+        """Compute relationship_score from network breadth across all linked data."""
+        import uuid
+        from sqlalchemy import select, func
+        from shared.models.person import Person
+        from shared.models.social_profile import SocialProfile
+        from shared.models.identifier import Identifier
+        from shared.models.address import Address
+
+        pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
+        person = await session.get(Person, pid)
+        if not person:
+            return
+
+        # Count distinct data points as a proxy for network breadth
+        social_count = (await session.execute(
+            select(func.count()).select_from(SocialProfile).where(SocialProfile.person_id == pid)
+        )).scalar() or 0
+
+        ident_count = (await session.execute(
+            select(func.count()).select_from(Identifier).where(Identifier.person_id == pid)
+        )).scalar() or 0
+
+        addr_count = (await session.execute(
+            select(func.count()).select_from(Address).where(Address.person_id == pid)
+        )).scalar() or 0
+
+        # Simple normalized score: more data points = wider network footprint
+        # Caps at 1.0 with diminishing returns
+        breadth = social_count * 0.10 + ident_count * 0.05 + addr_count * 0.08
+        score = round(min(1.0, breadth), 4)
+
+        if score > person.relationship_score:
+            person.relationship_score = score
+            await session.flush()
+            await session.commit()
 
     async def _publish_completion(
         self, person_id: str, report: EnrichmentReport

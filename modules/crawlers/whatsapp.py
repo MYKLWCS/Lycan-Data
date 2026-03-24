@@ -18,7 +18,7 @@ class WhatsAppCrawler(HttpxCrawler):
     """
 
     platform = "whatsapp"
-    source_reliability = SOURCE_RELIABILITY.get("telegram", 0.50)
+    source_reliability = 0.65  # phone confirmation via wa.me heuristic
     requires_tor = True
 
     async def scrape(self, identifier: str) -> CrawlerResult:

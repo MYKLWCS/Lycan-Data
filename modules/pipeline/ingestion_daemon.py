@@ -18,8 +18,11 @@ from shared.db import AsyncSessionLocal
 from shared.events import event_bus
 from modules.crawlers.result import CrawlerResult
 from modules.pipeline.aggregator import aggregate_result
+from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
 
 logger = logging.getLogger(__name__)
+
+_orchestrator = EnrichmentOrchestrator()
 
 
 class IngestionDaemon:
@@ -84,6 +87,12 @@ class IngestionDaemon:
                 pid = written.get("person_id")
                 if pid:
                     await event_bus.enqueue({"person_id": pid}, priority="index")
+                    # Auto-enrich: compute risk scores, AML, burner, etc.
+                    try:
+                        async with AsyncSessionLocal() as enrich_session:
+                            await _orchestrator.enrich_person(pid, enrich_session)
+                    except Exception as enrich_exc:
+                        logger.warning("Auto-enrichment failed for %s: %s", pid, enrich_exc)
                     
             except Exception as e:
                 logger.error(f"Error aggregating result for {platform}/{identifier}: {e}")

@@ -18,37 +18,77 @@ router = APIRouter()
 # Seed type → applicable platform crawlers
 SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
     SeedType.USERNAME: [
+        # Social platforms
         "instagram", "twitter", "reddit", "github", "youtube", "tiktok",
         "linkedin", "facebook", "snapchat", "pinterest", "discord",
-        "telegram", "whatsapp", "username_sherlock",
+        "telegram", "mastodon", "twitch", "steam",
+        # Username sweep
+        "username_sherlock",
+        # Dark web / paste username lookup
+        "darkweb_ahmia", "paste_pastebin", "paste_ghostbin", "paste_psbdmp",
+        "telegram_dark",
     ],
     SeedType.PHONE: [
-        "phone_carrier", "phone_fonefinder", "phone_truecaller", "whatsapp", "telegram",
+        # Carrier & enrichment
+        "phone_carrier", "phone_fonefinder", "phone_truecaller", "phone_numlookup",
+        # Messaging confirmation
+        "whatsapp", "telegram",
     ],
     SeedType.EMAIL: [
-        "email_hibp", "email_holehe",
+        # Breach & leak databases
+        "email_hibp", "email_holehe", "email_leakcheck", "email_breach",
+        # Reputation & validation
+        "email_emailrep", "email_mx_validator",
+        # Dark web / paste exposure
+        "darkweb_ahmia", "darkweb_torch",
+        "paste_pastebin", "paste_ghostbin", "paste_psbdmp",
     ],
     SeedType.FULL_NAME: [
-        "whitepages", "fastpeoplesearch", "truepeoplesearch",
+        # People-search aggregators
+        "whitepages", "fastpeoplesearch", "truepeoplesearch", "people_thatsthem",
+        # Law enforcement / missing persons
+        "people_interpol", "people_namus", "people_usmarshals",
+        # Sanctions & watchlists — all major lists
         "sanctions_ofac", "sanctions_un", "sanctions_fbi",
-        "court_courtlistener", "company_opencorporates", "company_sec",
+        "sanctions_eu", "sanctions_uk", "sanctions_opensanctions", "sanctions_fatf",
+        # Court & legal
+        "court_courtlistener", "court_state", "bankruptcy_pacer",
+        # Corporate filings
+        "company_opencorporates", "company_sec", "company_companies_house",
+        # Public government databases
         "public_npi", "public_faa", "public_nsopw",
-        "vehicle_ownership", "news_search", "obituary_search",
+        "gov_fec", "gov_propublica", "gov_usaspending",
+        # Property & vehicle
+        "vehicle_ownership", "property_zillow",
+        # Media & web
+        "news_search", "obituary_search",
+        # Dark web name sweep
+        "darkweb_ahmia", "darkweb_torch",
+        "paste_pastebin", "paste_psbdmp",
     ],
     SeedType.DOMAIN: [
         "domain_whois", "domain_harvester",
+        # Cyber intel on the domain
+        "cyber_crt", "cyber_urlscan", "cyber_wayback",
+        "cyber_virustotal", "cyber_alienvault",
     ],
     SeedType.CRYPTO_WALLET: [
         "crypto_bitcoin", "crypto_ethereum", "crypto_blockchair",
+        "crypto_polygonscan",
     ],
     SeedType.IP_ADDRESS: [
         "ip_whois", "ip_geolocation", "ip_threatfeed",
+        # Threat intelligence
+        "cyber_abuseipdb", "cyber_shodan", "cyber_greynoise", "cyber_alienvault",
+        "geo_ip",
     ],
     SeedType.NATIONAL_ID: [
-        "sanctions_ofac", "sanctions_un",
+        "sanctions_ofac", "sanctions_un", "sanctions_eu", "sanctions_uk",
+        "sanctions_opensanctions",
     ],
     SeedType.COMPANY_REG: [
-        "company_opencorporates", "company_sec",
+        "company_opencorporates", "company_sec", "company_companies_house",
+        "gov_fdic", "gov_gleif",
     ],
 }
 

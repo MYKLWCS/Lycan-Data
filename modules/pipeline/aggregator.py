@@ -159,8 +159,9 @@ async def aggregate_result(
     # ── Update Person.source_reliability ────────────────────────────────────
     # Raise person reliability toward the contributing crawler's score so it
     # reflects the best data we have (not forever stuck at the 0.5 default).
-    if result.source_reliability > person.source_reliability:
-        person.source_reliability = round(result.source_reliability, 3)
+    # Any real source above the 0.5 default raises person reliability
+    if result.source_reliability > 0.5:
+        person.source_reliability = round(max(person.source_reliability, result.source_reliability), 3)
 
     await session.commit()
     return written
@@ -797,10 +798,10 @@ async def _handle_behavioural(
 
 
 def _looks_like_phone_number(value: str) -> bool:
-    """True if value looks like a phone number (starts with + or has 7-15 digits)."""
+    """True if value looks like a phone number (7-15 digits, optional + prefix)."""
     import re
     digits = re.sub(r'\D', '', value)
-    return (value.startswith('+') or value.startswith('00')) and 7 <= len(digits) <= 15
+    return 7 <= len(digits) <= 15
 
 
 async def _upsert_phone_identifier(
@@ -837,7 +838,7 @@ async def _upsert_phone_identifier(
         normalized_value=normalized,
         confidence=0.9,
         is_primary=False,
-        meta={"confirmed_via": source_platform},
+        meta={"confirmed_via": source_platform, f"confirmed_{source_platform}": True},
         source_reliability=0.8,
     )
     session.add(ident)
