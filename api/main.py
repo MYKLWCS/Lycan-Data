@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import crawls, persons, search, search_query, system
+from api.routes import crawls, persons, search, search_query, system, ws
 from shared.db import engine  # noqa: F401 — imported to validate config on startup
 from shared.events import event_bus
 
@@ -67,3 +67,4 @@ app.include_router(search_query.router, prefix="/query",   tags=["query"])
 app.include_router(persons.router,      prefix="/persons", tags=["persons"])
 app.include_router(crawls.router,       prefix="/crawls",  tags=["crawls"])
 app.include_router(system.router,       prefix="/system",  tags=["system"])
+app.include_router(ws.router,                              tags=["websocket"])
