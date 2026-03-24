@@ -1,7 +1,10 @@
-"""WebSocket endpoint for real-time scrape progress."""
+"""WebSocket and SSE endpoints for real-time scrape progress."""
 import asyncio
+import json
 import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 
 from shared.events import event_bus
 
@@ -61,3 +64,39 @@ async def scrape_progress(websocket: WebSocket, person_id: str):
         except asyncio.CancelledError:
             pass
         logger.info("WebSocket disconnected for person %s", person_id)
+
+
+@router.get("/sse/progress/{person_id}")
+async def sse_progress(person_id: str, request: Request):
+    """SSE stream for real-time scrape progress updates."""
+
+    async def event_stream():
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def _forward(message: dict) -> None:
+            if message.get("person_id") == person_id:
+                await queue.put(message)
+
+        sub_task = asyncio.create_task(
+            event_bus.subscribe("enrichment", _forward),
+            name=f"sse-sub-{person_id}",
+        )
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"data: {json.dumps(msg)}\n\n"
+                    if msg.get("event") == "done":
+                        break
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'event': 'heartbeat'})}\n\n"
+        finally:
+            sub_task.cancel()
+            try:
+                await sub_task
+            except asyncio.CancelledError:
+                pass
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
