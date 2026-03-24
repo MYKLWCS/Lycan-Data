@@ -18,7 +18,7 @@ stem = "^1.8"
 phonenumbers = "^8.13"
 spacy = "^3.8"
 networkx = "^3.4"
-httpx = "^0.28"
+httpx = {extras = ["socks"], version = "^0.28"}
 playwright = "^1.49"
 scrapy = "^2.12"
 python-jose = {extras = ["cryptography"], version = "^3.3"}

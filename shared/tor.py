@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import socket
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -97,6 +98,8 @@ class TorManager:
 
     async def _connect(self, instance: TorInstance) -> None:
         ep = self._endpoints[instance]
+
+        # First try control port (for circuit rotation)
         try:
             loop = asyncio.get_running_loop()
             controller = await loop.run_in_executor(
@@ -110,9 +113,41 @@ class TorManager:
             ep.controller = controller
             ep.is_connected = True
             logger.info("Connected to %s control port %d", ep.name, ep.control_port)
-        except Exception as exc:
-            logger.warning("Could not connect to %s: %s", ep.name, exc)
+            return
+        except Exception:
+            pass  # Control port failed — fall back to SOCKS health check
+
+        # Fall back: check if SOCKS port is reachable
+        socks_host, socks_port = self._parse_socks(ep.socks_url)
+        if socks_host and await self._tcp_reachable(socks_host, socks_port):
+            ep.is_connected = True
+            logger.info("%s control unavailable but SOCKS port %d is reachable — marking active", ep.name, socks_port)
+        else:
             ep.is_connected = False
+            logger.warning("%s unreachable (both control port and SOCKS failed)", ep.name)
+
+    @staticmethod
+    def _parse_socks(socks_url: str) -> tuple[str, int]:
+        """Extract host and port from socks5://host:port URL."""
+        try:
+            without_scheme = socks_url.split("://", 1)[-1]
+            host, port_str = without_scheme.rsplit(":", 1)
+            return host, int(port_str)
+        except Exception:
+            return "", 0
+
+    @staticmethod
+    async def _tcp_reachable(host: str, port: int, timeout: float = 3.0) -> bool:
+        """Check if a TCP port is reachable."""
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: socket.create_connection((host, port), timeout=timeout).close(),
+            )
+            return True
+        except Exception:
+            return False
 
     async def disconnect_all(self) -> None:
         for instance, ep in self._endpoints.items():
@@ -129,8 +164,8 @@ class TorManager:
         if not settings.tor_enabled:
             return False
         ep = self._endpoints[instance]
-        if not ep.is_connected or ep.controller is None:
-            logger.warning("Cannot rotate circuit — %s not connected", ep.name)
+        if ep.controller is None:
+            logger.debug("Cannot rotate circuit — %s has no control port connection", ep.name)
             return False
         try:
             loop = asyncio.get_running_loop()
@@ -147,7 +182,12 @@ class TorManager:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def is_available(self, instance: TorInstance = TorInstance.TOR2) -> bool:
+        """Returns True if SOCKS proxy for this instance is reachable."""
         return settings.tor_enabled and self._endpoints[instance].is_connected
+
+    def can_rotate(self, instance: TorInstance = TorInstance.TOR2) -> bool:
+        """Returns True only if control port is also connected (circuit rotation available)."""
+        return settings.tor_enabled and self._endpoints[instance].controller is not None
 
     def any_available(self) -> bool:
         return any(ep.is_connected for ep in self._endpoints.values())
