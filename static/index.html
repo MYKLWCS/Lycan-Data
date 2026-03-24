@@ -56,6 +56,7 @@ a:hover { color: #5599ff; }
 .dot.blue   { background: var(--accent); }
 .dot.yellow { background: var(--yellow); }
 .dot.red    { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.dot.grey   { background: var(--text-mute); }
 .dot.pulse  { animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
@@ -348,6 +349,7 @@ a:hover { color: #5599ff; }
       <div class="status-row" id="sys-status"><span class="dot green pulse"></span><span>System Online</span></div>
       <div class="status-row"><span class="dot blue"></span><span id="crawler-num">—</span>&nbsp;crawlers</div>
       <div class="status-row" id="queue-status"><span class="dot yellow"></span><span id="queue-num">—</span>&nbsp;queued</div>
+      <div class="status-row" id="tor-status"><span class="dot grey" id="sidebar-tor-dot"></span><span id="sidebar-tor-text">Tor —/3</span></div>
     </div>
   </nav>
 
@@ -374,6 +376,12 @@ a:hover { color: #5599ff; }
     <div class="banner-seg">
       <span class="banner-label">Crawlers</span>
       <span class="banner-count" id="banner-crawlers">—</span>
+    </div>
+    <span class="banner-sep">|</span>
+    <div class="banner-seg">
+      <span class="dot grey" id="banner-tor-dot"></span>
+      <span class="banner-label">Tor</span>
+      <span class="banner-count" id="banner-tor">—/3</span>
     </div>
     <span class="banner-sep">|</span>
     <span id="banner-ticker">Initialising pipeline…</span>
@@ -613,6 +621,20 @@ const App = {
         const bannerIndex = document.getElementById('banner-index');
         const bannerCrawlers = document.getElementById('banner-crawlers');
         const bannerTicker = document.getElementById('banner-ticker');
+        const bannerTorDot = document.getElementById('banner-tor-dot');
+        const bannerTor = document.getElementById('banner-tor');
+        const sidebarTorDot = document.getElementById('sidebar-tor-dot');
+        const sidebarTorText = document.getElementById('sidebar-tor-text');
+
+        // Tor circuits
+        const torStatus = health.tor || {};
+        const torActive = Object.values(torStatus).filter(Boolean).length;
+        const torTotal = Math.max(Object.keys(torStatus).length, 3);
+        const torClass = torActive === torTotal ? 'dot green pulse' : torActive > 0 ? 'dot yellow pulse' : 'dot red';
+        if (bannerTorDot) bannerTorDot.className = torClass;
+        if (bannerTor) { bannerTor.textContent = `${torActive}/${torTotal}`; bannerTor.className = 'banner-count' + (torActive === torTotal ? ' active' : torActive > 0 ? ' warn' : ''); }
+        if (sidebarTorDot) sidebarTorDot.className = torClass;
+        if (sidebarTorText) sidebarTorText.textContent = `Tor ${torActive}/${torTotal}`;
 
         const total = queues.total_pending || 0;
         const ingest = queues.ingest_backlog || 0;

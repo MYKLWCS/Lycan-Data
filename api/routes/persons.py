@@ -619,35 +619,16 @@ async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
     LOCATION_PLATFORMS = [p for p in ("whitepages", "fastpeoplesearch", "truepeoplesearch") if p in CRAWLER_REGISTRY]
 
     queued_searches: list[str] = []
-    persons_created = 0
 
     for surname in SEED_SURNAMES[:req.limit]:
         identifier = f"{surname}|{location_str}" if location_str else surname
 
-        # Create a placeholder person to attach the jobs to
-        person = Person(id=uuid.uuid4(), full_name=f"{surname} ({location_str})")
-        session.add(person)
-        await session.flush()
-        persons_created += 1
-
-        # Seed identifier
-        seed_ident = Identifier(
-            id=uuid.uuid4(),
-            person_id=person.id,
-            type=SeedType.FULL_NAME.value,
-            value=identifier,
-            normalized_value=identifier.lower(),
-            confidence=0.5,
-            is_primary=True,
-            meta={"region_grow": True, "location": location_str},
-        )
-        session.add(seed_ident)
-        await session.flush()
-
+        # No placeholder Person — let the aggregator create real persons
+        # from actual crawler results. CrawlJob.person_id is nullable.
         for platform in LOCATION_PLATFORMS:
             job = CrawlJob(
                 id=uuid.uuid4(),
-                person_id=person.id,
+                person_id=None,
                 status=CrawlStatus.PENDING.value,
                 job_type="crawl",
                 seed_identifier=identifier,
@@ -658,7 +639,7 @@ async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
             await dispatch_job(
                 platform=platform,
                 identifier=identifier,
-                person_id=str(person.id),
+                person_id=None,
                 priority=req.priority,
                 job_id=str(job.id),
             )
@@ -671,9 +652,8 @@ async def grow_region(req: RegionGrowRequest, session: AsyncSession = DbDep):
         "seed_searches": len(SEED_SURNAMES[:req.limit]),
         "platforms_used": LOCATION_PLATFORMS,
         "jobs_queued": len(queued_searches),
-        "persons_seeded": persons_created,
         "region": {"city": req.city, "state": req.state, "country": req.country},
-        "note": "Results will appear in /persons as crawlers complete. Each surname×platform discovers multiple individuals.",
+        "note": "Real persons will appear in /persons only when crawlers return confirmed data.",
     }
 
 
