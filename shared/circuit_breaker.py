@@ -45,6 +45,15 @@ class CircuitState(str, Enum):
     HALF_OPEN = "HALF_OPEN"
 
 
+def _safe_state(value: str | None) -> CircuitState:
+    """Parse a circuit state string, defaulting to CLOSED on invalid/missing values."""
+    try:
+        return CircuitState(value) if value else CircuitState.CLOSED
+    except ValueError:
+        logger.debug("CircuitBreaker: unknown state value %r, defaulting to CLOSED", value)
+        return CircuitState.CLOSED
+
+
 class CircuitBreaker:
     """
     Redis/Dragonfly-backed circuit breaker.
@@ -86,7 +95,7 @@ class CircuitBreaker:
         elapsed. Transitions HALF_OPEN → OPEN if half_open_timeout_s exceeded.
         """
         state_data = await self._get(key)
-        state = CircuitState(state_data.get("state", CircuitState.CLOSED))
+        state = _safe_state(state_data.get("state"))
         now = time.time()
 
         if state == CircuitState.CLOSED:
@@ -123,7 +132,7 @@ class CircuitBreaker:
         OPEN: no-op (shouldn't be called when OPEN).
         """
         state_data = await self._get(key)
-        state = CircuitState(state_data.get("state", CircuitState.CLOSED))
+        state = _safe_state(state_data.get("state"))
 
         if state == CircuitState.HALF_OPEN:
             successes = int(state_data.get("successes", 0)) + 1
@@ -148,7 +157,7 @@ class CircuitBreaker:
         OPEN: increments failure counter (used for metrics).
         """
         state_data = await self._get(key)
-        state = CircuitState(state_data.get("state", CircuitState.CLOSED))
+        state = _safe_state(state_data.get("state"))
         now = time.time()
 
         if state == CircuitState.HALF_OPEN:

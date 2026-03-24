@@ -323,7 +323,7 @@ class FinancialIntelligenceEngine:
             "wealth_band": wealth_row.wealth_band if wealth_row else "unknown",
             "income_estimate_usd": wealth_row.income_estimate_usd if wealth_row else None,
             "identifier_count": len(identifiers),
-            "burner_flag": any(b.is_burner for b in burner_rows),
+            "burner_flag": any(b.burner_score >= 0.40 for b in burner_rows),
             "pep_flag": aml.is_pep,
         }
         credit = self._credit.score(signals)
