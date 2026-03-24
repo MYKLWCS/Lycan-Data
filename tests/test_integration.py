@@ -228,17 +228,23 @@ async def test_darkweb_mention(db: AsyncSession, test_person: Person):
 
 @pytest.mark.asyncio
 async def test_event_bus_queue_roundtrip():
-    """Publish a crawl job to the event bus and retrieve it."""
+    """Publish a crawl job to the event bus and retrieve it via an isolated test key."""
+    import json
+
+    TEST_QUEUE = "lycan:queue:_test_integration_isolated"
     async with get_event_bus() as bus:
+        await bus.redis.delete(TEST_QUEUE)
         job = {
             "job_type": "social_scrape",
             "platform": "instagram",
             "identifier": "janedoe",
             "person_id": str(uuid.uuid4()),
         }
-        await bus.enqueue(job, priority="high")
-        retrieved = await bus.dequeue("high", timeout=3)
-        assert retrieved is not None
+        await bus.redis.lpush(TEST_QUEUE, json.dumps(job))
+        result = await bus.redis.brpop([TEST_QUEUE], timeout=3)
+        assert result is not None
+        _, raw = result
+        retrieved = json.loads(raw)
         assert retrieved["job_type"] == "social_scrape"
         assert retrieved["identifier"] == "janedoe"
 

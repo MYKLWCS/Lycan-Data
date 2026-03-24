@@ -1,4 +1,4 @@
-.PHONY: dev test test-ci selfheal migrate shell logs down up install api worker worker-fast
+.PHONY: dev test test-fast test-ci selfheal health migrate shell logs down up install api worker worker-fast
 
 dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
@@ -10,7 +10,14 @@ down:
 	docker compose down
 
 test:
-	pytest tests/ -v --cov=shared --cov-report=term-missing
+	.venv/bin/python -m pytest tests/ -v --tb=short
+
+test-fast:
+	.venv/bin/python -m pytest tests/ -q \
+		--ignore=tests/test_crawlers \
+		--ignore=tests/test_darkweb \
+		--ignore=tests/test_government \
+		-k "not integration and not playwright"
 
 migrate:
 	alembic upgrade head
@@ -39,16 +46,15 @@ worker-fast:
 	.venv/bin/python worker.py --workers 8
 
 test-ci:
-	pytest tests/ \
+	.venv/bin/python -m pytest tests/ \
 		--cov=. \
 		--cov-report=xml \
 		--cov-report=term-missing \
-		--cov-omit="tests/*,migrations/*,scripts/*" \
-		-v --tb=short \
-		--ignore=tests/test_crawlers \
-		--ignore=tests/test_darkweb \
-		--ignore=tests/test_government \
-		-k "not integration and not playwright"
+		--cov-fail-under=45 \
+		-v --tb=short
 
 selfheal:
 	.venv/bin/python scripts/selfheal.py
+
+health:
+	.venv/bin/python scripts/selfheal.py --report

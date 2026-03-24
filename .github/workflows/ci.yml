@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ─── 1. Lint & Static Analysis ─────────────────────────────────────────────
+  # --- 1. Lint & Static Analysis ----------------------------------------------
   lint:
     name: Lint (ruff)
     runs-on: [self-hosted, lycan]
@@ -32,10 +32,9 @@ jobs:
       - name: Ruff format check
         run: python -m ruff format --check .
 
-  # ─── 2. Tests ───────────────────────────────────────────────────────────────
+  # --- 2. Tests ---------------------------------------------------------------
   test:
     name: Tests (Python 3.12)
-    # Self-hosted runner has PostgreSQL, Dragonfly, MeiliSearch already running
     runs-on: [self-hosted, lycan]
     env:
       DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
@@ -69,19 +68,63 @@ jobs:
           docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
           python -m alembic upgrade head 2>/dev/null || true
 
+      - name: Pre-flight self-heal
+        run: |
+          docker exec osnit-dragonfly-1 redis-cli FLUSHDB 2>/dev/null || true
+          python -m alembic upgrade head 2>/dev/null || true
+
       - name: Run tests with coverage
         run: |
           python -m pytest tests/ \
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
+            --cov-fail-under=45 \
             -v \
-            --ignore=tests/test_crawlers \
-            --ignore=tests/test_darkweb \
-            --ignore=tests/test_government \
-            -k "not integration and not playwright"
+            --tb=short
 
-  # ─── 3. Import Sanity Check ─────────────────────────────────────────────────
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 30
+
+  # --- 3. Self-Heal (runs on test failure) ------------------------------------
+  self-heal:
+    name: Self-Heal
+    runs-on: [self-hosted, lycan]
+    needs: test
+    if: failure()
+    env:
+      DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
+      REDIS_URL: "redis://localhost:6379/0"
+      MEILI_URL: "http://localhost:7700"
+      MEILI_MASTER_KEY: ""
+      SECRET_KEY: "ci-test-secret-key-not-for-production"
+      ENVIRONMENT: "test"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt 2>/dev/null || \
+          python -m pip install fastapi sqlalchemy asyncpg alembic pydantic pydantic-settings \
+            redis httpx beautifulsoup4 phonenumbers python-dateutil aiofiles networkx stem \
+            pytest pytest-asyncio pytest-cov anyio
+
+      - name: Run self-heal
+        run: python scripts/selfheal.py
+
+  # --- 4. Import Sanity Check -------------------------------------------------
   import-check:
     name: Import Sanity
     runs-on: [self-hosted, lycan]
