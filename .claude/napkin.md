@@ -10,7 +10,16 @@
 
 ## Execution & Validation (Highest Priority)
 
-1. **[2026-03-24] MeiliSearch filterableAttributes must be declared before filtering**
+1. **[2026-03-24] httpx needs `httpx[socks]` for SOCKS5 Tor proxy**
+   Do instead: install `httpx[socks]` (adds `socksio`) in the venv. Without it, ALL httpx crawlers silently return `found=False` with `error="http_error"` — no exception raised, no log. Verify: `.venv/bin/pip show socksio`.
+
+2. **[2026-03-24] People-search sites (fastpeoplesearch/whitepages/truepeoplesearch) are Cloudflare-blocked**
+   Do instead: these Playwright crawlers return 0 results against all scraping (even with Tor). Don't rely on them for address data. Use court records, obituaries, news, OFAC/sanctions as primary data sources instead.
+
+3. **[2026-03-24] Name-search crawlers expect pipe-delimited identifier: "First Last|City,State"**
+   Do instead: when calling whitepages/fastpeoplesearch/truepeoplesearch with a city, always format identifier as `"John Smith|Dallas,TX"`. Plain `"John Smith"` omits the city/state filter.
+
+4. **[2026-03-24] MeiliSearch filterableAttributes must be declared before filtering**
    Do instead: any new field used in filters or sorts MUST be added to both `filterableAttributes` AND `sortableAttributes` in `meili_indexer.py::MEILI_SETTINGS` before use, then re-run `_ensure_index()`.
 
 2. **[2026-03-24] IndexDaemon must fetch Address + SocialProfile — not just Identifier**
@@ -22,14 +31,20 @@
 4. **[2026-03-24] Persons list total count must use COUNT() — not len()**
    Do instead: in `persons.py::list_persons()`, run a separate `select(func.count()).select_from(base_q.subquery())` for the total. `len(persons)` only returns page size.
 
-5. **[2026-03-24] WebSocket timeout kills subscription if not inner-caught**
+7. **[2026-03-24] WebSocket timeout kills subscription if not inner-caught**
    Do instead: wrap `asyncio.wait_for(websocket.receive_text(), timeout=25.0)` in an inner `try/except asyncio.TimeoutError` that sends a ping and continues the loop — never let it bubble to the outer block.
 
 ---
 
 ## Pipeline Architecture
 
-1. **[2026-03-24] Queue names: high / normal / low / ingest / index**
+0. **[2026-03-24] Project path: `/data/projects/data broker project` (was osnit)**
+   Do instead: all paths, imports, venv scripts now reference `/data/projects/data broker project`. Start API with `.venv/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 8000`. Start worker with `.venv/bin/python worker.py --workers 4`.
+
+1. **[2026-03-24] Tor `status()` now checks SOCKS TCP reachability as fallback to control port**
+   Do instead: `tor_manager.status()` returns True when SOCKS port (9050/9052/9054) is TCP-reachable, even if stem control port is unreachable. `can_rotate()` returns True only when control port is also up. The `dperson/torproxy` image binds control to 127.0.0.1 inside the container — SOCKS always works, control never does without `--control-host 0.0.0.0`.
+
+2. **[2026-03-24] Queue names: high / normal / low / ingest / index**
    Do instead: crawl jobs go to high/normal/low queues. Raw crawler results go to `ingest`. Index trigger events go to `index`. Never mix these up.
 
 2. **[2026-03-24] CrawlDispatcher → IngestionDaemon → IndexDaemon is the canonical pipeline**
