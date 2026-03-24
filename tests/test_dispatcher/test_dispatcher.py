@@ -92,8 +92,9 @@ async def test_process_one_routes_to_correct_crawler(dispatcher, mock_session):
             "modules.dispatcher.dispatcher.aggregate_result",
             new_callable=AsyncMock,
             return_value={"person_id": None},
+            create=True,
         ),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
@@ -148,8 +149,8 @@ async def test_found_result_triggers_upsert_and_done(dispatcher, mock_session):
     with (
         patch("modules.dispatcher.dispatcher.event_bus") as mock_bus,
         patch("modules.dispatcher.dispatcher.get_crawler", return_value=mock_crawler_cls),
-        patch("modules.dispatcher.dispatcher.aggregate_result", aggregate_mock),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.aggregate_result", aggregate_mock, create=True),
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
@@ -159,7 +160,11 @@ async def test_found_result_triggers_upsert_and_done(dispatcher, mock_session):
 
         await dispatcher._process_one()
 
-    aggregate_mock.assert_called_once()
+    # Dispatcher now pushes to ingest queue instead of calling aggregate_result directly
+    ingest_calls = [
+        call for call in mock_bus.enqueue.call_args_list if call[1].get("priority") == "ingest"
+    ]
+    assert len(ingest_calls) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -183,8 +188,9 @@ async def test_rate_limited_error_sets_rate_limited_and_requeues(dispatcher, moc
             "modules.dispatcher.dispatcher.aggregate_result",
             new_callable=AsyncMock,
             return_value={"person_id": None},
+            create=True,
         ),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
@@ -220,8 +226,9 @@ async def test_blocked_error_sets_blocked_status(dispatcher, mock_session):
             "modules.dispatcher.dispatcher.aggregate_result",
             new_callable=AsyncMock,
             return_value={"person_id": None},
+            create=True,
         ),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
@@ -254,8 +261,9 @@ async def test_exception_causes_failed_and_retry(dispatcher, mock_session):
             "modules.dispatcher.dispatcher.aggregate_result",
             new_callable=AsyncMock,
             return_value={"person_id": None},
+            create=True,
         ),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
@@ -289,8 +297,9 @@ async def test_max_retries_exceeded_no_requeue(dispatcher, mock_session):
             "modules.dispatcher.dispatcher.aggregate_result",
             new_callable=AsyncMock,
             return_value={"person_id": None},
+            create=True,
         ),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
@@ -443,8 +452,9 @@ async def test_found_result_publishes_enrichment_event(dispatcher, mock_session)
             "modules.dispatcher.dispatcher.aggregate_result",
             new_callable=AsyncMock,
             return_value={"person_id": None},
+            create=True,
         ),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)
@@ -484,8 +494,9 @@ async def test_not_found_no_error_sets_done(dispatcher, mock_session):
             "modules.dispatcher.dispatcher.aggregate_result",
             new_callable=AsyncMock,
             return_value={"person_id": None},
+            create=True,
         ),
-        patch("modules.dispatcher.dispatcher.meili_indexer") as mock_meili,
+        patch("modules.dispatcher.dispatcher.meili_indexer", create=True) as mock_meili,
         patch("modules.dispatcher.dispatcher.AsyncSessionLocal", return_value=mock_session),
     ):
         mock_bus.dequeue_any = AsyncMock(return_value=job_dict)

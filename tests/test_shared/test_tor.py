@@ -60,7 +60,6 @@ async def test_connect_all_when_tor_disabled():
 async def test_connect_all_handles_connection_failure_gracefully():
     """If Tor ports are not reachable, connect_all() logs warnings but doesn't raise."""
     mgr = TorManager()
-    # Tor is not started in test env — should fail gracefully
-    await mgr.connect_all()
-    # All should remain disconnected, but no exception
+    with patch.object(TorManager, "_tcp_reachable", new_callable=AsyncMock, return_value=False):
+        await mgr.connect_all()
     assert all(not ep.is_connected for ep in mgr._endpoints.values())
