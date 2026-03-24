@@ -1,9 +1,10 @@
 """Graph intelligence API routes — company search, entity networks, fraud rings."""
 import dataclasses
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
@@ -11,6 +12,7 @@ from modules.graph.company_intel import CompanyIntelligenceEngine
 from modules.graph.entity_graph import EntityGraphBuilder
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _company_engine = CompanyIntelligenceEngine()
 _graph_builder = EntityGraphBuilder()
@@ -34,7 +36,7 @@ def _serialize(obj):
 # ── Request schemas ───────────────────────────────────────────────────────────
 
 class FraudRingsRequest(BaseModel):
-    min_connections: int = 3
+    min_connections: int = Field(default=3, ge=1, le=50)
 
 
 class SharedConnectionsRequest(BaseModel):
@@ -83,7 +85,8 @@ async def person_network(
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(500, f"Graph build failed: {exc}") from exc
+        logger.exception("Graph build failed person_id=%s", person_id)
+        raise HTTPException(500, "Internal error") from exc
 
     return {
         "person_id": person_id,
@@ -101,7 +104,8 @@ async def person_companies(person_id: str, session: AsyncSession = DbDep):
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(500, f"Company lookup failed: {exc}") from exc
+        logger.exception("Company lookup failed person_id=%s", person_id)
+        raise HTTPException(500, "Internal error") from exc
 
     return {
         "person_id": person_id,
@@ -117,7 +121,8 @@ async def detect_fraud_rings(req: FraudRingsRequest, session: AsyncSession = DbD
             session, min_connections=req.min_connections
         )
     except Exception as exc:
-        raise HTTPException(500, f"Fraud ring detection failed: {exc}") from exc
+        logger.exception("Fraud ring detection failed")
+        raise HTTPException(500, "Internal error") from exc
 
     return {
         "rings": _serialize(rings),
@@ -134,7 +139,8 @@ async def shared_connections(req: SharedConnectionsRequest, session: AsyncSessio
     try:
         connections = await _graph_builder.find_shared_connections(req.person_ids, session)
     except Exception as exc:
-        raise HTTPException(500, f"Shared connection lookup failed: {exc}") from exc
+        logger.exception("Shared connection lookup failed")
+        raise HTTPException(500, "Internal error") from exc
 
     return {
         "connections": _serialize(connections),

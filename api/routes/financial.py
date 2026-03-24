@@ -1,7 +1,6 @@
 """Financial & AML API routes."""
-import dataclasses
+import logging
 import uuid
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -9,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
+from api.serializers import _model_to_dict, _safe_asdict
 from modules.enrichers.financial_aml import FinancialIntelligenceEngine
 from modules.enrichers.marketing_tags import HighInterestBorrowerScorer
 from shared.models.address import Address
@@ -19,42 +19,10 @@ from shared.models.watchlist import WatchlistMatch
 from shared.models.wealth import WealthAssessment
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _engine = FinancialIntelligenceEngine()
 _borrower_scorer = HighInterestBorrowerScorer()
-
-
-# ── Serialisation helpers ─────────────────────────────────────────────────────
-
-def _model_to_dict(obj) -> dict:
-    out = {}
-    for col in obj.__table__.columns:
-        val = getattr(obj, col.name)
-        if val is None:
-            out[col.name] = None
-        elif hasattr(val, "isoformat"):
-            out[col.name] = val.isoformat()
-        elif isinstance(val, uuid.UUID):
-            out[col.name] = str(val)
-        else:
-            out[col.name] = val
-    return out
-
-
-def _safe_asdict(dc) -> dict:
-    """Convert a dataclass to dict, serialising datetime fields."""
-    raw = dataclasses.asdict(dc)
-    return _serialize_datetimes(raw)
-
-
-def _serialize_datetimes(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    if isinstance(obj, dict):
-        return {k: _serialize_datetimes(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_serialize_datetimes(i) for i in obj]
-    return obj
 
 
 # ── Request schemas ───────────────────────────────────────────────────────────
@@ -71,7 +39,8 @@ async def score_person(person_id: str, session: AsyncSession = DbDep):
     try:
         profile = await _engine.score_person(person_id, session)
     except Exception as exc:
-        raise HTTPException(500, f"Scoring failed: {exc}") from exc
+        logger.exception("Scoring failed person_id=%s", person_id)
+        raise HTTPException(500, "Internal error") from exc
 
     credit = profile.credit
     aml = profile.aml
@@ -115,14 +84,16 @@ async def get_latest_assessment(person_id: str, session: AsyncSession = DbDep):
 
 @router.get("/{person_id}/aml")
 async def get_aml_matches(person_id: str, session: AsyncSession = DbDep):
-    """Return all WatchlistMatch rows for the person."""
+    """Return WatchlistMatch rows for the person (capped at 500)."""
     try:
         uid = uuid.UUID(person_id)
     except ValueError:
         raise HTTPException(400, f"Invalid UUID: {person_id!r}")
 
     rows = (await session.execute(
-        select(WatchlistMatch).where(WatchlistMatch.person_id == uid)
+        select(WatchlistMatch)
+        .where(WatchlistMatch.person_id == uid)
+        .limit(500)
     )).scalars().all()
 
     return {
