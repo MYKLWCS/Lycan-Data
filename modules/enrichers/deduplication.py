@@ -106,22 +106,18 @@ class ExactMatchDeduplicator:
 
         for key_str, _priority in composite_keys:
             h = self.hash_key(key_str)
-            dragonfly_key = f"dedup:key:{h}"
 
             if self.dragonfly is not None:
-                if self.dragonfly.get(dragonfly_key):
-                    return True, key_str
+                # Atomic check-and-set: returns None if key already existed (duplicate)
+                dragonfly_key = f"dedup:key:{h}"
+                was_set = self.dragonfly.set(dragonfly_key, 1, ex=86400, nx=True)
+                if was_set is None:
+                    # Key already existed — this is a duplicate
+                    return (True, key_str)
+                # Key was newly set — not a duplicate, continue to next key
             else:
                 if h in self.seen_hashes:
                     return True, key_str
-
-        # Not a duplicate — mark all keys as seen
-        for key_str, _priority in composite_keys:
-            h = self.hash_key(key_str)
-            dragonfly_key = f"dedup:key:{h}"
-            if self.dragonfly is not None:
-                self.dragonfly.setex(dragonfly_key, 86400, 1)
-            else:
                 self.seen_hashes.add(h)
 
         return False, ""
@@ -630,8 +626,8 @@ class FuzzyDeduplicator:
         emails_a: set[str] = {str(e).lower().strip() for e in a.get('emails', []) if e}
         emails_b: set[str] = {str(e).lower().strip() for e in b.get('emails', []) if e}
 
-        shared_phones = phones_a & phones_b - {''}
-        shared_emails = emails_a & emails_b - {''}
+        shared_phones = (phones_a & phones_b) - {''}
+        shared_emails = (emails_a & emails_b) - {''}
 
         if shared_phones:
             reasons.append(f"shared phone: {next(iter(shared_phones))}")
@@ -817,6 +813,9 @@ class AsyncMergeExecutor:
 
         try:
             for table in self.REASSIGN_TABLES:
+                if table not in self.REASSIGN_TABLES:
+                    logger.warning("AsyncMergeExecutor: skipping unknown table %r", table)
+                    continue
                 stmt = sa_text(
                     f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup"
                 )
@@ -829,6 +828,8 @@ class AsyncMergeExecutor:
 
             delete_stmt = sa_text("DELETE FROM persons WHERE id = :dup")
             await session.execute(delete_stmt, {"dup": duplicate_id})
+
+            await session.commit()
 
             return {
                 "merged": True,
@@ -934,7 +935,7 @@ async def score_person_dedup(
                 # Blocking by last name; soundex key sdx={sdx} used for FuzzyDeduplicator blocking
                 ln_stmt = sa_select(Person.id).where(
                     Person.full_name.ilike(f"%{last_name}%")
-                )
+                ).limit(500)
                 ln_result = await session.execute(ln_stmt)
                 candidate_ids.update(str(r[0]) for r in ln_result.fetchall())
 
