@@ -338,6 +338,7 @@ a:hover { color: #5599ff; }
     <a href="#/financial" class="nav-item" id="nav-financial">⬡ Financial</a>
     <a href="#/marketing" class="nav-item" id="nav-marketing">⬡ Marketing</a>
     <a href="#/graph" class="nav-item" id="nav-graph">⬡ Knowledge Graph</a>
+    <a href="#/dedup" class="nav-item" id="nav-dedup">⬡ Deduplication</a>
     <div class="nav-label">SYSTEM</div>
     <a href="#/activity" class="nav-item" id="nav-activity">⬡ Activity</a>
     <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
@@ -569,6 +570,7 @@ const App = {
     else if (hash === '#/financial')  { document.getElementById('nav-financial')?.classList.add('active');  this.renderFinancial(); }
     else if (hash === '#/marketing')  { document.getElementById('nav-marketing')?.classList.add('active');  this.renderMarketing(); }
     else if (hash === '#/graph')      { document.getElementById('nav-graph')?.classList.add('active');      this.renderGraph(); }
+    else if (hash === '#/dedup')      { document.getElementById('nav-dedup')?.classList.add('active');      this.renderDedup(); }
     else if (hash.startsWith('#/person/')) {
       document.getElementById('nav-persons')?.classList.add('active');
       this.renderPerson(hash.split('/')[2]);
@@ -2257,6 +2259,148 @@ const App = {
         frResults.textContent=''; frResults.appendChild(span('red-txt','Failed: '+e.message));
       } finally { frBtn.disabled=false; frBtn.textContent='Detect'; }
     });
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // DEDUPLICATION
+  // ──────────────────────────────────────────────────────────────────
+  async renderDedup() {
+    this.root.textContent = '';
+
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(div('page-title','Deduplication'), div('page-sub','Find and merge duplicate person records via the enrichment API'));
+    hdr.appendChild(left);
+    this.root.appendChild(hdr);
+
+    // ── Section 1: Find Candidates ─────────────────────────────────
+    const scanCard = div('card');
+    const scanHdr = div('card-header'); scanHdr.appendChild(span('card-title','⬡ Find Candidates'));
+    const scanBody = div('card-body');
+    const scanBar = div('filter-bar');
+    const scanPidInp = el('input','filter-input'); scanPidInp.placeholder='Person UUID…'; scanPidInp.style.minWidth='320px';
+    const scanBtn = el('button','btn primary','Scan for Duplicates');
+    scanBar.append(scanPidInp, scanBtn);
+    const scanResults = div(''); scanResults.style.marginTop='14px';
+    scanBody.append(scanBar, scanResults);
+    scanCard.append(scanHdr, scanBody);
+    this.root.appendChild(scanCard);
+
+    const doScan = async () => {
+      const pid = scanPidInp.value.trim(); if (!pid) return;
+      scanBtn.disabled=true; scanBtn.textContent='Scanning…';
+      scanResults.textContent=''; scanResults.appendChild(span('spinner'));
+      try {
+        const d = await apiPost('/dedup/'+encodeURIComponent(pid)+'/candidates', {});
+        scanResults.textContent='';
+
+        const summary = div(''); summary.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
+        summary.textContent = d.count + ' candidate pair' + (d.count!==1?'s':'') + ' found for ' + pid.substring(0,8) + '…';
+        scanResults.appendChild(summary);
+
+        if (!d.candidates || d.candidates.length===0) {
+          const empty = div('empty-state');
+          empty.append(div('empty-state-icon','✓'), div('empty-state-title','No duplicates found'), div('empty-state-sub','This record looks unique'));
+          scanResults.appendChild(empty);
+          return;
+        }
+
+        const tbl = el('table','data-table');
+        const thead = el('tr','');
+        ['ID A','ID B','Score','Match Reasons'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
+        tbl.appendChild(thead);
+
+        d.candidates.forEach(c => {
+          const pct = Math.round((c.similarity_score||0)*100);
+          const row = el('tr','');
+
+          const tdA = el('td','');
+          tdA.style.fontFamily='var(--mono)'; tdA.style.fontSize='11px';
+          const linkA = el('a','',(c.id_a||'').substring(0,12)+'…'); linkA.href='#/person/'+c.id_a;
+          tdA.appendChild(linkA);
+
+          const tdB = el('td','');
+          tdB.style.fontFamily='var(--mono)'; tdB.style.fontSize='11px';
+          const linkB = el('a','',(c.id_b||'').substring(0,12)+'…'); linkB.href='#/person/'+c.id_b;
+          tdB.appendChild(linkB);
+
+          const tdScore = el('td','');
+          const scoreColor = pct>=90?'var(--red)':pct>=75?'var(--yellow)':'var(--green)';
+          const scoreBadge = span(''); scoreBadge.style.cssText='font-family:var(--mono);font-weight:700;font-size:13px;color:'+scoreColor;
+          scoreBadge.textContent = pct+'%';
+          tdScore.appendChild(scoreBadge);
+
+          const tdReasons = el('td','');
+          tdReasons.style.cssText='font-size:11px;color:var(--text-dim)';
+          tdReasons.textContent = (c.match_reasons||[]).join(' · ').substring(0,120)||'—';
+
+          row.append(tdA, tdB, tdScore, tdReasons);
+
+          // Quick-merge buttons in the row
+          const tdActions = el('td','');
+          const mergeBtn = el('button','btn primary'); mergeBtn.textContent='Merge B→A'; mergeBtn.style.fontSize='11px'; mergeBtn.style.padding='4px 10px';
+          mergeBtn.addEventListener('click', async () => {
+            mergeBtn.disabled=true; mergeBtn.textContent='Merging…';
+            try {
+              await apiPost('/dedup/merge', {canonical_id: c.id_a, duplicate_id: c.id_b});
+              mergeBtn.textContent='Merged ✓'; mergeBtn.style.background='var(--green)'; mergeBtn.style.borderColor='var(--green)';
+            } catch(e) {
+              mergeBtn.textContent='Failed'; mergeBtn.disabled=false;
+              const err = span('red-txt',' '+e.message.substring(0,60));
+              tdActions.appendChild(err);
+            }
+          });
+          tdActions.appendChild(mergeBtn);
+          row.appendChild(tdActions);
+
+          tbl.appendChild(row);
+        });
+        scanResults.appendChild(tbl);
+      } catch(e) {
+        scanResults.textContent=''; scanResults.appendChild(span('red-txt','Scan failed: '+e.message));
+      } finally { scanBtn.disabled=false; scanBtn.textContent='Scan for Duplicates'; }
+    };
+
+    scanBtn.addEventListener('click', doScan);
+    scanPidInp.addEventListener('keydown', e => { if(e.key==='Enter') doScan(); });
+
+    // ── Section 2: Merge Records ───────────────────────────────────
+    const mergeCard = div('card'); mergeCard.style.marginTop='16px';
+    const mergeHdr = div('card-header'); mergeHdr.appendChild(span('card-title','⬡ Merge Records'));
+    const mergeBody = div('card-body');
+
+    const mergeBar = div('filter-bar');
+    const canonInp = el('input','filter-input'); canonInp.placeholder='Canonical ID (keep)…'; canonInp.style.minWidth='280px';
+    const dupInp   = el('input','filter-input'); dupInp.placeholder='Duplicate ID (discard)…'; dupInp.style.minWidth='280px';
+    const mergeBtn = el('button','btn danger','Merge');
+    mergeBar.append(canonInp, dupInp, mergeBtn);
+
+    const mergeStatus = div(''); mergeStatus.style.marginTop='10px';
+    mergeBody.append(mergeBar, mergeStatus);
+    mergeCard.append(mergeHdr, mergeBody);
+    this.root.appendChild(mergeCard);
+
+    const doMerge = async () => {
+      const cid = canonInp.value.trim();
+      const did = dupInp.value.trim();
+      if (!cid || !did) return;
+      mergeBtn.disabled=true; mergeBtn.textContent='Merging…';
+      mergeStatus.textContent='';
+      try {
+        const r = await apiPost('/dedup/merge', {canonical_id: cid, duplicate_id: did});
+        mergeStatus.textContent='';
+        const ok = div('green-txt','Merged successfully. Tables updated: '+(r.tables_updated||[]).join(', ')||'none');
+        ok.style.fontSize='12px';
+        mergeStatus.appendChild(ok);
+        canonInp.value=''; dupInp.value='';
+      } catch(e) {
+        mergeStatus.textContent='';
+        mergeStatus.appendChild(span('red-txt','Merge failed: '+e.message));
+      } finally { mergeBtn.disabled=false; mergeBtn.textContent='Merge'; }
+    };
+
+    mergeBtn.addEventListener('click', doMerge);
+    dupInp.addEventListener('keydown', e => { if(e.key==='Enter') doMerge(); });
   },
 };
 

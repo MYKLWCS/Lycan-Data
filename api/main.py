@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.routes import crawls, financial, graph, marketing, persons, search, search_query, system, ws
+from api.routes import crawls, dedup, financial, graph, marketing, persons, search, search_query, system, ws
 from api.deps import DbDep
 from shared.db import engine
 from shared.events import event_bus
@@ -105,3 +105,4 @@ app.include_router(ws.router,                              tags=["websocket"])
 app.include_router(financial.router, prefix="/financial",  tags=["financial"])
 app.include_router(marketing.router, prefix="/marketing",  tags=["marketing"])
 app.include_router(graph.router,     prefix="/graph",      tags=["graph"])
+app.include_router(dedup.router,     prefix="/dedup",      tags=["dedup"])
