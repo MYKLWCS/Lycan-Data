@@ -3,8 +3,8 @@
 Lycan OSINT Platform — Automated System Audit
 
 Scans the codebase against lycan-osint-spec.md, identifies stubs,
-gaps, and bugs, then uses Claude to generate a prioritised issue report
-and posts it as a GitHub Issue.
+gaps, and bugs, then uses a local Ollama model to generate a prioritised
+issue report and posts it as a GitHub Issue.
 
 Run locally:  python scripts/audit.py
 Run in CI:    triggered by .github/workflows/audit.yml
@@ -31,7 +31,8 @@ API_DIR = ROOT / "api"
 SHARED_DIR = ROOT / "shared"
 TESTS_DIR = ROOT / "tests"
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "")
 
@@ -470,18 +471,14 @@ def run_full_audit() -> dict:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. Claude Analysis
+# 3. Ollama Analysis
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def generate_claude_analysis(audit_data: dict, spec_excerpt: str) -> str:
-    """Use Claude to generate a prioritised, actionable audit report."""
-    if not ANTHROPIC_API_KEY:
-        return "No ANTHROPIC_API_KEY set — skipping AI analysis."
-
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+def generate_ollama_analysis(audit_data: dict, spec_excerpt: str) -> str:
+    """Use a local Ollama model to generate a prioritised, actionable audit report."""
+    import urllib.error
+    import urllib.request
 
     prompt = f"""You are auditing the Lycan OSINT platform codebase against its spec.
 
@@ -513,10 +510,20 @@ Ordered list of what to fix first for maximum impact.
 Use markdown. Be direct. No filler text. Focus on actionable findings.
 """
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6", max_tokens=4000, messages=[{"role": "user", "content": prompt}]
+    payload = json.dumps({"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}).encode()
+    req = urllib.request.Request(
+        f"{OLLAMA_URL}/api/generate",
+        data=payload,
+        headers={"Content-Type": "application/json"},
     )
-    return response.content[0].text
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            result = json.loads(resp.read())
+            return result.get("response", "")
+    except urllib.error.URLError as exc:
+        return f"Ollama unavailable ({exc}) — skipping AI analysis."
+    except Exception as exc:  # noqa: BLE001
+        return f"Ollama error ({exc}) — skipping AI analysis."
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -582,7 +589,7 @@ def main():
 
     # Generate AI analysis
     print("Generating Claude analysis...")
-    ai_report = generate_claude_analysis(audit_data, spec_excerpt)
+    ai_report = generate_ollama_analysis(audit_data, spec_excerpt)
 
     # Build full report
     now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")

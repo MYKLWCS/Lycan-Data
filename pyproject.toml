@@ -41,7 +41,10 @@ anyio = "^4.7"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-filterwarnings = ["ignore::DeprecationWarning"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore:coroutine 'Connection._cancel' was never awaited:RuntimeWarning",
+]
 addopts = "--tb=short"
 
 [tool.coverage.run]
