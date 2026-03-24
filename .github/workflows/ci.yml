@@ -14,7 +14,7 @@ jobs:
   # ─── 1. Lint & Static Analysis ─────────────────────────────────────────────
   lint:
     name: Lint (ruff)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, lycan]
     steps:
       - uses: actions/checkout@v4
 
@@ -35,33 +35,8 @@ jobs:
   # ─── 2. Tests ───────────────────────────────────────────────────────────────
   test:
     name: Tests (Python 3.12)
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: lycan
-          POSTGRES_PASSWORD: lycan
-          POSTGRES_DB: lycan_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-      dragonfly:
-        image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
+    # Self-hosted runner has PostgreSQL, Dragonfly, MeiliSearch already running
+    runs-on: [self-hosted, lycan]
     env:
       DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
       REDIS_URL: "redis://localhost:6379/0"
@@ -78,21 +53,26 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install dependencies
+      - name: Install / sync dependencies
         run: |
-          pip install --upgrade pip
-          pip install \
-            fastapi uvicorn sqlalchemy asyncpg alembic pydantic pydantic-settings \
-            redis httpx beautifulsoup4 aiofiles phonenumbers python-dateutil \
-            pytest pytest-asyncio pytest-cov anyio
+          if [ -f .venv/bin/pip ]; then
+            .venv/bin/pip install -q pytest pytest-asyncio pytest-cov anyio
+          else
+            python3 -m venv .venv
+            .venv/bin/pip install -q -r requirements.txt 2>/dev/null || \
+            .venv/bin/pip install -q fastapi sqlalchemy asyncpg alembic pydantic \
+              redis httpx beautifulsoup4 phonenumbers pytest pytest-asyncio pytest-cov anyio
+          fi
 
-      - name: Run database migrations
-        run: alembic upgrade head
-        continue-on-error: true
+      - name: Create test database if missing
+        run: |
+          docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
+          DATABASE_URL="postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test" \
+            .venv/bin/alembic upgrade head 2>/dev/null || true
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ \
+          .venv/bin/pytest tests/ \
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
@@ -103,17 +83,10 @@ jobs:
             --ignore=tests/test_government \
             -k "not integration and not playwright"
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v4
-        with:
-          file: coverage.xml
-          fail_ci_if_error: false
-        continue-on-error: true
-
   # ─── 3. Import Sanity Check ─────────────────────────────────────────────────
   import-check:
     name: Import Sanity
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, lycan]
     steps:
       - uses: actions/checkout@v4
 
