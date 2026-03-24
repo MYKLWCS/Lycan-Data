@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activity — Lycan OSINT</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">LYCAN</span>
+    </div>
+    <div class="nav-label">INTELLIGENCE</div>
+    <a href="/" class="nav-item">⬡ Search</a>
+    <a href="/ui/persons" class="nav-item">⬡ Persons</a>
+    <div class="nav-label">SYSTEM</div>
+    <a href="/ui/activity" class="nav-item active">⬡ Activity</a>
+    <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
+    <div class="sidebar-bottom">
+      <div class="status-row"><span class="dot green"></span><span>System Online</span></div>
+      <div class="status-row"><span class="dot blue"></span><span id="crawler-num">—</span> crawlers</div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Crawl Activity</h1>
+        <div class="page-sub">Real-time log of background scrapers and dispatcher jobs</div>
+      </div>
+      <button class="btn" onclick="location.reload()">↺ Refresh</button>
+    </div>
+
+    <div class="activity-log">
+      <div class="activity-row header">
+        <span>Platform</span>
+        <span>Identifier</span>
+        <span>Target Person</span>
+        <span>Status</span>
+        <span>Started</span>
+      </div>
+      {% for j in jobs %}
+      <div class="activity-row">
+        <span class="bold">{{ j.meta.platform or j.job_type }}</span>
+        <span class="dim mono" style="font-size:10px">{{ j.seed_identifier or '—' }}</span>
+        <span class="mono" style="font-size:10px">
+          {% if j.person_id %}
+          <a href="/ui/person/{{ j.person_id }}">{{ j.person_id[:13] }}…</a>
+          {% else %}—{% endif %}
+        </span>
+        <span>
+          <span class="status-pill {{ j.status.lower() }}">{{ j.status }}</span>
+        </span>
+        <span class="dim mono" style="font-size:10px">
+          {{ (j.started_at or j.created_at or '')[11:19] }}
+        </span>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">◈</div>
+        <div class="empty-state-title">No activity logged</div>
+        <div class="empty-state-sub">Background workers will log their actions here.</div>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+</div>
+<script>
+fetch('/system/health').then(r=>r.json()).then(d=>{
+  document.getElementById('crawler-num').textContent = d.crawlers_registered;
+}).catch(()=>{});
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Persons — Lycan OSINT</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">LYCAN</span>
+    </div>
+    <div class="nav-label">INTELLIGENCE</div>
+    <a href="/" class="nav-item">⬡ Search</a>
+    <a href="/ui/persons" class="nav-item active">⬡ Persons</a>
+    <div class="nav-label">SYSTEM</div>
+    <a href="/ui/activity" class="nav-item">⬡ Activity</a>
+    <a href="/docs" class="nav-item" target="_blank">⬡ API Docs</a>
+    <div class="sidebar-bottom">
+      <div class="status-row"><span class="dot green"></span><span>System Online</span></div>
+      <div class="status-row"><span class="dot blue"></span><span id="crawler-num">—</span> crawlers</div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Indexed Persons</h1>
+        <div class="page-sub">Comprehensive list of all resolved identities and investigations</div>
+      </div>
+      <a href="/" class="btn primary">+ New Search</a>
+    </div>
+
+    <div class="card">
+      <div class="card-body" style="padding:0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name / ID</th>
+              <th>Identifiers</th>
+              <th>Risk</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in persons %}
+            <tr>
+              <td>
+                <div style="font-weight:600;color:#e8eef5">{{ p.full_name or 'Unknown Person' }}</div>
+                <div class="dim mono" style="font-size:10px">{{ p.id }}</div>
+              </td>
+              <td>
+                <span class="tag muted">{{ p.identifier_count }} idents</span>
+                <span class="tag muted">{{ p.platform_count }} platforms</span>
+              </td>
+              <td>
+                {% if p.default_risk_score >= 0.7 %}
+                <span class="tag red">HIGH</span>
+                {% elif p.default_risk_score >= 0.4 %}
+                <span class="tag yellow">MED</span>
+                {% else %}
+                <span class="tag green">LOW</span>
+                {% endif %}
+              </td>
+              <td class="dim mono">{{ p.created_at[:10] }}</td>
+              <td>
+                <a href="/ui/person/{{ p.id }}" class="btn" style="padding:4px 10px;font-size:11px">View Dossier</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5">
+                <div class="empty-state">
+                  <div class="empty-state-icon">◎</div>
+                  <div class="empty-state-title">No persons indexed yet</div>
+                  <div class="empty-state-sub">Launch your first search to begin populating the intelligence database.</div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+fetch('/system/health').then(r=>r.json()).then(d=>{
+  document.getElementById('crawler-num').textContent = d.crawlers_registered;
+}).catch(()=>{});
+</script>
+</body>
+</html>
