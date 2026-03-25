@@ -16,7 +16,7 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import DateTime, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.db import AsyncSessionLocal
@@ -63,7 +63,7 @@ class PepEnricher:
                 .where(
                     (~Person.meta.has_key("pep_status"))
                     | (~Person.meta.has_key("pep_checked_at"))
-                    | (Person.meta["pep_checked_at"].astext.cast(datetime) < stale_cutoff)
+                    | (Person.meta["pep_checked_at"].astext.cast(DateTime) < stale_cutoff)
                 )
                 .limit(_BATCH_SIZE)
             )

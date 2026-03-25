@@ -288,7 +288,7 @@ class TestNetronlinePublicCrawlerScrape:
         crawler = self._make_crawler()
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            result = await crawler.scrape("John Smith | TX")
+            result = await crawler.scrape("John Smith | Harris County TX")
 
         assert result.found is False
         assert "portal_http_timeout" in (result.data.get("error") or "")
@@ -298,7 +298,7 @@ class TestNetronlinePublicCrawlerScrape:
         resp = _mock_resp(status=403, text="Forbidden")
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("John Smith | TX")
+            result = await crawler.scrape("John Smith | Harris County TX")
 
         assert result.found is False
         assert "403" in (result.data.get("error") or "")
@@ -308,7 +308,7 @@ class TestNetronlinePublicCrawlerScrape:
         resp = _mock_resp(status=206, text=self._result_html())
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("John Smith | TX")
+            result = await crawler.scrape("John Smith | Harris County TX")
 
         assert result.found is True
 
@@ -355,7 +355,7 @@ class TestNetronlinePublicCrawlerScrape:
         resp = _mock_resp(status=200, text="<html><body>No data at all</body></html>")
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("John Smith | TX")
+            result = await crawler.scrape("John Smith | Harris County TX")
 
         assert result.found is False
 

@@ -20,7 +20,7 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import DateTime, Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.db import AsyncSessionLocal
@@ -67,8 +67,8 @@ class PropertyEnricher:
                 select(Person.id)
                 .where(
                     # property_count key missing → needs enrichment
-                    (Person.meta["property_count"].astext.cast(int) == 0)
-                    | (Person.meta["property_enriched_at"].astext.cast(datetime) < stale_cutoff)
+                    (Person.meta["property_count"].astext.cast(Integer) == 0)
+                    | (Person.meta["property_enriched_at"].astext.cast(DateTime) < stale_cutoff)
                     | (~Person.meta.has_key("property_enriched_at"))
                 )
                 .limit(_BATCH_SIZE)

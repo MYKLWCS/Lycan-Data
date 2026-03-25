@@ -25,7 +25,7 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import DateTime, Float, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.db import AsyncSessionLocal
@@ -72,10 +72,10 @@ class AdverseMediaEnricher:
                 select(Person.id)
                 .where(
                     (~Person.meta.has_key("adverse_media_score"))
-                    | (Person.meta["adverse_media_score"].astext.cast(float) == 0.0)
+                    | (Person.meta["adverse_media_score"].astext.cast(Float) == 0.0)
                     | (~Person.meta.has_key("adverse_media_checked_at"))
                     | (
-                        Person.meta["adverse_media_checked_at"].astext.cast(datetime)
+                        Person.meta["adverse_media_checked_at"].astext.cast(DateTime)
                         < stale_cutoff
                     )
                 )
