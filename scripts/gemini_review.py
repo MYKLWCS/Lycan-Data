@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Lycan OSINT — Gemini-powered PR code review.
+Lycan OSINT — Gemini-powered PR code review via Gemini CLI.
 
 Usage:
     python scripts/gemini_review.py <diff_file> <output_file>
@@ -43,7 +43,7 @@ Be specific. Point to exact files and line numbers.
 Prioritize by severity. Skip style/formatting comments.
 If the diff is clean, say so briefly.
 
-PR DIFF:
+CODE TO REVIEW (PR diff or full codebase listing):
 {diff}
 """
 
@@ -53,7 +53,7 @@ def main() -> None:
     out_file = sys.argv[2] if len(sys.argv) > 2 else "/tmp/gemini_review_output.md"
 
     with open(diff_file) as f:
-        diff = f.read()[:12000]
+        diff = f.read()[:120000]  # Gemini handles large context windows
 
     prompt = PROMPT_TEMPLATE.format(diff=diff)
 
