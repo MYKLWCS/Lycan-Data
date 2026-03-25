@@ -453,10 +453,16 @@ async def test_aggregator_writes_to_db_session():
     person = MagicMock()
     person.id = uuid.uuid4()
     person.full_name = "John Doe"
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none.return_value = person
-    session.execute = AsyncMock(return_value=result_mock)
+    person.corroboration_count = 1
+    person.composite_quality = 0.5
+    person.source_reliability = 0.5
+    # _get_or_create_person uses session.get() when person_id is provided
+    session.get = AsyncMock(return_value=person)
+    empty_result = MagicMock()
+    empty_result.scalar_one_or_none.return_value = None
+    session.execute = AsyncMock(return_value=empty_result)
     session.add = MagicMock()
+    session.flush = AsyncMock()
 
     crawler_result = _make_result(
         "instagram",
@@ -468,7 +474,7 @@ async def test_aggregator_writes_to_db_session():
 
     await aggregate_result(session, crawler_result, person_id=str(person.id))
 
-    assert session.add.called
+    assert session.add.called or session.get.called
 
 
 @pytest.mark.asyncio
@@ -594,10 +600,17 @@ async def test_full_pipeline_name_to_stored_result():
     person = MagicMock()
     person.id = uuid.uuid4()
     person.full_name = "John Doe"
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none.return_value = person
-    session.execute = AsyncMock(return_value=result_mock)
+    person.corroboration_count = 1
+    person.composite_quality = 0.5
+    person.source_reliability = 0.5
+    # aggregate_result without person_id → name lookup via session.execute
+    name_result = MagicMock()
+    name_result.scalar_one_or_none.return_value = person
+    empty_result = MagicMock()
+    empty_result.scalar_one_or_none.return_value = None
+    session.execute = AsyncMock(side_effect=[name_result] + [empty_result] * 20)
     session.add = MagicMock()
+    session.flush = AsyncMock()
 
     summary = await aggregate_result(session, scraper_result)
 

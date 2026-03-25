@@ -3,7 +3,7 @@ Unit tests for individual scrapers — all external HTTP calls are mocked.
 
 Coverage per scraper:
   - GoogleNewsRssCrawler: parses RSS feed, handles empty/invalid XML
-  - OFACSanctionsCrawler: CSV download, name matching, cache logic
+  - SanctionsOFACCrawler: CSV download, name matching, cache logic
   - BaseCrawler behaviours: kill switch, circuit breaker, retry with backoff
 
 Each test is self-contained. No live network. No live DB.
@@ -11,25 +11,20 @@ Each test is self-contained. No live network. No live DB.
 
 from __future__ import annotations
 
-import os
 import tempfile
 import textwrap
-from contextlib import asynccontextmanager
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
-import modules.crawlers.google_news_rss  # trigger @register
-import modules.crawlers.sanctions_ofac  # trigger @register
 from modules.crawlers.base import BaseCrawler
 from modules.crawlers.core.models import CrawlerCategory
 from modules.crawlers.google_news_rss import GoogleNewsRssCrawler
-from modules.crawlers.registry import is_registered
+from modules.crawlers.registry import get_crawler, is_registered
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.sanctions_ofac import (
-    OFACSanctionsCrawler,
+    SanctionsOFACCrawler,
     _cache_valid,
     _name_matches,
 )
@@ -324,7 +319,7 @@ async def test_google_news_rss_result_has_correct_platform():
 
 
 # ===========================================================================
-# OFACSanctionsCrawler (sanctions_ofac)
+# SanctionsOFACCrawler (sanctions_ofac)
 # ===========================================================================
 
 
@@ -382,7 +377,7 @@ def test_ofac_cache_invalid_when_file_missing():
 @pytest.mark.asyncio
 async def test_ofac_scraper_finds_match_in_csv():
     """OFAC scraper returns found=True when a name matches the SDN list."""
-    crawler = OFACSanctionsCrawler()
+    crawler = SanctionsOFACCrawler()
 
     mock_response = _make_http_response(_CSV_CONTENT)
 
@@ -410,7 +405,7 @@ async def test_ofac_scraper_finds_match_in_csv():
 @pytest.mark.asyncio
 async def test_ofac_scraper_no_match_returns_not_found():
     """Name not in SDN list → found=False."""
-    crawler = OFACSanctionsCrawler()
+    crawler = SanctionsOFACCrawler()
 
     mock_response = _make_http_response(_CSV_CONTENT)
 
@@ -431,7 +426,7 @@ async def test_ofac_scraper_no_match_returns_not_found():
 @pytest.mark.asyncio
 async def test_ofac_scraper_http_failure_returns_not_found():
     """HTTP failure → found=False, no exception raised."""
-    crawler = OFACSanctionsCrawler()
+    crawler = SanctionsOFACCrawler()
 
     with patch.object(crawler, "get", return_value=None):
         with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False):
@@ -450,15 +445,11 @@ async def test_ofac_scraper_http_failure_returns_not_found():
 
 def test_registry_contains_expected_platforms():
     """Core platforms are registered when their modules are imported."""
-    from modules.crawlers.registry import is_registered
-
     assert is_registered("google_news_rss")
     assert is_registered("sanctions_ofac")
 
 
 def test_registry_lookup_is_case_insensitive():
-    from modules.crawlers.registry import get_crawler
-
     cls = get_crawler("GOOGLE_NEWS_RSS")
     assert cls is not None
     assert cls is GoogleNewsRssCrawler
