@@ -360,3 +360,33 @@ def test_debt_consolidation_no_distress():
         financial_distress_score=0.1, criminal_count=0, has_vehicle=False, has_property=False
     )
     assert score < 0.65
+
+
+# ── Task 6: PersonSignals dataclass ──────────────────────────────────────────
+
+from modules.enrichers.commercial_tagger import PersonSignals
+
+
+def test_person_signals_is_dataclass():
+    import dataclasses
+    assert dataclasses.is_dataclass(PersonSignals)
+
+
+def test_person_signals_fields():
+    import uuid
+    s = PersonSignals(
+        person_id=uuid.uuid4(),
+        has_vehicle=True,
+        has_property=False,
+        financial_distress_score=0.4,
+        gambling_score=0.1,
+        income_estimate=55_000.0,
+        net_worth_estimate=None,
+        is_employed=True,
+        age=34,
+        criminal_count=0,
+        has_investment_signals=False,
+    )
+    assert s.has_vehicle is True
+    assert s.age == 34
+    assert s.income_estimate == 55_000.0
