@@ -1,16 +1,27 @@
 name: Code Review
 
 on:
+  push:
+    branches: ["master", "main", "dev/**", "feature/**"]
   pull_request:
     types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 */2 * * *"  # Every 2 hours — catches in-progress work
   issue_comment:
     types: [created]
+  workflow_dispatch:        # Manual trigger from GitHub UI
+
+concurrency:
+  group: code-review-${{ github.ref }}
+  cancel-in-progress: true  # New push cancels the in-flight review
 
 jobs:
   ollama-review:
     name: Ollama Code Review
-    # Trigger on PRs, or on comments containing /review on a PR thread
     if: >
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request != null &&
@@ -24,31 +35,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 50  # Enough history to diff against base
 
-      - name: Resolve PR number
-        id: pr
-        # github.event.pull_request.number and github.event.issue.number are
-        # numeric — safe to interpolate into shell commands.
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "num=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-          else
-            echo "num=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Fetch PR diff
+      - name: Get diff to review
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr diff "${{ steps.pr.outputs.num }}" > /tmp/pr_diff.txt 2>/dev/null || echo "(no diff)" > /tmp/pr_diff.txt
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] || \
+             ( [ "${{ github.event_name }}" = "issue_comment" ] && \
+               [ -n "${{ github.event.issue.pull_request.url }}" ] ); then
+            PR_NUM="${{ github.event.pull_request.number || github.event.issue.number }}"
+            gh pr diff "$PR_NUM" > /tmp/pr_diff.txt 2>/dev/null || true
+          else
+            # For push/schedule: diff last 10 commits on this branch
+            git diff HEAD~10 HEAD -- '*.py' > /tmp/pr_diff.txt 2>/dev/null || true
+          fi
+          [ -s /tmp/pr_diff.txt ] || echo "(no changes to review)" > /tmp/pr_diff.txt
 
       - name: Run Ollama review
         run: python3 scripts/ollama_review.py /tmp/pr_diff.txt /tmp/review_output.md
 
-      - name: Post review comment
+      - name: Upload review as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-review-${{ github.run_number }}
+          path: /tmp/review_output.md
+          retention-days: 14
+
+      - name: Post PR comment (PRs only)
+        if: github.event_name == 'pull_request' || github.event_name == 'issue_comment'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUM: ${{ steps.pr.outputs.num }}
+          PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           printf '## Automated Code Review\n\n' > /tmp/comment.md
