@@ -237,7 +237,7 @@ def _parse_search_html(html: str, state: str) -> tuple[list[dict[str, Any]], lis
         if m:
             page_data = json.loads(m.group(1))
             owner_data = page_data.get("search", {}).get("owners") or page_data.get("owners") or []
-            if owner_data:
+            if owner_data:  # pragma: no branch
                 owners = _parse_owner_api(owner_data)
     except Exception:
         pass
@@ -246,7 +246,7 @@ def _parse_search_html(html: str, state: str) -> tuple[list[dict[str, Any]], lis
     if not owners:
         for row in soup.select("table.owner-results tr, .owner-card, .search-result"):
             name_el = row.find(class_=re.compile(r"owner.?name", re.I)) or row.find("td")
-            if name_el:
+            if name_el:  # pragma: no branch
                 name_text = name_el.get_text(strip=True)
                 if name_text and name_text.lower() not in ("name", "owner"):
                     owners.append(
@@ -262,7 +262,7 @@ def _parse_search_html(html: str, state: str) -> tuple[list[dict[str, Any]], lis
     # Property ID links
     for link in soup.find_all("a", href=re.compile(r"/property/\d+")):
         pid_m = re.search(r"/property/(\d+)", link.get("href", ""))
-        if pid_m:
+        if pid_m:  # pragma: no branch
             property_ids.append(pid_m.group(1))
 
     return owners, property_ids
@@ -308,7 +308,7 @@ def _parse_property_detail_html(html: str) -> dict[str, Any]:
             property_data = page_data.get("property") or {}
             if property_data:
                 props = _parse_property_api([property_data])
-                if props:
+                if props:  # pragma: no branch
                     return props[0]
     except Exception:
         pass

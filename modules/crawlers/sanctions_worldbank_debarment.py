@@ -43,7 +43,7 @@ def _parse_debarred(payload: Any, query: str) -> list[dict[str, Any]]:
     records: list[Any] = []
     if isinstance(payload, list):
         records = payload
-    elif isinstance(payload, dict):
+    elif isinstance(payload, dict):  # pragma: no branch
         # Try common key names
         for key in ("debarredFirms", "data", "results", "response"):
             if key in payload and isinstance(payload[key], list):

@@ -416,6 +416,16 @@ class TestNMLSParseLicenseesDict:
         results = _parse_licensees(data)
         assert results == []
 
+    def test_w7_non_list_non_dict_returns_empty(self):
+        """[38->44] False branch: data is neither list nor dict → items stays [], returns []."""
+        results = _parse_licensees("a plain string")
+        assert results == []
+
+    def test_w7_integer_input_returns_empty(self):
+        """[38->44] False branch: data is int → items stays [], returns []."""
+        results = _parse_licensees(42)
+        assert results == []
+
 
 # ===========================================================================
 # 8. gov_osha.py — [34,43]: data is a dict → DOL dict-wrapper branch
@@ -462,6 +472,16 @@ class TestOSHAParseDolInspectionsDict:
         inspections = _parse_dol_inspections(data)
         assert len(inspections) == 1
         assert inspections[0]["establishment_name"] == "Solo Facility"
+
+    def test_w7_non_list_non_dict_returns_empty(self):
+        """[34->43] False branch: data is neither list nor dict → rows stays [], returns []."""
+        inspections = _parse_dol_inspections("just a string")
+        assert inspections == []
+
+    def test_w7_integer_input_returns_empty(self):
+        """[34->43] False branch: data is int → rows stays [], returns []."""
+        inspections = _parse_dol_inspections(99)
+        assert inspections == []
 
 
 # ===========================================================================

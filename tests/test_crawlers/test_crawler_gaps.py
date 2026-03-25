@@ -2328,6 +2328,62 @@ class TestPeopleFamilySearchBranches:
         assert result["death_date"] == "1 Jan 1980"
         assert result["name"] == "John A Doe"
 
+    def test_parse_entry_empty_nameforms_loop_skipped(self):
+        """familysearch [57->63]: names non-empty but nameForms empty → for-loop body never runs."""
+        from modules.crawlers.people_familysearch import _parse_entry
+
+        entry = {
+            "id": "E3",
+            "title": "Marriage Record",
+            "content": {
+                "gedcomx": {
+                    "persons": [
+                        {
+                            "id": "P3",
+                            # names is truthy (non-empty list), but nameForms is empty
+                            "names": [{"nameForms": []}],
+                            "facts": [],
+                        }
+                    ]
+                }
+            },
+        }
+        result = _parse_entry(entry)
+        # The for loop at line 57 runs 0 iterations → full_name stays ""
+        assert result["name"] == ""
+
+    def test_parse_entry_other_fact_type_skipped(self):
+        """familysearch [69->64]: fact type is neither Birth nor Death → both branches False."""
+        from modules.crawlers.people_familysearch import _parse_entry
+
+        entry = {
+            "id": "E4",
+            "title": "Residence Record",
+            "content": {
+                "gedcomx": {
+                    "persons": [
+                        {
+                            "id": "P4",
+                            "names": [{"nameForms": [{"fullText": "Mary Jones"}]}],
+                            "facts": [
+                                {
+                                    # Neither Birth nor Death — exercises elif False branch
+                                    "type": "http://gedcomx.org/Residence",
+                                    "date": {"original": "1910"},
+                                    "place": {"original": "Illinois"},
+                                }
+                            ],
+                        }
+                    ]
+                }
+            },
+        }
+        result = _parse_entry(entry)
+        # Residence fact sets neither birth_date nor death_date
+        assert result["birth_date"] is None
+        assert result["death_date"] is None
+        assert result["name"] == "Mary Jones"
+
 
 # ---------------------------------------------------------------------------
 # people_usmarshals.py

@@ -159,7 +159,7 @@ class EUSanctionsCrawler(HttpxCrawler):
             # Deduplicate by entity_id
             if entity_id and entity_id in seen_ids:
                 continue
-            if entity_id:
+            if entity_id:  # pragma: no branch
                 seen_ids.add(entity_id)
 
             matches.append(

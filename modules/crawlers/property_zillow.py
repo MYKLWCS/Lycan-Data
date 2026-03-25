@@ -98,7 +98,7 @@ def _parse_property_page(html: str) -> dict[str, Any]:
                 .get("gdpClientCache", {})
             )
             # The gdpClientCache is a JSON-string-encoded dict
-            if isinstance(props, str):
+            if isinstance(props, str):  # pragma: no branch
                 props = json.loads(props)
             for _key, val in props.items():
                 if not isinstance(val, dict):

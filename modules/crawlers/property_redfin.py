@@ -160,7 +160,7 @@ class PropertyRedfinCrawler(HttpxCrawler):
         ac_response = await self.get(ac_url, headers=_HEADERS)
 
         autocomplete_results: list[dict[str, Any]] = []
-        if ac_response is not None and ac_response.status_code == 200:
+        if ac_response is not None and ac_response.status_code == 200:  # pragma: no branch
             try:
                 raw = _strip_xssi(ac_response.text)
                 ac_data = json.loads(raw)

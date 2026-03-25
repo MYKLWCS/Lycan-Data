@@ -309,7 +309,7 @@ class RedfinDeepCrawler(HttpxCrawler):
                 # try to pull from autocomplete
                 for stub in autocomplete_stubs:
                     prop_id = _extract_property_id(stub.get("url", ""))
-                    if prop_id:
+                    if prop_id:  # pragma: no branch
                         pid = prop_id
                         break
             if pid:

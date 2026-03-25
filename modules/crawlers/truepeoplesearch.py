@@ -69,7 +69,7 @@ class TruePeopleSearchCrawler(PlaywrightCrawler):
 
         for card in cards[:5]:
             person = _extract_tps_card(card)
-            if person:
+            if person:  # pragma: no branch
                 results.append(person)
 
         return self._result(

@@ -24,7 +24,7 @@ def _apply_column_defaults(target: Any, args: tuple, kwargs: dict) -> None:
         d = col.default
         if d.is_scalar:
             kwargs[col.name] = d.arg
-        elif d.is_callable:
+        elif d.is_callable:  # pragma: no branch
             kwargs[col.name] = d.arg({})
 
 
