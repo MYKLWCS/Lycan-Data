@@ -203,11 +203,13 @@ async def test_enrich_person_includes_coverage_update_step():
         patch.object(orchestrator, "_run_burner", new=AsyncMock()),
         patch.object(orchestrator, "_run_relationship_score", new=AsyncMock()),
         patch.object(orchestrator, "_update_coverage", new=AsyncMock()) as mock_cov,
+        patch.object(orchestrator, "_run_location", new=AsyncMock()),
+        patch.object(orchestrator, "_run_cascade", new=AsyncMock()),
         patch.object(orchestrator, "_publish_completion", new=AsyncMock()),
     ):
         report = await orchestrator.enrich_person(str(uuid.uuid4()), session)
 
     assert mock_cov.called
-    assert len(report.steps) == 6
+    assert len(report.steps) == 8
     step_names = [s.enricher for s in report.steps]
     assert "coverage_update" in step_names
