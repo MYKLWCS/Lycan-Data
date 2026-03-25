@@ -17,7 +17,7 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -133,7 +133,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
 
 
 @register("people_thatsthem")
-class PeopleThatsThemCrawler(HttpxCrawler):
+class PeopleThatsThemCrawler(FlareSolverrCrawler):
     """
     Scrapes ThatsThem for people-search data.
 

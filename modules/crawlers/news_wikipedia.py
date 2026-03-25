@@ -13,7 +13,7 @@ import logging
 from typing import Any
 from urllib.parse import quote, quote_plus
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -73,7 +73,7 @@ def _parse_summary(data: dict) -> dict[str, Any]:
 
 
 @register("news_wikipedia")
-class WikipediaCrawler(HttpxCrawler):
+class WikipediaCrawler(CurlCrawler):
     """
     Searches Wikipedia and Wikidata for a person or entity name.
 

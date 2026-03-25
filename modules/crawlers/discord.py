@@ -4,7 +4,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -24,7 +24,7 @@ def snowflake_to_datetime(snowflake: int) -> str:
 
 
 @register("discord")
-class DiscordCrawler(HttpxCrawler):
+class DiscordCrawler(CurlCrawler):
     """
     Looks up Discord users by numeric snowflake ID via discordlookup.mesalytic.moe.
     Non-numeric identifiers are rejected immediately — Discord has no public profile

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -44,7 +44,7 @@ def _parse_recent_txs(txlist: list[dict], limit: int = 5) -> list[dict]:
 
 
 @register("crypto_ethereum")
-class CryptoEthereumCrawler(HttpxCrawler):
+class CryptoEthereumCrawler(CurlCrawler):
     """
     Queries Etherscan for ETH wallet balance and recent transaction history.
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from urllib.parse import quote_plus
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -52,7 +52,7 @@ def _parse_psbdmp_response(data: list[dict]) -> list[dict]:
 
 
 @register("paste_psbdmp")
-class PastePsbdmpCrawler(HttpxCrawler):
+class PastePsbdmpCrawler(FlareSolverrCrawler):
     """
     Searches psbdmp.ws for Pastebin pastes mentioning an identifier.
 

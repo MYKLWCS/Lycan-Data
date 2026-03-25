@@ -4,7 +4,7 @@ import logging
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.constants import SOURCE_RELIABILITY
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @register("tiktok")
-class TikTokCrawler(HttpxCrawler):
+class TikTokCrawler(CurlCrawler):
     """Scrapes public TikTok profiles via web (no auth required for public data)."""
 
     platform = "tiktok"

@@ -5,7 +5,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.constants import SOURCE_RELIABILITY
@@ -23,7 +23,7 @@ NITTER_INSTANCES: list[str] = [
 
 
 @register("twitter")
-class TwitterCrawler(HttpxCrawler):
+class TwitterCrawler(CurlCrawler):
     """Scrapes Twitter profiles via nitter mirrors (no auth required)."""
 
     platform = "twitter"

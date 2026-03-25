@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -43,7 +43,7 @@ def _parse_recent_txs(txs: list[dict], limit: int = 5) -> list[dict]:
 
 
 @register("crypto_bitcoin")
-class CryptoBitcoinCrawler(HttpxCrawler):
+class CryptoBitcoinCrawler(CurlCrawler):
     """
     Queries blockchain.info for Bitcoin wallet balance and recent transactions.
 

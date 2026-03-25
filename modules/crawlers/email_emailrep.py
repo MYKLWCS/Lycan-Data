@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -21,7 +21,7 @@ _EMAILREP_HEADERS = {"User-Agent": "LycanOSINT/1.0"}
 
 
 @register("email_emailrep")
-class EmailRepCrawler(HttpxCrawler):
+class EmailRepCrawler(CurlCrawler):
     """
     Queries emailrep.io for reputation, breach, and profile data on an email address.
 

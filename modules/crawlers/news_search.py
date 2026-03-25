@@ -13,7 +13,7 @@ from xml.etree import ElementTree
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -86,7 +86,7 @@ def _tag_article(title: str, snippet: str) -> list[str]:
 
 
 @register("news_search")
-class NewsSearchCrawler(HttpxCrawler):
+class NewsSearchCrawler(CurlCrawler):
     """
     Searches DuckDuckGo News, Google News RSS, and Bing News RSS for mentions
     of a person or company name.

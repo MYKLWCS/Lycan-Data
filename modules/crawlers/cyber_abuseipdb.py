@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.config import settings
@@ -37,7 +37,7 @@ def _extract_data(raw: dict) -> dict:
 
 
 @register("cyber_abuseipdb")
-class CyberAbuseIPDBCrawler(HttpxCrawler):
+class CyberAbuseIPDBCrawler(CurlCrawler):
     """
     Queries AbuseIPDB for abuse reports against an IP address.
 

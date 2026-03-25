@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -67,7 +67,7 @@ def _parse_blockchair_response(json_data: dict, address: str) -> dict | None:
 
 
 @register("crypto_blockchair")
-class CryptoBlockchairCrawler(HttpxCrawler):
+class CryptoBlockchairCrawler(CurlCrawler):
     """
     Queries Blockchair for multi-chain crypto address statistics.
 

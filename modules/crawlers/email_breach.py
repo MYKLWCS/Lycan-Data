@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import urllib.parse
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @register("email_breach")
-class EmailBreachCrawler(HttpxCrawler):
+class EmailBreachCrawler(CurlCrawler):
     """
     Checks an email address across three free breach/leak data sources.
 

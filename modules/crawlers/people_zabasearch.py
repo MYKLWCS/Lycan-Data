@@ -13,7 +13,7 @@ import logging
 import re
 from typing import Any
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -119,7 +119,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
 
 
 @register("people_zabasearch")
-class PeopleZabaSearchCrawler(HttpxCrawler):
+class PeopleZabaSearchCrawler(FlareSolverrCrawler):
     """
     Scrapes ZabaSearch for public people records.
 

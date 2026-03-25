@@ -5,7 +5,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -16,7 +16,7 @@ FOLLOWER_RE = re.compile(r"(\d[\d,]*)\s+follower", re.IGNORECASE)
 
 
 @register("pinterest")
-class PinterestCrawler(HttpxCrawler):
+class PinterestCrawler(CurlCrawler):
     """Scrapes public Pinterest profiles via OG meta tags."""
 
     platform = "pinterest"

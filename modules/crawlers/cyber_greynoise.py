@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.config import settings
@@ -52,7 +52,7 @@ def _parse_full(data: dict) -> dict[str, Any]:
 
 
 @register("cyber_greynoise")
-class GreyNoiseCrawler(HttpxCrawler):
+class GreyNoiseCrawler(CurlCrawler):
     """
     Queries GreyNoise for IP noise classification and threat context.
 

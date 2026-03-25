@@ -4,7 +4,7 @@ import logging
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -14,7 +14,7 @@ NOT_FOUND_SENTINEL = "This Snapcode is not available"
 
 
 @register("snapchat")
-class SnapchatCrawler(HttpxCrawler):
+class SnapchatCrawler(CurlCrawler):
     """Scrapes public Snapchat profiles via add page OG meta tags."""
 
     platform = "snapchat"

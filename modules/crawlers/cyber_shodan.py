@@ -16,7 +16,7 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.config import settings
@@ -68,7 +68,7 @@ def _parse_search(data: dict) -> dict[str, Any]:
 
 
 @register("cyber_shodan")
-class ShodanCrawler(HttpxCrawler):
+class ShodanCrawler(CurlCrawler):
     """
     Queries Shodan for host intelligence or search results.
 

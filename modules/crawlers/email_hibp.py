@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -35,7 +35,7 @@ def _parse_breaches(json_data: list[dict]) -> list[dict]:
 
 
 @register("email_hibp")
-class EmailHIBPCrawler(HttpxCrawler):
+class EmailHIBPCrawler(CurlCrawler):
     """
     Checks an email address against the Have I Been Pwned breach database.
 

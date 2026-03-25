@@ -13,7 +13,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -68,7 +68,7 @@ def _parse_whois(text: str) -> dict:
 
 
 @register("domain_whois")
-class DomainWhoisCrawler(HttpxCrawler):
+class DomainWhoisCrawler(CurlCrawler):
     """
     Scrapes whois.com for WHOIS registration data on a target domain.
 

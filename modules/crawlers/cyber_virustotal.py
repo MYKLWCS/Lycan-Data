@@ -21,7 +21,7 @@ import re
 from typing import Any
 from urllib.parse import quote
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.config import settings
@@ -62,7 +62,7 @@ def _extract_attributes(data: dict) -> dict[str, Any]:
 
 
 @register("cyber_virustotal")
-class VirusTotalCrawler(HttpxCrawler):
+class VirusTotalCrawler(CurlCrawler):
     """
     Queries VirusTotal for domain, IP, or URL threat intelligence.
 

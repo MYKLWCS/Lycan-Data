@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
@@ -30,7 +30,7 @@ def _parse_certs(raw: list[dict]) -> list[dict]:
 
 
 @register("cyber_crt")
-class CyberCrtCrawler(HttpxCrawler):
+class CyberCrtCrawler(CurlCrawler):
     """
     Queries crt.sh for TLS certificates associated with a domain.
 

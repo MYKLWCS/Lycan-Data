@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.config import settings
@@ -41,7 +41,7 @@ def _parse_results(raw_results: list[dict]) -> list[dict]:
 
 
 @register("cyber_urlscan")
-class CyberURLScanCrawler(HttpxCrawler):
+class CyberURLScanCrawler(CurlCrawler):
     """
     Searches URLScan.io for historical scan data on a domain or URL.
 

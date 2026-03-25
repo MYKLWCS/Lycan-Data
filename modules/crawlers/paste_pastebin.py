@@ -14,7 +14,7 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
-from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
@@ -74,7 +74,7 @@ def _parse_pastebin_html(html: str) -> list[dict]:
 
 
 @register("paste_pastebin")
-class PastePastebinCrawler(HttpxCrawler):
+class PastePastebinCrawler(FlareSolverrCrawler):
     """
     Searches Pastebin.com for public pastes mentioning an identifier.
 
