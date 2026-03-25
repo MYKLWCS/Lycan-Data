@@ -10,6 +10,7 @@ from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,8 @@ class WhitepagesCrawler(PlaywrightCrawler):
     """Scrapes Whitepages for people search results by name (and optional city/state)."""
 
     platform = "whitepages"
+    category = CrawlerCategory.PEOPLE
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     source_reliability = 0.65
     requires_tor = True
     tor_instance = TorInstance.TOR2

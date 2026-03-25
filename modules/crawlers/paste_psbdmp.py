@@ -17,6 +17,7 @@ from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,8 @@ class PastePsbdmpCrawler(FlareSolverrCrawler):
     """
 
     platform = "paste_psbdmp"
+    category = CrawlerCategory.DARK_WEB
+    rate_limit = RateLimit(requests_per_second=0.3, burst_size=2, cooldown_seconds=5.0)
     source_reliability = 0.35
     requires_tor = True
     tor_instance = TorInstance.TOR2

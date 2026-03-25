@@ -17,6 +17,7 @@ import uuid
 from modules.crawlers.base import BaseCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,8 @@ class DomainHarvesterCrawler(BaseCrawler):
     """
 
     platform = "domain_harvester"
+    category = CrawlerCategory.PHONE_EMAIL
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=1.0)
     source_reliability = 0.70
     requires_tor = False
 

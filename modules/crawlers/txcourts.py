@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,8 @@ class TxCourtsCrawler(HttpxCrawler):
     """
 
     platform = "txcourts"
+    category = CrawlerCategory.PUBLIC_RECORDS
+    rate_limit = RateLimit(requests_per_second=1.0, burst_size=5, cooldown_seconds=0.0)
     SOURCE_RELIABILITY = 0.80
     source_reliability = SOURCE_RELIABILITY
     requires_tor = False

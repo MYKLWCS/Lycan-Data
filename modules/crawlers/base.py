@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import random
 import time
 from abc import ABC, abstractmethod
-from typing import Any
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
+from typing import Any, Dict, List, Optional
 
+from modules.crawlers.core.models import CrawlerCategory, CrawlerHealth, RateLimit
 from modules.crawlers.result import CrawlerResult
 from shared.config import settings
 from shared.tor import TorInstance, tor_manager
@@ -22,16 +27,24 @@ MAX_SCRAPER_RETRIES = 3
 BASE_BACKOFF_SECONDS = 2.0
 MAX_BACKOFF_SECONDS = 30.0
 
+# Default rate limit for crawlers that don't override
+_DEFAULT_RATE_LIMIT = RateLimit(requests_per_second=1.0, burst_size=5, cooldown_seconds=0.0)
+
 
 class BaseCrawler(ABC):
     """
     Abstract base for all scrapers.
+
+    Implements the spec-09 interface (name, category, rate_limit,
+    source_reliability, crawl, health_check, safe_crawl) while
+    preserving the existing scrape()/run() contract.
 
     Subclass + register:
         @register("myplatform")
         class MyCrawler(BaseCrawler):
             platform = "myplatform"
             source_reliability = 0.6
+            category = CrawlerCategory.SOCIAL_MEDIA
             requires_tor = True
 
             async def scrape(self, identifier: str) -> CrawlerResult:
@@ -40,6 +53,8 @@ class BaseCrawler(ABC):
 
     platform: str = ""
     source_reliability: float = 0.5
+    category: CrawlerCategory = CrawlerCategory.PEOPLE
+    rate_limit: RateLimit = _DEFAULT_RATE_LIMIT
     requires_tor: bool = True
     tor_instance: TorInstance = TorInstance.TOR2
     proxy_tier: str = "tor"  # residential | datacenter | tor | direct -- override per crawler
@@ -235,3 +250,61 @@ class BaseCrawler(ABC):
             data=data,
             source_reliability=self.source_reliability,
         )
+
+    # ── Spec-09 interface ────────────────────────────────────────────────
+
+    @property
+    def name(self) -> str:
+        """Spec-09: crawler name (maps to platform)."""
+        return self.platform
+
+    async def crawl(
+        self, query: str, params: Optional[Dict[str, Any]] = None
+    ) -> List[CrawlerResult]:
+        """
+        Spec-09 crawl interface.  Delegates to scrape() and wraps the
+        single result in a list for spec compliance.
+        """
+        result = await self.scrape(query)
+        return [result]
+
+    async def health_check(self) -> CrawlerHealth:
+        """
+        Spec-09: default health check — reports healthy unless the
+        circuit breaker is open.
+        """
+        from shared.circuit_breaker import get_circuit_breaker
+
+        cb = get_circuit_breaker()
+        is_open = await cb.is_open(self.platform)
+        return CrawlerHealth(
+            healthy=not is_open,
+            last_check=datetime.now(UTC),
+            avg_latency_ms=0.0,
+            success_rate=0.0 if is_open else 1.0,
+            last_error="circuit_open" if is_open else None,
+        )
+
+    async def safe_crawl(
+        self, query: str, params: Optional[Dict[str, Any]] = None
+    ) -> List[CrawlerResult]:
+        """
+        Spec-09: crawl with circuit breaker, retry, and error handling.
+        Delegates to the existing run() method which already has all of this.
+        """
+        result = await self.run(query)
+        return [result]
+
+    async def crawl_streaming(
+        self, query: str, params: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[CrawlerResult, None]:
+        """Spec-09: stream results one at a time."""
+        results = await self.crawl(query, params)
+        for r in results:
+            yield r
+
+    @staticmethod
+    def hash_data(data: Dict[str, Any]) -> str:
+        """SHA-256 hash of normalized data for dedup."""
+        canonical = json.dumps(data, sort_keys=True, default=str)
+        return hashlib.sha256(canonical.encode()).hexdigest()

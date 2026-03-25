@@ -13,6 +13,7 @@ from urllib.parse import quote_plus
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,8 @@ class SpotifyPublicCrawler(HttpxCrawler):
     """
 
     platform = "spotify_public"
+    category = CrawlerCategory.SOCIAL_MEDIA
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=1.0)
     SOURCE_RELIABILITY = 0.40
     source_reliability = SOURCE_RELIABILITY
     requires_tor = False

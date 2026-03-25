@@ -17,6 +17,7 @@ from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,8 @@ class DomainWhoisCrawler(CurlCrawler):
     """
 
     platform = "domain_whois"
+    category = CrawlerCategory.PHONE_EMAIL
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=1.0)
     source_reliability = 0.75
     requires_tor = True
     tor_instance = TorInstance.TOR2

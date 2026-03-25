@@ -10,6 +10,7 @@ from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.constants import BURNER_CARRIERS, LineType
 from shared.tor import TorInstance
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,8 @@ class CarrierLookupCrawler(HttpxCrawler):
     """Enriches a phone number via carrierlookup.com — returns carrier, line type, burner flag."""
 
     platform = "phone_carrier"
+    category = CrawlerCategory.PHONE_EMAIL
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=1.0)
     source_reliability = 0.65
     requires_tor = True
     tor_instance = TorInstance.TOR2

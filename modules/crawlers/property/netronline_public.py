@@ -32,6 +32,7 @@ from bs4 import BeautifulSoup
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +307,8 @@ class NetronlinePublicCrawler(HttpxCrawler):
     """
 
     platform = "netronline_public"
+    category = CrawlerCategory.PROPERTY
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     source_reliability = 0.88
     requires_tor = False
     proxy_tier = "datacenter"

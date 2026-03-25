@@ -10,6 +10,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.constants import SOURCE_RELIABILITY
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,8 @@ class TelegramCrawler(HttpxCrawler):
     """
 
     platform = "telegram"
+    category = CrawlerCategory.SOCIAL_MEDIA
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=1.0)
     source_reliability = SOURCE_RELIABILITY.get("telegram", 0.50)
     requires_tor = True
 

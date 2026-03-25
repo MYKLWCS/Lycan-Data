@@ -16,6 +16,7 @@ from typing import Any
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +120,8 @@ class VehicleNicbCrawler(HttpxCrawler):
     """
 
     platform = "vehicle_nicb"
+    category = CrawlerCategory.VEHICLE
+    rate_limit = RateLimit(requests_per_second=1.0, burst_size=5, cooldown_seconds=0.0)
     source_reliability = 0.90
     requires_tor = False
 

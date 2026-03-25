@@ -20,6 +20,7 @@ from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.config import settings
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,8 @@ class ShodanCrawler(CurlCrawler):
     """
 
     platform = "cyber_shodan"
+    category = CrawlerCategory.CYBER
+    rate_limit = RateLimit(requests_per_second=1.0, burst_size=5, cooldown_seconds=0.0)
     source_reliability = 0.90
     requires_tor = False
 

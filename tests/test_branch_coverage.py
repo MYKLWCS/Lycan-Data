@@ -680,6 +680,7 @@ class TestDispatcherResultNoDataAttr:
         mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session.execute = AsyncMock()
         mock_session.commit = AsyncMock()
+        mock_session.add = MagicMock()  # sync call — not async
 
         mock_crawler_cls = MagicMock()
         mock_crawler_inst = AsyncMock()

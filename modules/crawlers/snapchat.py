@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,8 @@ class SnapchatCrawler(CurlCrawler):
     """Scrapes public Snapchat profiles via add page OG meta tags."""
 
     platform = "snapchat"
+    category = CrawlerCategory.SOCIAL_MEDIA
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=1.0)
     source_reliability = 0.45
     requires_tor = True
 

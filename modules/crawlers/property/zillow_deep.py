@@ -25,6 +25,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -311,6 +312,8 @@ class ZillowDeepCrawler(HttpxCrawler):
     """
 
     platform = "zillow_deep"
+    category = CrawlerCategory.PROPERTY
+    rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     source_reliability = 0.80
     requires_tor = True
     proxy_tier = "residential"

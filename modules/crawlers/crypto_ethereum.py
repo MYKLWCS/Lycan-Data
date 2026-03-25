@@ -14,6 +14,7 @@ from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,8 @@ class CryptoEthereumCrawler(CurlCrawler):
     """
 
     platform = "crypto_ethereum"
+    category = CrawlerCategory.FINANCIAL
+    rate_limit = RateLimit(requests_per_second=1.0, burst_size=5, cooldown_seconds=0.0)
     source_reliability = 0.85
     requires_tor = True
     tor_instance = TorInstance.TOR3

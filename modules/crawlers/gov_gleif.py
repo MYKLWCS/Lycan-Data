@@ -16,6 +16,7 @@ from urllib.parse import quote_plus
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,8 @@ class GleifCrawler(HttpxCrawler):
     """
 
     platform = "gov_gleif"
+    category = CrawlerCategory.PUBLIC_RECORDS
+    rate_limit = RateLimit(requests_per_second=1.0, burst_size=5, cooldown_seconds=0.0)
     source_reliability = 0.95
     requires_tor = False
 
