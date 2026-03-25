@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -79,6 +79,17 @@ class Person(Base, TimestampMixin, DataQualityMixin):
     is_deceased: Mapped[bool] = mapped_column(default=False, nullable=False)
     date_of_death: Mapped[date | None] = mapped_column(Date, nullable=True)
     cause_of_death: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Alternative credit score (300-850, FICO-compatible scale)
+    alt_credit_score: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    alt_credit_tier: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # AML risk (0.0-1.0 composite)
+    aml_risk_score: Mapped[float | None] = mapped_column(Float, nullable=True, index=True)
+    aml_risk_tier: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Denormalised marketing tag list for fast filtering
+    marketing_tags_list: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
 
     # Data completeness
     data_completeness_pct: Mapped[float] = mapped_column(default=0.0, nullable=False)

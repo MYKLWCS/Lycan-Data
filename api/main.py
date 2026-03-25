@@ -23,6 +23,7 @@ from api.routes import (
     export,
     financial,
     graph,
+    knowledge_graph,
     marketing,
     patterns,
     persons,
@@ -135,6 +136,7 @@ app.include_router(ws.router, tags=["websocket"])
 app.include_router(financial.router, prefix="/financial", tags=["financial"], dependencies=_auth)
 app.include_router(marketing.router, prefix="/marketing", tags=["marketing"], dependencies=_auth)
 app.include_router(graph.router, prefix="/graph", tags=["graph"], dependencies=_auth)
+app.include_router(knowledge_graph.router, prefix="/kg", tags=["knowledge-graph"], dependencies=_auth)
 app.include_router(dedup.router, prefix="/dedup", tags=["dedup"], dependencies=_auth)
 app.include_router(enrichment.router, prefix="/enrich", tags=["enrichment"], dependencies=_auth)
 app.include_router(patterns.router, prefix="/patterns", tags=["patterns"], dependencies=_auth)

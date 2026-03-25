@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.events import event_bus
@@ -16,8 +16,11 @@ from shared.models.criminal import CriminalRecord
 from shared.models.darkweb import CryptoWallet, DarkwebMention
 from shared.models.employment import EmploymentHistory
 from shared.models.identifier import Identifier
+from shared.models.marketing import MarketingTag
 from shared.models.person import Person
+from shared.models.property import Property
 from shared.models.social_profile import SocialProfile
+from shared.models.vehicle import Vehicle
 from shared.models.wealth import WealthAssessment
 
 logger = logging.getLogger(__name__)
@@ -206,6 +209,32 @@ def _social_text(profiles: list[SocialProfile]) -> str:
 
 def _darkweb_text(mentions: list[DarkwebMention]) -> str:
     return " ".join((m.mention_context or "").lower() for m in mentions)
+
+
+def _tag_category(tag: str) -> str:
+    """Map a tag string to its taxonomy category."""
+    _lending = {t.value for t in LendingTag}
+    _insurance = {t.value for t in InsuranceTag}
+    _banking = {t.value for t in BankingTag}
+    _investment = {t.value for t in InvestmentTag}
+    _wealth = {t.value for t in WealthTag}
+    _behavioural = {t.value for t in BehaviouralTag}
+    _life = {t.value for t in LifeStageTag}
+    if tag in _lending or tag.startswith("borrower:"):
+        return "lending"
+    if tag in _insurance:
+        return "insurance"
+    if tag in _banking:
+        return "banking"
+    if tag in _investment:
+        return "investment"
+    if tag in _wealth:
+        return "wealth"
+    if tag in _behavioural:
+        return "behavioural"
+    if tag in _life:
+        return "life_stage"
+    return "other"
 
 
 # ─── Tag Scorers ──────────────────────────────────────────────────────────────
@@ -891,31 +920,111 @@ class MarketingTagsEngine:
             .first()
         )
 
-        # Derived values
+        # ── Additional data: vehicles + property ──────────────────────────────
+        vehicles = list(
+            (await session.execute(select(Vehicle).where(Vehicle.person_id == pid)))
+            .scalars()
+            .all()
+        )
+
+        properties = list(
+            (await session.execute(select(Property).where(Property.person_id == pid)))
+            .scalars()
+            .all()
+        )
+
+        # ── Derived values ────────────────────────────────────────────────────
         dob = person.date_of_birth if person else None
         age = _compute_age(dob)
         now = datetime.now(UTC)
 
-        # Run all scorers
+        has_vehicle = len(vehicles) > 0
+        has_property = len(properties) > 0
+        is_employed = any(e.is_current for e in employment)
+        income_estimate: float | None = None
+        net_worth_estimate: float | None = None
+        if wealth:
+            income_estimate = wealth.income_estimate_usd
+            net_worth_estimate = getattr(wealth, "net_worth_estimate_usd", None)
+        has_investment_signals = len(crypto_wallets) > 0 or len(identifiers) > 0
+
+        # Financial distress proxy: fraud_score from criminal records
+        lien_keywords = ("lien", "judgment", "garnishment", "eviction", "bankrupt")
+        distress_charges = [
+            r for r in criminals if any(kw in (r.charge or "").lower() for kw in lien_keywords)
+        ]
+        financial_distress_score = min(1.0, len(distress_charges) * 0.25)
+
+        # ── Run all scorers ───────────────────────────────────────────────────
         scoring_map: list[tuple[str, float, list[str]]] = []
 
+        # Lending tags
         s, r = _score_title_loan(addresses, criminals, wealth)
         scoring_map.append((LendingTag.TITLE_LOAN_CANDIDATE, s, r))
 
-        s, r = _score_active_gambler(darkweb, socials, behavioural, age)
-        scoring_map.append((BehaviouralTag.ACTIVE_GAMBLER, s, r))
+        s, r = _score_payday_loan_candidate(financial_distress_score, has_property, income_estimate)
+        scoring_map.append((LendingTag.PAYDAY_LOAN_CANDIDATE, s, r))
 
+        s, r = _score_personal_loan_candidate(is_employed, financial_distress_score)
+        scoring_map.append((LendingTag.PERSONAL_LOAN_CANDIDATE, s, r))
+
+        s, r = _score_mortgage_candidate(has_property, income_estimate)
+        scoring_map.append((LendingTag.MORTGAGE_CANDIDATE, s, r))
+
+        s, r = _score_refinance_candidate(has_property, financial_distress_score)
+        scoring_map.append((LendingTag.REFINANCE_CANDIDATE, s, r))
+
+        s, r = _score_auto_loan_candidate(has_vehicle, has_property, income_estimate)
+        scoring_map.append((LendingTag.AUTO_LOAN_CANDIDATE, s, r))
+
+        s, r = _score_debt_consolidation(
+            financial_distress_score, len(criminals), has_vehicle, has_property
+        )
+        scoring_map.append((LendingTag.DEBT_CONSOLIDATION, s, r))
+
+        # Insurance tags
+        s, r = _score_insurance_auto(has_vehicle)
+        scoring_map.append((InsuranceTag.INSURANCE_AUTO, s, r))
+
+        s, r = _score_insurance_life(age, income_estimate)
+        scoring_map.append((InsuranceTag.INSURANCE_LIFE, s, r))
+
+        s, r = _score_insurance_health(age, is_employed)
+        scoring_map.append((InsuranceTag.INSURANCE_HEALTH, s, r))
+
+        # Banking tags
+        s, r = _score_banking_basic(is_employed, age)
+        scoring_map.append((BankingTag.BANKING_BASIC, s, r))
+
+        s, r = _score_banking_premium(income_estimate, net_worth_estimate, has_investment_signals)
+        scoring_map.append((BankingTag.BANKING_PREMIUM, s, r))
+
+        # Wealth tags
+        s, r = _score_high_net_worth(net_worth_estimate, has_property, has_investment_signals)
+        scoring_map.append((WealthTag.HIGH_NET_WORTH, s, r))
+
+        # Investment tags
         s, r = _score_crypto_investor(crypto_wallets, identifiers, socials)
         scoring_map.append((InvestmentTag.CRYPTO_INVESTOR, s, r))
 
         s, r = _score_real_estate_investor(addresses, employment, wealth)
         scoring_map.append((InvestmentTag.REAL_ESTATE_INVESTOR, s, r))
 
-        s, r = _score_recent_mover(addresses, identifiers)
-        scoring_map.append((LifeStageTag.RECENT_MOVER, s, r))
+        s, r = (0.65, ["retirement planning age range"]) if (
+            age is not None and 45 <= age <= 64
+        ) else (0.0, [])
+        scoring_map.append((InvestmentTag.RETIREMENT_PLANNING, s, r))
+
+        # Behavioural tags
+        s, r = _score_active_gambler(darkweb, socials, behavioural, age)
+        scoring_map.append((BehaviouralTag.ACTIVE_GAMBLER, s, r))
 
         s, r = _score_luxury_buyer(wealth, employment, addresses)
         scoring_map.append((BehaviouralTag.LUXURY_BUYER, s, r))
+
+        # Life stage tags
+        s, r = _score_recent_mover(addresses, identifiers)
+        scoring_map.append((LifeStageTag.RECENT_MOVER, s, r))
 
         s, r = _score_retiring_soon(age, employment)
         scoring_map.append((LifeStageTag.RETIRING_SOON, s, r))
@@ -923,7 +1032,7 @@ class MarketingTagsEngine:
         s, r = _score_new_parent(behavioural, age, addresses)
         scoring_map.append((LifeStageTag.NEW_PARENT, s, r))
 
-        # Filter by threshold and build results
+        # ── Filter by threshold → TagResult list ─────────────────────────────
         results: list[TagResult] = []
         for tag, confidence, reasoning in scoring_map:
             threshold = _THRESHOLDS.get(tag, 0.65)
@@ -948,6 +1057,30 @@ class MarketingTagsEngine:
             )
         )
 
+        # ── Persist tags to marketing_tags table (upsert) ─────────────────────
+        # Delete stale tags first so removed signals don't persist forever
+        await session.execute(
+            delete(MarketingTag).where(MarketingTag.person_id == pid)
+        )
+        for tr in results:
+            session.add(
+                MarketingTag(
+                    person_id=pid,
+                    tag=tr.tag,
+                    confidence=tr.confidence,
+                    reasoning=tr.reasoning,
+                    tag_category=_tag_category(tr.tag),
+                    scored_at=tr.scored_at,
+                    model_version="2.0",
+                )
+            )
+
+        # ── Write denormalised tag list to Person for fast filtering ──────────
+        tag_strings = [tr.tag for tr in results]
+        if person:
+            person.marketing_tags_list = tag_strings
+        await session.flush()
+
         try:
             await event_bus.publish(
                 "enrichment",
@@ -955,6 +1088,7 @@ class MarketingTagsEngine:
                     "event": "marketing_tagged",
                     "person_id": str(pid),
                     "tag_count": len(results),
+                    "tags": tag_strings,
                 },
             )
         except Exception:

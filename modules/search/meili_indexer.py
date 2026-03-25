@@ -41,6 +41,13 @@ MEILI_SETTINGS = {
         "country",
         "verification_status",
         "has_addresses",
+        # Credit / AML / marketing filters
+        "alt_credit_score",
+        "alt_credit_tier",
+        "aml_risk_tier",
+        "is_pep",
+        "is_sanctioned",
+        "marketing_tags_list",
     ],
     "sortableAttributes": [
         "default_risk_score",
@@ -50,6 +57,8 @@ MEILI_SETTINGS = {
         "state_province",
         "composite_quality",
         "corroboration_count",
+        "alt_credit_score",
+        "aml_risk_score",
     ],
     "rankingRules": [
         "words",
