@@ -870,7 +870,21 @@ async def _handle_behavioural(
         existing.drug_signal_score = max(existing.drug_signal_score or 0.0, substance)
         existing.violence_score = max(existing.violence_score or 0.0, aggression)
         existing.last_assessed_at = datetime.now(UTC)
+        if "ocean_openness" in data:
+            existing.meta = existing.meta or {}
+            existing.meta["ocean_openness"] = data["ocean_openness"]
+            existing.meta["ocean_conscientiousness"] = data.get("ocean_conscientiousness")
+            existing.meta["ocean_extraversion"] = data.get("ocean_extraversion")
+            existing.meta["ocean_agreeableness"] = data.get("ocean_agreeableness")
+            existing.meta["ocean_neuroticism"] = data.get("ocean_neuroticism")
     else:
+        meta: dict = {}
+        if "ocean_openness" in data:
+            meta["ocean_openness"] = data["ocean_openness"]
+            meta["ocean_conscientiousness"] = data.get("ocean_conscientiousness")
+            meta["ocean_extraversion"] = data.get("ocean_extraversion")
+            meta["ocean_agreeableness"] = data.get("ocean_agreeableness")
+            meta["ocean_neuroticism"] = data.get("ocean_neuroticism")
         bp = BehaviouralProfile(
             id=uuid.uuid4(),
             person_id=person_id,
@@ -881,6 +895,7 @@ async def _handle_behavioural(
             violence_score=aggression,
             criminal_signal_score=0.0,
             last_assessed_at=datetime.now(UTC),
+            meta=meta,
         )
         session.add(bp)
 
