@@ -936,13 +936,20 @@ function _renderIdentityTab(pane, d) {
     const h3 = div('cc-rail-label'); h3.style.cssText='margin:18px 0 10px'; h3.textContent='SOCIAL PROFILES';
     pane.appendChild(h3);
     const _platformUrls = {
-      twitter:   h => 'https://twitter.com/'+h,
-      instagram: h => 'https://instagram.com/'+h,
-      tiktok:    h => 'https://tiktok.com/@'+h,
-      linkedin:  h => 'https://linkedin.com/in/'+h,
-      reddit:    h => 'https://reddit.com/user/'+h,
-      github:    h => 'https://github.com/'+h,
-      youtube:   h => 'https://youtube.com/@'+h,
+      twitter:    h => 'https://twitter.com/'+h,
+      instagram:  h => 'https://instagram.com/'+h,
+      tiktok:     h => 'https://tiktok.com/@'+h,
+      linkedin:   h => 'https://linkedin.com/in/'+h,
+      reddit:     h => 'https://reddit.com/user/'+h,
+      github:     h => 'https://github.com/'+h,
+      youtube:    h => 'https://youtube.com/@'+h,
+      facebook:   h => 'https://facebook.com/'+h,
+      snapchat:   h => 'https://snapchat.com/add/'+h,
+      pinterest:  h => 'https://pinterest.com/'+h,
+      discord:    h => 'https://discord.com/users/'+h,
+      steam:      h => 'https://steamcommunity.com/id/'+h,
+      mastodon:   h => 'https://mastodon.social/@'+h,
+      twitch:     h => 'https://twitch.tv/'+h,
     };
     d.social_profiles.forEach(s => {
       const row = div('id-row');
@@ -977,6 +984,19 @@ function _renderIdentityTab(pane, d) {
       const meta = div('id-scraped');
       if (e.started_at) meta.textContent = fmtDate(e.started_at)+(e.ended_at?' → '+fmtDate(e.ended_at):' → present');
       row.append(badge, valEl, meta);
+      pane.appendChild(row);
+    });
+  }
+
+  if (d.countries_visited && d.countries_visited.length > 0) {
+    const h6 = div('cc-rail-label'); h6.style.cssText='margin:18px 0 10px'; h6.textContent='COUNTRIES VISITED';
+    pane.appendChild(h6);
+    d.countries_visited.forEach(c => {
+      const row = div('id-row');
+      const badge = div('id-type-badge', c.country_code||'?');
+      const valEl = div('id-value'); valEl.textContent=c.country_name||c.country_code||'—';
+      const srcEl = div('id-scraped', c.source||'');
+      row.append(badge, valEl, srcEl);
       pane.appendChild(row);
     });
   }
@@ -1232,6 +1252,10 @@ const App = {
       const parts = hash.split('/');
       this.renderFamilyTree(parts[2]);
     }
+    else if (hash.startsWith('#/disambiguate')) {
+      document.getElementById('nav-search')?.classList.add('active');
+      this.renderDisambiguation();
+    }
     else if (hash.startsWith('#/person/')) {
       document.getElementById('nav-persons')?.classList.add('active');
       this.renderPerson(hash.split('/')[2]);
@@ -1442,6 +1466,11 @@ const App = {
 
     try {
       const d = await apiPost('/search', {value:q, seed_type:type, context:ctx.value, priority:'high'});
+      if (d.requires_disambiguation && d.candidates && d.candidates.length > 0) {
+        window.location.hash = '#/disambiguate?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(type||'');
+        this._pendingDisambiguation = { q, type, candidates: d.candidates };
+        return;
+      }
       const recent = JSON.parse(localStorage.getItem('lycan_recent')||'[]');
       recent.unshift({value:q, person_id:d.person_id, ts:Date.now()});
       localStorage.setItem('lycan_recent', JSON.stringify(recent.slice(0,10)));
@@ -1451,6 +1480,69 @@ const App = {
       errBox.textContent = 'Search failed: ' + e.message;
       errBox.classList.remove('hidden');
     }
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // DISAMBIGUATION SCREEN
+  // ──────────────────────────────────────────────────────────────────
+  renderDisambiguation() {
+    this.root.textContent = '';
+    const data = this._pendingDisambiguation || {};
+    const candidates = data.candidates || [];
+
+    const hdr = div('page-header');
+    hdr.appendChild(div('page-title', 'Select a Person'));
+    this.root.appendChild(hdr);
+
+    const sub = div(''); sub.style.cssText='color:#7a8fa6;font-size:13px;margin:0 32px 24px';
+    sub.textContent = candidates.length + ' persons found for "' + (data.q||'') + '". Select one or create new.';
+    this.root.appendChild(sub);
+
+    const grid = div(''); grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;padding:0 32px';
+
+    candidates.forEach(c => {
+      const card = div(''); card.style.cssText='background:#0d1929;border:1px solid #1e2a38;border-radius:8px;padding:16px;cursor:pointer;transition:border-color .15s';
+      card.onmouseenter = () => card.style.borderColor='#3b82f6';
+      card.onmouseleave = () => card.style.borderColor='#1e2a38';
+
+      const name = div(''); name.style.cssText='font-weight:600;font-size:15px;color:#c9d6e3;margin-bottom:8px';
+      name.textContent = c.full_name || '(unnamed)';
+
+      const meta = div(''); meta.style.cssText='font-size:12px;color:#7a8fa6;line-height:1.8';
+      if (c.date_of_birth) meta.appendChild(div('','DOB: ' + c.date_of_birth));
+      if (c.nationality)   meta.appendChild(div('','Nationality: ' + c.nationality));
+      meta.appendChild(div('', c.identifier_count + ' identifier' + (c.identifier_count===1?'':'s')));
+      const risk = div(''); risk.textContent = 'Risk: ' + Math.round((c.risk_score||0)*100) + '%';
+      risk.style.color = (c.risk_score||0) > 0.6 ? '#e53e3e' : (c.risk_score||0) > 0.3 ? '#f6ad55' : '#00c48c';
+      meta.appendChild(risk);
+
+      card.append(name, meta);
+      card.addEventListener('click', () => {
+        window.location.hash = '#/person/' + c.person_id;
+        this._pendingDisambiguation = null;
+      });
+      grid.appendChild(card);
+    });
+
+    // "Create new" card
+    if (data.q) {
+      const newCard = div(''); newCard.style.cssText='background:#0d1929;border:1px dashed #1e2a38;border-radius:8px;padding:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s';
+      newCard.onmouseenter = () => newCard.style.borderColor='#3b82f6';
+      newCard.onmouseleave = () => newCard.style.borderColor='#1e2a38';
+      const lbl = div(''); lbl.style.cssText='color:#7a8fa6;font-size:13px;text-align:center';
+      lbl.textContent = '+ Create new person for "' + data.q + '"';
+      newCard.appendChild(lbl);
+      newCard.addEventListener('click', async () => {
+        try {
+          const d = await apiPost('/search', {value: data.q, seed_type: data.type||null, context:'general', priority:'high', force_new:true});
+          window.location.hash = '#/person/' + d.person_id;
+          this._pendingDisambiguation = null;
+        } catch(e) { alert('Failed: ' + e.message); }
+      });
+      grid.appendChild(newCard);
+    }
+
+    this.root.appendChild(grid);
   },
 
   // ──────────────────────────────────────────────────────────────────
@@ -2249,8 +2341,10 @@ const App = {
     // Quick facts
     const factsSection = div('cc-rail-section');
     factsSection.appendChild(div('cc-rail-label','Quick Facts'));
+    const _age = p.date_of_birth ? Math.floor((Date.now() - new Date(p.date_of_birth)) / (365.25*24*3600*1000)) : null;
     [
       { k:'DOB', v: p.date_of_birth, link: p.date_of_birth ? '#/search?q='+encodeURIComponent(p.date_of_birth)+'&type=dob' : null },
+      { k:'Age',         v: _age !== null ? String(_age) : null },
       { k:'Gender',      v: p.gender },
       { k:'Nationality', v: p.nationality },
       { k:'Language',    v: p.primary_language },

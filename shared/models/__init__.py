@@ -24,6 +24,7 @@ from shared.models.quality import DataQualityLog, FreshnessQueue
 from shared.models.relationship import Relationship, RelationshipScoreHistory
 from shared.models.social_profile import SocialProfile
 from shared.models.watchlist import WatchlistMatch
+from shared.models.location_visit import LocationVisit
 from shared.models.wealth import WealthAssessment
 from shared.models.web import Web, WebMembership
 
@@ -60,6 +61,7 @@ __all__ = [
     "CryptoWallet",
     "CryptoTransaction",
     "CreditRiskAssessment",
+    "LocationVisit",
     "WealthAssessment",
     "DataQualityLog",
     "FreshnessQueue",

@@ -112,6 +112,24 @@ class EnrichmentOrchestrator:
             )
         )
 
+        # ── Step 7: Location inference ─────────────────────────────────────────
+        steps.append(
+            await self._run_step(
+                enricher="location",
+                coro=self._run_location(person_id, session),
+                person_id=person_id,
+            )
+        )
+
+        # ── Step 8: Cross-seed cascade enricher ───────────────────────────────
+        steps.append(
+            await self._run_step(
+                enricher="cascade",
+                coro=self._run_cascade(person_id, session),
+                person_id=person_id,
+            )
+        )
+
         finished_at = datetime.now(UTC)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
@@ -312,6 +330,18 @@ class EnrichmentOrchestrator:
         except Exception as exc:
             logger.warning("Coverage update failed for person_id=%s: %s", person_id, exc)
             await session.rollback()
+
+    async def _run_location(self, person_id: str, session: AsyncSession) -> None:
+        from modules.enrichers.location_enricher import LocationEnricher
+
+        enricher = LocationEnricher()
+        await enricher.enrich(person_id, session)
+
+    async def _run_cascade(self, person_id: str, session: AsyncSession) -> None:
+        from modules.enrichers.cascade_enricher import CascadeEnricher
+
+        enricher = CascadeEnricher()
+        await enricher.enrich(person_id, session)
 
     async def _publish_completion(self, person_id: str, report: EnrichmentReport) -> None:
         if not event_bus.is_connected:

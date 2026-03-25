@@ -1,9 +1,9 @@
 import re
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
@@ -229,12 +229,23 @@ class SearchRequest(BaseModel):
     priority: str = "normal"  # "high", "normal", "low"
 
 
+class CandidatePerson(BaseModel):
+    person_id: str
+    full_name: str | None
+    date_of_birth: str | None
+    nationality: str | None
+    identifier_count: int
+    risk_score: float
+
+
 class SearchResponse(BaseModel):
     person_id: str
     seed_type: str
     platforms_queued: list[str] = []
     job_count: int = 0
     message: str
+    requires_disambiguation: bool = False
+    candidates: list[CandidatePerson] = []
 
 
 class BatchSearchRequest(BaseModel):
@@ -249,9 +260,46 @@ class BatchSearchResponse(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
+async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePerson]:
+    """Return all Person records whose full_name matches (case-insensitive)."""
+    result = await session.execute(
+        select(Person).where(Person.full_name.ilike(value.strip()))
+    )
+    persons = result.scalars().all()
+    candidates = []
+    for p in persons:
+        count_result = await session.execute(
+            select(func.count()).select_from(Identifier).where(Identifier.person_id == p.id)
+        )
+        ident_count = count_result.scalar() or 0
+        candidates.append(
+            CandidatePerson(
+                person_id=str(p.id),
+                full_name=p.full_name,
+                date_of_birth=p.date_of_birth.isoformat() if p.date_of_birth else None,
+                nationality=p.nationality,
+                identifier_count=ident_count,
+                risk_score=p.default_risk_score,
+            )
+        )
+    return candidates
+
+
 async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchResponse:
     seed_type = req.seed_type or _auto_detect_type(req.value)
     priority = req.priority if req.priority in ("high", "normal", "low") else "normal"
+
+    # ── FULL_NAME: check for disambiguation before creating ───────────────────
+    if seed_type == SeedType.FULL_NAME:
+        candidates = await _get_candidates(req.value, session)
+        if len(candidates) > 1:
+            return SearchResponse(
+                person_id="",
+                seed_type=seed_type.value,
+                message=f"Multiple persons found for '{req.value}'. Please select one.",
+                requires_disambiguation=True,
+                candidates=candidates,
+            )
 
     # ── Check for existing identifier ────────────────────────────────────────
     norm_val = req.value.strip().lower()
@@ -351,4 +399,71 @@ async def search_batch(req: BatchSearchRequest, session: AsyncSession = DbDep):
     return BatchSearchResponse(
         results=results,
         total_jobs=sum(r.job_count for r in results),
+    )
+
+
+class CandidatesResponse(BaseModel):
+    value: str
+    seed_type: str
+    candidates: list[CandidatePerson]
+    count: int
+
+
+@router.get("/candidates", response_model=CandidatesResponse)
+async def search_candidates(
+    value: str = Query(..., description="Search value (name, email, username, etc.)"),
+    seed_type: str | None = Query(default=None, description="Force seed type"),
+    session: AsyncSession = DbDep,
+):
+    """
+    Return matching persons for a value without creating any new records.
+
+    For FULL_NAME, returns all persons with that exact name (case-insensitive).
+    For other seed types, returns person linked to a matching identifier.
+    Used by the frontend disambiguation screen.
+    """
+    detected = SeedType(seed_type) if seed_type else _auto_detect_type(value)
+
+    if detected == SeedType.FULL_NAME:
+        candidates = await _get_candidates(value, session)
+    else:
+        norm_val = value.strip().lower()
+        result = await session.execute(
+            select(Identifier).where(
+                Identifier.type == detected.value,
+                Identifier.normalized_value == norm_val,
+            )
+        )
+        idents = result.scalars().all()
+        candidates = []
+        for ident in idents:
+            if not ident.person_id:
+                continue
+            person = await session.get(Person, ident.person_id)
+            if not person:
+                continue
+            count_result = await session.execute(
+                select(func.count())
+                .select_from(Identifier)
+                .where(Identifier.person_id == person.id)
+            )
+            ident_count = count_result.scalar() or 0
+            candidates.append(
+                CandidatePerson(
+                    person_id=str(person.id),
+                    full_name=person.full_name,
+                    date_of_birth=person.date_of_birth.isoformat()
+                    if person.date_of_birth
+                    else None,
+                    nationality=person.nationality,
+                    identifier_count=ident_count,
+                    risk_score=person.default_risk_score,
+                )
+            )
+
+    return CandidatesResponse(
+        value=value,
+        seed_type=detected.value,
+        candidates=candidates,
+        count=len(candidates),
     )
