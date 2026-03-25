@@ -1,5 +1,7 @@
 import pytest
+
 from modules.crawlers.curl_base import CurlCrawler
+
 
 class _TestCrawler(CurlCrawler):
     platform = "test"

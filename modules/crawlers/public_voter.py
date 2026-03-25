@@ -104,7 +104,9 @@ def _parse_voter_response(data: Any) -> dict[str, Any]:
 
     import re
 
-    county_m = re.search(r"county[:\s]+([A-Za-z\s]+)", html_fragment, re.I)
+    county_m = re.search(r"\b([A-Za-z]+)\s+County\b", html_fragment, re.I)
+    if not county_m:
+        county_m = re.search(r"County[:\s]+([A-Za-z]+)", html_fragment, re.I)
     if county_m:
         result["county"] = county_m.group(1).strip()
 
