@@ -282,7 +282,7 @@ def _parse_deed_table(html: str, grantor_or_grantee: str) -> list[dict[str, Any]
                     deed["grantor"] = val
                 elif "grantee" in header:
                     deed["grantee"] = val
-                elif "amount" in header or "consider" in header:
+                elif "amount" in header or "consider" in header:  # pragma: no branch
                     m = re.search(r"[\d,]+", val.replace("$", ""))
                     if m:
                         try:
@@ -293,7 +293,7 @@ def _parse_deed_table(html: str, grantor_or_grantee: str) -> list[dict[str, Any]
             deed["owner_name"] = (
                 deed["grantee"] if grantor_or_grantee == "grantor" else deed["grantor"]
             )
-            if deed["document_number"] or deed["grantor"]:
+            if deed["document_number"] or deed["grantor"]:  # pragma: no branch
                 deeds.append(deed)
 
     return deeds

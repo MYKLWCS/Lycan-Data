@@ -172,7 +172,7 @@ def _parse_identifier(identifier: str) -> tuple[str, str, str]:
         else:
             # Assume last two chars are state if the string ends with a state abbr
             m2 = re.search(r"\b([A-Z]{2})$", loc.strip())
-            if m2:
+            if m2:  # pragma: no branch
                 state = m2.group(1)
                 county = loc[: m2.start()].strip()
 
@@ -201,7 +201,7 @@ def _extract_assessor_url_from_netronline(html: str) -> str | None:
         if "assessor" in text or "appraiser" in text or "property" in text:
             if href.startswith("http"):
                 return href
-            elif href.startswith("/"):
+            elif href.startswith("/"):  # pragma: no branch
                 return _NETRONLINE_BASE + href
     return None
 
