@@ -16,8 +16,12 @@ concurrency:
   cancel-in-progress: true  # New push cancels the in-flight review
 
 jobs:
-  ollama-review:
-    name: Ollama Code Review
+  # -----------------------------------------------------------------------
+  # Step 1: Extract the diff once, share it across all review jobs
+  # -----------------------------------------------------------------------
+  prepare-diff:
+    name: Prepare Diff
+    runs-on: [self-hosted, lycan]
     if: >
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
@@ -26,50 +30,190 @@ jobs:
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request != null &&
        contains(github.event.comment.body, '/review'))
-    runs-on: [self-hosted, lycan]
     permissions:
       contents: read
-      pull-requests: write
-      issues: write
+      pull-requests: read
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 50  # Enough history to diff against base
+          fetch-depth: 50
 
       - name: Get diff to review
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_ISSUE_URL: ${{ github.event.issue.pull_request.url }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] || \
-             ( [ "${{ github.event_name }}" = "issue_comment" ] && \
-               [ -n "${{ github.event.issue.pull_request.url }}" ] ); then
-            PR_NUM="${{ github.event.pull_request.number || github.event.issue.number }}"
-            gh pr diff "$PR_NUM" > /tmp/pr_diff.txt 2>/dev/null || true
+          if [ "$EVENT_NAME" = "pull_request" ] || \
+             ( [ "$EVENT_NAME" = "issue_comment" ] && \
+               [ -n "$PR_ISSUE_URL" ] ); then
+            gh pr diff "$PR_NUMBER" > /tmp/pr_diff.txt 2>/dev/null || true
           else
             # For push/schedule: diff last 10 commits on this branch
             git diff HEAD~10 HEAD -- '*.py' > /tmp/pr_diff.txt 2>/dev/null || true
           fi
           [ -s /tmp/pr_diff.txt ] || echo "(no changes to review)" > /tmp/pr_diff.txt
 
-      - name: Run Ollama review
-        run: python3 scripts/ollama_review.py /tmp/pr_diff.txt /tmp/review_output.md
-
-      - name: Upload review as artifact
+      - name: Upload diff artifact
         uses: actions/upload-artifact@v4
         with:
-          name: code-review-${{ github.run_number }}
-          path: /tmp/review_output.md
+          name: pr-diff-${{ github.run_number }}
+          path: /tmp/pr_diff.txt
+          retention-days: 1
+
+  # -----------------------------------------------------------------------
+  # Step 2a: Ollama review (llama3.1:8b — local, fast, no API key)
+  # -----------------------------------------------------------------------
+  ollama-review:
+    name: Ollama Review
+    needs: prepare-diff
+    runs-on: [self-hosted, lycan]
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download diff
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-diff-${{ github.run_number }}
+          path: /tmp
+
+      - name: Run Ollama review
+        run: python3 scripts/ollama_review.py /tmp/pr_diff.txt /tmp/ollama_review.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-ollama-${{ github.run_number }}
+          path: /tmp/ollama_review.md
           retention-days: 14
 
-      - name: Post PR comment (PRs only)
-        if: github.event_name == 'pull_request' || github.event_name == 'issue_comment'
+  # -----------------------------------------------------------------------
+  # Step 2b: Gemini review (gemini CLI — cross-check perspective)
+  # -----------------------------------------------------------------------
+  gemini-review:
+    name: Gemini Review
+    needs: prepare-diff
+    runs-on: [self-hosted, lycan]
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download diff
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-diff-${{ github.run_number }}
+          path: /tmp
+
+      - name: Run Gemini review
+        run: python3 scripts/gemini_review.py /tmp/pr_diff.txt /tmp/gemini_review.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-gemini-${{ github.run_number }}
+          path: /tmp/gemini_review.md
+          retention-days: 14
+
+  # -----------------------------------------------------------------------
+  # Step 2c: Claude review (claude CLI — primary AI perspective)
+  # -----------------------------------------------------------------------
+  claude-review:
+    name: Claude Review
+    needs: prepare-diff
+    runs-on: [self-hosted, lycan]
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download diff
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-diff-${{ github.run_number }}
+          path: /tmp
+
+      - name: Run Claude review
+        run: python3 scripts/claude_review.py /tmp/pr_diff.txt /tmp/claude_review.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-claude-${{ github.run_number }}
+          path: /tmp/claude_review.md
+          retention-days: 14
+
+  # -----------------------------------------------------------------------
+  # Step 3: Combine all reviews into one PR comment
+  # -----------------------------------------------------------------------
+  post-review:
+    name: Post Combined Review
+    needs: [ollama-review, gemini-review, claude-review]
+    runs-on: [self-hosted, lycan]
+    if: >
+      always() &&
+      (github.event_name == 'pull_request' || github.event_name == 'issue_comment')
+    permissions:
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Download Ollama review
+        uses: actions/download-artifact@v4
+        with:
+          name: review-ollama-${{ github.run_number }}
+          path: /tmp/reviews
+        continue-on-error: true
+
+      - name: Download Gemini review
+        uses: actions/download-artifact@v4
+        with:
+          name: review-gemini-${{ github.run_number }}
+          path: /tmp/reviews
+        continue-on-error: true
+
+      - name: Download Claude review
+        uses: actions/download-artifact@v4
+        with:
+          name: review-claude-${{ github.run_number }}
+          path: /tmp/reviews
+        continue-on-error: true
+
+      - name: Assemble and post comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          printf '## Automated Code Review\n\n' > /tmp/comment.md
-          cat /tmp/review_output.md >> /tmp/comment.md
-          printf '\n\n---\n*Reviewed by Ollama `codellama:13b` on `%s`*\n' "$TIMESTAMP" >> /tmp/comment.md
-          gh pr comment "$PR_NUM" --body-file /tmp/comment.md
+          {
+            printf '## Automated Code Review\n\n'
+
+            if [ -f /tmp/reviews/ollama_review.md ]; then
+              printf '### Ollama (`llama3.1:8b`)\n\n'
+              cat /tmp/reviews/ollama_review.md
+              printf '\n\n'
+            fi
+
+            if [ -f /tmp/reviews/gemini_review.md ]; then
+              printf '### Gemini CLI\n\n'
+              cat /tmp/reviews/gemini_review.md
+              printf '\n\n'
+            fi
+
+            if [ -f /tmp/reviews/claude_review.md ]; then
+              printf '### Claude\n\n'
+              cat /tmp/reviews/claude_review.md
+              printf '\n\n'
+            fi
+
+            printf -- '---\n*Reviewed by Ollama · Gemini · Claude on `%s`*\n' "$TIMESTAMP"
+          } > /tmp/combined_review.md
+
+          gh pr comment "$PR_NUM" --body-file /tmp/combined_review.md
