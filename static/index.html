@@ -1007,7 +1007,7 @@ function _renderConnectionsTab(pane, d) {
       const card = div('conn-person-card');
       const info = div('');
       const nameLink = el('a','conn-person-name');
-      nameLink.href = '#/persons/'+r.person_id;
+      nameLink.href = '#/person/'+r.person_id;
       nameLink.textContent = r.full_name||'Unknown';
       const meta = div('conn-person-meta');
       const parts = [r.relationship_type];
@@ -1223,7 +1223,7 @@ const App = {
     else if (hash === '#/activity')    { document.getElementById('nav-activity')?.classList.add('active');    this.renderActivity(); }
     else if (hash === '#/financial')  { document.getElementById('nav-financial')?.classList.add('active');  this.renderFinancial(); }
     else if (hash === '#/marketing')  { document.getElementById('nav-marketing')?.classList.add('active');  this.renderMarketing(); }
-    else if (hash === '#/graph')      { document.getElementById('nav-graph')?.classList.add('active');      this.renderGraph(); }
+    else if (hash.startsWith('#/graph')) { document.getElementById('nav-graph')?.classList.add('active');  this.renderGraph(); }
     else if (hash === '#/dedup')      { document.getElementById('nav-dedup')?.classList.add('active');      this.renderDedup(); }
     else if (hash === '#/patterns')   { document.getElementById('nav-patterns')?.classList.add('active');   this.renderPatterns(); }
     else if (hash === '#/enrichment') { document.getElementById('nav-enrichment')?.classList.add('active'); this.renderEnrichment(); }
@@ -2311,12 +2311,12 @@ const App = {
     [
       { label:'View in Graph',    href:'#/graph?entity=person&q='+id },
       { label:'View Family Tree', href:'#/persons/'+id+'/tree' },
-      { label:'Re-Enrich',        fn: ()=>{ apiPost('/persons/'+id+'/enrich',{}).catch(()=>{}); } },
+      { label:'Re-Enrich',        fn: ()=>{ apiPost('/enrich/'+id+'/enrich',{}).catch(()=>{}); } },
       { label:'Export Report',    fn: ()=>{ window.open('/persons/'+id+'/report','_blank'); } },
       { label:'Flag for Review',  fn: ()=>{ apiPost('/persons/'+id+'/flag',{}).catch(()=>{}); } },
     ].forEach(a => {
       const btn = el('button','cc-action-btn', a.label);
-      if (a.href) btn.onclick=()=>{ location.hash=a.href; };
+      if (a.href) btn.onclick=()=>{ location.hash=a.getAttribute('href'); };
       else if (a.fn) btn.onclick=a.fn;
       actions.appendChild(btn);
     });
@@ -2599,6 +2599,13 @@ const App = {
   // ──────────────────────────────────────────────────────────────────
   async renderGraph() {
     this.root.textContent = '';
+
+    // Parse deep-link params: #/graph?entity=person&q=<id>
+    const _rawHash = window.location.hash;
+    const _qIdx = _rawHash.indexOf('?');
+    const _urlParams = _qIdx !== -1 ? new URLSearchParams(_rawHash.slice(_qIdx + 1)) : null;
+    const _targetEntity = _urlParams ? (_urlParams.get('entity') || '') : '';
+    const _targetQ      = _urlParams ? (_urlParams.get('q') || '') : '';
 
     const hdr = div('page-header');
     const left = div('');
@@ -2984,7 +2991,7 @@ const App = {
       const openBtn = el('button','btn','Open full card');
       openBtn.style.cssText='width:100%;margin-top:8px;font-size:11px;';
       openBtn.addEventListener('click', () => {
-        if (d.type==='person') window.location.hash='#/profile/'+d.id;
+        if (d.type==='person') window.location.hash='#/person/'+d.id;
       });
       sidePanelBody.append(title, typeBadge, risk, openBtn);
       sidePanel.style.display = 'block';
@@ -3096,6 +3103,25 @@ const App = {
 
         applyFilters();
 
+        // Deep-link focus: pan/zoom to target node from URL params
+        if (_targetQ) {
+          const _match = allNodes.find(n =>
+            n.id === _targetQ ||
+            n.id === _targetEntity + ':' + _targetQ ||
+            (n.label && n.label.toLowerCase() === decodeURIComponent(_targetQ).toLowerCase())
+          );
+          if (_match) {
+            setTimeout(() => {
+              showSidePanel(_match);
+              const sc = 1.5, w2 = svgW(), h2 = svgH();
+              svg.transition().duration(800).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(w2/2 - (_match.x||w2/2)*sc, h2/2 - (_match.y||h2/2)*sc).scale(sc)
+              );
+            }, 1800);
+          }
+        }
+
         // "Load more" button
         if ((nd.nodes||[]).length===500) {
           const moreBtn=el('button','btn','Load next 500 nodes');
@@ -3123,6 +3149,9 @@ const App = {
     Object.values(entityChecks).forEach(cb => cb.addEventListener('change', applyFilters));
     Object.values(relChecks).forEach(cb => cb.addEventListener('change', applyFilters));
     loadBtn.addEventListener('click', loadGraph);
+
+    // Auto-load when deep-linked from another view
+    if (_targetQ) loadGraph();
 
     // ── Legacy tool sections below graph canvas ────────────────────────────
     this._renderGraphLegacyCards();
@@ -3918,7 +3947,7 @@ const App = {
     gedcomBtn.addEventListener('click', async () => {
       gedcomBtn.disabled = true; gedcomBtn.textContent = 'Exporting…';
       try {
-        const resp = await fetch('/api/persons/' + personId + '/family-tree/gedcom');
+        const resp = await fetch('/persons/' + personId + '/family-tree/gedcom');
         if (!resp.ok) throw new Error(await resp.text());
         const text = await resp.text();
         const blob = new Blob([text], { type: 'text/plain' });
@@ -3949,7 +3978,7 @@ const App = {
 
       loadEl.remove();
 
-      if (tree && tree.pending) {
+      if (tree && tree.status === 'not_built') {
         // Tree not built yet — show prompt
         const prompt = div('empty-state');
         prompt.append(

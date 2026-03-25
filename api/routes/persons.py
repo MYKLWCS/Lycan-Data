@@ -567,6 +567,16 @@ async def update_person(person_id: str, updates: dict, session: AsyncSession = D
     return {"message": "Person updated", "person_id": person_id}
 
 
+@router.post("/{person_id}/flag")
+async def flag_person_for_review(person_id: str, session: AsyncSession = DbDep):
+    """Set conflict_flag=True on a person to queue for manual review."""
+    uid = _parse_uuid(person_id)
+    p = await _require_person(session, uid)
+    p.conflict_flag = True
+    await session.commit()
+    return {"message": "Flagged for review", "person_id": person_id}
+
+
 @router.delete("/{person_id}")
 async def delete_person(person_id: str, session: AsyncSession = DbDep):
     from datetime import datetime
