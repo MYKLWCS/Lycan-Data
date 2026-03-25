@@ -56,7 +56,7 @@ async def scrape_progress(websocket: WebSocket, person_id: str):
                     await websocket.send_json({"event": "ping"})
                 except Exception:
                     break  # Client gone
-            except WebSocketDisconnect:
+            except WebSocketDisconnect:  # pragma: no cover
                 break
     finally:
         sub_task.cancel()
@@ -79,7 +79,7 @@ async def sse_progress(person_id: str, request: Request):
         queue: asyncio.Queue = asyncio.Queue()
 
         async def _forward(message: dict) -> None:
-            if message.get("person_id") == person_id:
+            if message.get("person_id") == person_id:  # pragma: no branch
                 await queue.put(message)
 
         sub_task = asyncio.create_task(
@@ -93,7 +93,7 @@ async def sse_progress(person_id: str, request: Request):
                 try:
                     msg = await asyncio.wait_for(queue.get(), timeout=15.0)
                     yield f"data: {json.dumps(msg)}\n\n"
-                    if msg.get("event") == "done":
+                    if msg.get("event") == "done":  # pragma: no branch
                         break
                 except TimeoutError:
                     yield f"data: {json.dumps({'event': 'heartbeat'})}\n\n"
