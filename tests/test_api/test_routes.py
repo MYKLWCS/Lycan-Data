@@ -173,7 +173,7 @@ class TestSystemHealth:
         session.execute.side_effect = mock_execute
         app.dependency_overrides[db_session] = _override_db(session)
 
-        with patch("shared.events.event_bus") as mock_bus:
+        with patch("api.routes.system.event_bus") as mock_bus:
             mock_bus.queue_length = AsyncMock(return_value=0)
             client = TestClient(app, raise_server_exceptions=False)
             r = client.get("/system/queues")

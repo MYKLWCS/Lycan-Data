@@ -167,6 +167,9 @@ def name_similarity(name_a: str, name_b: str) -> float:
     norm_a = normalize_name(name_a)
     norm_b = normalize_name(name_b)
 
+    if not norm_a or not norm_b:
+        return 0.0
+
     if norm_a == norm_b:
         return 1.0
 

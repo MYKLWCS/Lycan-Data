@@ -1,6 +1,6 @@
 # Lycan Platform Intelligence Overhaul
 **Date:** 2026-03-24
-**Status:** Approved
+**Status:** Approved (v2 — spec review fixes applied)
 **Scope:** Six phases — auto-dedup, contact card, knowledge graph, commercial tags, expanded crawlers, in-app audit
 
 ---
@@ -19,7 +19,7 @@ Crawlers (128+) → Pipeline → DB (PostgreSQL)
               ┌───────────────────┼──────────────────────┐
               │                   │                       │
         AutoDedup Job       CommercialTagger         AuditDaemon
-        (APScheduler)       (APScheduler)            (APScheduler)
+        (asyncio loop)      (asyncio loop)           (asyncio loop)
               │                   │                       │
               └───────────────────┼──────────────────────┘
                                   │
@@ -30,7 +30,7 @@ Crawlers (128+) → Pipeline → DB (PostgreSQL)
               ContactCard    KnowledgeGraph    AuditView
 ```
 
-All new background jobs run on APScheduler (already used for pipeline tasks). No new infrastructure required.
+All new background jobs follow the existing `asyncio` daemon pattern used by `FreshnessScheduler`, `GrowthDaemon`, and `CrawlDispatcher` in `worker.py`: a class with `async def start()` that loops with `asyncio.sleep`. No new dependencies (no APScheduler).
 
 ---
 
@@ -40,46 +40,68 @@ All new background jobs run on APScheduler (already used for pipeline tasks). No
 
 **Location:** `modules/enrichers/auto_dedup.py`
 
-A scheduled job runs every 10 minutes and processes a batch of persons:
+A daemon class `AutoDedupDaemon` follows the existing pattern:
 
-1. Pull unprocessed person pairs from the dedup candidate queue (already produced by `FuzzyDeduplicator`)
-2. For each pair with similarity score ≥ 0.85: auto-merge without human confirmation
-3. For pairs 0.70–0.84: create a `DedupReview` record for manual review in the UI
-4. Below 0.70: ignore
+```python
+class AutoDedupDaemon:
+    async def start(self):
+        while True:
+            await self._run_batch()
+            await asyncio.sleep(600)  # 10 minutes
+```
+
+**Candidate sourcing — in-process batch scan (Option A):**
+The daemon queries for persons updated in the last 10 minutes:
+```sql
+SELECT id FROM persons WHERE updated_at > now() - interval '10 minutes'
+```
+For each person, it calls the existing `score_person_dedup(person_id, session)` from `modules/enrichers/deduplication.py`, which returns `MergeCandidate` instances. There is no external queue — candidates are produced and consumed in the same run.
+
+**Processing per candidate pair:**
+- Score ≥ 0.85: auto-merge immediately
+- Score 0.70–0.84: insert `DedupReview` row for manual review
+- Score < 0.70: skip
 
 **Canonical record selection — richer-record-wins:**
 ```python
-def _count_populated_fields(person) -> int:
-    """Count non-null, non-empty fields across person + all related records."""
+def _count_populated_fields(person, session) -> int:
+    """Sum non-null scalar fields on Person + count of child rows across
+    identifiers, social_profiles, addresses, employment, criminal_records."""
 ```
-The person with the higher field count becomes canonical. The other record's unique data (identifiers, social profiles, aliases, criminal records, addresses) is absorbed into the canonical record. No data is deleted — only the source `Person` row is removed after all child records are re-parented.
+The person with the higher count becomes canonical. The other record's child rows (identifiers, social profiles, aliases, criminal records, addresses) are re-parented to the canonical ID. The source `Person` row is set `merged_into = canonical_id` and soft-deleted (not hard-deleted).
 
 **Merge safety:**
-- Both records' UUIDs are written to `audit_log` with action `auto_merge`
-- A `merged_into` field is added to `Person` (nullable UUID FK) so old IDs resolve to canonical
-- If a merge fails mid-transaction, it rolls back fully
+- Both records' UUIDs written to `audit_log` with `action="auto_merge"`
+- All child table updates and the `merged_into` write happen in a single transaction; any failure rolls back completely
+- `merged_into` is indexed for fast lookup
+
+**`GET /persons/{id}` redirect behaviour for merged IDs:**
+If a request arrives for a merged person ID, the route returns HTTP 301 with `Location: /persons/<canonical_id>`. The response body also includes `{"merged_into": "<canonical_id>"}` for API clients that don't follow redirects.
 
 ### Score Calibration
 
-**Problem:** `composite_quality = reliability × freshness × corroboration` where corroboration starts at 0.5 and only reaches 1.0 with 5+ independent sources. A government-sourced record with 3 corroborations scores ~0.57 max.
+**Problem:** `composite_quality = reliability × freshness × corroboration` uses a log curve in `shared/data_quality.py :: corroboration_score_from_count()` that reaches 1.0 only at ~10 sources.
 
-**Fix:** Recalibrate the corroboration curve so:
-- 1 government source = 0.70 base corroboration
-- 2 independent sources = 0.85
-- 3+ independent sources = 1.0
-
-Replace the linear multiplier with a sigmoid curve that saturates at 1.0:
+**Fix:** Replace `corroboration_score_from_count()` with a sigmoid that saturates earlier:
 ```python
-corroboration_score = 1 / (1 + exp(-2 * (corroboration_count - 1)))
+from math import exp
+
+def corroboration_score_from_count(count: int) -> float:
+    """Sigmoid curve: count=1→0.50, count=2→0.73, count=3→0.88, count=5→0.98, count=7→1.0"""
+    if count <= 0:
+        return 0.0
+    return min(1.0, 1 / (1 + exp(-1.5 * (count - 1))))
 ```
 
-**Display:** Change all score displays from `0.0–1.0` to `0–100` integers. `composite_quality: 0.97` → `97`. This makes "100" achievable and readable.
+No source-type weighting is added — the curve applies uniformly to count. This is the only change to `shared/data_quality.py`. No call-site or migration changes are needed since the function signature is unchanged.
+
+**Display calibration:** Change all `0.0–1.0` score displays in `index.html` to `0–100` integers via `Math.round(score * 100)`. Already partially done for `composite_quality`; apply consistently to all four Person dials and all identifier/record confidence values.
 
 ### New API Endpoints
 
-- `GET /dedup/auto-queue` — pending auto-merge candidates (for monitoring)
-- `POST /dedup/auto-merge/run` — trigger a batch manually
-- `GET /persons/{id}` — add `merged_into` field to response
+- `GET /dedup/auto-queue` — pending `DedupReview` rows (score, both person IDs, names)
+- `POST /dedup/auto-merge/run` — trigger one batch immediately (for ops)
+- `GET /persons/{id}` — add `merged_into` to response; return 301 if person is merged
 
 ---
 
@@ -87,7 +109,7 @@ corroboration_score = 1 / (1 + exp(-2 * (corroboration_count - 1)))
 
 ### Design
 
-Replace the current two-column person detail layout with a full-screen contact card. Every piece of data is a clickable link that either opens the source URL, searches for that value, or navigates to a related record.
+Replace the current two-column person detail layout with a full-screen contact card. Every piece of data is a clickable link.
 
 ### Layout
 
@@ -101,17 +123,13 @@ Replace the current two-column person detail layout with a full-screen contact c
 │  (300px)          │  [Identity] [Connections] [Risk] [Activity] │
 │                   │                                             │
 │  Quick Facts      │  Tab content here                           │
-│  ─────────────    │                                             │
 │  DOB: [link]      │                                             │
 │  Gender: Male     │                                             │
 │  Nationality: US  │                                             │
 │                   │                                             │
-│  Scores           │                                             │
-│  ─────────────    │                                             │
-│  4 dials          │                                             │
+│  Scores (4 dials) │                                             │
 │                   │                                             │
 │  Actions          │                                             │
-│  ─────────────    │                                             │
 │  [View in Graph]  │                                             │
 │  [Re-Enrich]      │                                             │
 │  [Export]         │                                             │
@@ -137,29 +155,95 @@ Replace the current two-column person detail layout with a full-screen contact c
 
 ### Tabs
 
-**Identity tab:** All identifiers (email, phone, SSN, username, passport, DL), addresses, social profiles, employment history, education, aliases. Each row has type badge, value (clickable), confidence %, source reliability badge, last-scraped date.
+**Identity tab:** All identifiers (email, phone, SSN, username, passport, DL), addresses, social profiles, employment history, education, aliases. Each row: type badge, value (clickable), confidence %, source reliability badge, last-scraped date.
 
-**Connections tab:** Two sections — (1) Person relationships: each related person as a card with their name (clickable → their contact card), relationship type, relationship score, shared identifiers count. (2) Entity connections: companies, locations, domains, wallets linked to this person.
+**Connections tab:** Two sections:
+1. Person relationships — each related person as a card: name (→ their contact card), relationship type, relationship score, shared identifiers count.
+2. Entity connections — companies, locations, domains, wallets linked to this person with entity type badge and source.
 
-**Risk tab:** 4 score dials + behavioral signals breakdown (gambling, financial distress, drug signals, violence, fraud) + watchlist matches + dark web mentions + criminal records + breach records.
+**Risk tab:** 4 score dials + behavioral signals (gambling, financial distress, drug, violence, fraud — read from `BehaviouralSignals` rows) + OCEAN traits + watchlist matches + dark web mentions + criminal records + breach records.
 
-**Activity tab:** Per-crawler run history — which crawlers ran, when, what they found (found/not-found/error), source reliability. Shows data coverage percentage: "87 of 128 sources attempted, 61 returned data."
+**OCEAN storage fix (Phase 2 dependency):** OCEAN scores are currently computed in `modules/enrichers/psychological.py` as in-memory `PsychologicalProfile` fields and never persisted. As part of Phase 2, extend `_upsert_behavioural_profile()` in `modules/pipeline/aggregator.py` to write OCEAN scores into `BehaviouralProfile.meta`:
+
+```python
+# In aggregator._upsert_behavioural_profile():
+if "ocean_openness" in crawler_data:
+    profile.meta["ocean_openness"] = crawler_data["ocean_openness"]
+    profile.meta["ocean_conscientiousness"] = crawler_data.get("ocean_conscientiousness")
+    profile.meta["ocean_extraversion"] = crawler_data.get("ocean_extraversion")
+    profile.meta["ocean_agreeableness"] = crawler_data.get("ocean_agreeableness")
+    profile.meta["ocean_neuroticism"] = crawler_data.get("ocean_neuroticism")
+```
+
+The Risk tab reads these from `BehaviouralProfile.meta["ocean_openness"]` etc. If absent, the OCEAN section is hidden (not shown as zero).
+
+**Activity tab:** Per-crawler run history from `CrawlJob` rows for this person. Shows: crawler name, ran_at, status (found/not-found/error), source reliability. Coverage percentage denominator = `SELECT COUNT(*) FROM data_sources WHERE is_enabled = TRUE` (live count, not hardcoded 128).
 
 ### Commercial Tags Display
 
-Tags displayed as colored pill badges beneath the person's name:
+Colored pill badges beneath person name:
 - Red: `GAMBLING`, `PAYDAY LOAN`, `HIGH RISK CREDIT`
 - Amber: `TITLE LOAN`, `AUTO LOAN`, `PERSONAL LOAN`
 - Blue: `MORTGAGE`, `INVESTMENT`, `BANKING PREMIUM`
 - Green: `HIGH NET WORTH`, `INSURANCE`
 
-Hovering a tag shows the reasoning list (e.g., "Vehicle record found · Financial distress 62% · No property ownership").
+Hover tooltip shows `reasoning` list from `MarketingTag` row.
 
-### New API Endpoints
+### API — Extend Existing `/persons/{id}/report`
 
-- `GET /persons/{id}/report` — extend to include `commercial_tags`, `connections`, `crawler_coverage`
-- `GET /persons/{id}/connections` — all person + entity connections with relationship metadata
-- `GET /persons/{id}/coverage` — crawler run history for this person
+The existing `GET /persons/{id}/report` endpoint in `api/routes/persons.py` is extended (not replaced) to include three new keys in its response dict:
+
+```json
+{
+  "person": { ... },
+  "identifiers": [ ... ],
+  "addresses": [ ... ],
+  "commercial_tags": [
+    {
+      "tag": "title_loan",
+      "category": "lending",
+      "confidence": 0.78,
+      "reasoning": ["Vehicle record found", "Financial distress 62%", "No property ownership"],
+      "scored_at": "2026-03-24T10:00:00Z"
+    }
+  ],
+  "connections": {
+    "persons": [
+      {
+        "person_id": "uuid",
+        "full_name": "Jane Doe",
+        "relationship_type": "co-location",
+        "relationship_score": 0.82,
+        "shared_identifier_count": 3
+      }
+    ],
+    "entities": [
+      {
+        "entity_type": "company",
+        "label": "Acme Corp",
+        "source": "opencorporates",
+        "linked_via": "employment"
+      }
+    ]
+  },
+  "coverage": {
+    "sources_enabled": 131,
+    "sources_attempted": 87,
+    "sources_found": 61,
+    "coverage_pct": 66,
+    "crawl_history": [
+      {
+        "crawler": "twitter",
+        "ran_at": "2026-03-20T08:00:00Z",
+        "status": "found",
+        "source_reliability": 0.55
+      }
+    ]
+  }
+}
+```
+
+No separate `/connections` or `/coverage` endpoints are needed — all data is in `/report`.
 
 ---
 
@@ -167,80 +251,64 @@ Hovering a tag shows the reasoning list (e.g., "Vehicle record found · Financia
 
 ### Library
 
-Use **D3.js v7** force simulation with SVG rendering. No external graph library — D3 gives full control over layout, styling, and interaction. Load from CDN in `index.html`.
+**D3.js v7** force simulation, SVG rendering. Loaded from CDN. No external graph library.
 
 ### Entity Types and Visual Language
 
 | Entity | Shape | Color |
 |--------|-------|-------|
-| Person | Circle (r=18) | `#1a6ef5` (blue) |
-| Company | Square (28px) | `#805ad5` (purple) |
-| Location | Diamond | `#d69e2e` (amber) |
-| Email | Triangle | `#00c48c` (green) |
-| Phone | Hexagon | `#38b2ac` (teal) |
-| Crypto Wallet | Star | `#e53e3e` (red) |
-| Domain | Octagon | `#ed8936` (orange) |
-| IP Address | Circle (r=10) | `#718096` (gray) |
+| Person | Circle (r=18) | `#1a6ef5` blue |
+| Company | Square (28px) | `#805ad5` purple |
+| Location | Diamond | `#d69e2e` amber |
+| Email | Triangle | `#00c48c` green |
+| Phone | Hexagon | `#38b2ac` teal |
+| Crypto Wallet | Star | `#e53e3e` red |
+| Domain | Octagon | `#ed8936` orange |
+| IP Address | Circle (r=10) | `#718096` gray |
 
-Edges are colored by relationship type: social (blue), financial (green), geographic (amber), criminal (red), shared-identifier (white/dim).
+Edge colors: social=blue, financial=green, geographic=amber, criminal=red, shared-identifier=dim.
 
 ### Interactions
 
-- **Click node** → opens side panel with mini contact card (name, top 3 facts, "Open full card" button)
-- **Double-click node** → expand its connections (loads 1 hop deeper via API)
-- **Right-click node** → context menu: Expand, Hide, Focus (hide everything else), Find Path To (then click another node)
-- **Drag node** → repositions it, pins it
-- **Scroll** → zoom in/out
-- **Drag canvas** → pan
-- **Shift+click two nodes** → find shortest path between them (highlights the chain)
+- **Click node** → side panel mini-card (name, top 3 facts, "Open full card" button)
+- **Double-click node** → expand 1 hop deeper
+- **Right-click node** → context menu: Expand, Hide, Focus, Find Path To
+- **Drag** → pin node
+- **Scroll / drag canvas** → zoom / pan
+- **Shift+click two nodes** → find shortest path between them
 
-### Filter Panel (left sidebar)
+### Filter Panel
 
-```
-Entity Types          Relationship Types
-☑ Person (142)        ☑ Social
-☑ Company (38)        ☑ Financial
-☑ Location (91)       ☑ Geographic
-☑ Email (207)         ☑ Criminal
-☑ Phone (184)         ☑ Shared Identifier
-☑ Wallet (12)
-☑ Domain (55)
+Entity type checkboxes (Person, Company, Location, Email, Phone, Wallet, Domain), relationship type checkboxes (Social, Financial, Geographic, Criminal, Shared Identifier), date range slider, min relationship score slider, text search.
 
-Date Range
-[────●──────────] Last 90 days
-
-Min Relationship Score
-[──────●────────] 0.30
-
-Search nodes
-[_______________]
-```
-
-Filters update the graph in real time — hidden entities fade out, edges orphaned by the filter are removed.
+Filters update graph in real time — hidden entities fade, orphaned edges removed.
 
 ### Shortest Path
 
-1. User clicks "Find Path" button or right-clicks a node → "Find Path To"
-2. Source node highlighted with pulsing ring
-3. User clicks target node
-4. API call: `GET /graph/path?from={id}&to={id}&entity_types=person,company`
-5. Path returned as ordered node+edge list
-6. Path highlighted in gold, all other nodes dimmed
+`GET /graph/path?from={id}&to={id}&entity_types=person,company&max_hops=6`
+
+- `entity_types` is a **traversal filter**: only traverse through nodes of these types when finding the path. A path may not exist if the type constraint blocks all routes.
+- `max_hops` default = 6, hard cap = 10 (server rejects requests above 10 with 400)
+- BFS implementation on the backend; if no path found within `max_hops`, returns `{"path": null, "reason": "no_path_within_max_hops"}`
+- Frontend highlights path in gold, dims all other nodes
 
 ### Performance
 
-- Initial load: pull max 500 nodes (most-connected first)
-- "Load more" button fetches next 500
-- Nodes beyond viewport are culled from render (virtual canvas)
-- Web Worker runs the force simulation off the main thread
+- Initial load: max 500 nodes (most-connected first via `ORDER BY degree DESC`)
+- "Load more" fetches next 500
+- Web Worker runs force simulation off main thread
+- Nodes culled when outside viewport bounds
 
 ### New API Endpoints
 
-- `GET /graph/nodes` — all entity nodes with type, label, risk_score, pagination
-- `GET /graph/edges` — all edges with type, score, pagination
-- `GET /graph/path?from=&to=&entity_types=` — shortest path (BFS)
-- `GET /graph/entity/{type}/{id}/expand` — expand a specific entity's connections
-- (existing) `GET /graph/person/{id}/network` — extended to return full entity graph, not just person nodes
+All are new methods on `EntityGraphBuilder` in `api/routes/graph.py`:
+
+- `GET /graph/nodes?limit=500&offset=0&entity_types=person,company` — paginated global node list
+- `GET /graph/edges?limit=1000&offset=0` — paginated global edge list
+- `GET /graph/path?from=&to=&entity_types=&max_hops=6` — BFS shortest path with traversal filter
+- `GET /graph/entity/{entity_type}/{entity_id}/expand` — 1-hop expansion for any entity type
+
+The existing `GET /graph/person/{id}/network` is extended to include non-person entity nodes (companies, addresses, domains) in its response, not just person nodes.
 
 ---
 
@@ -250,62 +318,53 @@ Filters update the graph in real time — hidden entities fade out, edges orphan
 
 **Location:** `modules/enrichers/commercial_tagger.py`
 
-A rule-based scoring engine that maps signals from existing data to commercial product tags. Runs as a background job every 15 minutes on newly enriched persons.
+This **extends** the existing `modules/enrichers/marketing_tags.py` engine. The existing functional scorer pattern (`_score_title_loan`, etc.) and `StrEnum` taxonomies (`LendingTag`, `BehaviouralTag`, etc.) are kept. Missing tags are added as new scorer functions following the same pattern. New tags added:
 
-### Tags and Signal Mapping
+- `auto_loan` — vehicle record + no property + medium income
+- `payday_loan` — financial_distress > 0.5 + no property + low income
+- `insurance_auto` — vehicle record present
+- `insurance_life` — dependant signals + income
+- `insurance_health` — age 25–65 + employment
+- `banking_basic` — any employed adult signal
+- `banking_premium` — high income + investment signals
+- `high_net_worth` — wealth data + property + investment
+- `debt_consolidation` — multiple loan signals + financial distress
+
+### PersonSignals Assembly
+
+New dataclass `PersonSignals` in `modules/enrichers/commercial_tagger.py` assembles all signal data in a single DB query (JOIN across Person, Employment, Wealth, BehaviouralSignals, Identifier vehicle records, Address property flags):
 
 ```python
-COMMERCIAL_TAGS = {
-    "title_loan": TitleLoanRule,       # Car + financial distress + low income
-    "auto_loan": AutoLoanRule,         # Car + no property + medium income
-    "payday_loan": PaydayLoanRule,     # Financial distress high + no property + low income
-    "personal_loan": PersonalLoanRule, # Any loan signal + credit history
-    "mortgage": MortgageRule,          # Property record OR high income + homeowner signal
-    "refinance": RefinanceRule,        # Existing mortgage + financial distress
-    "investment_account": InvestRule,  # High income + net worth signals
-    "banking_basic": BankingBasicRule, # Any working adult signal
-    "banking_premium": BankingPremRule,# High income + investment signals
-    "insurance_auto": InsAutoRule,     # Vehicle record
-    "insurance_life": InsLifeRule,     # Has dependants signals + income
-    "insurance_health": InsHealthRule, # Age + employment status
-    "gambling": GamblingRule,          # gambling_score > 0.3
-    "high_net_worth": HNWRule,         # Wealth data + property + investment
-    "debt_consolidation": DebtRule,    # Multiple loan signals + financial distress
-}
+@dataclass
+class PersonSignals:
+    person_id: UUID
+    has_vehicle: bool
+    has_property: bool
+    financial_distress_score: float   # sourced from BehaviouralProfile.financial_distress_score
+    gambling_score: float             # sourced from BehaviouralProfile.gambling_score (via BehaviouralSignals)
+    income_estimate: float | None     # sourced from Wealth.estimated_income_usd
+    net_worth_estimate: float | None  # sourced from Wealth.estimated_net_worth_usd
+    is_employed: bool                 # sourced from Employment rows (status == 'current')
+    age: int | None                   # derived from Person.date_of_birth
+    criminal_count: int               # COUNT of CriminalRecord rows
 ```
 
-### Rule Structure
+The existing `tag_person()` function is updated to call `_assemble_signals(person_id, session) -> PersonSignals` and pass it to all scorer functions.
 
-Each rule is a class with:
-```python
-class TitleLoanRule(BaseTagRule):
-    tag = "title_loan"
-    category = "lending"
+### Confidence Threshold
 
-    def score(self, person_data: PersonSignals) -> TagResult | None:
-        """Returns TagResult(confidence=0.0-1.0, reasoning=[...]) or None."""
-```
+Per-tag thresholds in the existing `_THRESHOLDS` dict continue to apply (0.65–0.70 per tag). The spec's "0.25 floor" is not used — existing thresholds are correct and prevent tag proliferation. New tags are added to `_THRESHOLDS` with per-tag values in the 0.60–0.70 range.
 
-`PersonSignals` is a flat dataclass assembled by joining Person + Employment + Wealth + BehaviouralSignals + vehicle identifiers + property records + CriminalRecord count.
+### Background Daemon
 
-Confidence is computed as a weighted sum of present signals. Reasoning is a list of human-readable strings explaining what evidence contributed.
-
-A tag is written to `MarketingTag` only if confidence ≥ 0.25. Existing tags are updated (not duplicated) via upsert on the `uq_marketing_tag_person_tag` constraint.
-
-### Predisposition Display
-
-In the Marketing view, each person shows:
-- Tag badges grouped by category (Lending, Banking, Insurance, Risk)
-- OCEAN psychological traits (already tracked in `behavioural_profiles`)
-- Income tier estimate
-- Spend tier estimate (from `TicketSize`)
+`CommercialTaggerDaemon` follows the asyncio loop pattern, running every 15 minutes on persons enriched since last run (via `last_scraped_at > last_run_at` filter).
 
 ### New API Endpoints
 
-- `POST /persons/{id}/tag` — manually trigger tag computation for one person
-- `GET /persons/{id}/tags` — return all commercial tags with confidence + reasoning
-- `GET /tags/summary` — aggregate: how many persons per tag (for targeting)
-- `POST /tags/batch` — trigger tag computation for all persons missing tags
+- `POST /persons/{id}/tag` — trigger tag computation for one person
+- `GET /persons/{id}/tags` — all tags with confidence + reasoning (also included in `/report`)
+- `GET /tags/summary` — `{tag: count}` aggregate across all persons
+- `POST /tags/batch` — trigger computation for all persons with stale/missing tags
 
 ---
 
@@ -313,56 +372,53 @@ In the Marketing view, each person shows:
 
 ### Priority New Sources
 
-**Social Interests (highest value — fills interest/likes/dislikes data):**
-- `reddit_history` — Post + comment history, subreddit membership (via Pushshift or Pullpush.io)
-- `youtube_channel` — Channel metadata, comment patterns, video categories (public data)
-- `threads_profile` — Threads.net via public API
-- `bluesky_profile` — AT Protocol public API
-- `spotify_public` — Public playlists if profile is public
+**Social Interests:**
+- `reddit_history` — post/comment history + subreddit membership (Pullpush.io API)
+- `youtube_channel` — channel metadata + video categories (public data)
+- `threads_profile` — Threads.net public API
+- `bluesky_profile` — AT Protocol public API (`https://public.api.bsky.app`)
+- `spotify_public` — public playlists (no auth)
 
-**People Search (missing coverage):**
-- `spokeo` — FlareSolverr (Cloudflare-protected)
-- `familytreenow` — Public records aggregator
-- `beenverified_public` — Public search results
-- `radaris` — People search
-- `clustrmaps` — Address history
+**People Search:**
+- `spokeo` — via FlareSolverr
+- `familytreenow` — public records
+- `radaris` — people search
+- `clustrmaps` — address history
 
-**Court Records (more states):**
-- `pacer_federal` — Federal court records (PACER API)
-- `case_net_mo` — Missouri courts
-- `iclaim_ca` — California courts
+**Courts (more states):**
+- `pacer_federal` — federal courts (PACER API)
 - `txcourts` — Texas courts
 - `fl_courts` — Florida courts
+- `ca_courts` — California courts
 
 **News & Mentions:**
-- `google_news_rss` — Person name + location in Google News RSS (no auth)
-- `gdelt_mentions` — GDELT Project API (news event database)
-- `bing_news` — Bing News search API
+- `google_news_rss` — name + location in Google News RSS
+- `gdelt_mentions` — GDELT Project API
+- `bing_news` — Bing News RSS
 
-**Property & Vehicles (expanded):**
-- `redfin_property` — Property details and ownership history
-- `county_assessor_tx` — Texas county property records
-- `county_assessor_fl` — Florida county property records
-- `vin_decode` — VIN decoder (NHTSA already exists, add more detail)
-- `licenseplatelookup` — State plate → VIN → owner chain
+**Property & Vehicles:**
+- `redfin_property` — ownership history
+- `county_assessor_tx` — Texas property records
+- `county_assessor_fl` — Florida property records
+- `vin_decode_enhanced` — richer VIN decode detail
+
+Note: `licenseplatelookup` approaches that claim ownership chain from plate number may be restricted by DPPA — implement only via official/licensed data sources.
 
 **Professional:**
-- `linkedin_enhanced` — Enhance existing LinkedIn crawler to extract posts, skills, endorsements, education details
-- `glassdoor_public` — Company reviews authored by person
-- `github_profile` — Code contributions, repositories, bio
-- `stackoverflow_profile` — Q&A activity, reputation
+- `linkedin_enhanced` — extend existing crawler: posts, skills, endorsements, education detail
+- `github_profile` — repos, bio, contributions
+- `stackoverflow_profile` — Q&A activity
 
 **Financial:**
-- `opencorporates_officers` — Director/officer roles in companies
-- `sec_insider` — SEC Form 4 insider trading filings
-- `fincen_sar` — FinCEN SAR public data
+- `opencorporates_officers` — company director roles
+- `sec_insider` — Form 4 insider trading
 
 **Interests Extractor:**
-- `interests_extractor` — Meta-crawler that parses `interests`, `liked_pages`, `following` from existing social scrape results and normalizes them into `behavioural_profiles.interests[]`
+- `interests_extractor` — meta-crawler: reads completed crawler results for a person and normalizes interest/following/liked-page signals into `BehaviouralProfile.interests` (`ARRAY(String)` column, already exists)
 
 ### Coverage Score
 
-New metric per person: `crawler_coverage_score = crawlers_attempted / total_crawlers`. Stored in `Person.meta["coverage"]`. Displayed in the Activity tab of the contact card. Drives the re-scrape priority queue.
+`Person.meta["coverage"]` = `{"attempted": N, "found": M, "total_enabled": K, "pct": N/K}`. Updated after each crawl job completes (in `pipeline/enrichment_orchestrator.py`).
 
 ---
 
@@ -370,154 +426,267 @@ New metric per person: `crawler_coverage_score = crawlers_attempted / total_craw
 
 ### Design
 
-An APScheduler job runs a self-audit every hour. Results are stored in a new `SystemAudit` table and surfaced in the Activity view.
+`AuditDaemon` follows the asyncio loop pattern, running hourly. Results stored in `SystemAudit` table and surfaced in the Activity view.
 
 ### What It Audits
 
 **Per-person data quality:**
-- Coverage score (% of crawlers run)
-- Freshness: how many records are > 30 days old
-- Completeness: % of Person model fields populated (name, DOB, gender, address, employment, etc.)
-- Conflict flag: persons with `conflict_flag=True` that haven't been reviewed
+- Coverage score (`Person.meta["coverage"]["pct"]`)
+- Freshness: `last_scraped_at < now() - 30 days`
+- Completeness: non-null count on 10 key Person fields (name, DOB, gender, nationality, bio, profile_image_url, primary_language, date_of_birth, verification_status, conflict_flag resolution)
+- Unresolved conflict flags
 
-**Crawler health:**
-- Per-crawler success rate (last 24h): `found_count / (found_count + error_count)`
-- Crawlers with 0% success rate flagged as "degraded"
-- Average response time per crawler
+**Crawler health (from `CrawlJob` table, last 24h):**
+- Per-crawler: `success_rate = found / (found + error)` where found = status "found", error = status "error"
+- Crawlers with `success_rate = 0` flagged as "degraded"
 
 **Data volume:**
-- New persons ingested today/this week
-- Merges performed (auto + manual)
-- Tags assigned this week
-- Graph edges created
-
-**Schema compliance:**
-- Sample 10 random crawler results and verify required fields are present
+- New persons (created_at > today)
+- Auto-merges (audit_log WHERE action = "auto_merge" AND created_at > today)
+- Tags assigned (marketing_tags.scored_at > today)
 
 ### Output
 
-Results stored in `SystemAudit` table:
 ```python
-class SystemAudit(Base):
-    id: UUID
-    run_at: DateTime
-    persons_total: int
-    persons_low_coverage: int       # coverage < 0.5
-    persons_stale: int              # last_scraped_at > 30 days
-    persons_conflict: int           # conflict_flag=True, unresolved
-    crawlers_degraded: list         # JSONB: [{crawler, success_rate}]
-    crawlers_healthy: int
-    tags_assigned_today: int
-    merges_today: int
-    meta: dict                      # full per-crawler breakdown
+class SystemAudit(Base, TimestampMixin):
+    __tablename__ = "system_audits"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_at: Mapped[datetime]
+    persons_total: Mapped[int]
+    persons_low_coverage: Mapped[int]     # coverage_pct < 50
+    persons_stale: Mapped[int]            # last_scraped_at > 30 days
+    persons_conflict: Mapped[int]         # conflict_flag=True, unresolved
+    crawlers_total: Mapped[int]
+    crawlers_healthy: Mapped[int]
+    crawlers_degraded: Mapped[list] = mapped_column(JSONB, default=list)  # [{name, success_rate}]
+    tags_assigned_today: Mapped[int]
+    merges_today: Mapped[int]
+    persons_ingested_today: Mapped[int]
+    meta: Mapped[dict] = mapped_column(JSONB, default=dict)  # full per-crawler breakdown
 ```
 
-### Frontend — Audit View
+### Frontend — Activity View Sub-Section
 
-New sub-section in the Activity view:
-
-```
-⬡ System Audit  [Last run: 3 min ago]  [Run Now]
-
-Health Overview
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ 94 crawlers healthy
-⚠ 7 crawlers degraded: [nitter] [holehe] [whitepa…]
-⚠ 1,203 persons stale (> 30 days)
-⚠ 47 persons low coverage (< 50%)
-● 12 conflict flags pending review
-
-Data Activity (today)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Persons ingested:  142
-Auto-merges:       8
-Tags assigned:     391
-Graph edges added: 2,841
-
-Crawler Leaderboard (24h success rate)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[OFAC]           100%  ████████████████████
-[FBI Wanted]      100%  ████████████████████
-[SEC]             98%  ███████████████████░
-[Shodan]          97%  ███████████████████░
-...
-[Nitter]          12%  ██░░░░░░░░░░░░░░░░░░  ⚠ Degraded
-[WhitePages]       0%  ░░░░░░░░░░░░░░░░░░░░  ✗ Down
-```
+New "System Audit" card added to existing Activity view (`#/activity`), loaded from `GET /audit/latest`. Shows health overview, data activity today, and a crawler success rate leaderboard (sorted descending, degraded crawlers highlighted red at bottom).
 
 ### New API Endpoints
 
-- `GET /audit/latest` — most recent audit result
-- `POST /audit/run` — trigger audit immediately
-- `GET /audit/history` — last 30 audit runs
-- `GET /audit/crawlers` — per-crawler health stats
-- `GET /audit/persons/stale` — persons needing re-scrape (paginated)
-- `GET /audit/persons/low-coverage` — persons with coverage < 0.5
+- `GET /audit/latest` — most recent `SystemAudit` row
+- `POST /audit/run` — trigger immediately
+- `GET /audit/history?limit=30` — last N audit runs
+- `GET /audit/crawlers` — per-crawler health breakdown (24h)
+- `GET /audit/persons/stale?limit=50&offset=0` — persons needing re-scrape
+- `GET /audit/persons/low-coverage?limit=50&offset=0` — persons with coverage < 50%
 
 ---
 
 ## Data Model Changes
 
-### Person — add `merged_into` field
+### Person — add `merged_into`
 ```python
 merged_into: Mapped[uuid.UUID | None] = mapped_column(
     UUID(as_uuid=True), ForeignKey("persons.id"), nullable=True, index=True
 )
 ```
 
-### New: SystemAudit table
-(fields above)
-
-### New: DedupReview table (for 0.70–0.84 similarity candidates)
+### New: DedupReview
 ```python
-class DedupReview(Base):
-    id: UUID
-    person_a_id: UUID (FK persons)
-    person_b_id: UUID (FK persons)
-    similarity_score: float
-    created_at: DateTime
-    reviewed: bool = False
-    decision: str | None  # 'merge' | 'keep_separate'
+class DedupReview(Base, TimestampMixin):
+    __tablename__ = "dedup_reviews"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    person_a_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("persons.id"))
+    person_b_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("persons.id"))
+    similarity_score: Mapped[float]
+    reviewed: Mapped[bool] = mapped_column(default=False)
+    decision: Mapped[str | None] = mapped_column(String(20), nullable=True)  # 'merge'|'keep_separate'
 ```
 
-No changes to existing MarketingTag, ConsumerSegment, BehaviouralProfile models — they already support the required fields.
+### New: SystemAudit
+(fields above)
+
+Both new tables require Alembic migrations. Migrations are generated (`alembic revision --autogenerate`) as part of Phase 1 and Phase 6 respectively.
+
+---
+
+## Phase 7 — Family Tree Builder
+
+### Purpose
+
+Given any seed person, automatically build their family tree: trace ancestors backward as far as records exist, trace descendants forward, authenticate each link with cross-referenced sources, and connect every family member as a node in the knowledge graph.
+
+### Data Model
+
+Genealogical relationships are stored in the existing `Relationship` table using new `rel_type` values. No new table required — the relationship model already has `person_a_id`, `person_b_id`, `rel_type`, `score`, and `meta` JSONB.
+
+New `rel_type` values for family:
+```
+parent_of, child_of, sibling_of, spouse_of,
+grandparent_of, grandchild_of, aunt_uncle_of, niece_nephew_of,
+half_sibling_of, step_parent_of, step_child_of
+```
+
+Each relationship row also carries:
+- `score` (0–1): confidence in the relationship (based on source corroboration)
+- `meta["sources"]`: list of source names that corroborate the link
+- `meta["marriage_date"]`, `meta["divorce_date"]` for spouse relationships
+- `meta["birth_record_url"]`, `meta["death_record_url"]` for parent/child links
+
+A new `FamilyTreeSnapshot` table caches the assembled tree per person so repeated views don't re-query all relationships:
+
+```python
+class FamilyTreeSnapshot(Base, TimestampMixin):
+    __tablename__ = "family_tree_snapshots"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    root_person_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("persons.id"), index=True)
+    tree_json: Mapped[dict] = mapped_column(JSONB)           # full serialised tree
+    depth_ancestors: Mapped[int]                              # how many generations back
+    depth_descendants: Mapped[int]                            # how many generations forward
+    source_count: Mapped[int]                                 # total sources used
+    built_at: Mapped[datetime]
+    is_stale: Mapped[bool] = mapped_column(default=False)    # set True when new data arrives
+```
+
+### Genealogy Crawlers
+
+New crawlers in `modules/crawlers/genealogy/`:
+
+| Crawler | Source | What it fetches |
+|---------|--------|-----------------|
+| `familysearch` | FamilySearch public API | Birth, marriage, death records; parent/child/spouse links |
+| `findagrave` | FindAGrave.com | Memorial pages with birth/death dates, spouse names |
+| `ancestry_hints` | Ancestry public hints (no auth) | Suggested relatives from public trees |
+| `census_records` | US Census via FamilySearch | Household members, ages, relationships (1790–1940) |
+| `obituary_search` | Legacy.com, Tributes.com | Survivor names (spouse, children, parents listed) |
+| `vitals_records` | State vital records APIs (where public) | Birth certificates, death certificates, marriage licenses |
+| `newspapers_archive` | Chronicling America (LOC) | Birth/marriage/death announcements |
+| `geni_public` | Geni.com public profiles | Family tree data from public profiles |
+
+Each crawler emits `CrawlerResult.data` with a standardised schema:
+```python
+{
+    "person_name": str,
+    "birth_date": str | None,
+    "birth_place": str | None,
+    "death_date": str | None,
+    "death_place": str | None,
+    "parents": [{"name": str, "birth_year": int | None}],
+    "children": [{"name": str, "birth_year": int | None}],
+    "spouses": [{"name": str, "marriage_date": str | None}],
+    "siblings": [{"name": str, "birth_year": int | None}],
+    "source_url": str,
+    "record_type": str,   # "birth_cert" | "census" | "obituary" | "memorial" | "tree"
+}
+```
+
+### Genealogy Enricher
+
+**Location:** `modules/enrichers/genealogy_enricher.py`
+
+`GenealogyEnricher` runs as an asyncio daemon checking for persons flagged `needs_genealogy=True` in `Person.meta`.
+
+**Algorithm:**
+
+```
+build_tree(seed_person_id):
+    queue = deque([(seed_person_id, 0, "root")])
+    visited = set()
+
+    while queue:
+        person_id, generation, direction = queue.popleft()
+        if person_id in visited or abs(generation) > 8:
+            continue
+        visited.add(person_id)
+
+        results = run_all_genealogy_crawlers(person_id)
+        relatives = parse_relatives(results)   # cross-reference across sources
+
+        for relative in relatives:
+            canonical = find_or_create_person(relative)  # dedup against existing persons
+            create_or_update_relationship(person_id, canonical.id, rel_type, confidence)
+            queue.append((canonical.id, generation + direction_delta, direction))
+```
+
+Generation depth limit: 8 ancestors back (great-great-great-great-great-great-grandparents), unlimited forward (but stops when no more descendants are found).
+
+**Authentication (confidence scoring):**
+- 1 source: confidence = 0.40
+- 2 independent sources agree: 0.72
+- 3+ sources agree: 0.92
+- Government record (birth/death cert, census): +0.15 bonus, capped at 1.0
+- Conflicting sources: confidence = max(source_scores) × 0.6, `conflict_flag=True` on relationship
+
+### Family Tree View (Frontend)
+
+New view accessible from:
+- Person contact card → "View Family Tree" button in left rail
+- Navigation: `#/persons/<id>/tree`
+
+**Layout:** D3 tree layout (not force-directed — hierarchical). Ancestors above the root, descendants below.
+
+```
+                    [Great-grandparent] [Great-grandparent]
+                           └──────┬──────┘
+                          [Grandparent] [Grandparent]
+                                  └──────┬──────┘
+                               [Parent]  [Parent]
+                                    └──────┬──────┘
+                    [Sibling] ──── [ROOT PERSON] ──── [Sibling]
+                                    ┌──────┴──────┐
+                               [Child]          [Child]
+                                  └──────┬──────┘
+                               [Grandchild] [Grandchild]
+```
+
+Each node is clickable — opens that person's contact card. Confidence shown as opacity (high confidence = solid, low = faded). Source count badge on each connection edge.
+
+**Controls:**
+- Generation depth slider (1–8 ancestors / 1–5 descendants)
+- "Show only verified (confidence ≥ 0.70)" toggle
+- "Expand to graph" button — loads all family members into the main knowledge graph
+- Export to GEDCOM format (standard genealogy file format)
+
+### Integration with Knowledge Graph
+
+Family tree nodes ARE Person nodes. When "Expand to graph" is clicked, all family members are added to the knowledge graph with `rel_type` edges. In the graph view, family edges are shown in a distinct color (gold) and the family filter checkbox controls their visibility.
+
+### New API Endpoints
+
+- `GET /persons/{id}/family-tree?depth_ancestors=4&depth_descendants=3` — return `FamilyTreeSnapshot` or trigger build if none exists
+- `POST /persons/{id}/family-tree/build` — trigger full rebuild
+- `GET /persons/{id}/family-tree/status` — build progress (how many generations complete)
+- `GET /persons/{id}/relatives` — flat list of all known relatives with relationship type and confidence
 
 ---
 
 ## Build Order and Dependencies
 
 ```
-Phase 1 (Auto-Dedup + Score Calibration)
-    → no dependencies, do first to clean data
-Phase 4 (Commercial Tags)
-    → depends on Phase 1 (cleaner data = better tag signals)
-Phase 2 (Contact Card)
-    → depends on Phase 4 (tags display in card)
-    → depends on Phase 1 (merged_into for ID resolution)
-Phase 3 (Knowledge Graph)
-    → depends on Phase 2 (node click opens contact card)
-Phase 5 (Expanded Crawlers)
-    → can run in parallel with 1-4, but more data improves graph
-Phase 6 (In-App Audit)
-    → depends on all others (audits crawlers, coverage, tags, merges)
+Phase 1 (Auto-Dedup + Score Calibration)   ← start here, cleans data
+Phase 4 (Commercial Tags)                   ← cleaner data = better signals
+Phase 2 (Contact Card)                      ← surfaces tags + merged_into redirect
+Phase 3 (Knowledge Graph)                   ← node click opens Phase 2 card
+Phase 5 (Expanded Crawlers)                 ← can run in parallel with 1-4
+Phase 7 (Family Tree)                       ← depends on Phase 2 (contact card) + Phase 3 (graph)
+Phase 6 (In-App Audit)                      ← audits everything above
 ```
 
 ---
 
 ## Testing Strategy
 
-Each phase ships with:
-- Unit tests for all new enricher/rule logic
-- Integration tests for new API endpoints (using existing test DB fixtures)
-- Frontend: manual UAT checklist in spec
-
-Phases 1 and 4 are fully testable with mocked DB data. Phases 2 and 3 require browser testing. Phase 5 crawlers use the existing `HttpxCrawler` test pattern (mock HTTP responses). Phase 6 audit tests use seeded DB state.
+- Phases 1, 4, 6: unit + integration tests with seeded DB (mock HTTP, real SQLite/asyncpg)
+- Phase 2: existing `test_api_routes_extended.py` patterns; extend with new `/report` fields
+- Phase 3: unit test path-finding logic; frontend graph tested manually
+- Phase 5: each new crawler follows `test_crawler_gaps.py` mock-HTTP pattern
+- Phase 7: unit test genealogy enricher tree algorithm with seeded relatives; integration test GEDCOM export; crawler tests with mocked genealogy source responses
 
 ---
 
 ## Non-Goals
 
-- No ML model training — commercial tags use rule-based scoring only
-- No real-time graph updates via WebSocket (graph is loaded on demand)
-- No third-party graph databases (Neo4j, etc.) — PostgreSQL + the existing `relationships` table is sufficient
-- No mobile layout — desktop only, same as current platform
+- No ML model training — commercial tags are rule-based only
+- No real-time graph WebSocket updates — graph loads on demand
+- No Neo4j or graph databases — PostgreSQL `relationships` table is sufficient
+- No mobile layout — desktop only
+- No DPPA-restricted plate-to-owner chains via unlicensed sources

@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
 from modules.crawlers.registry import CRAWLER_REGISTRY, list_platforms
+from shared.circuit_breaker import get_circuit_breaker
+from shared.events import event_bus
+from shared.rate_limiter import get_rate_limiter
 from shared.tor import tor_manager
 
 router = APIRouter()
@@ -26,7 +29,6 @@ async def health():
     t0 = time.monotonic()
 
     # ── Redis / Dragonfly ──────────────────────────────────────────────────────
-    from shared.events import event_bus
 
     redis_ok = False
     redis_latency_ms = None
@@ -64,8 +66,6 @@ async def health():
 
     # ── Rate limiter / circuit breaker ─────────────────────────────────────────
     try:
-        from shared.rate_limiter import get_rate_limiter
-
         rl_tokens = await get_rate_limiter().peek("__health_probe__")
         results["rate_limiter"] = {"ok": True, "probe_tokens": round(rl_tokens, 2)}
     except Exception as exc:
@@ -115,7 +115,6 @@ async def queue_stats(session: AsyncSession = DbDep):
     """Return queue depths + cumulative throughput stats for the pipeline banner."""
     from sqlalchemy import text
 
-    from shared.events import event_bus
 
     try:
         queues = {}
@@ -158,7 +157,6 @@ async def queue_stats(session: AsyncSession = DbDep):
 @router.post("/queues/drain")
 async def drain_queues(queue: str = "all"):
     """Clear one or all queues (use with caution)."""
-    from shared.events import event_bus
 
     try:
         if queue == "all":
@@ -183,7 +181,6 @@ async def drain_queues(queue: str = "all"):
 @router.get("/circuit-breakers")
 async def circuit_breaker_status():
     """Return circuit breaker states for all tracked domains."""
-    from shared.events import event_bus
 
     if not event_bus.is_connected:
         return {"error": "Redis not connected", "breakers": {}}
@@ -194,8 +191,6 @@ async def circuit_breaker_status():
         for raw_key in keys:
             redis_key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
             domain = redis_key.removeprefix("lycan:cb:")
-            from shared.circuit_breaker import get_circuit_breaker
-
             breakers[domain] = await get_circuit_breaker().get_state(domain)
         return {"breakers": breakers, "count": len(breakers)}
     except Exception as exc:
@@ -206,7 +201,6 @@ async def circuit_breaker_status():
 @router.post("/circuit-breakers/{domain}/reset")
 async def reset_circuit_breaker(domain: str):
     """Manually force a circuit breaker to CLOSED state."""
-    from shared.circuit_breaker import get_circuit_breaker
 
     await get_circuit_breaker().force_close(domain)
     return {"message": f"Circuit breaker for {domain!r} forced to CLOSED", "domain": domain}
@@ -215,7 +209,6 @@ async def reset_circuit_breaker(domain: str):
 @router.get("/rate-limits")
 async def rate_limit_status():
     """Return current token counts for all active rate-limit buckets."""
-    from shared.events import event_bus
 
     if not event_bus.is_connected:
         return {"error": "Redis not connected", "buckets": {}}
@@ -226,8 +219,6 @@ async def rate_limit_status():
         for raw_key in keys:
             redis_key = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
             domain = redis_key.removeprefix("lycan:rl:")
-            from shared.rate_limiter import get_rate_limiter
-
             tokens = await get_rate_limiter().peek(domain)
             buckets[domain] = {"tokens": round(tokens, 3)}
         return {"buckets": buckets, "count": len(buckets)}
