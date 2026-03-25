@@ -43,7 +43,7 @@ def _import_all_crawlers():
             pass
 
 
-async def main(workers: int, enable_growth: bool, enable_freshness: bool):
+async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable_commercial: bool = True):
     # Setup
     _import_all_crawlers()
     from modules.dispatcher.dispatcher import CrawlDispatcher
@@ -102,10 +102,18 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool):
     )
     logger.info("Started auto-dedup daemon")
 
+    # Commercial tagger daemon
+    if enable_commercial:
+        from modules.enrichers.commercial_tagger import CommercialTaggerDaemon
+        ct = CommercialTaggerDaemon()
+        tasks.append(asyncio.create_task(ct.start(), name="commercial-tagger"))
+        logger.info("Started commercial tagger daemon")
+
     logger.info(
         f"Worker running — {workers} dispatcher(s) + "
         f"{'growth daemon + ' if enable_growth else ''}"
         f"{'freshness scheduler + ' if enable_freshness else ''}"
+        f"{'commercial tagger + ' if enable_commercial else ''}"
         f"auto-dedup daemon"
     )
 
@@ -134,6 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type=int, default=4, help="Number of dispatcher workers")
     parser.add_argument("--no-growth", action="store_true", help="Disable growth daemon")
     parser.add_argument("--no-freshness", action="store_true", help="Disable freshness scheduler")
+    parser.add_argument("--no-commercial", action="store_true", help="Disable commercial tagger daemon")
     args = parser.parse_args()
 
     asyncio.run(
@@ -141,5 +150,6 @@ if __name__ == "__main__":
             workers=args.workers,
             enable_growth=not args.no_growth,
             enable_freshness=not args.no_freshness,
+            enable_commercial=not args.no_commercial,
         )
     )
