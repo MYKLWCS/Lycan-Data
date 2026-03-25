@@ -172,7 +172,7 @@ class TestReportCommercialTags:
         # All _fetch calls return empty list; commercial_tags query returns one tag row
         from shared.models.marketing import MarketingTag
         import datetime as _dt
-        tag_row = MagicMock(spec=MarketingTag)
+        tag_row = MagicMock()
         tag_row.tag = "title_loan_candidate"
         tag_row.tag_category = "lending"
         tag_row.confidence = 0.78
@@ -184,13 +184,21 @@ class TestReportCommercialTags:
         tag_exec = MagicMock()
         tag_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[tag_row])))
 
+        # sources_enabled_count uses .scalar_one()
+        sources_count_exec = MagicMock()
+        sources_count_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+        sources_count_exec.scalar_one = MagicMock(return_value=0)
+
         call_count = {"n": 0}
 
         async def _execute(q):
             call_count["n"] += 1
-            # Return tag result on the MarketingTag query (heuristic: after all empty fetches)
-            if call_count["n"] > 14:
+            # Query order: 1-16 standard fetches, 17=MarketingTag, 18=Relationship,
+            # 19=CrawlJob, 20=DataSource count (no related person lookup when rels empty)
+            if call_count["n"] == 17:
                 return tag_exec
+            if call_count["n"] == 20:
+                return sources_count_exec
             return empty_exec
 
         session.execute = _execute
@@ -261,14 +269,22 @@ class TestReportConnections:
         related_exec = MagicMock()
         related_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[related_person])))
 
+        sources_count_exec = MagicMock()
+        sources_count_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+        sources_count_exec.scalar_one = MagicMock(return_value=0)
+
         call_count = {"n": 0}
 
         async def _execute(q):
             call_count["n"] += 1
-            if call_count["n"] == 15:   # Relationship query
+            # Query order: 1-16 standard fetches, 17=MarketingTag, 18=Relationship,
+            # 19=related Person (only when rels found), 20=CrawlJob, 21=DataSource count
+            if call_count["n"] == 18:   # Relationship query
                 return rel_exec
-            if call_count["n"] == 16:   # related Person lookup
+            if call_count["n"] == 19:   # related Person lookup
                 return related_exec
+            if call_count["n"] == 21:   # DataSource count
+                return sources_count_exec
             return empty_exec
 
         session.execute = _execute
@@ -345,9 +361,11 @@ class TestReportCoverage:
 
         async def _execute(q):
             call_count["n"] += 1
-            if call_count["n"] == 17:   # CrawlJob query
+            # Query order: 1-16 standard _fetch calls, 17=MarketingTag, 18=Relationship,
+            # 19=CrawlJob (no related person lookup when rels empty), 20=DataSource count
+            if call_count["n"] == 19:   # CrawlJob query
                 return crawl_exec
-            if call_count["n"] == 18:   # COUNT data_sources enabled
+            if call_count["n"] == 20:   # COUNT data_sources enabled
                 return sources_enabled_exec
             return empty_exec
 

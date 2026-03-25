@@ -396,6 +396,55 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
     alerts = await _fetch(Alert)
     media = await _fetch(MediaAsset)
 
+    # Commercial tags (Phase 4 MarketingTag rows for this person)
+    from shared.models.marketing import MarketingTag
+
+    tags_rows = await _fetch(MarketingTag)
+
+    # Connections — person relationships
+    from shared.models.relationship import Relationship
+
+    rels_res = await session.execute(
+        select(Relationship).where(Relationship.person_a_id == uid)
+    )
+    rels = rels_res.scalars().all()
+
+    related_ids = [r.person_b_id for r in rels]
+    related_persons: dict = {}
+    if related_ids:
+        rp_res = await session.execute(
+            select(Person).where(Person.id.in_(related_ids))
+        )
+        for rp in rp_res.scalars().all():
+            related_persons[rp.id] = rp
+
+    # Coverage — crawl history for this person
+    from shared.models.crawl import CrawlJob, DataSource
+
+    crawl_jobs_res = await session.execute(
+        select(CrawlJob)
+        .where(CrawlJob.person_id == uid)
+        .order_by(CrawlJob.completed_at.desc().nullslast())
+    )
+    crawl_jobs = crawl_jobs_res.scalars().all()
+
+    sources_enabled_count = (
+        await session.execute(
+            select(func.count()).select_from(DataSource).where(DataSource.is_enabled.is_(True))
+        )
+    ).scalar_one()
+
+    sources_attempted = len({(j.meta or {}).get("platform", str(j.id)) for j in crawl_jobs})
+    sources_found = sum(
+        1 for j in crawl_jobs
+        if j.status in ("done", "complete", "success", "found")
+        or (j.result_count or 0) > 0
+    )
+    coverage_pct = (
+        round(sources_found / sources_enabled_count * 100)
+        if sources_enabled_count > 0 else 0
+    )
+
     # Phone identifiers confirmed by WhatsApp/Telegram get a special flag
     phone_idents = [i for i in idents if i.type == "phone"]
     for pi in phone_idents:
@@ -431,6 +480,47 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
         "crypto_wallets": [_model_to_dict(w) for w in wallets],
         "alerts": [_model_to_dict(a) for a in alerts],
         "media_assets": [_model_to_dict(m) for m in media],
+        "commercial_tags": [
+            {
+                "tag": t.tag,
+                "category": t.tag_category,
+                "confidence": t.confidence,
+                "reasoning": t.reasoning if isinstance(t.reasoning, list) else [],
+                "scored_at": t.scored_at.isoformat() if t.scored_at else None,
+            }
+            for t in tags_rows
+        ],
+        "connections": {
+            "persons": [
+                {
+                    "person_id": str(r.person_b_id),
+                    "full_name": (
+                        related_persons[r.person_b_id].full_name
+                        if r.person_b_id in related_persons else None
+                    ),
+                    "relationship_type": r.rel_type,
+                    "relationship_score": r.score,
+                    "shared_identifier_count": (r.evidence or {}).get("shared_identifier_count", 0),
+                }
+                for r in rels
+            ],
+            "entities": [],
+        },
+        "coverage": {
+            "sources_enabled": sources_enabled_count,
+            "sources_attempted": sources_attempted,
+            "sources_found": sources_found,
+            "coverage_pct": coverage_pct,
+            "crawl_history": [
+                {
+                    "crawler": (j.meta or {}).get("platform", "unknown"),
+                    "ran_at": j.completed_at.isoformat() if j.completed_at else None,
+                    "status": j.status,
+                    "source_reliability": None,
+                }
+                for j in crawl_jobs
+            ],
+        },
         "summary": {
             "identifier_count": len(idents),
             "phone_count": len(phone_idents),
