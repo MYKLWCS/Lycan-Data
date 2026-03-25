@@ -16,7 +16,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   gemini-review:
@@ -36,7 +35,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 50
 
@@ -75,7 +74,7 @@ jobs:
         run: python3 scripts/gemini_review.py /tmp/review_content.txt /tmp/review_output.md
 
       - name: Upload review as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: code-review-${{ github.run_number }}
           path: /tmp/review_output.md

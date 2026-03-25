@@ -11,7 +11,6 @@ env:
   SECRET_KEY: "audit-health-check-key"
   ENVIRONMENT: "test"
   PYTHONPATH: "."
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   # ── 1. Full test suite + coverage report ──────────────────────────────────────
@@ -23,7 +22,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -57,7 +56,7 @@ jobs:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-coverage-${{ github.run_number }}
           path: coverage.xml
@@ -72,7 +71,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Bootstrap venv
         run: |
@@ -88,7 +87,7 @@ jobs:
 
       - name: Upload dependency audit
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dep-audit-${{ github.run_number }}
           path: /tmp/dep_audit.txt
@@ -103,7 +102,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -120,7 +119,7 @@ jobs:
 
       - name: Upload audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-report-${{ github.run_number }}
           path: audit_report.md
