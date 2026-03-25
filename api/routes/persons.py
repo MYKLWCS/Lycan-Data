@@ -7,6 +7,7 @@ from datetime import UTC
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -177,7 +178,18 @@ async def list_persons(
 @router.get("/{person_id}")
 async def get_person(person_id: str, session: AsyncSession = DbDep):
     uid = _parse_uuid(person_id)
-    p = await _require_person(session, uid)
+    p = await session.get(Person, uid)
+
+    # ── Redirect if this record has been merged ─────────────────────
+    if p is not None and p.merged_into is not None:
+        return RedirectResponse(
+            url=f"/persons/{p.merged_into}",
+            status_code=301,
+        )
+
+    # ── 404 if not found ────────────────────────────────────────────
+    if p is None:
+        raise HTTPException(404, "Person not found")
 
     idents = (
         (await session.execute(select(Identifier).where(Identifier.person_id == p.id)))
