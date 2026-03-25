@@ -1020,3 +1020,49 @@ class TestLookupNnumber:
         url_called = mock_get.call_args[0][0]
         assert "12345" in url_called
         assert url_called.count("N12345") == 0 or "NNumbertxt=12345" in url_called
+
+
+# ---------------------------------------------------------------------------
+# Branch gap tests for _parse_nnumber_html — arcs 254->251 and 262->260
+# ---------------------------------------------------------------------------
+
+
+class TestParseNnumberHtmlBranchGaps:
+    """Exercises branch paths not yet covered in _parse_nnumber_html."""
+
+    def _fn(self, html: str, n_number: str = "N12345") -> list:
+        from modules.crawlers.transport.faa_aircraft_registry import _parse_nnumber_html
+
+        return _parse_nnumber_html(html, n_number)
+
+    def test_dt_without_dd_sibling_is_skipped(self):
+        """Arc 254->251: <dt> exists but has no following <dd> sibling (if dd: is False).
+        Loop continues to next <dt> without storing anything in data."""
+        html = """
+        <html><body>
+        <dl>
+          <dt>Orphan Label No DD</dt>
+          <dt>Name:</dt><dd>Valid Owner</dd>
+        </dl>
+        </body></html>
+        """
+        results = self._fn(html)
+        # The dt without dd is skipped; the dt with dd is processed normally
+        assert len(results) == 1
+        assert results[0]["owner_name"] == "Valid Owner"
+
+    def test_table_row_with_single_cell_is_skipped(self):
+        """Arc 262->260: table row has only 1 cell (len(cells) >= 2 is False).
+        Loop continues to next row without extracting label/value."""
+        html = """
+        <html><body>
+        <table>
+          <tr><td>Lone Cell</td></tr>
+          <tr><th>Name</th><td>Solo Pilot</td></tr>
+        </table>
+        </body></html>
+        """
+        results = self._fn(html)
+        # Single-cell row is skipped; two-cell row contributes data
+        assert len(results) == 1
+        assert results[0]["owner_name"] == "Solo Pilot"

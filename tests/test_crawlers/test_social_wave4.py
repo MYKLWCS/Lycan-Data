@@ -762,3 +762,407 @@ class TestTwitterCrawler:
         data = crawler._parse_profile(soup, "testuser")
         assert data.get("location") == "San Francisco, CA"
         assert data.get("profile_created_at_str") == "Joined January 2015"
+
+
+# ===========================================================================
+# instagram.py — missing branches: 67→74, 71→74, 75→87
+# ===========================================================================
+
+
+class TestInstagramBranchGaps:
+    # --- branch 67→74: title has no "•" so name_part block is skipped ---
+    def test_extract_profile_no_bullet_in_title(self):
+        """Branch 67→74: title without '•' skips name extraction, still extracts og_desc."""
+        import asyncio
+
+        from modules.crawlers.instagram import InstagramCrawler
+
+        crawler = InstagramCrawler.__new__(InstagramCrawler)
+        crawler.platform = "instagram"
+        crawler.source_reliability = 0.55
+
+        page = MagicMock()
+        page.get_attribute = AsyncMock(
+            side_effect=[
+                "",  # meta description
+                "A bio with no bullet title",  # og:description
+            ]
+        )
+        # Title without "•" — exercises 67→74 False branch
+        page.title = AsyncMock(return_value="Instagram Profile Page")
+        page.content = AsyncMock(return_value="<html></html>")
+
+        result = asyncio.get_event_loop().run_until_complete(
+            crawler._extract_profile(page, "someuser")
+        )
+        assert result["handle"] == "someuser"
+        assert "display_name" not in result
+        assert result.get("bio") == "A bio with no bullet title"
+
+    # --- branch 71→74: name_part stripped to empty string, not set ---
+    def test_extract_profile_name_part_empty_after_strip(self):
+        """Branch 71→74: handle-only title after regex strip yields empty name_part."""
+        import asyncio
+
+        from modules.crawlers.instagram import InstagramCrawler
+
+        crawler = InstagramCrawler.__new__(InstagramCrawler)
+        crawler.platform = "instagram"
+        crawler.source_reliability = 0.55
+
+        page = MagicMock()
+        page.get_attribute = AsyncMock(side_effect=["", ""])
+        # Title where everything before "•" is just the @handle — after regex strip: empty
+        page.title = AsyncMock(return_value="(@onlyhandle) • Instagram photos and videos")
+        page.content = AsyncMock(return_value="<html></html>")
+
+        result = asyncio.get_event_loop().run_until_complete(
+            crawler._extract_profile(page, "onlyhandle")
+        )
+        assert "display_name" not in result
+
+    # --- branch 75→87: og_desc is empty, bio block is skipped ---
+    def test_extract_profile_empty_og_desc(self):
+        """Branch 75→87: og:description is empty string, bio not set, skips to content."""
+        import asyncio
+
+        from modules.crawlers.instagram import InstagramCrawler
+
+        crawler = InstagramCrawler.__new__(InstagramCrawler)
+        crawler.platform = "instagram"
+        crawler.source_reliability = 0.55
+
+        page = MagicMock()
+        page.get_attribute = AsyncMock(side_effect=["", ""])  # both meta desc and og:desc empty
+        page.title = AsyncMock(return_value="")
+        page.content = AsyncMock(return_value='<html>is_verified":true</html>')
+
+        result = asyncio.get_event_loop().run_until_complete(
+            crawler._extract_profile(page, "verifieduser")
+        )
+        assert "bio" not in result
+        assert result.get("is_verified") is True
+
+
+# ===========================================================================
+# facebook.py — missing branch: 52→55
+# ===========================================================================
+
+
+class TestFacebookBranchGaps:
+    # --- branch 52→55: title has no "Facebook" → display_name not set ---
+    def test_extract_mobile_title_no_facebook_keyword(self):
+        """Branch 52→55: title exists but 'Facebook' not in it → display_name not set."""
+        import asyncio
+
+        from modules.crawlers.facebook import FacebookCrawler
+
+        crawler = FacebookCrawler.__new__(FacebookCrawler)
+        crawler.platform = "facebook"
+        crawler.source_reliability = 0.60
+
+        page = MagicMock()
+        # Title present but no "Facebook" keyword → if title and "Facebook" in title: False
+        page.title = AsyncMock(return_value="Some Unrelated Page Title")
+        page.query_selector = AsyncMock(return_value=None)
+
+        result = asyncio.get_event_loop().run_until_complete(
+            crawler._extract_mobile(page, "handle123", "")
+        )
+        assert result["handle"] == "handle123"
+        assert "display_name" not in result
+
+
+# ===========================================================================
+# reddit.py — missing branch: 72→75
+# ===========================================================================
+
+
+class TestRedditBranchGap72:
+    # --- branch 72→75: created_utc is None → created_at stays None ---
+    def test_parse_no_created_utc(self):
+        """Branch 72→75: created_utc is None → created_at remains None."""
+        from modules.crawlers.reddit import RedditCrawler
+
+        crawler = RedditCrawler.__new__(RedditCrawler)
+        raw = {
+            "name": "user1",
+            "id": "abc",
+            "link_karma": 10,
+            "comment_karma": 20,
+            # created_utc intentionally absent → .get() returns None
+            "verified": False,
+            "is_gold": False,
+            "has_verified_email": True,
+        }
+        data = crawler._parse(raw, "user1")
+        assert data["profile_created_at"] is None
+        assert data["handle"] == "user1"
+
+
+# ===========================================================================
+# pinterest.py — missing branch: 68→81
+# ===========================================================================
+
+
+class TestPinterestBranchGap68:
+    # --- branch 68→81: desc_tag exists but desc_tag.get("content") is falsy ---
+    def test_parse_meta_desc_tag_no_content(self):
+        """Branch 68→81: og:description tag present but content attr is empty."""
+        from bs4 import BeautifulSoup
+
+        from modules.crawlers.pinterest import PinterestCrawler
+
+        crawler = PinterestCrawler.__new__(PinterestCrawler)
+        # desc_tag exists but content="" (falsy) → inner if skipped, goes to 81 (end)
+        html = """<html><head>
+          <meta property="og:title" content="My Board" />
+          <meta property="og:description" content="" />
+        </head></html>"""
+        soup = BeautifulSoup(html, "html.parser")
+        data = crawler._parse_meta(soup, "myboard")
+        assert data["display_name"] == "My Board"
+        assert "bio" not in data
+        assert "follower_count" not in data
+
+
+# ===========================================================================
+# social_twitch.py — missing branches: 155→173, 174→191, 176→191
+# ===========================================================================
+
+
+class TestTwitchBranchGaps:
+    def _make_crawler(self):
+        from modules.crawlers.social_twitch import TwitchCrawler
+
+        return TwitchCrawler()
+
+    def _token_resp(self):
+        return _mock_resp(200, json_data={"access_token": "tok"})
+
+    def _user_resp(self):
+        return _mock_resp(
+            200,
+            json_data={
+                "data": [
+                    {
+                        "id": "456",
+                        "login": "streamer",
+                        "display_name": "Streamer",
+                        "type": "",
+                        "broadcaster_type": "partner",
+                        "description": "A streamer",
+                        "profile_image_url": "",
+                        "view_count": 500,
+                        "created_at": "2021-01-01T00:00:00Z",
+                    }
+                ]
+            },
+        )
+
+    # --- branch 155→173: stream_resp is None or non-200 → stream stays None ---
+    @pytest.mark.asyncio
+    async def test_stream_resp_none_skips_stream_block(self):
+        """Branch 155→173: stream_resp is None → stream block skipped, no live data."""
+        crawler = self._make_crawler()
+
+        ch_resp = _mock_resp(200, json_data={"data": []})
+
+        with patch("modules.crawlers.social_twitch.settings") as ms:
+            ms.twitch_client_id = "cid"
+            ms.twitch_client_secret = "csec"
+            with patch.object(crawler, "post", new=AsyncMock(return_value=self._token_resp())):
+                with patch.object(
+                    crawler,
+                    "get",
+                    new=AsyncMock(side_effect=[self._user_resp(), None, ch_resp]),
+                ):
+                    result = await crawler.scrape("streamer")
+
+        assert result.found is True
+        assert result.data.get("stream") is None
+        assert result.data.get("is_live") is False
+
+    # --- branch 174→191: user_id is empty string → channel block skipped ---
+    @pytest.mark.asyncio
+    async def test_no_user_id_skips_channel_fetch(self):
+        """Branch 174→191: user_id is '' (falsy) → channel fetch skipped."""
+        crawler = self._make_crawler()
+
+        # user response with no "id" field → user_id = ""
+        user_resp_no_id = _mock_resp(
+            200,
+            json_data={
+                "data": [
+                    {
+                        "id": "",
+                        "login": "noider",
+                        "display_name": "NoId",
+                        "type": "",
+                        "broadcaster_type": "",
+                        "description": "",
+                        "profile_image_url": "",
+                        "view_count": 0,
+                        "created_at": "",
+                    }
+                ]
+            },
+        )
+        stream_resp = _mock_resp(200, json_data={"data": []})
+
+        with patch("modules.crawlers.social_twitch.settings") as ms:
+            ms.twitch_client_id = "cid"
+            ms.twitch_client_secret = "csec"
+            with patch.object(crawler, "post", new=AsyncMock(return_value=self._token_resp())):
+                with patch.object(
+                    crawler,
+                    "get",
+                    new=AsyncMock(side_effect=[user_resp_no_id, stream_resp]),
+                ):
+                    result = await crawler.scrape("noider")
+
+        assert result.found is True
+        assert result.data.get("channel") is None
+
+    # --- branch 176→191: ch_resp is None → channel block skipped ---
+    @pytest.mark.asyncio
+    async def test_ch_resp_none_skips_channel_block(self):
+        """Branch 176→191: ch_resp is None → channel stays None."""
+        crawler = self._make_crawler()
+
+        stream_resp = _mock_resp(200, json_data={"data": []})
+
+        with patch("modules.crawlers.social_twitch.settings") as ms:
+            ms.twitch_client_id = "cid"
+            ms.twitch_client_secret = "csec"
+            with patch.object(crawler, "post", new=AsyncMock(return_value=self._token_resp())):
+                with patch.object(
+                    crawler,
+                    "get",
+                    new=AsyncMock(side_effect=[self._user_resp(), stream_resp, None]),
+                ):
+                    result = await crawler.scrape("streamer")
+
+        assert result.found is True
+        assert result.data.get("channel") is None
+
+
+# ===========================================================================
+# linkedin.py — missing branches: 91→89, 93→97
+# ===========================================================================
+
+
+class TestLinkedInSkillBranches:
+    # --- branch 91→89: skill element inner_text is empty → not appended, loops back ---
+    # --- branch 93→97: all skills empty → skills list is empty, not set in data ---
+    def test_extract_skills_all_empty_text(self):
+        """Branches 91→89 and 93→97: skill elements with empty text — skills not added."""
+        import asyncio
+
+        from modules.crawlers.linkedin import LinkedInCrawler
+
+        crawler = LinkedInCrawler.__new__(LinkedInCrawler)
+        crawler.platform = "linkedin"
+        crawler.source_reliability = 0.75
+
+        # skill_el returns empty text → if text: False (91→89), then if skills: False (93→97)
+        skill_el = MagicMock()
+        skill_el.inner_text = AsyncMock(return_value="   ")  # blank text
+
+        page = MagicMock()
+        page.title = AsyncMock(return_value="John Doe | LinkedIn")
+        page.query_selector = AsyncMock(return_value=None)
+        page.query_selector_all = AsyncMock(
+            side_effect=[
+                [skill_el],  # skill_els — non-empty list triggers outer if
+                [],  # endorsement_els
+            ]
+        )
+        page.url = "https://www.linkedin.com/in/johndoe/"
+
+        result = asyncio.get_event_loop().run_until_complete(crawler._extract(page, "johndoe"))
+        assert "skills" not in result
+
+
+# ===========================================================================
+# social_steam.py — missing branch: 183→193
+# ===========================================================================
+
+
+class TestSteamBranchGap183:
+    # --- branch 183→193: api_key present but _fetch_player_summary returns None ---
+    @pytest.mark.asyncio
+    async def test_scrape_api_key_set_summary_none(self):
+        """Branch 183→193: steam_api_key set but _fetch_player_summary returns None."""
+        from modules.crawlers.social_steam import SteamCrawler
+
+        crawler = SteamCrawler()
+
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<profile>
+  <steamID64>76561198000000001</steamID64>
+  <steamID><![CDATA[testgamer]]></steamID>
+  <onlineState>offline</onlineState>
+  <privacyState>public</privacyState>
+  <headline></headline>
+  <location></location>
+  <realname></realname>
+  <summary><![CDATA[test bio]]></summary>
+  <memberSince>January 1, 2015</memberSince>
+  <avatarIcon>https://example.com/a.jpg</avatarIcon>
+</profile>"""
+        xml_resp = _mock_resp(200, text=xml)
+
+        with patch("modules.crawlers.social_steam.settings") as ms:
+            ms.steam_api_key = "fakekey"  # api_key is truthy
+            with patch.object(crawler, "get", new=AsyncMock(return_value=xml_resp)):
+                with patch.object(
+                    crawler, "_fetch_player_summary", new=AsyncMock(return_value=None)
+                ):
+                    result = await crawler.scrape("testgamer")
+
+        assert result.found is True
+        # no real_name or country_code because summary was None
+        assert "real_name" not in result.data.get("profile", {})
+
+
+# ===========================================================================
+# social_spotify.py — missing branch: 149→166
+# ===========================================================================
+
+
+class TestSpotifyBranchGap149:
+    # --- branch 149→166: pl_resp is None → playlist block skipped, returns result ---
+    @pytest.mark.asyncio
+    async def test_playlist_resp_none_returns_result(self):
+        """Branch 149→166: pl_resp is None → playlists stays [], result is found=True."""
+        from modules.crawlers.social_spotify import SpotifyCrawler
+
+        crawler = SpotifyCrawler()
+
+        user_json = {
+            "id": "spotifyuser",
+            "display_name": "Spotify User",
+            "followers": {"total": 5},
+            "images": [],
+            "external_urls": {"spotify": "https://open.spotify.com/user/spotifyuser"},
+            "type": "user",
+            "uri": "spotify:user:spotifyuser",
+        }
+        user_resp = _mock_resp(200, json_data=user_json)
+        token_resp = _mock_resp(200, json_data={"access_token": "tok"})
+
+        with patch("modules.crawlers.social_spotify.settings") as ms:
+            ms.spotify_client_id = "cid"
+            ms.spotify_client_secret = "csec"
+            with patch.object(crawler, "post", new=AsyncMock(return_value=token_resp)):
+                with patch.object(
+                    crawler,
+                    "get",
+                    # user_resp then None for pl_resp
+                    new=AsyncMock(side_effect=[user_resp, None]),
+                ):
+                    result = await crawler.scrape("spotifyuser")
+
+        assert result.found is True
+        assert result.data.get("playlists") == []

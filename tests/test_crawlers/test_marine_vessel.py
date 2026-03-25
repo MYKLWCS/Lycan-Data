@@ -851,3 +851,57 @@ def test_parse_marinetraffic_html_outer_exception_returns_empty():
     with patch("bs4.BeautifulSoup", side_effect=Exception("mt boom")):
         vessels = _parse_marinetraffic_html("<html></html>")
     assert vessels == []
+
+
+# ---------------------------------------------------------------------------
+# Branch gap tests — arcs 104->102, 110->117, 113->112
+# ---------------------------------------------------------------------------
+
+
+def test_parse_mt_html_script_without_mmsi_keyword_not_processed():
+    """Arc 104->102: script tag present but contains no 'mmsi' keyword — branch skipped,
+    loop continues to next script without attempting JSON extraction."""
+    html = """
+    <html><body>
+    <script>var foo = "no vessel data here";</script>
+    <script>var bar = "also no ship info";</script>
+    </body></html>
+    """
+    vessels = _parse_marinetraffic_html(html)
+    # No script triggers extraction, no table either → empty
+    assert vessels == []
+
+
+def test_parse_mt_html_script_mmsi_present_but_no_regex_match():
+    """Arc 110->117: script contains 'mmsi' keyword but re.search finds no JSON array match
+    (if match: is False) → skips json.loads, executes break → fallback table path."""
+    # Text has 'mmsi' but no bracket-wrapped object matching the regex pattern
+    html = """
+    <html><body>
+    <script>
+    // mmsi is mentioned in a comment only, no array literal follows
+    var config = {"mmsi_enabled": true};
+    </script>
+    </body></html>
+    """
+    vessels = _parse_marinetraffic_html(html)
+    # No valid array extracted, no table either → empty list
+    assert isinstance(vessels, list)
+
+
+def test_parse_mt_html_script_json_array_contains_non_dict_item():
+    """Arc 113->112: parsed JSON array contains a non-dict item — isinstance check is False,
+    item is skipped, loop continues to next item."""
+    # Build HTML with a script that has 'mmsi' and a JSON array containing mixed types
+    html = """
+    <html><body>
+    <script>
+    var vessels = [42, "string_item", {"MMSI": "111222333", "SHIPNAME": "MIXED SHIP",
+                   "FLAG": "PA", "TYPE_NAME": "Tanker", "GT": 5000}]
+    </script>
+    </body></html>
+    """
+    vessels = _parse_marinetraffic_html(html)
+    # Non-dict items (42, "string_item") are skipped; the dict is processed
+    mmsi_list = [v["mmsi"] for v in vessels]
+    assert "111222333" in mmsi_list

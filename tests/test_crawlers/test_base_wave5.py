@@ -375,3 +375,45 @@ async def test_handle_ban_response_404_does_nothing():
 
     mock_pool.mark_banned.assert_not_awaited()
     mock_rotate.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Branch gap: _human_delay line 117 jitter_enabled=False arc
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_human_delay_jitter_disabled_skips_multiplication():
+    """Arc 117->119: settings.jitter_enabled is False — the multiplication branch is skipped
+    and asyncio.sleep is called directly with the base delay value."""
+    mock_settings = MagicMock()
+    mock_settings.human_delay_min = 0.0
+    mock_settings.human_delay_max = 0.0
+    mock_settings.jitter_enabled = False  # <-- False branch at line 117
+
+    with (
+        patch("modules.crawlers.base.settings", mock_settings),
+        patch("asyncio.sleep", new=AsyncMock()) as mock_sleep,
+    ):
+        await _DummyCrawler._human_delay()
+
+    mock_sleep.assert_awaited_once_with(0.0)
+
+
+@pytest.mark.asyncio
+async def test_human_delay_jitter_enabled_applies_multiplier():
+    """Arc 117->118: settings.jitter_enabled is True — base is multiplied by random factor."""
+    mock_settings = MagicMock()
+    mock_settings.human_delay_min = 1.0
+    mock_settings.human_delay_max = 1.0
+    mock_settings.jitter_enabled = True  # <-- True branch at line 117
+
+    with (
+        patch("modules.crawlers.base.settings", mock_settings),
+        patch("modules.crawlers.base.random") as mock_random,
+        patch("asyncio.sleep", new=AsyncMock()) as mock_sleep,
+    ):
+        mock_random.uniform.side_effect = [1.0, 1.0]  # base=1.0, jitter=1.0
+        await _DummyCrawler._human_delay()
+
+    mock_sleep.assert_awaited_once_with(1.0)

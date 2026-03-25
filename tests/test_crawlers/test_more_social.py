@@ -183,6 +183,132 @@ async def test_telegram_username_found():
     assert result.data["follower_count"] == 1234
 
 
+# --- TikTok: _parse branches (65→70, 70→75, 81→83) ---
+def test_tiktok_parse_empty_user_info_branch():
+    """Branch 65→70: user_info is empty dict, stats also empty → fallback to meta tags."""
+    import json
+
+    crawler = TikTokCrawler.__new__(TikTokCrawler)
+    crawler.platform = "tiktok"
+    crawler.source_reliability = 0.55
+
+    # user_info will be {} (falsy) and stats will be {} (falsy)
+    mock_data = {
+        "__DEFAULT_SCOPE__": {
+            "webapp.user-detail": {
+                "userInfo": {
+                    "user": {},
+                    "stats": {},
+                }
+            }
+        }
+    }
+    html = f'<html><head><title>Fallback Title|TikTok</title></head><script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">{json.dumps(mock_data)}</script></html>'
+    data = crawler._parse(html, "testhandle")
+    # returns data — user_info False branch (65→70) and stats False branch (70→75) both taken
+    assert data["handle"] == "testhandle"
+
+
+def test_tiktok_parse_no_title_branch():
+    """Branch 81→83: no <title> tag — if title: is False, skips to desc tag."""
+    crawler = TikTokCrawler.__new__(TikTokCrawler)
+    crawler.platform = "tiktok"
+    crawler.source_reliability = 0.55
+
+    # No script tag, no title tag — exercises the 81→83 False branch
+    html = '<html><head><meta name="description" content="A bio here" /></head><body></body></html>'
+    data = crawler._parse(html, "notitlehandle")
+    assert data["handle"] == "notitlehandle"
+    assert data.get("bio") == "A bio here"
+
+
+# --- Telegram: branch 114→131 (user is None from Telethon result) ---
+@pytest.mark.asyncio
+async def test_telegram_telethon_no_user_in_result():
+    """Branch 114→131: Telethon resolves phone but result.users is empty → found=False."""
+    import os
+    import sys
+    import types
+
+    # Build a minimal fake telethon package so the import inside _probe_phone succeeds
+    fake_telethon = types.ModuleType("telethon")
+    fake_errors = types.ModuleType("telethon.errors")
+    fake_sessions = types.ModuleType("telethon.sessions")
+    fake_tl = types.ModuleType("telethon.tl")
+    fake_functions = types.ModuleType("telethon.tl.functions")
+    fake_contacts = types.ModuleType("telethon.tl.functions.contacts")
+
+    class FakePhoneNumberInvalidError(Exception):
+        pass
+
+    class FakeStringSession:
+        def __init__(self, s):
+            pass
+
+    class FakeResolvePhoneRequest:
+        def __init__(self, phone):
+            pass
+
+    mock_result = MagicMock()
+    mock_result.users = []  # empty → user = None → exercises 114→131 False branch
+
+    mock_client = MagicMock()
+    mock_client.connect = AsyncMock()
+    mock_client.disconnect = AsyncMock()
+
+    async def fake_call(*args, **kwargs):
+        return mock_result
+
+    mock_client.__call__ = fake_call
+
+    class FakeTelegramClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def connect(self):
+            pass
+
+        async def disconnect(self):
+            pass
+
+        async def __call__(self, *args, **kwargs):
+            return mock_result
+
+    fake_telethon.TelegramClient = FakeTelegramClient
+    fake_errors.PhoneNumberInvalidError = FakePhoneNumberInvalidError
+    fake_sessions.StringSession = FakeStringSession
+    fake_contacts.ResolvePhoneRequest = FakeResolvePhoneRequest
+
+    fake_tl.functions = fake_functions
+    fake_functions.contacts = fake_contacts
+
+    modules_to_inject = {
+        "telethon": fake_telethon,
+        "telethon.errors": fake_errors,
+        "telethon.sessions": fake_sessions,
+        "telethon.tl": fake_tl,
+        "telethon.tl.functions": fake_functions,
+        "telethon.tl.functions.contacts": fake_contacts,
+    }
+
+    with patch.dict(sys.modules, modules_to_inject):
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_API_ID": "12345",
+                "TELEGRAM_API_HASH": "fakehash",
+                "TELEGRAM_SESSION": "fakesession",
+            },
+        ):
+            from modules.crawlers.telegram import TelegramCrawler
+
+            crawler = TelegramCrawler()
+            result = await crawler.scrape("+15551234567")
+
+    assert result.found is False
+    assert result.data["telegram_registered"] is False
+
+
 # --- YouTube ---
 @pytest.mark.asyncio
 async def test_youtube_channel_found():

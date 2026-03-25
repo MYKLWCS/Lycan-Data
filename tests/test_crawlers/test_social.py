@@ -47,6 +47,67 @@ def test_parse_stat_empty():
     assert _parse_stat("") == 0
 
 
+# --- _parse_profile branch: name_tag absent (72→75) ---
+def test_parse_profile_no_name_tag():
+    from bs4 import BeautifulSoup
+
+    crawler = TwitterCrawler.__new__(TwitterCrawler)
+    # No profile-card-fullname element — name_tag is None, branch 72→75
+    html = "<html><body><div class='profile-bio'>Just a bio</div></body></html>"
+    soup = BeautifulSoup(html, "html.parser")
+    data = crawler._parse_profile(soup, "noname")
+    assert "display_name" not in data
+    assert data["bio"] == "Just a bio"
+
+
+# --- _parse_profile branch: "follower" label hit (88→81) ---
+def test_parse_profile_follower_stat_branch():
+    from bs4 import BeautifulSoup
+
+    crawler = TwitterCrawler.__new__(TwitterCrawler)
+    # Only a "Followers" stat — exercises the elif "follower" branch at line 88
+    html = """<html><body>
+      <div class="profile-stat-num">999</div>
+      <div class="profile-stat-header">Followers</div>
+    </body></html>"""
+    soup = BeautifulSoup(html, "html.parser")
+    data = crawler._parse_profile(soup, "user")
+    assert data["follower_count"] == 999
+
+
+# --- _parse_tweets branches (110→112, 113→115, 116→121, 119→117, 121→107) ---
+def test_parse_tweets_branches():
+    """Exercises all uncovered _parse_tweets branches with crafted HTML."""
+    from bs4 import BeautifulSoup
+
+    crawler = TwitterCrawler.__new__(TwitterCrawler)
+
+    html = """<html><body>
+      <!-- Item 1: no tweet-content (110→112 False), no date-tag, no stats, empty tweet (121→107 False) -->
+      <div class="timeline-item"></div>
+      <!-- Item 2: tweet-content present, date-tag present but no <a> inside (113→115 False), stats present but no icon-comment (119→117 False) -->
+      <div class="timeline-item">
+        <div class="tweet-content">Hello tweet</div>
+        <div class="tweet-date"><span>no link here</span></div>
+        <div class="tweet-stats">
+          <div class="tweet-stat"><span class="icon-retweet"></span>5</div>
+        </div>
+      </div>
+      <!-- Item 3: no stats element at all (116→121 False) -->
+      <div class="timeline-item">
+        <div class="tweet-content">Another tweet</div>
+      </div>
+    </body></html>"""
+    soup = BeautifulSoup(html, "html.parser")
+    tweets = crawler._parse_tweets(soup)
+    # Item 1: empty tweet → not appended
+    # Item 2 and 3: both appended
+    assert len(tweets) == 2
+    assert tweets[0]["text"] == "Hello tweet"
+    assert "replies" not in tweets[0]
+    assert "date" not in tweets[0]
+
+
 # --- Instagram scraper mock ---
 @pytest.mark.asyncio
 async def test_instagram_private_account():

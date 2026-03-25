@@ -1123,6 +1123,37 @@ class TestSocialMastodon:
         assert _strip_html("<p>Hello <b>world</b></p>") == "Hello world"
         assert _strip_html("plain text") == "plain text"
 
+    @pytest.mark.asyncio
+    async def test_acct_already_has_at_sign_not_normalized(self):
+        """Branch 120→122: acct already contains '@' — normalization step skipped."""
+        from modules.crawlers.social_mastodon import MastodonCrawler
+
+        crawler = MastodonCrawler()
+        # acct already includes instance — branch 120→122 (False path: '@' in acct)
+        account = {
+            "id": "2",
+            "username": "crossuser",
+            "acct": "crossuser@other.social",  # already contains '@'
+            "display_name": "Cross User",
+            "url": "https://other.social/@crossuser",
+            "followers_count": 42,
+            "following_count": 7,
+            "statuses_count": 15,
+            "created_at": "2023-01-01T00:00:00Z",
+            "note": "",
+            "bot": False,
+            "locked": False,
+            "fields": [],
+        }
+        payload = {"accounts": [account]}
+        resp = _mock_json_resp(200, payload)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("crossuser")
+        assert result.found is True
+        # acct should remain as-is (not double-normalized)
+        accts = [a["acct"] for a in result.data.get("accounts", [])]
+        assert any("@" in a for a in accts)
+
 
 # ===========================================================================
 # social_spotify

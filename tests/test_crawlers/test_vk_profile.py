@@ -939,3 +939,55 @@ async def test_search_by_name_html_206_ok():
 
     assert result is not None
     assert result["display_name"] == "Kim"
+
+
+# ---------------------------------------------------------------------------
+# _parse_vk_html — missing branches:
+#   168→166: "follower" string in an element whose .parent is None
+#   171→166: "follower" string found but regex doesn't match count
+# ---------------------------------------------------------------------------
+
+
+def test_parse_vk_html_follower_string_parent_none():
+    """Branch 168→166: NavigableString matching 'follower' but parent is None — skipped."""
+    from unittest.mock import patch
+
+    class FakeNavigableString(str):
+        parent = None
+
+    with patch("bs4.BeautifulSoup") as mock_bs:
+        fake_soup = MagicMock()
+        fake_soup.select_one.return_value = None
+        fake_soup.find.return_value = None
+        # find_all for follower returns a string with no parent
+        fake_soup.find_all.return_value = [FakeNavigableString("1000 followers")]
+        fake_soup.select.return_value = []
+        mock_bs.return_value = fake_soup
+
+        result = _parse_vk_html("<html><body><h1>User</h1><span>1000 followers</span></body></html>")
+
+    # follower_count not set because parent was None
+    assert "follower_count" not in result
+
+
+def test_parse_vk_html_follower_string_no_digit_match():
+    """Branch 171→166: parent exists but count_text has no digit sequence — re.search returns None."""
+    html = """
+    <html><body>
+      <h1>Test User</h1>
+      <span>no numbers followers here</span>
+    </body></html>
+    """
+    # The parent.get_text() returns "no numbers followers here"
+    # re.search(r"([\d\s,]+)", ...) won't match "no numbers" portion if we craft it carefully
+    # Actually the regex \d matches digits — "no numbers" has no digits → m is None → 171→166
+    import re
+
+    count_text = "no numbers followers here"
+    m = re.search(r"([\d\s,]+)", count_text)
+    # Confirm no match in the test data
+    assert m is None
+
+    result = _parse_vk_html(html)
+    # follower_count not set — regex didn't match
+    assert "follower_count" not in result

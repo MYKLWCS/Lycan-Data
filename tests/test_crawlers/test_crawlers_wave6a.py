@@ -217,6 +217,27 @@ class TestClustrMaps:
             result = await crawler.scrape("John Doe")
         assert result.found is False
 
+    @pytest.mark.asyncio
+    async def test_address_item_empty_text_skipped(self):
+        """Branch 52→50: address-item elements present but all empty — skips primary loop.
+        Branch 58→56: fallback div with 'address' class but empty text — skips fallback loop.
+        Both False branches exercised: found=False since no addresses accumulated."""
+        from modules.crawlers.clustrmaps import ClustrMapsCrawler
+
+        crawler = ClustrMapsCrawler()
+        # address-item exists but text is blank (whitespace only) → if text: False (52→50)
+        # fallback div has 'address' in class but also blank → if text: False (58→56)
+        html = """<html><body>
+            <h1>Jane Doe</h1>
+            <div class="address-item">   </div>
+            <div class="address-history">   </div>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("Jane Doe")
+        assert result.found is False
+        assert result.data["addresses"] == []
+
 
 # ---------------------------------------------------------------------------
 # 5. county_assessor_fl.py

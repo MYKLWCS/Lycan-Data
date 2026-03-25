@@ -883,3 +883,69 @@ async def test_search_by_name_no_account_id_skips_statuses():
     fetch_statuses_mock.assert_not_called()
     assert result is not None
     assert result["username"] == "anon"
+
+
+# ---------------------------------------------------------------------------
+# _parse_profile_html — missing branches:
+#   157→143: stat label matches neither follower/following/post/trut/status
+#   172→170: Joined string in a tag whose .parent is None
+#   181→178: post element has no text_el (if text_el: False)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_profile_html_unknown_stat_label_skipped():
+    """Branch 157→143: counter with unrecognised label — no key set, loop continues."""
+    html = """
+    <html><body>
+      <h1>Name</h1>
+      <div class="account__header__bar">
+        <div class="counter">
+          <small class="counter-label">Views</small>
+          <strong class="counter-number">9999</strong>
+        </div>
+      </div>
+    </body></html>
+    """
+    result = _parse_profile_html(html)
+    assert "follower_count" not in result
+    assert "following_count" not in result
+    assert "post_count" not in result
+
+
+def test_parse_profile_html_joined_parent_none():
+    """Branch 172→170: 'Joined' string found at top-level with parent=None won't crash."""
+    # In BeautifulSoup the NavigableString for a top-level text node has parent=document
+    # We simulate the branch by patching soup.find_all to return a string whose parent is None
+    from unittest.mock import patch
+
+    class FakeNavigableString(str):
+        parent = None
+
+    with patch("bs4.BeautifulSoup") as mock_bs:
+        fake_soup = MagicMock()
+        # find_all returns our fake string whose parent is None
+        fake_soup.find_all.return_value = [FakeNavigableString("Joined 2020")]
+        fake_soup.select_one.return_value = None
+        fake_soup.select.return_value = []
+        mock_bs.return_value = fake_soup
+
+        result = _parse_profile_html("<html><body>Joined 2020</body></html>")
+
+    # joined_date must NOT be set (parent was None)
+    assert "joined_date" not in result
+
+
+def test_parse_profile_html_post_without_text_el_not_appended():
+    """Branch 181→178: post element with no matching text selector → not appended."""
+    html = """
+    <html><body>
+      <h1>Name</h1>
+      <div class="status">
+        <!-- no .status__content, .content, or p inside -->
+        <time datetime="2024-06-01T00:00:00Z">June 1</time>
+      </div>
+    </body></html>
+    """
+    result = _parse_profile_html(html)
+    # The status element has a time but no text_el → if text_el: False → not appended
+    assert "recent_posts" not in result
