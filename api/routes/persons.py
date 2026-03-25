@@ -404,17 +404,13 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
     # Connections — person relationships
     from shared.models.relationship import Relationship
 
-    rels_res = await session.execute(
-        select(Relationship).where(Relationship.person_a_id == uid)
-    )
+    rels_res = await session.execute(select(Relationship).where(Relationship.person_a_id == uid))
     rels = rels_res.scalars().all()
 
     related_ids = [r.person_b_id for r in rels]
     related_persons: dict = {}
     if related_ids:
-        rp_res = await session.execute(
-            select(Person).where(Person.id.in_(related_ids))
-        )
+        rp_res = await session.execute(select(Person).where(Person.id.in_(related_ids)))
         for rp in rp_res.scalars().all():
             related_persons[rp.id] = rp
 
@@ -439,13 +435,13 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
 
     sources_attempted = len({(j.meta or {}).get("platform", str(j.id)) for j in crawl_jobs})
     sources_found = sum(
-        1 for j in crawl_jobs
+        1
+        for j in crawl_jobs
         if (j.status or "") in ("done", "complete", "success", "found")
         or int(j.result_count or 0) > 0
     )
     coverage_pct = (
-        round(sources_found / sources_enabled_count * 100)
-        if sources_enabled_count > 0 else 0
+        round(sources_found / sources_enabled_count * 100) if sources_enabled_count > 0 else 0
     )
 
     # Phone identifiers confirmed by WhatsApp/Telegram get a special flag
@@ -499,7 +495,8 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
                     "person_id": str(r.person_b_id),
                     "full_name": (
                         related_persons[r.person_b_id].full_name
-                        if r.person_b_id in related_persons else None
+                        if r.person_b_id in related_persons
+                        else None
                     ),
                     "relationship_type": r.rel_type,
                     "relationship_score": r.score,

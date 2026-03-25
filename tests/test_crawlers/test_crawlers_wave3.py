@@ -735,9 +735,7 @@ class TestCourtStateCrawler:
 
         with patch.dict(sys.modules, {"bs4": None}):
             # Force the lazy import inside the function to fail
-            (
-                __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
-            )  # noqa
+            (__builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__)  # noqa
 
             def _block_bs4(name, *args, **kwargs):
                 if name == "bs4":
