@@ -18,6 +18,7 @@ Weights:
 from __future__ import annotations
 
 import math
+from math import exp
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -67,13 +68,15 @@ def compute_composite_quality(
 
 def corroboration_score_from_count(count: int) -> float:
     """
-    Map corroboration count to a score.
-    1 source = 0.2, 2 = 0.5, 3 = 0.7, 4 = 0.85, 5+ = 1.0
-    Uses log curve: score = min(1.0, log(count+1) / log(6))
+    Sigmoid: count=1→0.50, count=2→0.73, count=3→0.88, count=5→0.98
+
+    Replaces the previous log curve. The sigmoid gives more meaningful
+    separation at low counts (1-3 sources) which is the practical range
+    for most OSINT records. Reaches ~1.0 at 5 sources instead of 10.
     """
     if count <= 0:
         return 0.0
-    return round(min(1.0, math.log(count + 1) / math.log(6)), 4)
+    return round(min(1.0, 1 / (1 + exp(-1.0 * (count - 1)))), 4)
 
 
 def get_source_reliability(source_name: str) -> float:
