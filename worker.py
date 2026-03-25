@@ -43,7 +43,7 @@ def _import_all_crawlers():
             pass
 
 
-async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable_commercial: bool = True):
+async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable_commercial: bool = True, enable_audit: bool = True):
     # Setup
     _import_all_crawlers()
     from modules.dispatcher.dispatcher import CrawlDispatcher
@@ -109,11 +109,19 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable
         tasks.append(asyncio.create_task(ct.start(), name="commercial-tagger"))
         logger.info("Started commercial tagger daemon")
 
+    # Audit daemon (hourly platform health snapshots)
+    if enable_audit:
+        from modules.audit.audit_daemon import AuditDaemon
+        ad = AuditDaemon()
+        tasks.append(asyncio.create_task(ad.start(), name="audit-daemon"))
+        logger.info("Started audit daemon")
+
     logger.info(
         f"Worker running — {workers} dispatcher(s) + "
         f"{'growth daemon + ' if enable_growth else ''}"
         f"{'freshness scheduler + ' if enable_freshness else ''}"
         f"{'commercial tagger + ' if enable_commercial else ''}"
+        f"{'audit daemon + ' if enable_audit else ''}"
         f"auto-dedup daemon"
     )
 
@@ -143,6 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-growth", action="store_true", help="Disable growth daemon")
     parser.add_argument("--no-freshness", action="store_true", help="Disable freshness scheduler")
     parser.add_argument("--no-commercial", action="store_true", help="Disable commercial tagger daemon")
+    parser.add_argument("--no-audit", action="store_true", help="Disable audit daemon")
     args = parser.parse_args()
 
     asyncio.run(
@@ -151,5 +160,6 @@ if __name__ == "__main__":
             enable_growth=not args.no_growth,
             enable_freshness=not args.no_freshness,
             enable_commercial=not args.no_commercial,
+            enable_audit=not args.no_audit,
         )
     )
