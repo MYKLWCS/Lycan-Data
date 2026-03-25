@@ -453,3 +453,198 @@ async def test_search_acuris_non_200():
     with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(403))):
         results = await crawler._search_acuris("X")
     assert results == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_complyadvantage_html — table fallback when no card results (line 114)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_ca_html_table_fallback_when_no_cards():
+    """Lines 113-147: table path only runs when card loop produced no results."""
+    # HTML has zero <article> cards but does have a table with a named row.
+    html = """
+    <html><body>
+    <table>
+      <tr><th>Name</th><th>Role</th><th>Country</th></tr>
+      <tr><td>Carlos Mendez</td><td>Prime Minister</td><td>AR</td></tr>
+    </table>
+    </body></html>
+    """
+    results = _parse_complyadvantage_html(html)
+    assert len(results) == 1
+    r = results[0]
+    assert r["name"] == "Carlos Mendez"
+    assert r["country"] == "AR"
+    assert r["source"] == "world_check_mirror"
+    assert r["source_site"] == "complyadvantage"
+    assert r["pep_level"] == "tier1"  # "minister" keyword → tier1
+
+
+def test_parse_ca_html_table_fallback_not_triggered_when_cards_exist():
+    """Table path must NOT run when cards already produced results (line 114 guard)."""
+    html = """
+    <html><body>
+    <article>
+      <h3 class="entity-name">Alice Borg</h3>
+      <div class="role">Senator</div>
+    </article>
+    <table>
+      <tr><th>Name</th><th>Role</th></tr>
+      <tr><td>Bob Table</td><td>Director</td></tr>
+    </table>
+    </body></html>
+    """
+    results = _parse_complyadvantage_html(html)
+    # Only the card result; table should be skipped
+    names = [r["name"] for r in results]
+    assert "Alice Borg" in names
+    assert "Bob Table" not in names
+
+
+# ---------------------------------------------------------------------------
+# _parse_complyadvantage_html — table row without name skipped (lines 144-145)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_ca_html_table_row_without_name_skipped():
+    """Lines 129-131: row where record['name'] is empty must be skipped."""
+    html = """
+    <html><body>
+    <table>
+      <tr><th>Name</th><th>Role</th><th>Country</th></tr>
+      <tr><td></td><td>Senior Advisor</td><td>DE</td></tr>
+    </table>
+    </body></html>
+    """
+    results = _parse_complyadvantage_html(html)
+    assert results == []
+
+
+def test_parse_ca_html_table_mixed_rows_skips_nameless():
+    """Table with one valid row and one nameless row — only valid row returned."""
+    html = """
+    <html><body>
+    <table>
+      <tr><th>Name</th><th>Role</th><th>Country</th></tr>
+      <tr><td>Valid Person</td><td>Minister</td><td>FR</td></tr>
+      <tr><td></td><td>Unknown Role</td><td>ES</td></tr>
+    </table>
+    </body></html>
+    """
+    results = _parse_complyadvantage_html(html)
+    assert len(results) == 1
+    assert results[0]["name"] == "Valid Person"
+
+
+# ---------------------------------------------------------------------------
+# _parse_generic_kyc_html — worksFor as non-dict string (lines 185-186)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_generic_kyc_works_for_string_branch():
+    """Lines 181-182: when worksFor is a plain string, use str() of it directly."""
+    html = """
+    <html><head>
+    <script type="application/ld+json">
+    {
+      "@type": "Person",
+      "name": "Fatima Al-Hassan",
+      "jobTitle": "Ambassador",
+      "nationality": "NG",
+      "worksFor": "Nigerian Ministry of Foreign Affairs"
+    }
+    </script>
+    </head><body></body></html>
+    """
+    results = _parse_generic_kyc_html(html, "kyc_portal")
+    assert len(results) == 1
+    r = results[0]
+    assert r["name"] == "Fatima Al-Hassan"
+    assert r["organization"] == "Nigerian Ministry of Foreign Affairs"
+    assert r["source_site"] == "kyc_portal"
+
+
+def test_parse_generic_kyc_works_for_dict_branch():
+    """Confirm the dict branch (line 180) still works — not broken by the string branch."""
+    html = """
+    <html><head>
+    <script type="application/ld+json">
+    {
+      "@type": "Person",
+      "name": "Pierre Dupont",
+      "worksFor": {"name": "Assemblée Nationale"}
+    }
+    </script>
+    </head><body></body></html>
+    """
+    results = _parse_generic_kyc_html(html, "fr_kyc")
+    assert len(results) == 1
+    assert results[0]["organization"] == "Assemblée Nationale"
+
+
+def test_parse_generic_kyc_works_for_none():
+    """worksFor absent → organization should be empty string."""
+    html = """
+    <html><head>
+    <script type="application/ld+json">
+    {"@type": "Person", "name": "Solo Actor"}
+    </script>
+    </head><body></body></html>
+    """
+    results = _parse_generic_kyc_html(html, "test")
+    assert len(results) == 1
+    assert results[0]["organization"] == ""
+
+
+# ---------------------------------------------------------------------------
+# _parse_generic_kyc_html — heading pattern fallback (lines 211-212)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_generic_kyc_heading_fallback_appends_result():
+    """Lines 200-213: heading matching the capitalised name pattern appends an entry."""
+    html = """
+    <html><body>
+    <h3>Maria Santos</h3>
+    <p>Deputy Foreign Minister</p>
+    </body></html>
+    """
+    results = _parse_generic_kyc_html(html, "heading_site")
+    assert len(results) == 1
+    r = results[0]
+    assert r["name"] == "Maria Santos"
+    assert r["position"] == "Deputy Foreign Minister"
+    assert r["source_site"] == "heading_site"
+    assert r["source"] == "world_check_mirror"
+
+
+def test_parse_generic_kyc_heading_fallback_no_sibling():
+    """Heading matches but has no next sibling — position should be empty string."""
+    html = """
+    <html><body>
+    <h1>James Kirk</h1>
+    </body></html>
+    """
+    results = _parse_generic_kyc_html(html, "nosib_site")
+    assert len(results) == 1
+    assert results[0]["name"] == "James Kirk"
+    assert results[0]["position"] == ""
+
+
+def test_parse_generic_kyc_heading_fallback_not_triggered_when_json_ld_present():
+    """If JSON-LD already produced results, heading fallback is skipped (line 193 guard)."""
+    html = """
+    <html><head>
+    <script type="application/ld+json">
+    {"@type": "Person", "name": "Json Person"}
+    </script>
+    </head><body>
+    <h2>Heading Person</h2>
+    <p>Some Role</p>
+    </body></html>
+    """
+    results = _parse_generic_kyc_html(html, "combined")
+    names = [r["name"] for r in results]
+    assert "Json Person" in names
+    assert "Heading Person" not in names

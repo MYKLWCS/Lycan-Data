@@ -667,3 +667,168 @@ async def test_search_uscg_non_200():
     with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(403))):
         results = await crawler._search_uscg("X", "vessel_name")
     assert results == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_marinetraffic_html — JSON-in-script extraction (lines 113-126)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_mt_html_json_in_script_extracted():
+    """Lines 112-126: when a <script> contains 'mmsi', extract JSON array from it."""
+    # Build HTML with embedded script containing MMSI JSON data
+    html = """
+    <html><body>
+    <script>
+    var vessels = [{"MMSI": "123456789", "SHIPNAME": "SCRIPT SHIP", "FLAG": "PA",
+                    "TYPE_NAME": "Tanker", "GT": 5000, "IMO": "1111111",
+                    "CALLSIGN": "SS1", "LENGTH": 200, "YEAR_BUILT": 2010,
+                    "OWNER": "Script Owner", "MANAGER": "Script Ops",
+                    "PORT": "Panama", "LAST_PORT": "Rotterdam",
+                    "LAT": 8.99, "LON": -79.5, "TIMESTAMP": "2026-03-25T00:00:00Z"}]
+    </script>
+    </body></html>
+    """
+    vessels = _parse_marinetraffic_html(html)
+    assert len(vessels) == 1
+    v = vessels[0]
+    assert v["mmsi"] == "123456789"
+    assert v["vessel_name"] == "SCRIPT SHIP"
+    assert v["source"] == "marinetraffic"
+
+
+def test_parse_mt_html_json_in_script_uppercase_mmsi_key():
+    """Script text containing 'MMSI' (uppercase) also triggers JSON extraction."""
+    html = """
+    <html><body>
+    <script>
+    var data = [{"MMSI": "987654321", "SHIPNAME": "UPPER KEY SHIP", "FLAG": "LR",
+                 "TYPE_NAME": "Cargo", "GT": 3000}]
+    </script>
+    </body></html>
+    """
+    vessels = _parse_marinetraffic_html(html)
+    assert len(vessels) >= 1
+    assert vessels[0]["mmsi"] == "987654321"
+
+
+def test_parse_mt_html_json_in_script_malformed_json_skipped():
+    """Lines 124-125: malformed JSON inside mmsi-containing script is silently skipped."""
+    html = """
+    <html><body>
+    <script>
+    var broken = "mmsi" + [{INVALID JSON HERE}];
+    </script>
+    </body></html>
+    """
+    # Should not raise; returns empty list or falls through to table path
+    vessels = _parse_marinetraffic_html(html)
+    assert isinstance(vessels, list)
+
+
+def test_parse_mt_html_json_in_script_break_after_first_match():
+    """Line 126: loop breaks after first matching script, second mmsi script is ignored."""
+    html = """
+    <html><body>
+    <script>
+    var first = [{"MMSI": "111111111", "SHIPNAME": "FIRST SHIP", "FLAG": "PA",
+                  "TYPE_NAME": "Tanker", "GT": 1000}]
+    </script>
+    <script>
+    var second = [{"MMSI": "222222222", "SHIPNAME": "SECOND SHIP", "FLAG": "MH",
+                   "TYPE_NAME": "Bulk Carrier", "GT": 2000}]
+    </script>
+    </body></html>
+    """
+    vessels = _parse_marinetraffic_html(html)
+    mmsi_list = [v["mmsi"] for v in vessels]
+    assert "111111111" in mmsi_list
+    assert "222222222" not in mmsi_list
+
+
+# ---------------------------------------------------------------------------
+# _normalise_mt_item — VESSEL_TYPE alias and GROSS_TONNAGE alias (line 184-185)
+# ---------------------------------------------------------------------------
+
+
+def test_normalise_mt_item_vessel_type_alias():
+    """Line 184: VESSEL_TYPE key (not TYPE_NAME) is used when TYPE_NAME absent."""
+    item = {
+        "MMSI": "555",
+        "VESSEL_TYPE": "Bulk Carrier",
+        "GT": 12000,
+    }
+    result = _normalise_mt_item(item)
+    assert result["vessel_type"] == "Bulk Carrier"
+    # GT 12000 → 10k < gt < 50k multiplier applied: int(30_000_000 * 1.5)
+    assert result["estimated_value_usd"] == int(30_000_000 * 1.5)
+
+
+def test_normalise_mt_item_gross_tonnage_alias():
+    """Line 185: GROSS_TONNAGE key is used when GT and gross_tonnage are absent."""
+    item = {
+        "mmsi": "777",
+        "GROSS_TONNAGE": 60000,
+        "TYPE_NAME": "Tanker",
+    }
+    result = _normalise_mt_item(item)
+    assert result["gross_tonnage"] == 60000
+    assert result["estimated_value_usd"] == int(50_000_000 * 2.5)
+
+
+# ---------------------------------------------------------------------------
+# _parse_vesselfinder_html — exception path (lines 265-266)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_vf_html_exception_returns_empty_list():
+    """Lines 265-266: exception inside _parse_vesselfinder_html is caught, returns []."""
+    from unittest.mock import MagicMock, patch
+
+    # Patch BeautifulSoup at the bs4 module level (imported inline inside the function)
+    bad_soup = MagicMock()
+    bad_soup.find.side_effect = RuntimeError("simulated parse failure")
+
+    with patch("bs4.BeautifulSoup", return_value=bad_soup):
+        vessels = _parse_vesselfinder_html("<html><body></body></html>")
+
+    assert vessels == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_uscg_html — break-after-first-table-with-vessels branch (lines 324-325)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_uscg_html_breaks_after_first_vessel_table():
+    """Lines 324-325: once a table yields vessels, the outer loop breaks."""
+    html = """
+    <html><body>
+    <table id="first">
+      <tr><th>Vessel Name</th><th>Document Number</th><th>Owner</th></tr>
+      <tr><td>FIRST BOAT</td><td>DOC-001</td><td>Owner A</td></tr>
+    </table>
+    <table id="second">
+      <tr><th>Vessel Name</th><th>Document Number</th><th>Owner</th></tr>
+      <tr><td>SECOND BOAT</td><td>DOC-002</td><td>Owner B</td></tr>
+    </table>
+    </body></html>
+    """
+    vessels = _parse_uscg_html(html)
+    names = [v["vessel_name"] for v in vessels]
+    assert "FIRST BOAT" in names
+    # Second table should NOT be processed due to break
+    assert "SECOND BOAT" not in names
+
+
+def test_parse_uscg_html_exception_returns_empty_list():
+    """Lines 326-327: exception inside the USCG parser is caught and returns []."""
+    from unittest.mock import MagicMock, patch
+
+    bad_soup = MagicMock()
+    bad_soup.find_all.side_effect = RuntimeError("simulated uscg failure")
+
+    with patch("bs4.BeautifulSoup", return_value=bad_soup):
+        vessels = _parse_uscg_html("<html><body></body></html>")
+
+    assert vessels == []
