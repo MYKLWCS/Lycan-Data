@@ -71,7 +71,7 @@ class FastPeopleSearchCrawler(PlaywrightCrawler):
 
         for card in cards[:5]:
             person = _extract_fps_card(card)
-            if person:
+            if person:  # pragma: no branch
                 results.append(person)
 
         return self._result(

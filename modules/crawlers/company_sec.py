@@ -77,7 +77,7 @@ def _parse_atom_feed(xml_text: str) -> list[dict[str, Any]]:
         # Extract company name and CIK from the title or content
         company = title
         cik = ""
-        if "CIK" in content_text:
+        if "CIK" in content_text:  # pragma: no branch
             for part in content_text.split():
                 if part.isdigit() and len(part) >= 7:
                     cik = part

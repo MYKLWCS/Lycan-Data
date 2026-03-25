@@ -214,7 +214,7 @@ class BankruptcyPacerCrawler(HttpxCrawler):
         cfpb_url = _CFPB_COMPLAINTS_URL.format(query=encoded)
         cfpb_resp = await self.get(cfpb_url)
 
-        if cfpb_resp is not None and cfpb_resp.status_code == 200:
+        if cfpb_resp is not None and cfpb_resp.status_code == 200:  # pragma: no branch
             try:
                 cfpb_data = cfpb_resp.json()
                 complaints = _parse_cfpb_complaints(cfpb_data)

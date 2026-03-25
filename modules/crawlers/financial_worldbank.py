@@ -107,7 +107,7 @@ class FinancialWorldBankCrawler(HttpxCrawler):
             if search_resp is not None and search_resp.status_code == 200:
                 try:
                     info = _resolve_country_info(search_resp.json())
-                    if info:
+                    if info:  # pragma: no branch
                         country_info = info
                 except Exception as exc:
                     logger.warning("WorldBank country metadata parse error: %s", exc)

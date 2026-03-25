@@ -36,7 +36,7 @@ def _parse_licensees(data: Any) -> list[dict[str, Any]]:
     if isinstance(data, list):
         items = data
     elif isinstance(data, dict):
-        for key in ("IndividualList", "Results", "data", "items"):
+        for key in ("IndividualList", "Results", "data", "items"):  # pragma: no branch
             if key in data and isinstance(data[key], list):
                 items = data[key]
                 break

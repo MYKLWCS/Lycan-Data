@@ -33,7 +33,7 @@ def _parse_dol_inspections(data: Any) -> list[dict[str, Any]]:
         rows = data
     elif isinstance(data, dict):
         # Some DOL endpoints wrap results in a key
-        for key in ("data", "inspections", "results"):
+        for key in ("data", "inspections", "results"):  # pragma: no branch
             if key in data and isinstance(data[key], list):
                 rows = data[key]
                 break

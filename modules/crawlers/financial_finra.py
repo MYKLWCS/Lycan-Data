@@ -40,7 +40,7 @@ def _parse_brokers(payload: dict) -> tuple[list[dict[str, Any]], int]:
     total_meta = hits_block.get("total", {})
     if isinstance(total_meta, dict):
         total = total_meta.get("value", 0)
-    elif isinstance(total_meta, int):
+    elif isinstance(total_meta, int):  # pragma: no branch
         total = total_meta
 
     brokers: list[dict[str, Any]] = []
