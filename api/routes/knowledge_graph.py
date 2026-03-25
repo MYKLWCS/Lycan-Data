@@ -1,7 +1,6 @@
 """Knowledge Graph API routes — AGE-backed OSINT graph + saturation crawling."""
 
 import logging
-import uuid as _uuid
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field

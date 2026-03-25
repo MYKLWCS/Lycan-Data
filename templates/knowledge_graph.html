@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lycan OSINT — Knowledge Graph</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+.graph-container {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.graph-canvas { width: 100%; height: 100%; }
+.graph-controls {
+  position: absolute; top: 12px; right: 12px;
+  display: flex; flex-direction: column; gap: 6px; z-index: 10;
+}
+.graph-controls button {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
+  width: 36px; height: 36px; border-radius: var(--radius);
+  cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+}
+.graph-controls button:hover { background: var(--accent-lo); border-color: var(--accent); color: var(--accent); }
+.graph-search { display: flex; gap: 8px; margin-bottom: 16px; }
+.graph-search input {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+  padding: 10px 14px; border-radius: var(--radius); font-family: var(--font); font-size: 13px; outline: none;
+}
+.graph-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-lo); }
+.graph-search select {
+  background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+  padding: 10px 14px; border-radius: var(--radius); font-family: var(--font); font-size: 13px;
+  cursor: pointer; min-width: 140px;
+}
+.graph-search button {
+  background: var(--accent); border: none; color: var(--bg);
+  padding: 10px 20px; border-radius: var(--radius); font-family: var(--font);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.graph-search button:hover { opacity: 0.85; }
+.graph-search button:disabled { opacity: 0.4; cursor: not-allowed; }
+.graph-info {
+  position: absolute; bottom: 12px; left: 12px;
+  background: rgba(6,8,12,0.9); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px;
+  font-family: var(--mono); font-size: 11px; color: var(--text-dim); z-index: 10;
+}
+.graph-info .stat { color: var(--accent); font-weight: 600; }
+.graph-info .sep { color: var(--border2); margin: 0 6px; }
+.node-panel {
+  position: absolute; top: 12px; left: 12px;
+  background: rgba(6,8,12,0.95); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 16px; width: 280px;
+  max-height: calc(100% - 24px); overflow-y: auto; z-index: 20; display: none;
+}
+.node-panel.visible { display: block; }
+.node-panel .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.node-panel .panel-title { font-weight: 600; color: var(--text); font-size: 14px; }
+.node-panel .panel-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; }
+.node-panel .panel-close:hover { color: var(--red); }
+.node-panel .panel-label {
+  display: inline-block; background: var(--accent-lo); color: var(--accent);
+  padding: 2px 8px; border-radius: 2px; font-size: 11px; font-family: var(--mono); margin-bottom: 8px;
+}
+.node-panel .panel-props dt { color: var(--text-dim); font-size: 11px; font-family: var(--mono); margin-top: 6px; }
+.node-panel .panel-props dd { color: var(--text); font-size: 12px; margin-left: 0; word-break: break-all; }
+.btn-expand {
+  display: block; width: 100%; margin-top: 12px;
+  background: var(--accent-lo); border: 1px solid var(--accent2); color: var(--accent);
+  padding: 8px; border-radius: var(--radius); font-family: var(--font);
+  font-size: 12px; font-weight: 600; cursor: pointer; text-align: center;
+}
+.btn-expand:hover { background: var(--accent); color: var(--bg); }
+.saturation-panel {
+  margin-top: 16px; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+}
+.saturation-panel h3 {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.sat-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.sat-controls label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
+.sat-controls input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 8px; border-radius: var(--radius); font-family: var(--mono); font-size: 12px; margin-top: 2px;
+}
+.sat-stats { font-family: var(--mono); font-size: 11px; color: var(--text-dim); line-height: 1.8; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 11px; font-family: var(--mono); color: var(--text-dim); }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="logo">
+      <span class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 12l10 10 10-10Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <span class="logo-text">LYCAN</span>
+    </div>
+    <div class="nav-label">INTELLIGENCE</div>
+    <a href="/" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search</a>
+    <a href="/ui/persons" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> Persons</a>
+    <a href="/ui/graph" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><line x1="12" y1="12" x2="6" y2="6"/><line x1="12" y1="12" x2="18" y2="6"/><line x1="12" y1="12" x2="6" y2="18"/><line x1="12" y1="12" x2="18" y2="18"/></svg> Knowledge Graph</a>
+    <div class="nav-label">SYSTEM</div>
+    <a href="/ui/activity" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Activity</a>
+    <a href="/docs" class="nav-item" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> API Docs</a>
+    <div class="sidebar-bottom">
+      <div class="status-row"><span class="dot green"></span><span>System Online</span></div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="hero">
+      <div class="hero-title">Knowledge Graph Explorer</div>
+      <div class="hero-sub">Expanding search — click any node to discover connections</div>
+    </div>
+
+    <div class="graph-search">
+      <select id="search-type">
+        <option value="Person">Person</option>
+        <option value="Company">Company</option>
+        <option value="Address">Address</option>
+        <option value="Phone">Phone</option>
+        <option value="Email">Email</option>
+        <option value="Domain">Domain</option>
+        <option value="Crypto_Wallet">Crypto Wallet</option>
+      </select>
+      <input type="text" id="search-input" placeholder="Search entity name..." autocomplete="off">
+      <button id="btn-search">Search</button>
+      <button id="btn-saturate" style="background:var(--green);color:var(--bg)">Saturate</button>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#00c3ff"></div>Person</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>Company</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffc300"></div>Address</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00ffaa"></div>Phone</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#9d00ff"></div>Email</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff9500"></div>Property</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#36d1dc"></div>Vehicle</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>Social</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div>Domain</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Crypto</div>
+    </div>
+
+    <div class="graph-container" id="graph-container">
+      <canvas class="graph-canvas" id="graph-canvas"></canvas>
+      <div class="graph-controls">
+        <button id="btn-zoom-in" title="Zoom in">+</button>
+        <button id="btn-zoom-out" title="Zoom out">-</button>
+        <button id="btn-reset" title="Reset view">R</button>
+        <button id="btn-fit" title="Fit all">F</button>
+      </div>
+      <div class="node-panel" id="node-panel">
+        <div class="panel-header">
+          <span class="panel-title" id="panel-title"></span>
+          <button class="panel-close" id="panel-close">&times;</button>
+        </div>
+        <span class="panel-label" id="panel-label"></span>
+        <dl class="panel-props" id="panel-props"></dl>
+        <button class="btn-expand" id="btn-expand">Expand connections</button>
+      </div>
+      <div class="graph-info" id="graph-info">
+        <span class="stat" id="node-count">0</span> nodes
+        <span class="sep">|</span>
+        <span class="stat" id="edge-count">0</span> edges
+      </div>
+    </div>
+
+    <div class="saturation-panel" id="saturation-panel" style="display:none">
+      <h3>Saturation Crawl</h3>
+      <div class="sat-controls">
+        <div><label>Max Depth</label><input type="number" id="sat-depth" value="3" min="1" max="6"></div>
+        <div><label>Max Entities</label><input type="number" id="sat-max" value="200" min="10" max="1000"></div>
+        <div><label>Confidence &ge;</label><input type="number" id="sat-conf" value="0.6" min="0" max="1" step="0.1"></div>
+        <div><label>Novelty Threshold</label><input type="number" id="sat-novelty" value="0.05" min="0.01" max="0.5" step="0.01"></div>
+      </div>
+      <button class="btn-expand" id="btn-run-sat">Run Saturation Crawl</button>
+      <div class="sat-stats" id="sat-stats" style="margin-top:12px;display:none"></div>
+    </div>
+  </main>
+</div>
+
+<script src="/static/knowledge_graph.js"></script>
+</body>
+</html>

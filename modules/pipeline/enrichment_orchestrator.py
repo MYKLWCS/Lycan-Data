@@ -130,6 +130,15 @@ class EnrichmentOrchestrator:
             )
         )
 
+        # ── Step 9: Entity resolution (4-pass dedup + verification) ───────
+        steps.append(
+            await self._run_step(
+                enricher="entity_resolution",
+                coro=self._run_entity_resolution(person_id, session),
+                person_id=person_id,
+            )
+        )
+
         finished_at = datetime.now(UTC)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
@@ -342,6 +351,12 @@ class EnrichmentOrchestrator:
 
         enricher = CascadeEnricher()
         await enricher.enrich(person_id, session)
+
+    async def _run_entity_resolution(self, person_id: str, session: AsyncSession) -> None:
+        from modules.enrichers.entity_resolution import EntityResolutionPipeline
+
+        pipeline = EntityResolutionPipeline()
+        await pipeline.resolve(person_id, session)
 
     async def _publish_completion(self, person_id: str, report: EnrichmentReport) -> None:
         if not event_bus.is_connected:

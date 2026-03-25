@@ -217,6 +217,14 @@ def build_person_doc(
     composite_quality: float = 0.5,
     corroboration_count: int = 1,
     created_at: str | None = None,
+    # Credit / AML / marketing intelligence
+    alt_credit_score: int | None = None,
+    alt_credit_tier: str | None = None,
+    aml_risk_score: float | None = None,
+    aml_risk_tier: str | None = None,
+    is_pep: bool = False,
+    is_sanctioned: bool = False,
+    marketing_tags_list: list[str] | None = None,
     **extra,
 ) -> dict[str, Any]:
     """Build a MeiliSearch document from person data."""
@@ -245,5 +253,13 @@ def build_person_doc(
         "composite_quality": composite_quality,
         "corroboration_count": corroboration_count,
         "created_at": created_at,
+        # Credit / AML / marketing
+        "alt_credit_score": alt_credit_score,
+        "alt_credit_tier": alt_credit_tier or "unknown",
+        "aml_risk_score": aml_risk_score,
+        "aml_risk_tier": aml_risk_tier or "unknown",
+        "is_pep": is_pep,
+        "is_sanctioned": is_sanctioned,
+        "marketing_tags_list": marketing_tags_list or [],
         **extra,
     }

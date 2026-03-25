@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "g7h8i9j0k1l2"
 down_revision: str | Sequence[str] | None = "f6a7b8c9d0e1"
@@ -25,7 +26,7 @@ def upgrade() -> None:
         "persons",
         sa.Column(
             "marketing_tags_list",
-            sa.dialects.postgresql.JSONB(),
+            JSONB(),
             server_default="[]",
             nullable=False,
         ),

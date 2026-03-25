@@ -116,6 +116,12 @@ async def ui_index():
     return FileResponse("static/index.html")
 
 
+@app.get("/ui/graph", include_in_schema=False)
+async def ui_knowledge_graph():
+    """Serve the Knowledge Graph explorer page."""
+    return FileResponse("templates/knowledge_graph.html")
+
+
 @app.get("/ui/{path:path}", include_in_schema=False)
 async def ui_redirect(path: str):
     """Redirect old /ui/* routes to the SPA hash router."""
