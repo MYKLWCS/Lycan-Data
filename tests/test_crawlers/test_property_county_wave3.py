@@ -213,3 +213,88 @@ class TestScrapePropertySharkException:
 
         assert result.found is False
         assert result.data["address"] == "Unknown Street"
+
+
+# ---------------------------------------------------------------------------
+# Branch coverage: _parse_propertyshark_html — sibling-not-found paths
+# ---------------------------------------------------------------------------
+# Lines 93→100, 96→100, 103→110, 106→110, 113→119, 115→119,
+#       122→126, 129→133, 136→141, 139→141, 144→151
+# These branches fire when a label is found but has NO next sibling element,
+# or when the regex in the sibling text finds no digits.
+# ---------------------------------------------------------------------------
+
+
+class TestParsePropertySharkBranchCoverage:
+    """Cover the nxt-is-None and regex-no-match inner branches."""
+
+    def _fn(self, html: str):
+        from modules.crawlers.property_county import _parse_propertyshark_html
+
+        return _parse_propertyshark_html(html)
+
+    def test_assessed_label_no_sibling_branch_cov(self):
+        """[93→100]: assessed label present but parent has no next sibling → value stays None."""
+        html = "<html><body><span>Assessed Value</span></body></html>"
+        result = self._fn(html)
+        assert result["assessed_value"] is None
+
+    def test_assessed_label_sibling_no_digits_branch_cov(self):
+        """[96→100]: sibling found but contains no digits → assessed_value stays None."""
+        html = "<html><body><span>Assessed Value</span><span>N/A</span></body></html>"
+        result = self._fn(html)
+        assert result["assessed_value"] is None
+
+    def test_tax_label_no_sibling_branch_cov(self):
+        """[103→110]: tax label present but parent has no next sibling → tax stays None."""
+        html = "<html><body><span>Tax Amount</span></body></html>"
+        result = self._fn(html)
+        assert result["tax_amount"] is None
+
+    def test_tax_label_sibling_no_digits_branch_cov(self):
+        """[106→110]: tax sibling found but no digits → tax_amount stays None."""
+        html = "<html><body><span>Tax Amount</span><span>N/A</span></body></html>"
+        result = self._fn(html)
+        assert result["tax_amount"] is None
+
+    def test_year_built_label_no_sibling_branch_cov(self):
+        """[113→119]: year built label has no sibling → year_built stays None."""
+        html = "<html><body><span>Year Built</span></body></html>"
+        result = self._fn(html)
+        assert result["year_built"] is None
+
+    def test_year_built_label_sibling_no_year_branch_cov(self):
+        """[115→119]: year built sibling has no 4-digit sequence → year_built stays None."""
+        html = "<html><body><span>Year Built</span><span>Unknown</span></body></html>"
+        result = self._fn(html)
+        assert result["year_built"] is None
+
+    def test_lot_size_label_no_sibling_branch_cov(self):
+        """[122→126]: lot size label has no sibling → lot_size stays None."""
+        html = "<html><body><span>Lot Size</span></body></html>"
+        result = self._fn(html)
+        assert result["lot_size"] is None
+
+    def test_zoning_label_no_sibling_branch_cov(self):
+        """[129→133]: zoning label has no sibling → zoning stays None."""
+        html = "<html><body><span>Zoning</span></body></html>"
+        result = self._fn(html)
+        assert result["zoning"] is None
+
+    def test_sale_price_label_no_sibling_branch_cov(self):
+        """[136→141]: last sale label has no sibling → last_sale_price stays None."""
+        html = "<html><body><span>Last Sale</span></body></html>"
+        result = self._fn(html)
+        assert result["last_sale_price"] is None
+
+    def test_sale_price_label_sibling_no_digits_branch_cov(self):
+        """[139→141]: sale price sibling has no digits → last_sale_price stays None."""
+        html = "<html><body><span>Last Sale</span><span>N/A</span></body></html>"
+        result = self._fn(html)
+        assert result["last_sale_price"] is None
+
+    def test_sale_date_label_no_sibling_branch_cov(self):
+        """[144→151]: sale date label has no sibling → last_sale_date stays None."""
+        html = "<html><body><span>Sale Date</span></body></html>"
+        result = self._fn(html)
+        assert result["last_sale_date"] is None

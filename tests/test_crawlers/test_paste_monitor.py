@@ -231,3 +231,63 @@ def test_psbdmp_tor_and_reliability():
     assert crawler.requires_tor is True
     assert crawler.tor_instance == TorInstance.TOR2
     assert crawler.source_reliability == pytest.approx(0.35)
+
+
+# ---------------------------------------------------------------------------
+# Branch coverage gap tests
+# ---------------------------------------------------------------------------
+
+
+def test_parse_rentry_html_parent_none_branch():
+    """paste_ghostbin line 57: a tag whose parent is None still gets appended with empty preview."""
+    from modules.crawlers.paste_ghostbin import _parse_rentry_html
+
+    # Build HTML where the anchor has no meaningful parent context
+    html = "<html><body><a href='/zz99'>ZZ99</a></body></html>"
+    mentions = _parse_rentry_html(html)
+    # Should still find the paste link; preview may be empty
+    assert any(m["url"] == "https://rentry.co/zz99" for m in mentions)
+
+
+def test_parse_rentry_html_sibling_text_equals_title():
+    """paste_ghostbin line 59: sibling_text == title → preview stays empty string."""
+    from modules.crawlers.paste_ghostbin import _parse_rentry_html
+
+    # Parent text equals the link text → condition (sibling_text != title) is False
+    html = "<html><body><p><a href='/qq77'>SameTitle</a></p></body></html>"
+    mentions = _parse_rentry_html(html)
+    matched = [m for m in mentions if m["url"] == "https://rentry.co/qq77"]
+    assert matched
+    assert matched[0]["preview"] == ""
+
+
+def test_parse_rentry_html_dedup_skips_duplicate_url():
+    """paste_ghostbin line 74: duplicate URL in 'seen' set is skipped — unique list shorter."""
+    from modules.crawlers.paste_ghostbin import _parse_rentry_html
+
+    # Two anchors pointing to the same slug → only one entry in output
+    html = """<html><body>
+        <a href='/abc12'>First</a>
+        <a href='/abc12'>Duplicate</a>
+    </body></html>"""
+    mentions = _parse_rentry_html(html)
+    urls = [m["url"] for m in mentions]
+    assert urls.count("https://rentry.co/abc12") == 1
+
+
+@pytest.mark.asyncio
+async def test_pastebin_scrape_url_empty_not_appended():
+    """paste_pastebin line 63: result div with empty href is skipped (url falsy)."""
+    empty_href_html = """<html><body>
+    <div class="search-result">
+        <a href="">No URL paste</a>
+        <span class="date">2024-01-01</span>
+        <p>some preview text</p>
+    </div>
+    </body></html>"""
+    crawler = PastePastebinCrawler()
+    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, empty_href_html))):
+        result = await crawler.scrape("test query")
+    # href was empty → nothing appended → found=False, mention_count=0
+    assert result.data["mention_count"] == 0
+    assert result.data["mentions"] == []

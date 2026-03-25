@@ -11,6 +11,7 @@ env:
   SECRET_KEY: "audit-health-check-key"
   ENVIRONMENT: "test"
   PYTHONPATH: "."
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   # ── 1. Full test suite + coverage report ──────────────────────────────────────

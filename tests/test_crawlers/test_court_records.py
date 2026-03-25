@@ -254,3 +254,74 @@ async def test_court_state_found():
 
     assert result.found is True
     assert result.data["case_count"] >= 1
+
+
+# ===========================================================================
+# 7. Branch coverage additions
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_courtlistener_single_word_skips_people_search_branch_cov():
+    """[123,149]: single-word identifier → first and last not both truthy → people search skipped."""
+    crawler = CourtListenerCrawler()
+    mock_main = _mock_resp(200, json_data=SAMPLE_CL_JSON)
+    mock_get = AsyncMock(return_value=mock_main)
+    # Only one call expected — no people search for single-word query
+    with patch.object(crawler, "get", new=mock_get):
+        result = await crawler.scrape("Acme")
+    assert result.found is True
+    # get() called exactly once (no people search)
+    assert mock_get.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_courtlistener_people_request_fails_branch_cov():
+    """[126,149]: people request returns None → branch skips person records gracefully."""
+    crawler = CourtListenerCrawler()
+    mock_main = _mock_resp(200, json_data=SAMPLE_CL_JSON)
+    # First call: main search succeeds; second call: people returns None
+    with patch.object(crawler, "get", new=AsyncMock(side_effect=[mock_main, None])):
+        result = await crawler.scrape("John Smith")
+    assert result.found is True
+    # Cases still come from main search
+    assert result.data["case_count"] >= 2
+
+
+@pytest.mark.asyncio
+async def test_courtlistener_person_record_empty_name_branch_cov():
+    """[134,129]: person has empty name_first and name_last → name is '' → not appended."""
+    crawler = CourtListenerCrawler()
+    mock_main = _mock_resp(200, json_data={"count": 0, "results": []})
+    people_with_empty_name = {
+        "count": 1,
+        "results": [
+            {
+                "name_first": "",
+                "name_last": "",
+                "resource_uri": "/api/rest/v3/people/99/",
+                "court": "",
+                "date_start": "",
+            }
+        ],
+    }
+    mock_people = _mock_resp(200, json_data=people_with_empty_name)
+    with patch.object(crawler, "get", new=AsyncMock(side_effect=[mock_main, mock_people])):
+        result = await crawler.scrape("John Smith")
+    # Empty name → not appended → no cases
+    assert result.found is False
+    assert result.data["case_count"] == 0
+
+
+def test_parse_table_rows_all_empty_cells_branch_cov():
+    """[78,59]: row where ALL values (including state='') are empty → not appended."""
+    # Pass state="" so the record dict has no truthy values when cells are all empty.
+    html = """<html><body>
+<table>
+  <tr><th>Case No.</th><th>Party Name</th><th>Court</th></tr>
+  <tr><td></td><td></td><td></td></tr>
+</table>
+</body></html>"""
+    rows = _parse_table_rows(html, state="")
+    # All-empty row with empty state should not be appended
+    assert rows == []

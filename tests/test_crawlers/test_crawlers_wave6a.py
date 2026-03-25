@@ -584,3 +584,255 @@ class TestGoogleNewsRss:
             result = await crawler.scrape("John Doe")
         assert result.found is True
         assert result.data["count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_item_with_empty_title_skipped(self):
+        """google_news_rss line 55: item with empty title is skipped, not appended."""
+        from modules.crawlers.google_news_rss import GoogleNewsRssCrawler
+
+        crawler = GoogleNewsRssCrawler()
+        # One item with no title text → should be skipped; second item has a title
+        xml = """<rss><channel>
+            <item>
+                <title></title>
+                <link>https://news.example.com/skip</link>
+            </item>
+            <item>
+                <title>Real Article</title>
+                <link>https://news.example.com/real</link>
+            </item>
+        </channel></rss>"""
+        resp = _mock_resp(status=200, text=xml)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("John Doe")
+        assert result.found is True
+        assert result.data["count"] == 1
+
+
+# ===========================================================================
+# Branch coverage additions — inner false-paths not yet hit
+# ===========================================================================
+
+
+class TestCaCourtsBranchCov:
+    """Missing inner-branch paths for ca_courts.py."""
+
+    @pytest.mark.asyncio
+    async def test_table_row_with_one_cell_skipped_branch_cov(self):
+        """[50,48]: table row has only 1 cell (len < 2) → skipped, no crash."""
+        from modules.crawlers.ca_courts import CaCourtsCrawler
+
+        crawler = CaCourtsCrawler()
+        html = """<html><body>
+            <table id="caselist">
+              <tr><td>Only One Cell</td></tr>
+            </table>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("Jane Smith")
+        assert result.found is False
+
+    @pytest.mark.asyncio
+    async def test_table_row_header_case_number_skipped_branch_cov(self):
+        """[54,48]: row has 2 cells but first cell text is 'case number' → skipped."""
+        from modules.crawlers.ca_courts import CaCourtsCrawler
+
+        crawler = CaCourtsCrawler()
+        html = """<html><body>
+            <table id="caselist">
+              <tr><td>case number</td><td>Parties</td></tr>
+            </table>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("Jane Smith")
+        assert result.found is False
+
+    @pytest.mark.asyncio
+    async def test_case_row_fallback_empty_text_skipped_branch_cov(self):
+        """[74,65]: fallback case-row div exists but its text is empty → not appended."""
+        from modules.crawlers.ca_courts import CaCourtsCrawler
+
+        crawler = CaCourtsCrawler()
+        # case-row div with only whitespace → get_text(strip=True) returns ""
+        html = '<html><body><div class="case-row">   </div></body></html>'
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("Jane Smith")
+        assert result.found is False
+
+
+class TestTxCourtsBranchCov:
+    """Missing inner-branch paths for txcourts.py."""
+
+    @pytest.mark.asyncio
+    async def test_table_row_with_one_cell_skipped_branch_cov(self):
+        """[47,45]: results table row has <2 cells → inner if is False, row skipped."""
+        from modules.crawlers.txcourts import TxCourtsCrawler
+
+        crawler = TxCourtsCrawler()
+        html = """<html><body>
+            <table class="results">
+              <tr><td>Only One</td></tr>
+            </table>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("John Doe")
+        assert result.found is False
+
+    @pytest.mark.asyncio
+    async def test_fallback_case_number_element_empty_text_branch_cov(self):
+        """[64,62]: fallback case-number element has empty text → not appended."""
+        from modules.crawlers.txcourts import TxCourtsCrawler
+
+        crawler = TxCourtsCrawler()
+        # class="case-number" but whitespace-only content
+        html = '<html><body><span class="case-number">   </span></body></html>'
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("John Doe")
+        assert result.found is False
+
+
+class TestFlCourtsBranchCov:
+    """Missing inner-branch paths for fl_courts.py."""
+
+    @pytest.mark.asyncio
+    async def test_case_result_div_empty_case_num_skipped_branch_cov(self):
+        """[49,44]: .case-result div present but case_num_el text is empty → skipped."""
+        from modules.crawlers.fl_courts import FlCourtsCrawler
+
+        crawler = FlCourtsCrawler()
+        # .case-result div but the .case-number inner span is whitespace-only
+        html = """<html><body>
+            <div class="case-result">
+              <span class="case-number">   </span>
+              <span class="party">Smith, John</span>
+            </div>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("John Doe")
+        assert result.found is False
+
+    @pytest.mark.asyncio
+    async def test_table_fallback_row_with_one_cell_skipped_branch_cov(self):
+        """[62,60]: fallback table row has only 1 cell → len < 2 → skipped."""
+        from modules.crawlers.fl_courts import FlCourtsCrawler
+
+        crawler = FlCourtsCrawler()
+        html = """<html><body>
+            <table>
+              <tbody>
+                <tr><td>Single Cell Only</td></tr>
+              </tbody>
+            </table>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("John Doe")
+        assert result.found is False
+
+
+class TestCountyAssessorFlBranchCov:
+    """Missing inner-branch paths for county_assessor_fl.py."""
+
+    @pytest.mark.asyncio
+    async def test_parcel_result_div_empty_parcel_id_skipped_branch_cov(self):
+        """[52,47]: .parcel-result div present but parcel_id_el text is empty → skipped."""
+        from modules.crawlers.county_assessor_fl import CountyAssessorFlCrawler
+
+        crawler = CountyAssessorFlCrawler()
+        # .parcel-result but .parcel-id inner element is whitespace-only
+        html = """<html><body>
+            <div class="parcel-result">
+              <span class="parcel-id">   </span>
+              <span class="owner-name">Smith, John</span>
+            </div>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("123 Main St Orlando FL")
+        assert result.found is False
+
+    @pytest.mark.asyncio
+    async def test_table_fallback_row_with_one_cell_skipped_branch_cov(self):
+        """[65,63]: fallback table row has only 1 cell → len < 2 → skipped."""
+        from modules.crawlers.county_assessor_fl import CountyAssessorFlCrawler
+
+        crawler = CountyAssessorFlCrawler()
+        html = """<html><body>
+            <table>
+              <tbody>
+                <tr><td>Only One Cell</td></tr>
+              </tbody>
+            </table>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("123 Main St Orlando FL")
+        assert result.found is False
+
+
+class TestCountyAssessorTxBranchCov:
+    """Missing inner-branch paths for county_assessor_tx.py."""
+
+    @pytest.mark.asyncio
+    async def test_table_row_with_one_cell_skipped_branch_cov(self):
+        """[49,47]: results table row has <2 cells → inner if is False, row skipped."""
+        from modules.crawlers.county_assessor_tx import CountyAssessorTxCrawler
+
+        crawler = CountyAssessorTxCrawler()
+        html = """<html><body>
+            <table class="results">
+              <tr><td>Only One</td></tr>
+            </table>
+        </body></html>"""
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("123 Elm St Dallas TX")
+        assert result.found is False
+
+    @pytest.mark.asyncio
+    async def test_fallback_account_element_empty_text_branch_cov(self):
+        """[70,68]: fallback account-class element has empty text → not appended."""
+        from modules.crawlers.county_assessor_tx import CountyAssessorTxCrawler
+
+        crawler = CountyAssessorTxCrawler()
+        # class contains "account" but text is whitespace-only
+        html = '<html><body><span class="account-number">   </span></body></html>'
+        resp = _mock_resp(status=200, text=html)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("123 Elm St Dallas TX")
+        assert result.found is False
+
+
+# ---------------------------------------------------------------------------
+# bing_news.py — item with empty title skipped (line 55→49)
+# ---------------------------------------------------------------------------
+
+
+class TestBingNewsEmptyTitle:
+    @pytest.mark.asyncio
+    async def test_item_with_empty_title_skipped(self):
+        """bing_news line 55: item whose title text is empty is skipped."""
+        from modules.crawlers.bing_news import BingNewsCrawler
+
+        crawler = BingNewsCrawler()
+        xml = """<rss><channel>
+            <item>
+                <title></title>
+                <link>https://bing.example.com/skip</link>
+            </item>
+            <item>
+                <title>Valid Headline</title>
+                <link>https://bing.example.com/valid</link>
+            </item>
+        </channel></rss>"""
+        resp = _mock_resp(status=200, text=xml)
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+            result = await crawler.scrape("John Doe")
+        assert result.found is True
+        assert result.data["count"] == 1

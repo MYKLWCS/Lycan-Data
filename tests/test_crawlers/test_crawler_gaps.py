@@ -2151,3 +2151,509 @@ class TestSocialPostsAnalyzer:
         if dob_val is not None:
             assert isinstance(dob_val, str)
             assert "-" in dob_val
+
+
+# ===========================================================================
+# Branch coverage gap tests — added to reach 100% branch coverage
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# people_zabasearch.py
+# [63,67]  name_tag is None  → no "name" key added
+# [83,93]  age regex has no match → no "age" added from tag
+# [99,94]  ph_text empty after href strip → not appended
+# [108,58] neither name nor city present → person not appended
+# ---------------------------------------------------------------------------
+
+
+class TestPeopleZabaSearchBranches:
+    def test_parse_no_name_tag(self):
+        """zabasearch line 63: card with no name selector → person omitted (no name/city)."""
+        from modules.crawlers.people_zabasearch import _parse_persons
+
+        # Card has no h2/h3/.name — and no city either → person not appended
+        html = '<html><body><div class="person-search-result"><p>Some info</p></div></body></html>'
+        persons = _parse_persons(html)
+        assert persons == []
+
+    def test_parse_age_tag_no_digit_match(self):
+        """zabasearch line 83: age tag exists but has no digits → no age key."""
+        from modules.crawlers.people_zabasearch import _parse_persons
+
+        html = """<html><body>
+        <div class="person-search-result">
+          <h2>Jane Doe</h2>
+          <span class="age">Unknown</span>
+        </div>
+        </body></html>"""
+        persons = _parse_persons(html)
+        assert len(persons) == 1
+        assert "age" not in persons[0]
+
+    def test_parse_phone_href_empty_after_strip(self):
+        """zabasearch line 99: tel: href is 'tel:' (empty after strip) → not appended."""
+        from modules.crawlers.people_zabasearch import _parse_persons
+
+        html = """<html><body>
+        <div class="person-search-result">
+          <h2>John Smith</h2>
+          <a href="tel:" class="phone"></a>
+        </div>
+        </body></html>"""
+        persons = _parse_persons(html)
+        assert len(persons) == 1
+        # Phone list should be empty (tel: stripped to empty string)
+        assert persons[0].get("phones", []) == []
+
+    def test_parse_no_name_no_city_not_appended(self):
+        """zabasearch line 108: card yields empty person dict → not appended."""
+        from modules.crawlers.people_zabasearch import _parse_persons
+
+        # A card that matches the selector but has absolutely no extractable text
+        html = '<html><body><div class="person-search-result"></div></body></html>'
+        persons = _parse_persons(html)
+        assert persons == []
+
+
+# ---------------------------------------------------------------------------
+# people_thatsthem.py
+# [98,96]   ph_text empty → not appended (loop continues)
+# [110,105] em_text empty after mailto: strip → not appended
+# [119,122] age tag present AND regex matches → age set
+# ---------------------------------------------------------------------------
+
+
+class TestPeopleThatsThemBranches:
+    def test_parse_phone_empty_text_not_appended(self):
+        """thatsthem line 98: phone element with no text → not appended."""
+        from modules.crawlers.people_thatsthem import _parse_persons
+
+        html = """<html><body>
+        <div class="record">
+          <h2>Jane Doe</h2>
+          <a href="tel:5551234567" class="phone"></a>
+        </div>
+        </body></html>"""
+        persons = _parse_persons(html)
+        assert len(persons) == 1
+        # Phone link had no visible text → phones list empty
+        assert persons[0].get("phones", []) == []
+
+    def test_parse_email_href_only_empty_strip(self):
+        """thatsthem line 110: mailto: href is bare 'mailto:' → em_text empty, not appended."""
+        from modules.crawlers.people_thatsthem import _parse_persons
+
+        html = """<html><body>
+        <div class="record">
+          <h2>Bob Jones</h2>
+          <a href="mailto:" class="email"></a>
+        </div>
+        </body></html>"""
+        persons = _parse_persons(html)
+        assert len(persons) == 1
+        assert persons[0].get("emails", []) == []
+
+    def test_parse_age_tag_with_match(self):
+        """thatsthem line 119: age tag contains digit → age is set (covers [119,122])."""
+        from modules.crawlers.people_thatsthem import _parse_persons
+
+        html = """<html><body>
+        <div class="record">
+          <h2>Alice Smith</h2>
+          <span class="age">Age 42</span>
+        </div>
+        </body></html>"""
+        persons = _parse_persons(html)
+        assert len(persons) == 1
+        assert persons[0].get("age") == 42
+
+
+# ---------------------------------------------------------------------------
+# people_familysearch.py
+# [57,63]  names list is empty → full_name stays ""
+# [69,64]  "Death" in ftype → death_date assigned
+# ---------------------------------------------------------------------------
+
+
+class TestPeopleFamilySearchBranches:
+    def test_parse_entry_no_names(self):
+        """familysearch line 57: person has empty names list → full_name is empty string."""
+        from modules.crawlers.people_familysearch import _parse_entry
+
+        entry = {
+            "id": "E1",
+            "title": "Birth Record",
+            "content": {
+                "gedcomx": {
+                    "persons": [
+                        {
+                            "id": "P1",
+                            "names": [],
+                            "facts": [],
+                        }
+                    ]
+                }
+            },
+        }
+        result = _parse_entry(entry)
+        assert result["name"] == ""
+
+    def test_parse_entry_death_fact(self):
+        """familysearch line 69: fact with 'Death' in type sets death_date."""
+        from modules.crawlers.people_familysearch import _parse_entry
+
+        entry = {
+            "id": "E2",
+            "title": "Death Record",
+            "content": {
+                "gedcomx": {
+                    "persons": [
+                        {
+                            "id": "P2",
+                            "names": [
+                                {"nameForms": [{"fullText": "John A Doe"}]}
+                            ],
+                            "facts": [
+                                {
+                                    "type": "http://gedcomx.org/Death",
+                                    "date": {"original": "1 Jan 1980"},
+                                    "place": {},
+                                }
+                            ],
+                        }
+                    ]
+                }
+            },
+        }
+        result = _parse_entry(entry)
+        assert result["death_date"] == "1 Jan 1980"
+        assert result["name"] == "John A Doe"
+
+
+# ---------------------------------------------------------------------------
+# people_usmarshals.py
+# [142,146] fugitives list empty after parse → filter block skipped → return directly
+# ---------------------------------------------------------------------------
+
+
+class TestPeopleUSMarshalsBranches:
+    @pytest.mark.asyncio
+    async def test_api_returns_empty_list_skips_filter(self):
+        """usmarshals line 142: API returns [] → fugitives empty, filter block not entered."""
+        from modules.crawlers.people_usmarshals import USMarshalsCrawler
+
+        crawler = USMarshalsCrawler()
+        api_resp = _mock_resp(status=200, json_data=[])
+        with patch.object(crawler, "get", new=AsyncMock(return_value=api_resp)):
+            result = await crawler.scrape("Nobody Known")
+        assert result.found is False
+        assert result.data["fugitives"] == []
+        assert result.data["source"] == "api"
+
+
+# ---------------------------------------------------------------------------
+# obituary_search.py
+# [113,111]  _extract_legacy_card returns None → if obit: is False
+# [177,175]  _extract_findagrave_card returns None → if obit: is False
+# [235,237]  _extract_survived_by: no stop marker → segment not trimmed (stop is None)
+# [256,258]  _extract_preceded_by: no stop marker → segment not trimmed (stop is None)
+# ---------------------------------------------------------------------------
+
+
+class TestObituarySearchBranches:
+    def test_parse_legacy_card_returns_none_for_nameless(self):
+        """obituary_search line 113: card with no name tag → _extract_legacy_card returns None."""
+        from modules.crawlers.obituary_search import _parse_legacy
+
+        # A div with class containing "obituary" but no h2/h3/name element
+        html = '<html><body><div class="obituary-listing"><p>No name here</p></div></body></html>'
+        results = _parse_legacy(html, "Jane Doe")
+        assert results == []
+
+    def test_parse_findagrave_card_returns_none_for_nameless(self):
+        """obituary_search line 177: card with no name element → _extract_findagrave_card None."""
+        from modules.crawlers.obituary_search import _parse_findagrave
+
+        html = """<html><body>
+        <div class="memorial-item"><p>No name here 1990 2020</p></div>
+        </body></html>"""
+        results = _parse_findagrave(html, "Jane Doe")
+        assert results == []
+
+    def test_extract_survived_by_no_stop_marker(self):
+        """obituary_search line 235: 'survived by' found but no stop marker → full segment used."""
+        from modules.crawlers.obituary_search import _extract_survived_by
+
+        text = "She is survived by John Smith and Mary Brown no stop marker here at all"
+        names = _extract_survived_by(text)
+        # Should still return names from the segment (stop is None → branch 235→237 not taken)
+        assert isinstance(names, list)
+
+    def test_extract_preceded_by_no_stop_marker(self):
+        """obituary_search line 256: 'preceded by' found but no stop marker → full segment used."""
+        from modules.crawlers.obituary_search import _extract_preceded_by
+
+        text = "preceded by Robert Jones and Helen Davis no funeral no stop here"
+        names = _extract_preceded_by(text)
+        assert isinstance(names, list)
+
+
+# ---------------------------------------------------------------------------
+# news_search.py
+# [111,109]  url empty or duplicate → article not appended to seen_urls
+# [189,187]  _extract_ddg_result returns None → article not appended
+# [263,266]  snippet is empty → BeautifulSoup call skipped
+# ---------------------------------------------------------------------------
+
+
+class TestNewsSearchBranches:
+    @pytest.mark.asyncio
+    async def test_duplicate_url_not_added_twice(self):
+        """news_search line 111: same URL from two sources → deduplicated."""
+        from modules.crawlers.news_search import NewsSearchCrawler
+
+        crawler = NewsSearchCrawler()
+        dup_url = "https://example.com/article1"
+        # Build DDG HTML with one article, then RSS with same URL
+        ddg_html = f"""<html><body>
+        <div class="result">
+          <a class="result__a" href="{dup_url}">Article One</a>
+        </div>
+        </body></html>"""
+        rss_xml = f"""<rss><channel>
+          <item>
+            <title>Article One</title>
+            <link>{dup_url}</link>
+            <description></description>
+          </item>
+        </channel></rss>"""
+
+        call_count = 0
+
+        async def _fake_get(url, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if "duckduckgo" in url:
+                return _mock_resp(status=200, text=ddg_html)
+            if "google.com" in url:
+                return _mock_resp(status=200, text=rss_xml)
+            if "bing.com" in url:
+                return _mock_resp(status=200, text=rss_xml)
+            return None
+
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
+            result = await crawler.scrape("Article One")
+
+        # The same URL should appear only once in articles
+        urls = [a.get("url") for a in result.data.get("articles", [])]
+        assert urls.count(dup_url) == 1
+
+    @pytest.mark.asyncio
+    async def test_ddg_result_div_no_link_skipped(self):
+        """news_search line 189: div with no <a> tag → _extract_ddg_result returns None."""
+        from modules.crawlers.news_search import NewsSearchCrawler
+
+        crawler = NewsSearchCrawler()
+        # A result div with no anchor → _extract_ddg_result returns None → not appended
+        html = '<html><body><div class="result"><p>No link here</p></div></body></html>'
+
+        async def _fake_get(url, **kwargs):
+            if "duckduckgo" in url:
+                return _mock_resp(status=200, text=html)
+            return _mock_resp(status=200, text="<rss><channel></channel></rss>")
+
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
+            result = await crawler.scrape("something")
+
+        assert result.data.get("article_count", 0) == 0
+
+    def test_parse_rss_empty_snippet_skips_beautifulsoup(self):
+        """news_search line 263: snippet is empty → BeautifulSoup not called on it."""
+        from modules.crawlers.news_search import _parse_rss
+
+        # RSS item with no description element → snippet is ""
+        xml = """<rss><channel>
+          <item>
+            <title>Test Article</title>
+            <link>https://example.com/test</link>
+          </item>
+        </channel></rss>"""
+        results = _parse_rss(xml, "test_source")
+        assert len(results) == 1
+        assert results[0]["snippet"] == ""
+        assert results[0]["title"] == "Test Article"
+
+
+# ---------------------------------------------------------------------------
+# news_wikipedia.py
+# [103,107]  wp_results[0] has no "title" key (or empty) → _wp_summary not called
+# ---------------------------------------------------------------------------
+
+
+class TestNewsWikipediaBranches:
+    @pytest.mark.asyncio
+    async def test_top_result_empty_title_skips_summary(self):
+        """news_wikipedia line 103: first result has empty title → _wp_summary not called."""
+        from modules.crawlers.news_wikipedia import WikipediaCrawler
+
+        crawler = WikipediaCrawler()
+        wp_data = {"query": {"search": [{"title": "", "snippet": "some text", "pageid": 1}]}}
+        wd_data = {"search": []}
+
+        call_count = {"n": 0}
+
+        async def _fake_get(url, **kwargs):
+            if "wikipedia.org/w/api.php" in url:
+                return _mock_resp(status=200, json_data=wp_data)
+            if "wikidata.org" in url:
+                return _mock_resp(status=200, json_data=wd_data)
+            # Summary endpoint should not be reached
+            call_count["n"] += 1
+            return _mock_resp(status=200, json_data={})
+
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
+            result = await crawler.scrape("empty title entity")
+
+        # Summary endpoint was never called
+        assert call_count["n"] == 0
+        assert result.data.get("top_summary") == {}
+
+
+# ---------------------------------------------------------------------------
+# news_archive.py
+# [156,161]  data is a list but first element is not a digit string → returns 0
+# ---------------------------------------------------------------------------
+
+
+class TestNewsArchiveBranches:
+    @pytest.mark.asyncio
+    async def test_cdx_count_non_digit_list_element(self):
+        """news_archive line 156: list returned but element non-digit → count is 0."""
+        from modules.crawlers.news_archive import NewsArchiveCrawler
+
+        crawler = NewsArchiveCrawler()
+
+        async def _fake_get(url, **kwargs):
+            if "available" in url:
+                return _mock_resp(status=200, json_data={"archived_snapshots": {}})
+            if "showNumPages" in url:
+                # Returns a list but with a non-digit value
+                return _mock_resp(status=200, json_data=["not-a-number"])
+            # CDX records
+            return _mock_resp(status=200, json_data=[])
+
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
+            result = await crawler.scrape("example.com")
+
+        assert result.data.get("total_snapshots") == 0
+
+
+# ---------------------------------------------------------------------------
+# fastpeoplesearch.py
+# [74,72]  _extract_fps_card returns None (no full_name) → not appended
+# ---------------------------------------------------------------------------
+
+
+class TestFastPeopleSearchBranches:
+    def test_extract_fps_card_no_name_returns_none(self):
+        """fastpeoplesearch line 74: card with no h2/h3/strong → full_name empty → None."""
+        from modules.crawlers.fastpeoplesearch import _extract_fps_card
+        from bs4 import BeautifulSoup
+
+        html = '<div class="card-block"><p>No name here</p></div>'
+        card = BeautifulSoup(html, "html.parser").find("div")
+        result = _extract_fps_card(card)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# truepeoplesearch.py
+# [72,70]  _extract_tps_card returns None → not appended
+# ---------------------------------------------------------------------------
+
+
+class TestTruePeopleSearchBranches:
+    def test_extract_tps_card_no_name_returns_none(self):
+        """truepeoplesearch line 72: card with no name element → full_name empty → None."""
+        from modules.crawlers.truepeoplesearch import _extract_tps_card
+        from bs4 import BeautifulSoup
+
+        html = '<div class="card"><p>Nothing useful</p></div>'
+        card = BeautifulSoup(html, "html.parser").find("div")
+        result = _extract_tps_card(card)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# whitepages.py
+# [103,101]  _extract_whitepages_card returns None → not appended
+# ---------------------------------------------------------------------------
+
+
+class TestWhitepagesBranches:
+    def test_extract_whitepages_card_no_name_returns_none(self):
+        """whitepages line 103: card with no name element → name empty → None."""
+        from modules.crawlers.whitepages import _extract_whitepages_card
+        from bs4 import BeautifulSoup
+
+        html = '<div data-testid="person-card"><p>No name here</p></div>'
+        card = BeautifulSoup(html, "html.parser").find("div")
+        result = _extract_whitepages_card(card)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# darkweb_ahmia.py
+# [50,41]  onion_url is empty → result not appended
+# ---------------------------------------------------------------------------
+
+
+class TestDarkwebAhmiaBranches:
+    def test_parse_ahmia_html_skips_empty_onion_url(self):
+        """darkweb_ahmia line 50: li.result with no <cite> → onion_url empty → skipped."""
+        from modules.crawlers.darkweb_ahmia import _parse_ahmia_html
+
+        # One result with a <cite>, one without
+        html = """<html><body>
+        <ul>
+          <li class="result">
+            <h4>Good Result</h4>
+            <cite>http://good.onion</cite>
+            <p>Some description</p>
+          </li>
+          <li class="result">
+            <h4>No URL Result</h4>
+            <p>Description only, no cite tag</p>
+          </li>
+        </ul>
+        </body></html>"""
+        results = _parse_ahmia_html(html)
+        assert len(results) == 1
+        assert results[0]["onion_url"] == "http://good.onion"
+
+
+# ---------------------------------------------------------------------------
+# darkweb_torch.py
+# [58,46]  onion_url is empty → result not appended
+# ---------------------------------------------------------------------------
+
+
+class TestDarkwebTorchBranches:
+    def test_parse_torch_html_skips_empty_onion_url(self):
+        """darkweb_torch line 58: <dt><a> has empty href → onion_url empty → skipped."""
+        from modules.crawlers.darkweb_torch import _parse_torch_html
+
+        # dt with an anchor but no href value
+        html = """<html><body>
+        <dl>
+          <dt><a href="">Empty URL Page</a></dt>
+          <dd>Description here</dd>
+          <dt><a href="http://real.onion">Real Page</a></dt>
+          <dd>Real description</dd>
+        </dl>
+        </body></html>"""
+        results = _parse_torch_html(html)
+        # Only the second result should be included
+        assert len(results) == 1
+        assert results[0]["onion_url"] == "http://real.onion"

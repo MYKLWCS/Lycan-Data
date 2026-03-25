@@ -75,7 +75,7 @@ def _parse_table_rows(html: str, state: str) -> list[dict[str, Any]]:
             record.setdefault("parties", record.pop("party name", record.pop("parties", "")))
             record.setdefault("court", record.pop("court", ""))
 
-            if any(record.values()):
+            if any(v for k, v in record.items() if k != "state"):
                 cases.append(record)
 
     return cases
