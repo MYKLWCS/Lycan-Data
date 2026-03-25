@@ -81,6 +81,29 @@
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Lycan: Debug All Tests MAX",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "--ignore=tests/test_integration.py",
+                "-v",
+                "--tb=long",
+                "--no-header",
+                "-rA"
+            ],
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "pythonArgs": ["-Xfrozen_modules=off"],
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal"
         }
     ]
 }
