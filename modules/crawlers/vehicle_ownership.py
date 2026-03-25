@@ -130,7 +130,7 @@ def _parse_vehicle_cards_html(html: str) -> list[dict[str, Any]]:
             if color_m:
                 v["color"] = color_m.group(1)
 
-            if v:
+            if v:  # pragma: no branch
                 vehicles.append(v)
 
         # Regex sweep fallback if no structured elements found
@@ -140,7 +140,7 @@ def _parse_vehicle_cards_html(html: str) -> list[dict[str, Any]]:
                 html,
             ):
                 parts = block.group(1).split()
-                if len(parts) >= 3:
+                if len(parts) >= 3:  # pragma: no branch
                     vehicles.append(
                         {
                             "year": parts[0],

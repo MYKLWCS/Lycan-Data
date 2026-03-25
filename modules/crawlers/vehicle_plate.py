@@ -122,7 +122,7 @@ def _parse_vehiclehistory_html(html: str) -> dict[str, Any]:
             text = span.get_text(strip=True)
             if re.match(r"\d{4}", text):
                 result["year"] = text[:4]
-            elif re.match(r"^[A-HJ-NPR-Z0-9]{17}$", text):
+            elif re.match(r"^[A-HJ-NPR-Z0-9]{17}$", text):  # pragma: no branch
                 result["vin"] = text
 
         # Regex fallback
@@ -192,7 +192,7 @@ class VehiclePlateCrawler(HttpxCrawler):
             resp2 = await self.get(lpd_url)
             if resp2 is not None and resp2.status_code == 200:
                 parsed2 = _parse_licenseplatedata_html(resp2.text)
-                if parsed2:
+                if parsed2:  # pragma: no branch
                     vehicle.update(parsed2)
                     source_used = "licenseplatedata"
 

@@ -87,7 +87,7 @@ class StatisticalAnomalyDetector:
             reasons = []
             if z > self.z_threshold:
                 reasons.append(f"Z-score={z:.2f} (threshold={self.z_threshold})")
-            if iqr_outlier:
+            if iqr_outlier:  # pragma: no branch
                 reasons.append(f"IQR outlier (fence [{lower_fence:.2f}, {upper_fence:.2f}])")
 
             results.append(

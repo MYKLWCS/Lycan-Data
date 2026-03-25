@@ -1384,8 +1384,25 @@ class TestZillowDeepBranchGapsWave8:
 
         crawler = ZillowDeepCrawler()
 
-        suggestions = [{"zpid": "12345", "streetAddress": "3 Pine St", "city": "Houston"}]
-        suggestions_resp = _mock_resp(status=200, json_data=suggestions)
+        # Build a suggestions JSON response that _parse_suggestions can parse
+        # _parse_suggestions reads data["results"][*]["metaData"]["zpid"]
+        suggestions_data = {
+            "results": [
+                {
+                    "display": "3 Pine St, Houston, TX",
+                    "metaData": {
+                        "streetAddress": "3 Pine St",
+                        "addressCity": "Houston",
+                        "addressState": "TX",
+                        "addressZip": "77001",
+                        "zpid": 12345,
+                        "lat": 29.7,
+                        "lng": -95.3,
+                    },
+                }
+            ]
+        }
+        suggestions_resp = _mock_resp(status=200, json_data=suggestions_data)
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=suggestions_resp)):
             with patch.object(
@@ -1394,7 +1411,7 @@ class TestZillowDeepBranchGapsWave8:
                 result = await crawler.scrape("3 Pine St Houston TX")
 
         # page_data is {} (falsy) → if page_data: False → prop not updated
-        mock_fp.assert_called_once_with("12345")
+        mock_fp.assert_called_once_with(12345)
         assert result.found is True
 
 
@@ -1490,24 +1507,30 @@ class TestWhitepagesBranchGapsWave8:
     # [103,101] _extract_whitepages_card returns None → person is None → not appended
     @pytest.mark.asyncio
     async def test_scrape_card_extract_returns_none_not_appended(self):
+        from contextlib import asynccontextmanager
+        from unittest.mock import patch
+
         from modules.crawlers.whitepages import WhitepagesCrawler
 
         crawler = WhitepagesCrawler()
 
-        # HTML with cards that have no parseable data → _extract_whitepages_card returns None
+        # HTML with cards that have no parseable name → _extract_whitepages_card returns None
         html = """<html><body>
         <div id="results">
-          <div class="card"><!-- empty card --></div>
+          <div class="card"><!-- empty card, no name element --></div>
         </div>
         </body></html>"""
 
-        from unittest.mock import patch
+        page_mock = MagicMock()
+        page_mock.title = AsyncMock(return_value="Whitepages Results")
+        page_mock.content = AsyncMock(return_value=html)
+        page_mock.wait_for_timeout = AsyncMock()
 
-        resp = MagicMock()
-        resp.status_code = 200
-        resp.text = html
+        @asynccontextmanager
+        async def fake_page(url):
+            yield page_mock
 
-        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
+        with patch.object(crawler, "page", fake_page):
             result = await crawler.scrape("John Smith TX")
 
         # Cards found but _extract_whitepages_card returns None → results list is empty

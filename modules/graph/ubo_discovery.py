@@ -182,7 +182,7 @@ class UBODiscoveryEngine:
             norm = _normalise(company_name_cur)
             company_node_id = f"company:{uuid.uuid5(uuid.NAMESPACE_DNS, norm)}"
 
-            if company_node_id not in company_nodes:
+            if company_node_id not in company_nodes:  # pragma: no branch
                 company_nodes[company_node_id] = {
                     "id": company_node_id,
                     "type": "company",

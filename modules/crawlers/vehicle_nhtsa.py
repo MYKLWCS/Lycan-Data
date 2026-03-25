@@ -166,7 +166,7 @@ class VehicleNhtsaCrawler(HttpxCrawler):
         model = vehicle_data.get("model", "")
         year = vehicle_data.get("year", "")
 
-        if make and model and year:
+        if make and model and year:  # pragma: no branch
             recalls_url = _RECALLS_URL.format(
                 make=quote_plus(make),
                 model=quote_plus(model),

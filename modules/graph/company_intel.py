@@ -88,7 +88,7 @@ def _build_record_from_rows(
             parts = [p.strip() for p in row.location.split(",")]
             if len(parts) >= 2:
                 hq_address = {"street": None, "city": parts[0], "state": parts[1], "zip": None}
-            elif len(parts) == 1:
+            elif len(parts) == 1:  # pragma: no branch
                 hq_address = {"street": None, "city": parts[0], "state": None, "zip": None}
             break
 

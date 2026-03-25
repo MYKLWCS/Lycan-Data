@@ -91,6 +91,15 @@ def test_build_record_hq_address_parsed_from_location():
     assert record.hq_address["state"] == "CA"
 
 
+def test_build_record_hq_address_single_part_location():
+    """[91->93] location has only one part (no comma) → city set, state None."""
+    emp = _make_emp("TexasCo", location="Austin")
+    record = _build_record_from_rows("TexasCo", [emp], [])
+    assert record.hq_address is not None
+    assert record.hq_address["city"] == "Austin"
+    assert record.hq_address["state"] is None
+
+
 def test_build_record_website_from_meta():
     emp = _make_emp("WebCo", meta={"website": "https://webco.com"})
     record = _build_record_from_rows("WebCo", [emp], [])

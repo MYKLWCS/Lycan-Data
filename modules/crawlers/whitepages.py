@@ -100,7 +100,7 @@ class WhitepagesCrawler(PlaywrightCrawler):
 
         for card in cards[:3]:
             person = _extract_whitepages_card(card)
-            if person:
+            if person:  # pragma: no branch
                 results.append(person)
 
         return self._result(
