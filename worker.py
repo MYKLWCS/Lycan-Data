@@ -49,6 +49,7 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool):
     from modules.dispatcher.dispatcher import CrawlDispatcher
     from modules.dispatcher.freshness_scheduler import FreshnessScheduler
     from modules.dispatcher.growth_daemon import GrowthDaemon
+    from modules.enrichers.auto_dedup import AutoDedupDaemon
     from modules.pipeline.ingestion_daemon import IngestionDaemon
     from modules.search.index_daemon import IndexDaemon
     from modules.search.meili_indexer import meili_indexer
@@ -94,10 +95,18 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool):
         tasks.append(asyncio.create_task(fs.start(), name="freshness-scheduler"))
         logger.info("Started freshness scheduler")
 
+    # Auto-dedup daemon
+    dedup_daemon = AutoDedupDaemon()
+    tasks.append(
+        asyncio.create_task(dedup_daemon.start(), name="auto-dedup-daemon")
+    )
+    logger.info("Started auto-dedup daemon")
+
     logger.info(
         f"Worker running — {workers} dispatcher(s) + "
         f"{'growth daemon + ' if enable_growth else ''}"
-        f"{'freshness scheduler' if enable_freshness else ''}"
+        f"{'freshness scheduler + ' if enable_freshness else ''}"
+        f"auto-dedup daemon"
     )
 
     # Graceful shutdown
