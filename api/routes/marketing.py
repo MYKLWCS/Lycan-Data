@@ -4,11 +4,13 @@ import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import func as sa_func
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
 from api.serializers import _model_to_dict
+from modules.enrichers.commercial_tagger import CommercialTaggerDaemon
 from modules.enrichers.marketing_tags import MarketingTagsEngine
 from shared.models.marketing import ConsumerSegment, MarketingTag
 from shared.models.person import Person
@@ -17,6 +19,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 _engine = MarketingTagsEngine()
+_commercial_daemon = CommercialTaggerDaemon()
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -166,3 +169,32 @@ async def get_borrower_profile(person_id: str, session: AsyncSession = DbDep):
         "person_id": person_id,
         "segments": [_model_to_dict(r) for r in rows],
     }
+
+
+@router.get("/tags/summary")
+async def get_tags_summary(session: AsyncSession = DbDep):
+    """Return {tag: count} aggregation across all MarketingTag rows."""
+    rows = (
+        await session.execute(
+            select(MarketingTag.tag, sa_func.count(MarketingTag.id).label("cnt"))
+            .group_by(MarketingTag.tag)
+            .order_by(sa_func.count(MarketingTag.id).desc())
+        )
+    ).all()
+
+    return {
+        "summary": {row.tag: row.cnt for row in rows},
+        "total_unique_tags": len(rows),
+    }
+
+
+@router.post("/tags/batch")
+async def trigger_batch_tagging(session: AsyncSession = DbDep):
+    """Trigger CommercialTaggerDaemon._run_batch() immediately (one-shot)."""
+    try:
+        await _commercial_daemon._run_batch()
+    except Exception as exc:
+        logger.exception("Batch tagging failed")
+        raise HTTPException(500, "Batch tagging error") from exc
+
+    return {"triggered": True, "message": "Commercial tag batch complete"}
