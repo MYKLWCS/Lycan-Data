@@ -11,8 +11,11 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 import pytest
 
 from modules.dispatcher.growth_daemon import (
+    COOLDOWN_SECONDS,
     KILL_SWITCHES,
+    MAX_DAILY_GROWTH_JOBS,
     MAX_DEPTH,
+    MAX_FANOUT_PER_PERSON,
     PLATFORM_ACCEPTS,
     GrowthDaemon,
 )
@@ -116,7 +119,7 @@ async def test_fan_out_phone_enqueues_phone_platforms(daemon):
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
-        await daemon._fan_out(phone_ident, person_id, depth)
+        await daemon._fan_out(phone_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
 
     phone_platforms = {p for p, types in PLATFORM_ACCEPTS.items() if "phone" in types}
     for platform in phone_platforms:
@@ -155,7 +158,7 @@ async def test_fan_out_email_enqueues_email_platforms(daemon):
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
-        await daemon._fan_out(email_ident, person_id, depth)
+        await daemon._fan_out(email_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
 
     assert "email_holehe" in dispatched_platforms
     assert "email_hibp" in dispatched_platforms
@@ -180,7 +183,7 @@ async def test_fan_out_username_enqueues_username_platforms(daemon):
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
-        await daemon._fan_out(username_ident, person_id, depth)
+        await daemon._fan_out(username_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
 
     for expected in ["instagram", "twitter", "snapchat", "github"]:
         assert expected in dispatched_platforms, f"Missing expected platform: {expected}"
@@ -221,7 +224,7 @@ async def test_fan_out_kill_switch_disables_platform(daemon):
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
-        await daemon._fan_out(username_ident, person_id, depth)
+        await daemon._fan_out(username_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
 
     assert "instagram" not in dispatched_platforms
     # twitter should still be dispatched
@@ -244,7 +247,7 @@ async def test_fan_out_deduplicates_existing_jobs(daemon):
         patch("modules.dispatcher.growth_daemon.dispatch_job", mock_dispatch),
         patch.object(daemon, "_job_exists", return_value=True),
     ):
-        await daemon._fan_out(email_ident, person_id, depth)
+        await daemon._fan_out(email_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
 
     mock_dispatch.assert_not_called()
 
@@ -312,7 +315,7 @@ async def test_fan_out_priority_varies_by_depth(daemon):
             patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
             patch.object(daemon, "_job_exists", return_value=False),
         ):
-            await daemon._fan_out(email_ident, person_id, depth)
+            await daemon._fan_out(email_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
 
         assert all(p == expected_priority for p in dispatched_priorities), (
             f"Expected all priorities={expected_priority!r} at depth={depth}, got {dispatched_priorities}"
@@ -327,3 +330,79 @@ def test_platform_accepts_phone_maps_correctly():
     phone_platforms = {p for p, types in PLATFORM_ACCEPTS.items() if "phone" in types}
     expected = {"telegram", "whatsapp", "phone_carrier", "phone_fonefinder", "phone_truecaller"}
     assert expected == phone_platforms
+
+
+# ---------------------------------------------------------------------------
+# 13. fanout budget caps dispatched jobs
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_fan_out_respects_budget():
+    """_fan_out stops dispatching once remaining_budget is exhausted."""
+    username_ident = _make_identifier("username", "johndoe", "person-abc")
+    person_id = "person-abc"
+    depth = 0
+    budget = 2  # only allow 2 jobs
+
+    dispatched_platforms = []
+
+    async def fake_dispatch(platform, identifier, person_id, priority):
+        dispatched_platforms.append(platform)
+
+    daemon = GrowthDaemon()
+    with (
+        patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
+        patch.object(daemon, "_job_exists", return_value=False),
+    ):
+        count = await daemon._fan_out(username_ident, person_id, depth, budget)
+
+    assert count <= budget
+    assert len(dispatched_platforms) <= budget
+
+
+# ---------------------------------------------------------------------------
+# 14. daily cap prevents further job dispatch
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_daily_cap_prevents_dispatch():
+    """When daily job count hits MAX_DAILY_GROWTH_JOBS, events are dropped."""
+    daemon = GrowthDaemon()
+    daemon._daily_job_count = MAX_DAILY_GROWTH_JOBS  # already at cap
+    daemon._day_marker = int(__import__("time").time()) // 86400  # today
+
+    msg = _make_event(depth=0)
+
+    with patch.object(daemon, "_get_person_identifiers") as mock_get:
+        await daemon._handle_event(msg)
+
+    mock_get.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 15. per-person cooldown prevents rapid re-processing
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_per_person_cooldown():
+    """Same person_id cannot trigger fan-out within COOLDOWN_SECONDS."""
+    import time
+
+    daemon = GrowthDaemon()
+    daemon._recent_persons["person-123"] = time.time()  # just processed
+
+    msg = _make_event(depth=0, person_id="person-123")
+
+    with patch.object(daemon, "_get_person_identifiers") as mock_get:
+        await daemon._handle_event(msg)
+
+    mock_get.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 16. volume constants are reasonable
+# ---------------------------------------------------------------------------
+def test_volume_constants():
+    """Volume cap constants are set to reasonable values."""
+    assert MAX_FANOUT_PER_PERSON >= 1
+    assert MAX_FANOUT_PER_PERSON <= 100
+    assert MAX_DAILY_GROWTH_JOBS >= 100
+    assert MAX_DAILY_GROWTH_JOBS <= 100000
+    assert COOLDOWN_SECONDS >= 1

@@ -3,13 +3,15 @@ Growth Daemon.
 
 Listens on the 'enrichment' event channel. When a crawl_complete event arrives
 with new identifiers, it enqueues follow-up crawl jobs for each identifier
-on every applicable platform — respecting max_depth, kill switches, and
-deduplication (don't re-enqueue if a fresh crawl exists).
+on every applicable platform -- respecting max_depth, kill switches,
+deduplication (don't re-enqueue if a fresh crawl exists), and volume caps
+to prevent exponential job explosion.
 """
 
 import logging
+import time
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from modules.dispatcher.dispatcher import dispatch_job
 from shared.config import settings
@@ -22,8 +24,11 @@ from shared.models.identifier import Identifier
 logger = logging.getLogger(__name__)
 
 MAX_DEPTH = 3  # max hops from seed
+MAX_FANOUT_PER_PERSON = 20  # max follow-up jobs per person per event
+MAX_DAILY_GROWTH_JOBS = 5000  # hard cap on total growth jobs per day
+COOLDOWN_SECONDS = 60  # min seconds between processing events for same person
 
-# Platform → which identifier types it can accept
+# Platform -> which identifier types it can accept
 PLATFORM_ACCEPTS: dict[str, list[str]] = {
     "instagram": ["username"],
     "facebook": ["username", "full_name"],
@@ -86,10 +91,13 @@ KILL_SWITCHES: dict[str, str] = {
 
 
 class GrowthDaemon:
-    """Listens for crawl_complete events and fans out follow-up jobs."""
+    """Listens for crawl_complete events and fans out follow-up jobs with volume caps."""
 
     def __init__(self):
         self._running = False
+        self._daily_job_count = 0
+        self._day_marker = 0  # tracks current day for counter reset
+        self._recent_persons: dict[str, float] = {}  # person_id -> last processed timestamp
 
     async def start(self) -> None:
         self._running = True
@@ -98,6 +106,13 @@ class GrowthDaemon:
 
     async def stop(self) -> None:
         self._running = False
+
+    def _reset_daily_counter_if_needed(self) -> None:
+        """Reset the daily job counter at midnight (UTC day boundary)."""
+        today = int(time.time()) // 86400
+        if today != self._day_marker:
+            self._day_marker = today
+            self._daily_job_count = 0
 
     async def _handle_event(self, message: dict) -> None:
         if message.get("event") != "crawl_complete":
@@ -109,24 +124,72 @@ class GrowthDaemon:
 
         depth = message.get("depth", 0)
         if depth >= MAX_DEPTH:
-            logger.debug(f"Max depth {MAX_DEPTH} reached for person {person_id}")
+            logger.debug("Max depth %d reached for person %s", MAX_DEPTH, person_id)
             return
+
+        # ── Daily volume cap ─────────────────────────────────────────────────
+        self._reset_daily_counter_if_needed()
+        if self._daily_job_count >= MAX_DAILY_GROWTH_JOBS:
+            logger.warning(
+                "growth_daemon_daily_cap | person=%s daily_count=%d cap=%d",
+                person_id,
+                self._daily_job_count,
+                MAX_DAILY_GROWTH_JOBS,
+            )
+            return
+
+        # ── Per-person cooldown ──────────────────────────────────────────────
+        now = time.time()
+        last_processed = self._recent_persons.get(person_id, 0)
+        if now - last_processed < COOLDOWN_SECONDS:
+            logger.debug(
+                "Growth daemon cooldown for person %s (%.0fs remaining)",
+                person_id,
+                COOLDOWN_SECONDS - (now - last_processed),
+            )
+            return
+        self._recent_persons[person_id] = now
+
+        # Prune cooldown cache (keep last 1000 entries)
+        if len(self._recent_persons) > 1000:
+            sorted_items = sorted(self._recent_persons.items(), key=lambda x: x[1])
+            self._recent_persons = dict(sorted_items[-500:])
 
         async with AsyncSessionLocal() as session:
             identifiers = await self._get_person_identifiers(session, person_id)
 
+        jobs_dispatched = 0
         for ident in identifiers:
-            await self._fan_out(ident, person_id, depth)
+            if jobs_dispatched >= MAX_FANOUT_PER_PERSON:
+                logger.info(
+                    "growth_daemon_fanout_cap | person=%s dispatched=%d cap=%d",
+                    person_id,
+                    jobs_dispatched,
+                    MAX_FANOUT_PER_PERSON,
+                )
+                break
+            jobs_dispatched += await self._fan_out(
+                ident, person_id, depth, MAX_FANOUT_PER_PERSON - jobs_dispatched
+            )
+
+        self._daily_job_count += jobs_dispatched
 
     async def _get_person_identifiers(self, session, person_id: str) -> list[Identifier]:
         result = await session.execute(select(Identifier).where(Identifier.person_id == person_id))
         return result.scalars().all()
 
-    async def _fan_out(self, identifier: Identifier, person_id: str, depth: int) -> None:
+    async def _fan_out(
+        self, identifier: Identifier, person_id: str, depth: int, remaining_budget: int
+    ) -> int:
+        """Fan out jobs for one identifier. Returns number of jobs dispatched."""
         ident_type = identifier.type
         ident_value = identifier.value
+        dispatched = 0
 
         for platform, accepted_types in PLATFORM_ACCEPTS.items():
+            if dispatched >= remaining_budget:
+                break
+
             if ident_type not in accepted_types:
                 continue
 
@@ -146,7 +209,16 @@ class GrowthDaemon:
                 person_id=person_id,
                 priority=priority,
             )
-            logger.info(f"Enqueued {platform} job for {ident_type}={ident_value!r} (depth={depth})")
+            dispatched += 1
+            logger.info(
+                "growth_enqueue | platform=%s ident_type=%s value=%r depth=%d",
+                platform,
+                ident_type,
+                ident_value,
+                depth,
+            )
+
+        return dispatched
 
     async def _job_exists(self, person_id: str, platform: str, identifier: str) -> bool:
         """Return True if a non-failed job for this triple exists in the last 24h."""

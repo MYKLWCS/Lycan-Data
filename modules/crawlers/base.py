@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import time
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -15,6 +16,11 @@ logger = logging.getLogger(__name__)
 # Human-like delay range (seconds)
 DELAY_MIN = 1.5
 DELAY_MAX = 4.0
+
+# Retry defaults
+MAX_SCRAPER_RETRIES = 3
+BASE_BACKOFF_SECONDS = 2.0
+MAX_BACKOFF_SECONDS = 30.0
 
 
 class BaseCrawler(ABC):
@@ -36,13 +42,14 @@ class BaseCrawler(ABC):
     source_reliability: float = 0.5
     requires_tor: bool = True
     tor_instance: TorInstance = TorInstance.TOR2
-    proxy_tier: str = "tor"  # residential | datacenter | tor | direct — override per crawler
+    proxy_tier: str = "tor"  # residential | datacenter | tor | direct -- override per crawler
+    max_retries: int = MAX_SCRAPER_RETRIES
 
     @abstractmethod
     async def scrape(self, identifier: str) -> CrawlerResult:
         """
         Scrape a platform for the given identifier.
-        identifier may be: username, phone, email, name — depends on platform.
+        identifier may be: username, phone, email, name -- depends on platform.
         Must always return a CrawlerResult, never raise.
         """
 
@@ -50,9 +57,12 @@ class BaseCrawler(ABC):
         """
         Public entry point. Wraps scrape() with:
         - Enabled check (kill switch)
-        - Delay
-        - Error catching
+        - Circuit breaker (skip if circuit open)
+        - Retry with exponential backoff + jitter
+        - Structured error logging
+        - Human delay
         """
+        # ── Kill switch ──────────────────────────────────────────────────────
         kill_switch = f"enable_{self.platform.replace('-', '_')}"
         if hasattr(settings, kill_switch) and not getattr(settings, kill_switch):
             return CrawlerResult(
@@ -62,26 +72,111 @@ class BaseCrawler(ABC):
                 error=f"{self.platform} disabled via kill switch",
             )
 
-        await self._human_delay()
+        # ── Circuit breaker ──────────────────────────────────────────────────
+        from shared.circuit_breaker import get_circuit_breaker
 
-        try:
-            result = await self.scrape(identifier)
-            result.tor_used = self.requires_tor and settings.tor_enabled
-            return result
-        except Exception as exc:
-            logger.exception("Crawler %s failed for %s", self.platform, identifier)
+        cb = get_circuit_breaker()
+        if await cb.is_open(self.platform):
+            logger.warning(
+                "circuit_breaker_open | source=%s identifier=%s",
+                self.platform,
+                identifier,
+            )
             return CrawlerResult(
                 platform=self.platform,
                 identifier=identifier,
                 found=False,
-                error=str(exc),
+                error=f"circuit_open: {self.platform} skipped (too many failures)",
             )
+
+        # ── Retry loop with exponential backoff + jitter ─────────────────────
+        last_error: str | None = None
+        for attempt in range(self.max_retries):
+            await self._human_delay()
+
+            try:
+                t0 = time.monotonic()
+                result = await self.scrape(identifier)
+                elapsed_ms = int((time.monotonic() - t0) * 1000)
+                result.tor_used = self.requires_tor and settings.tor_enabled
+
+                # Record success with circuit breaker
+                await cb.record_success(self.platform)
+
+                logger.info(
+                    "scraper_success | source=%s identifier=%s "
+                    "found=%s elapsed_ms=%d attempt=%d",
+                    self.platform,
+                    identifier,
+                    result.found,
+                    elapsed_ms,
+                    attempt + 1,
+                )
+                return result
+
+            except Exception as exc:
+                last_error = str(exc)
+                elapsed_ms = int((time.monotonic() - t0) * 1000)
+
+                # ── Structured error log ─────────────────────────────────────
+                logger.error(
+                    "scraper_error | source=%s identifier=%s "
+                    "error_type=%s error=%s elapsed_ms=%d "
+                    "attempt=%d/%d timestamp=%s",
+                    self.platform,
+                    identifier,
+                    type(exc).__name__,
+                    last_error,
+                    elapsed_ms,
+                    attempt + 1,
+                    self.max_retries,
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                )
+
+                # Record failure with circuit breaker
+                await cb.record_failure(self.platform)
+
+                # Don't retry on the last attempt
+                if attempt < self.max_retries - 1:
+                    backoff = min(
+                        BASE_BACKOFF_SECONDS * (2 ** attempt),
+                        MAX_BACKOFF_SECONDS,
+                    )
+                    # Add jitter: +/- 30%
+                    jitter = backoff * random.uniform(-0.3, 0.3)
+                    wait = max(0.1, backoff + jitter)
+                    logger.info(
+                        "scraper_retry | source=%s identifier=%s "
+                        "backoff=%.1fs attempt=%d/%d",
+                        self.platform,
+                        identifier,
+                        wait,
+                        attempt + 2,
+                        self.max_retries,
+                    )
+                    await asyncio.sleep(wait)
+
+        # All retries exhausted
+        logger.error(
+            "scraper_exhausted | source=%s identifier=%s "
+            "error=%s retries=%d",
+            self.platform,
+            identifier,
+            last_error,
+            self.max_retries,
+        )
+        return CrawlerResult(
+            platform=self.platform,
+            identifier=identifier,
+            found=False,
+            error=last_error,
+        )
 
     async def get_proxy_async(self) -> str | None:
         """
         Return the best available proxy for this crawler's tier preference.
 
-        Falls back through the tier chain (residential → datacenter → tor → direct)
+        Falls back through the tier chain (residential -> datacenter -> tor -> direct)
         when the preferred tier has no healthy proxies available.
         """
         from shared.proxy_pool import proxy_pool
@@ -99,7 +194,7 @@ class BaseCrawler(ABC):
         return proxy
 
     def get_proxy(self) -> str | None:
-        """Sync fallback — returns Tor proxy or proxy_override."""
+        """Sync fallback -- returns Tor proxy or proxy_override."""
         if not self.requires_tor:
             return None
         if settings.proxy_override:

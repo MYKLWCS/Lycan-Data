@@ -2,7 +2,7 @@ import re
 import uuid
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -222,11 +222,44 @@ def _auto_detect_type(value: str) -> SeedType:
 
 
 class SearchRequest(BaseModel):
-    value: str
+    value: str = Field(..., min_length=1, max_length=200)
     seed_type: SeedType | None = None
-    context: str = "general"  # "risk", "wealth", "identity", "general"
-    max_depth: int = 2
-    priority: str = "normal"  # "high", "normal", "low"
+    context: str = Field(
+        default="general",
+        pattern=r"^(general|risk|wealth|identity)$",
+    )
+    max_depth: int = Field(default=2, ge=1, le=5)
+    priority: str = Field(
+        default="normal",
+        pattern=r"^(high|normal|low)$",
+    )
+
+    @field_validator("value")
+    @classmethod
+    def sanitize_value(cls, v: str) -> str:
+        """Sanitize input to prevent injection attacks.
+
+        Allows: alphanumeric, spaces, hyphens, apostrophes, periods, @, +,
+        underscores, colons (IPv6), and forward slashes (URLs).
+        Strips HTML tags and common injection patterns.
+        """
+        v = v.strip()
+        if not v:
+            raise ValueError("Search value cannot be empty")
+        # Strip HTML tags
+        v = re.sub(r"<[^>]+>", "", v)
+        # Strip shell injection patterns
+        v = re.sub(r"[$`\\]", "", v)
+        # Allow chars needed for: names, emails, phones, crypto addresses,
+        # IPs, domains, usernames
+        allowed = re.compile(
+            r"[^a-zA-Z0-9\s\-\'.@+_:./()#]"
+        )
+        v = allowed.sub("", v)
+        v = v.strip()
+        if not v:
+            raise ValueError("Search value contains no valid characters after sanitization")
+        return v
 
 
 class CandidatePerson(BaseModel):
@@ -249,7 +282,7 @@ class SearchResponse(BaseModel):
 
 
 class BatchSearchRequest(BaseModel):
-    seeds: list[SearchRequest]
+    seeds: list[SearchRequest] = Field(..., min_length=1, max_length=50)
 
 
 class BatchSearchResponse(BaseModel):
@@ -409,7 +442,12 @@ class CandidatesResponse(BaseModel):
 
 @router.get("/candidates", response_model=CandidatesResponse)
 async def search_candidates(
-    value: str = Query(..., description="Search value (name, email, username, etc.)"),
+    value: str = Query(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Search value (name, email, username, etc.)",
+    ),
     seed_type: str | None = Query(default=None, description="Force seed type"),
     session: AsyncSession = DbDep,
 ):
