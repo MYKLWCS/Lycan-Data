@@ -1355,7 +1355,7 @@ def test_branch_aml_screener_unknown_list_type():
     wl_row.match_name = "Test Person"
     wl_row.is_confirmed = False
 
-    result = screener.screen([wl_row], [], [])
+    result = screener.screen(None, [wl_row], [], [])
     # Risk stays 0.0 (no matching branch fired)
     assert result.risk_score == 0.0
     assert result.sanctions_hits == []

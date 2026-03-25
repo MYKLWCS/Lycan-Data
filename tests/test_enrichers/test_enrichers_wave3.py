@@ -109,6 +109,8 @@ class TestFinancialIntelligenceEngine:
             _scalars_result(address_rows),
             _scalars_result(identifier_rows),
             _scalars_result(criminal_rows),
+            _scalars_result([]),  # employment
+            _scalars_result([]),  # properties
             wealth_result,
         ]
 
@@ -317,6 +319,8 @@ class TestMarketingTagsEngine:
             _scalars_result(socials),
             beh_result,
             wealth_result,
+            _scalars_result([]),  # vehicles
+            _scalars_result([]),  # properties
         ]
 
         return _make_session(effects)

@@ -395,8 +395,14 @@ async def test_found_result_publishes_enrichment_event(dispatcher, mock_session)
 
         await dispatcher._process_one(job_dict)
 
-    mock_bus.publish.assert_called_once()
-    channel, event = mock_bus.publish.call_args[0]
+    # Dispatcher now also publishes progress events (SCRAPER_RUNNING, SCRAPER_DONE),
+    # so assert that the enrichment event was published among all calls.
+    enrichment_calls = [
+        call for call in mock_bus.publish.call_args_list
+        if call[0][0] == "enrichment"
+    ]
+    assert len(enrichment_calls) == 1
+    channel, event = enrichment_calls[0][0]
     assert channel == "enrichment"
     assert event["event"] == "crawl_complete"
     assert event["platform"] == "facebook"
@@ -429,7 +435,12 @@ async def test_not_found_no_error_sets_done(dispatcher, mock_session):
         await dispatcher._process_one(job_dict)
 
     mock_bus.enqueue.assert_not_called()
-    mock_bus.publish.assert_not_called()
+    # Dispatcher publishes progress events even on not-found, but no enrichment event
+    enrichment_calls = [
+        call for call in mock_bus.publish.call_args_list
+        if call[0][0] == "enrichment"
+    ]
+    assert len(enrichment_calls) == 0
 
 
 # ---------------------------------------------------------------------------

@@ -193,7 +193,7 @@ def _make_crypto(
 
 def test_aml_clean_profile_is_low_risk():
     screener = AMLScreener()
-    result = screener.screen([], [], [])
+    result = screener.screen(None, [], [], [])
     assert result.risk_score == 0.0
     assert result.risk_tier == "low"
     assert not result.is_pep
@@ -202,7 +202,7 @@ def test_aml_clean_profile_is_low_risk():
 
 def test_aml_pep_flag_and_risk():
     screener = AMLScreener()
-    result = screener.screen([_make_watchlist("pep")], [], [])
+    result = screener.screen(None, [_make_watchlist("pep")], [], [])
     assert result.is_pep is True
     assert result.risk_score >= 0.40
     assert result.risk_tier in ("medium", "high", "critical")
@@ -210,7 +210,7 @@ def test_aml_pep_flag_and_risk():
 
 def test_aml_sanctions_hit_sets_critical_risk():
     screener = AMLScreener()
-    result = screener.screen([_make_watchlist("sanctions")], [], [])
+    result = screener.screen(None, [_make_watchlist("sanctions")], [], [])
     assert result.risk_score >= 0.90
     assert result.risk_tier == "critical"
     assert len(result.sanctions_hits) == 1
@@ -218,34 +218,34 @@ def test_aml_sanctions_hit_sets_critical_risk():
 
 def test_aml_fugitive_adds_sanctions_hit():
     screener = AMLScreener()
-    result = screener.screen([_make_watchlist("fugitive")], [], [])
+    result = screener.screen(None, [_make_watchlist("fugitive")], [], [])
     assert result.risk_score >= 0.70
     assert len(result.sanctions_hits) == 1
 
 
 def test_aml_darkweb_exposure_raises_risk():
     screener = AMLScreener()
-    result = screener.screen([], [_make_darkweb(0.8)], [])
+    result = screener.screen(None, [], [_make_darkweb(0.8)], [])
     assert result.risk_score > 0.0
     assert result.darkweb_mention_count == 1
 
 
 def test_aml_crypto_mixer_raises_risk():
     screener = AMLScreener()
-    result = screener.screen([], [], [_make_crypto(mixer_exposure=True)])
+    result = screener.screen(None, [], [], [_make_crypto(mixer_exposure=True)])
     assert result.risk_score >= 0.65
 
 
 def test_aml_high_risk_crypto_raises_risk():
     screener = AMLScreener()
-    result = screener.screen([], [], [_make_crypto(risk_score=0.9)])
+    result = screener.screen(None, [], [], [_make_crypto(risk_score=0.9)])
     assert result.risk_score > 0.0
 
 
 def test_aml_result_capped_at_one():
     screener = AMLScreener()
     watchlists = [_make_watchlist("sanctions"), _make_watchlist("terrorist")]
-    result = screener.screen(watchlists, [_make_darkweb(1.0)], [_make_crypto(mixer_exposure=True)])
+    result = screener.screen(None, watchlists, [_make_darkweb(1.0)], [_make_crypto(mixer_exposure=True)])
     assert result.risk_score <= 1.0
 
 
@@ -445,7 +445,8 @@ async def test_score_person_wealth_band_low_and_existing_wealth_row_no_band():
         r = MagicMock()
         c = call_count[0]
         call_count[0] += 1
-        # order: watchlist, darkweb, crypto, addresses, identifiers, criminals, wealth, burner
+        # order: watchlist, darkweb, crypto, addresses, identifiers, criminals,
+        #        employment, properties, wealth, burner
         if c == 0:
             r.scalars.return_value = _scalars_all([])  # watchlist
         elif c == 1:
@@ -459,6 +460,10 @@ async def test_score_person_wealth_band_low_and_existing_wealth_row_no_band():
         elif c == 5:
             r.scalars.return_value = _scalars_all([])  # criminals
         elif c == 6:
+            r.scalars.return_value = _scalars_all([])  # employment
+        elif c == 7:
+            r.scalars.return_value = _scalars_all([])  # properties
+        elif c == 8:
             r.scalars.return_value = _scalars_first(wealth_row)  # wealth
         else:
             r.scalars.return_value = _scalars_all([])  # burner

@@ -47,9 +47,9 @@ def _make_session(wealth_row=None):
 
     async def _execute(stmt):
         call_count[0] += 1
-        # The 7th call is for WealthAssessment (order: watchlist, darkweb, crypto,
-        # addresses, identifiers, criminals, wealth)
-        if call_count[0] == 7:
+        # The 9th call is for WealthAssessment (order: watchlist, darkweb, crypto,
+        # addresses, identifiers, criminals, employment, properties, wealth)
+        if call_count[0] == 9:
             return _empty_scalars([wealth_row] if wealth_row else [])
         return _empty_scalars([])
 

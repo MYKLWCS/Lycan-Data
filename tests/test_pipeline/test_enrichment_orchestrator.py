@@ -48,7 +48,7 @@ async def test_enrich_person_returns_report_with_five_steps():
     orchestrator = EnrichmentOrchestrator()
     session = _mock_session()
 
-    # Patch all eight private step methods to be no-ops
+    # Patch all nine private step methods to be no-ops
     with (
         patch.object(orchestrator, "_run_financial_aml", new=AsyncMock()),
         patch.object(orchestrator, "_run_marketing_tags", new=AsyncMock()),
@@ -58,13 +58,14 @@ async def test_enrich_person_returns_report_with_five_steps():
         patch.object(orchestrator, "_update_coverage", new=AsyncMock()),
         patch.object(orchestrator, "_run_location", new=AsyncMock()),
         patch.object(orchestrator, "_run_cascade", new=AsyncMock()),
+        patch.object(orchestrator, "_run_entity_resolution", new=AsyncMock()),
         patch.object(orchestrator, "_publish_completion", new=AsyncMock()),
     ):
         report = await orchestrator.enrich_person("person-123", session)
 
     assert isinstance(report, EnrichmentReport)
     assert report.person_id == "person-123"
-    assert len(report.steps) == 8
+    assert len(report.steps) == 9
     enricher_names = [s.enricher for s in report.steps]
     assert "financial_aml" in enricher_names
     assert "marketing_tags" in enricher_names
@@ -93,11 +94,12 @@ async def test_enrich_person_all_ok():
         patch.object(orchestrator, "_update_coverage", new=AsyncMock()),
         patch.object(orchestrator, "_run_location", new=AsyncMock()),
         patch.object(orchestrator, "_run_cascade", new=AsyncMock()),
+        patch.object(orchestrator, "_run_entity_resolution", new=AsyncMock()),
         patch.object(orchestrator, "_publish_completion", new=AsyncMock()),
     ):
         report = await orchestrator.enrich_person("abc", session)
 
-    assert report.ok_count == 8
+    assert report.ok_count == 9
     assert report.error_count == 0
 
 
@@ -121,13 +123,14 @@ async def test_failing_enricher_does_not_abort_pipeline():
         patch.object(orchestrator, "_update_coverage", new=AsyncMock()),
         patch.object(orchestrator, "_run_location", new=AsyncMock()),
         patch.object(orchestrator, "_run_cascade", new=AsyncMock()),
+        patch.object(orchestrator, "_run_entity_resolution", new=AsyncMock()),
         patch.object(orchestrator, "_publish_completion", new=AsyncMock()),
     ):
         report = await orchestrator.enrich_person("xyz", session)
 
-    assert len(report.steps) == 8
+    assert len(report.steps) == 9
     assert report.error_count == 1
-    assert report.ok_count == 7
+    assert report.ok_count == 8
     failed_step = next(s for s in report.steps if s.enricher == "financial_aml")
     assert failed_step.status == "error"
     assert "injected failure" in failed_step.detail
