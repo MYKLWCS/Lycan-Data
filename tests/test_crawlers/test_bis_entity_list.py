@@ -166,8 +166,11 @@ class TestSearchCsv:
         assert len(matches) == 1
 
     def test_malformed_csv_returns_empty(self):
-        """Completely unparseable content logs a warning but returns []."""
-        matches = _search_csv(None, "anything")  # type: ignore[arg-type]
+        """Exception inside csv.DictReader iteration logs a warning and returns []."""
+        import csv as csv_mod
+
+        with patch.object(csv_mod, "DictReader", side_effect=RuntimeError("parse boom")):
+            matches = _search_csv("bad content", "anything")
         assert matches == []
 
     def test_fr_citation_alternative_key(self):
@@ -406,7 +409,8 @@ class TestBisEntityListCrawlerScrape:
             result = await crawler.scrape("Huawei")
 
         assert result.found is False
-        assert result.error == "download_failed"
+        # error is stored in data dict (via _result(**data)), not on result.error
+        assert result.data.get("error") == "download_failed"
         assert result.data["bis_matches"] == []
         assert result.data["is_on_bis_list"] is False
 

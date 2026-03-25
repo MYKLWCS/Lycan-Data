@@ -277,10 +277,11 @@ class TestParseHtmlResults:
 
     def test_exception_returns_empty(self):
         """Any exception during parse is caught and returns []."""
-        with patch(
-            "modules.crawlers.gov.icij_offshoreleaks.BeautifulSoup",
-            side_effect=RuntimeError("soup error"),
-        ):
+        # BeautifulSoup is imported inside the function body, not at module level.
+        # Simulate a parse exception by patching bs4.BeautifulSoup directly.
+        import bs4
+
+        with patch.object(bs4, "BeautifulSoup", side_effect=RuntimeError("soup error")):
             results = _parse_html_results("<html></html>")
         assert results == []
 
