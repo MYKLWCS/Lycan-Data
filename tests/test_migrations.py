@@ -43,3 +43,12 @@ async def test_all_tables_exist():
             result = await session.execute(text(f"SELECT to_regclass('public.{table}')"))
             val = result.scalar()
             assert val is not None, f"Table '{table}' not found in database"
+
+
+def test_new_migration_revision_exists():
+    """Verify migration for dedup_reviews/merged_into exists in versions directory."""
+    import pathlib
+    versions_path = pathlib.Path("migrations/versions")
+    revisions = [f.stem for f in versions_path.glob("*.py") if not f.stem.startswith("__")]
+    assert any("dedup_reviews" in r or "merged_into" in r for r in revisions), \
+        "Expected migration for dedup_reviews/merged_into not found"
