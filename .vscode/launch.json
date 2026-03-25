@@ -2,6 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
+            // Run the API with breakpoints — status bar turns orange, debug toolbar appears at top
             "name": "Lycan: Debug",
             "type": "debugpy",
             "request": "launch",
@@ -21,9 +22,11 @@
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
+            "stopOnEntry": false,
             "console": "integratedTerminal"
         },
         {
+            // Run whatever file is open in the editor
             "name": "Lycan: Debug File",
             "type": "debugpy",
             "request": "launch",
@@ -36,9 +39,11 @@
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
+            "stopOnEntry": false,
             "console": "integratedTerminal"
         },
         {
+            // Debug the open test file — stops on first failure so you can inspect
             "name": "Lycan: Debug Tests",
             "type": "debugpy",
             "request": "launch",
@@ -48,7 +53,8 @@
                 "-v",
                 "--tb=short",
                 "--no-header",
-                "-x"
+                "-x",
+                "-p", "no:warnings"
             ],
             "python": "${workspaceFolder}/.venv/bin/python",
             "pythonArgs": ["-Xfrozen_modules=off"],
@@ -58,9 +64,11 @@
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
+            "stopOnEntry": false,
             "console": "integratedTerminal"
         },
         {
+            // Full suite — stops on first failure
             "name": "Lycan: Debug All Tests",
             "type": "debugpy",
             "request": "launch",
@@ -70,7 +78,8 @@
                 "--ignore=tests/test_integration.py",
                 "-v",
                 "--tb=short",
-                "-x"
+                "-x",
+                "-p", "no:warnings"
             ],
             "python": "${workspaceFolder}/.venv/bin/python",
             "pythonArgs": ["-Xfrozen_modules=off"],
@@ -80,9 +89,11 @@
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
+            "stopOnEntry": false,
             "console": "integratedTerminal"
         },
         {
+            // Full suite — never stops, collects every failure, shows coverage and locals
             "name": "Lycan: Debug All Tests MAX",
             "type": "debugpy",
             "request": "launch",
@@ -93,11 +104,10 @@
                 "-v",
                 "--tb=long",
                 "--showlocals",
-                "--full-trace",
                 "-rA",
                 "--strict-markers",
                 "--durations=0",
-                "-W", "default",
+                "-p", "no:warnings",
                 "--cov=.",
                 "--cov-report=term-missing",
                 "--cov-fail-under=100"
@@ -110,6 +120,7 @@
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
+            "stopOnEntry": false,
             "console": "integratedTerminal"
         }
     ]
