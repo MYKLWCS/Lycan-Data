@@ -32,7 +32,7 @@ class SocialscanCrawler(BaseCrawler):
 
     async def scrape(self, identifier: str) -> CrawlerResult:
         try:
-            from socialscan.util import Platforms, QueryHandler, Query  # type: ignore[import]
+            from socialscan.util import Platforms, Query, QueryHandler  # type: ignore[import]
         except ImportError:
             return CrawlerResult(
                 platform=self.platform,
@@ -60,7 +60,9 @@ class SocialscanCrawler(BaseCrawler):
         registered_on = []
         available_on = []
         for res in results:
-            platform_name = res.platform.value if hasattr(res.platform, "value") else str(res.platform)
+            platform_name = (
+                res.platform.value if hasattr(res.platform, "value") else str(res.platform)
+            )
             if res.available is False:
                 # available=False means the account IS taken (registered)
                 registered_on.append(platform_name)

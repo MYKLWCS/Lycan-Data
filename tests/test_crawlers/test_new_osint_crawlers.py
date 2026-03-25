@@ -19,7 +19,6 @@ import pytest
 from modules.crawlers.base import BaseCrawler
 from modules.crawlers.curl_base import CurlCrawler
 
-
 # ---------------------------------------------------------------------------
 # Import checks — all modules must import without error
 # ---------------------------------------------------------------------------
