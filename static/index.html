@@ -175,6 +175,35 @@ a:hover { color: #5599ff; }
 .progress-bar-wrap { background: var(--bg3); border-radius: 3px; height: 4px; overflow: hidden; margin-bottom: 12px; }
 .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
 
+/* ── Rich search progress (SSE phase bar) ── */
+.sp-wrap { margin-top: 16px; }
+.sp-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.sp-pct { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--text); }
+.sp-phase { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); }
+.sp-meta { display: flex; gap: 14px; }
+.sp-meta-item { display: flex; flex-direction: column; align-items: flex-end; }
+.sp-meta-label { font-size: 9px; text-transform: uppercase; color: var(--text-mute); letter-spacing: 0.08em; }
+.sp-meta-val { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+.sp-bar-track { background: var(--bg3); border-radius: 3px; height: 6px; overflow: hidden; margin-bottom: 8px; position: relative; }
+.sp-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease, background 0.3s; background: var(--accent); }
+.sp-bar-fill.phase-collecting   { background: #1a6ef5; }
+.sp-bar-fill.phase-deduplicating{ background: #8b5cf6; }
+.sp-bar-fill.phase-enriching    { background: #ec4899; }
+.sp-bar-fill.phase-finalizing   { background: #f59e0b; }
+.sp-bar-fill.phase-complete     { background: var(--green); }
+.sp-milestones { position: relative; height: 14px; margin-bottom: 10px; }
+.sp-milestone { position: absolute; transform: translateX(-50%); font-size: 9px; font-family: var(--mono); color: var(--text-mute); }
+.sp-milestone.passed { color: var(--text-dim); }
+.sp-grid-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-mute); margin-bottom: 6px; }
+.sp-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.sp-scraper { display: flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 4px; font-family: var(--mono); font-size: 9px; background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap; }
+.sp-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+.sp-scraper.queued  .sp-dot { background: var(--border2); }
+.sp-scraper.running .sp-dot { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.sp-scraper.done    .sp-dot { background: var(--green); }
+.sp-scraper.failed  .sp-dot { background: var(--red); }
+.sp-scraper.running { border-color: rgba(26,110,245,0.35); }
+
 /* ── Alerts ── */
 .alert-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .alert-item:last-child { border-bottom: none; }
@@ -779,7 +808,7 @@ function drawRiskDial(container, score, color) {
   container.appendChild(svg);
 }
 
-// ── WebSocket live progress ────────────────────────────────────────────
+// ── WebSocket live progress (legacy enrichment feed) ──────────────────
 class LiveProgress {
   constructor(personId, opts={}) {
     this.personId = personId;
@@ -798,7 +827,6 @@ class LiveProgress {
     this.ws.onclose = () => {
       if (this._reconnect<5) { this._reconnect++; setTimeout(()=>this.connect(), 2000*this._reconnect); }
     };
-    // send keepalive pings
     this._pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send('ping');
     }, 20000);
@@ -838,6 +866,131 @@ class LiveProgress {
       const colors={scanning:'var(--accent)',found:'var(--green)','not-found':'var(--text-mute)'};
       statusEl.style.color=colors[state]||'';
       statusEl.textContent=(icons[state]||'')+' '+state.replace('-',' ');
+    }
+  }
+}
+
+// ── Rich SSE search progress (phase bar + scraper grid) ───────────────
+class SearchProgress {
+  constructor(personId, container) {
+    this.personId = personId;
+    this.container = container;
+    this._es = null;
+    this._built = false;
+    // DOM refs
+    this._pct = null;
+    this._phaseEl = null;
+    this._fill = null;
+    this._foundVal = null;
+    this._etaVal = null;
+    this._grid = null;
+    this._gridLabel = null;
+  }
+
+  connect() {
+    this._build();
+    this._es = new EventSource(`/search/${this.personId}/progress`);
+    this._es.onmessage = (ev) => {
+      try { this._render(JSON.parse(ev.data)); } catch {}
+    };
+    this._es.onerror = () => {
+      // EventSource auto-reconnects; nothing needed
+    };
+  }
+
+  disconnect() {
+    if (this._es) { this._es.close(); this._es = null; }
+  }
+
+  _build() {
+    if (this._built) return;
+    this._built = true;
+    const w = this.container;
+    w.textContent = '';
+
+    // Header row: pct + phase + meta
+    const hdr = div('sp-header');
+    this._pct   = span('sp-pct', '0%');
+    this._phaseEl = span('sp-phase', 'initializing');
+    const left = div(''); left.append(this._pct, this._phaseEl);
+    const meta = div('sp-meta');
+    const mkMeta = (label) => {
+      const item = div('sp-meta-item');
+      const lbl  = span('sp-meta-label', label);
+      const val  = span('sp-meta-val', '—');
+      item.append(lbl, val);
+      meta.appendChild(item);
+      return val;
+    };
+    this._foundVal = mkMeta('Found');
+    this._etaVal   = mkMeta('ETA');
+    hdr.append(left, meta);
+
+    // Progress bar
+    const track = div('sp-bar-track');
+    this._fill = div('sp-bar-fill');
+    this._fill.style.width = '0%';
+    track.appendChild(this._fill);
+
+    // Phase milestones
+    const miles = div('sp-milestones');
+    [[0,'0%'],[60,'60%'],[75,'75%'],[95,'95%'],[100,'100%']].forEach(([left, label]) => {
+      const m = span('sp-milestone', label);
+      m.style.left = left + '%';
+      miles.appendChild(m);
+    });
+
+    // Scraper grid
+    this._gridLabel = div('sp-grid-label'); this._gridLabel.textContent = 'SCRAPERS 0/0';
+    this._grid = div('sp-grid');
+
+    const wrap = div('sp-wrap');
+    wrap.append(hdr, track, miles, this._gridLabel, this._grid);
+    w.appendChild(wrap);
+  }
+
+  _render(s) {
+    if (!s || !this._built) return;
+    const pct = s.progress_pct || 0;
+    const phase = s.current_phase || 'collecting';
+
+    this._pct.textContent = pct.toFixed(1) + '%';
+    this._phaseEl.textContent = phase.toUpperCase();
+    this._fill.style.width = pct + '%';
+    this._fill.className = 'sp-bar-fill phase-' + phase;
+
+    const found = s.results_found || 0;
+    this._foundVal.textContent = found.toLocaleString();
+    const eta = s.estimated_seconds_remaining || 0;
+    this._etaVal.textContent = eta < 60 ? Math.round(eta) + 's' : Math.round(eta/60) + 'm';
+
+    const total = s.scrapers_total || 0;
+    const done  = (s.scrapers_completed || 0) + (s.scrapers_failed || 0);
+    this._gridLabel.textContent = `SCRAPERS ${done}/${total}`;
+
+    // Rebuild scraper grid from statuses
+    const statuses = s.scraper_statuses || {};
+    this._grid.textContent = '';
+    Object.entries(statuses).forEach(([name, st]) => {
+      const chip = div('sp-scraper ' + st);
+      const dot  = div('sp-dot');
+      const lbl  = span('', name.replace(/_/g, ' '));
+      chip.append(dot, lbl);
+      this._grid.appendChild(chip);
+    });
+
+    // Mark milestone labels passed
+    const ms = this.container.querySelectorAll('.sp-milestone');
+    const thresholds = [0, 60, 75, 95, 100];
+    ms.forEach((m, i) => {
+      m.classList.toggle('passed', pct >= thresholds[i]);
+    });
+
+    // Done
+    if (phase === 'complete') {
+      this._phaseEl.textContent = 'COMPLETE';
+      this._phaseEl.style.color = 'var(--green)';
+      this.disconnect();
     }
   }
 }
@@ -2459,26 +2612,13 @@ const App = {
   },
 
   _startLiveFeed(personId, activityPane) {
-    // Create a compact live feed section inside the Activity pane
-    const feedSection = div('');
-    feedSection.style.marginTop = '24px';
-    const feedHdr = div('cc-rail-label'); feedHdr.style.marginBottom='8px'; feedHdr.textContent='LIVE INTEL FEED';
-    const pbarWrap = div('coverage-bar-wrap');
-    const pbar = div('coverage-bar'); pbar.style.width='0';
-    pbarWrap.appendChild(pbar);
-    const feed = div('live-feed'); feed.id='live-feed-cc';
-    feed.style.cssText = 'max-height:200px;overflow-y:auto;margin-top:8px;font-size:11px;';
-    feedSection.append(feedHdr, pbarWrap, feed);
-    activityPane.appendChild(feedSection);
+    // Rich SSE phase progress (phase bar + scraper grid)
+    const hdr = div('cc-rail-label'); hdr.style.marginBottom = '8px'; hdr.textContent = 'LIVE INTEL FEED';
+    const progressContainer = div('');
+    activityPane.appendChild(hdr);
+    activityPane.appendChild(progressContainer);
 
-    this._lp = new LiveProgress(personId, {
-      feed: feed,
-      bar:  pbar,
-      onDone: () => {
-        feedHdr.textContent = 'LIVE INTEL FEED — COMPLETE';
-        feedHdr.style.color = 'var(--green)';
-      },
-    });
+    this._lp = new SearchProgress(personId, progressContainer);
     this._lp.connect();
   },
 

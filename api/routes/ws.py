@@ -107,3 +107,72 @@ async def sse_progress(person_id: str, request: Request):
                 pass
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.get("/search/{person_id}/progress")
+async def search_progress(person_id: str, request: Request):
+    """
+    SSE stream of rich phase-based progress for a running search.
+
+    Events emit a ProgressState JSON payload:
+      { search_id, current_phase, progress_pct, results_found,
+        scrapers_total, scrapers_completed, scrapers_failed, scrapers_running,
+        estimated_seconds_remaining, elapsed_seconds, scraper_statuses }
+
+    Phases: collecting (0-60%) → deduplicating (60-75%) →
+            enriching (75-95%) → finalizing (95-100%) → complete
+    """
+
+    async def event_stream():
+        if not event_bus.is_connected:
+            yield f"data: {json.dumps({'event_type': 'error', 'detail': 'event bus unavailable'})}\n\n"
+            return
+
+        aggregator = ProgressAggregator(search_id=person_id)
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def _forward(message: dict) -> None:
+            if message.get("search_id") == person_id:
+                await queue.put(message)
+
+        sub_task = asyncio.create_task(
+            event_bus.subscribe("progress", _forward),
+            name=f"progress-sse-{person_id}",
+        )
+
+        # Emit initial state immediately so the client has something to render
+        initial = aggregator.to_state()
+        yield f"data: {initial.model_dump_json()}\n\n"
+
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    raw = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    state = aggregator.process(raw)
+                    if state:
+                        yield f"data: {state.model_dump_json()}\n\n"
+                    # Close stream when search is complete
+                    if raw.get("event_type") == EventType.SEARCH_COMPLETE:
+                        break
+                except TimeoutError:
+                    # Heartbeat keeps the connection alive
+                    state = aggregator.to_state()
+                    yield f"data: {state.model_dump_json()}\n\n"
+        finally:
+            sub_task.cancel()
+            try:
+                await sub_task
+            except asyncio.CancelledError:
+                pass
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
