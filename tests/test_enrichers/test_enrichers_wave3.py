@@ -184,6 +184,7 @@ class TestFinancialIntelligenceEngine:
         wealth_row.wealth_band = "medium"
         wealth_row.income_estimate_usd = 50000.0
         wealth_row.crypto_signal = 0.0
+        wealth_row.vehicle_signal = 0.0
         wealth_row.confidence = 0.5
         wealth_row.assessed_at = datetime.now(UTC)
 
@@ -191,6 +192,8 @@ class TestFinancialIntelligenceEngine:
         person_mock.default_risk_score = 0.3
         person_mock.darkweb_exposure = 0.0
         person_mock.behavioural_risk = 0.0
+        person_mock.adverse_media_score = 0.0
+        person_mock.full_name = "Test Person"
 
         session = self._build_session_for_score(wealth_row=wealth_row, person_row=person_mock)
         person_id = str(uuid.uuid4())
@@ -321,6 +324,7 @@ class TestMarketingTagsEngine:
             wealth_result,
             _scalars_result([]),  # vehicles
             _scalars_result([]),  # properties
+            MagicMock(),          # DELETE MarketingTag (DML, return value ignored)
         ]
 
         return _make_session(effects)

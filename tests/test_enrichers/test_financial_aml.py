@@ -409,6 +409,7 @@ async def test_score_person_wealth_band_low_and_existing_wealth_row_no_band():
     wealth_row.wealth_band = None  # triggers the if not wealth_row.wealth_band branch
     wealth_row.income_estimate_usd = 0.0
     wealth_row.crypto_signal = 0.0
+    wealth_row.vehicle_signal = 0.0
     wealth_row.confidence = 0.0
     wealth_row.assessed_at = None
 
@@ -478,6 +479,8 @@ async def test_score_person_wealth_band_low_and_existing_wealth_row_no_band():
     person_row.default_risk_score = 0.0
     person_row.darkweb_exposure = 0.0
     person_row.behavioural_risk = 0.0
+    person_row.adverse_media_score = 0.0
+    person_row.full_name = "Test Person"
     session.get = AsyncMock(return_value=person_row)
 
     with patch("modules.enrichers.financial_aml.event_bus") as mock_bus:
