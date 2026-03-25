@@ -27,6 +27,12 @@ from shared.models.watchlist import WatchlistMatch
 from shared.models.location_visit import LocationVisit
 from shared.models.wealth import WealthAssessment
 from shared.models.web import Web, WebMembership
+from shared.models.property import Property, PropertyOwnershipHistory, PropertyValuation, PropertyMortgage
+from shared.models.vehicle import Vehicle, Aircraft, Vessel
+from shared.models.intelligence import PhoneIntelligence, EmailIntelligence, IpIntelligence
+from shared.models.compliance_ext import PepClassification, AdverseMedia, ShellCompanyLink
+from shared.models.professional import ProfessionalLicense, CorporateDirectorship, MilitaryRecord
+from shared.models.timeline import TimelineEvent, AnalystAssessment, TravelHistory
 
 __all__ = [
     "Base",
@@ -73,4 +79,23 @@ __all__ = [
     "SearchProgress",
     "OptOut",
     "FamilyTreeSnapshot",
+    "Property",
+    "PropertyOwnershipHistory",
+    "PropertyValuation",
+    "PropertyMortgage",
+    "Vehicle",
+    "Aircraft",
+    "Vessel",
+    "PhoneIntelligence",
+    "EmailIntelligence",
+    "IpIntelligence",
+    "PepClassification",
+    "AdverseMedia",
+    "ShellCompanyLink",
+    "ProfessionalLicense",
+    "CorporateDirectorship",
+    "MilitaryRecord",
+    "TimelineEvent",
+    "AnalystAssessment",
+    "TravelHistory",
 ]
