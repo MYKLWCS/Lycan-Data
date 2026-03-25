@@ -450,6 +450,275 @@ def _score_new_parent(
     return _clamp(score), reasons
 
 
+# ─── Phase 4 Commercial Scorers ───────────────────────────────────────────────
+
+
+def _score_insurance_auto(has_vehicle: bool) -> tuple[float, list[str]]:
+    if not has_vehicle:
+        return 0.0, []
+    return 0.90, ["vehicle record present — auto insurance candidate"]
+
+
+def _score_insurance_life(
+    age: int | None,
+    income_estimate: float | None,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if age is not None and 25 <= age <= 65:
+        score += 0.50
+        reasons.append(f"age {age} in life insurance target range (25-65)")
+
+    if income_estimate is not None and income_estimate >= 30_000:
+        score += 0.30
+        reasons.append(f"income signal: ${income_estimate:,.0f}")
+
+    return _clamp(score), reasons
+
+
+def _score_insurance_health(
+    age: int | None,
+    is_employed: bool,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if age is not None and 18 <= age <= 65:
+        score += 0.40
+        reasons.append(f"age {age} in health insurance target range (18-65)")
+
+    if is_employed:
+        score += 0.35
+        reasons.append("currently employed — health insurance candidate")
+
+    return _clamp(score), reasons
+
+
+def _score_banking_basic(
+    is_employed: bool,
+    age: int | None,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if age is not None and age >= 18:
+        score += 0.30
+        reasons.append(f"adult: age {age}")
+
+    if is_employed:
+        score += 0.40
+        reasons.append("currently employed — basic banking candidate")
+
+    return _clamp(score), reasons
+
+
+def _score_banking_premium(
+    income_estimate: float | None,
+    net_worth_estimate: float | None,
+    has_investment_signals: bool,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if income_estimate is None:
+        return 0.0, []
+
+    if income_estimate >= 100_000:
+        score += 0.40
+        reasons.append(f"high income signal: ${income_estimate:,.0f}")
+    elif income_estimate >= 60_000:
+        score += 0.20
+        reasons.append(f"upper-middle income signal: ${income_estimate:,.0f}")
+
+    if net_worth_estimate is not None and net_worth_estimate >= 250_000:
+        score += 0.20
+        reasons.append(f"net worth signal: ${net_worth_estimate:,.0f}")
+
+    if has_investment_signals:
+        score += 0.20
+        reasons.append("investment activity signals present")
+
+    return _clamp(score), reasons
+
+
+def _score_high_net_worth(
+    net_worth_estimate: float | None,
+    has_property: bool,
+    has_investment_signals: bool,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if net_worth_estimate is None:
+        return 0.0, []
+
+    if net_worth_estimate >= 1_000_000:
+        score += 0.50
+        reasons.append(f"net worth >= $1M: ${net_worth_estimate:,.0f}")
+    elif net_worth_estimate >= 500_000:
+        score += 0.30
+        reasons.append(f"net worth >= $500K: ${net_worth_estimate:,.0f}")
+    else:
+        return 0.0, []
+
+    if has_property:
+        score += 0.30
+        reasons.append("property record present")
+
+    if has_investment_signals:
+        score += 0.20
+        reasons.append("investment activity signals present")
+
+    return _clamp(score), reasons
+
+
+def _score_auto_loan_candidate(
+    has_vehicle: bool,
+    has_property: bool,
+    income_estimate: float | None,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if not has_vehicle:
+        return 0.0, []
+
+    score += 0.40
+    reasons.append("vehicle record present")
+
+    if not has_property:
+        score += 0.20
+        reasons.append("no property record — likely renter needing auto financing")
+
+    if income_estimate is not None and 25_000 <= income_estimate <= 80_000:
+        score += 0.20
+        reasons.append(f"medium income signal: ${income_estimate:,.0f}")
+    elif income_estimate is not None and income_estimate > 0:
+        score += 0.10
+        reasons.append(f"income signal present: ${income_estimate:,.0f}")
+
+    return _clamp(score), reasons
+
+
+def _score_payday_loan_candidate(
+    financial_distress_score: float,
+    has_property: bool,
+    income_estimate: float | None,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if financial_distress_score <= 0.5:
+        return 0.0, []
+
+    score += 0.40
+    reasons.append(f"financial distress score: {financial_distress_score:.2f}")
+
+    if not has_property:
+        score += 0.20
+        reasons.append("no property collateral")
+
+    if income_estimate is not None and income_estimate < 35_000:
+        score += 0.20
+        reasons.append(f"low income signal: ${income_estimate:,.0f}")
+    elif income_estimate is None:
+        score += 0.10
+        reasons.append("no income data — elevated risk signal")
+
+    return _clamp(score), reasons
+
+
+def _score_personal_loan_candidate(
+    is_employed: bool,
+    financial_distress_score: float,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if is_employed:
+        score += 0.45
+        reasons.append("currently employed — personal loan repayment capacity")
+
+    if financial_distress_score >= 0.3:
+        score += 0.25
+        reasons.append(f"financial distress signal: {financial_distress_score:.2f}")
+
+    return _clamp(score), reasons
+
+
+def _score_mortgage_candidate(
+    has_property: bool,
+    income_estimate: float | None,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if has_property:
+        score += 0.50
+        reasons.append("property record present — homeowner/mortgage signal")
+
+    if income_estimate is not None and income_estimate >= 100_000:
+        score += 0.75
+        reasons.append(f"high income signal: ${income_estimate:,.0f}")
+    elif income_estimate is not None and income_estimate >= 80_000:
+        score += 0.50
+        reasons.append(f"high income signal: ${income_estimate:,.0f}")
+    elif income_estimate is not None and income_estimate >= 50_000:
+        score += 0.25
+        reasons.append(f"moderate income signal: ${income_estimate:,.0f}")
+
+    return _clamp(score), reasons
+
+
+def _score_refinance_candidate(
+    has_property: bool,
+    financial_distress_score: float,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if not has_property:
+        return 0.0, []
+
+    score += 0.40
+    reasons.append("property record — existing mortgage signal")
+
+    if financial_distress_score > 0.4:
+        score += 0.35
+        reasons.append(
+            f"financial distress signal: {financial_distress_score:.2f} — refinance motivation"
+        )
+
+    return _clamp(score), reasons
+
+
+def _score_debt_consolidation(
+    financial_distress_score: float,
+    criminal_count: int,
+    has_vehicle: bool,
+    has_property: bool,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    if financial_distress_score <= 0.4:
+        return 0.0, []
+
+    score += 0.40
+    reasons.append(f"financial distress score: {financial_distress_score:.2f}")
+
+    loan_signal_count = sum([has_vehicle, has_property, criminal_count > 0])
+    if loan_signal_count >= 2:
+        score += 0.30
+        reasons.append(f"multiple loan exposure signals: {loan_signal_count}")
+    elif loan_signal_count == 1:
+        score += 0.15
+        reasons.append("single loan exposure signal present")
+
+    return _clamp(score), reasons
+
+
 # ─── High Interest Borrower Scorer ────────────────────────────────────────────
 
 _BORROWER_TIERS = [
