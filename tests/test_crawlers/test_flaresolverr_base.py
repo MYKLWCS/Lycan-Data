@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
+
 
 class _TestCrawler(FlareSolverrCrawler):
     platform = "test"
@@ -21,5 +24,5 @@ async def test_fs_get_falls_back_when_unavailable():
     c = _TestCrawler()
     with patch.object(c, "get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = AsyncMock(text="<html/>", status_code=200)
-        result = await c.fs_get("http://example.com")
+        await c.fs_get("http://example.com")
         mock_get.assert_called_once()
