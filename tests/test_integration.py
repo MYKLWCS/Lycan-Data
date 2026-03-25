@@ -259,6 +259,7 @@ async def test_data_quality_applied_to_model(db: AsyncSession, test_person: Pers
         person_id=test_person.id,
         type=IdentifierType.PHONE.value,
         value="+15558675309",
+        normalized_value="+15558675309",
     )
     db.add(identifier)
     await db.flush()

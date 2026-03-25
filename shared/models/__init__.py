@@ -1,4 +1,5 @@
 from shared.models.address import Address
+from shared.models.family_tree import FamilyTreeSnapshot
 from shared.models.alert import Alert
 from shared.models.audit import AuditLog, SystemAudit
 from shared.models.base import Base, DataQualityMixin, TimestampMixin
@@ -69,4 +70,5 @@ __all__ = [
     "SystemAudit",
     "SearchProgress",
     "OptOut",
+    "FamilyTreeSnapshot",
 ]

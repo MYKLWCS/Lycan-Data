@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     enable_wealth: bool = True
     enable_criminal_signals: bool = True
     enable_crypto_trace: bool = True
+    enable_ubo_discovery: bool = True
+    enable_company_intel_crawl: bool = True
 
     # Budget
     daily_api_budget_usd: float = 0.0
