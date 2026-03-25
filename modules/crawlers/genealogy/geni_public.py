@@ -59,10 +59,18 @@ def _parse_geni_result(data: dict) -> dict:
 
     return {
         "person_name": full_name,
-        "birth_date": birth_data.get("date", {}).get("year") if isinstance(birth_data.get("date"), dict) else birth_data.get("date"),
-        "birth_place": birth_data.get("location", {}).get("city") if isinstance(birth_data.get("location"), dict) else None,
-        "death_date": death_data.get("date", {}).get("year") if isinstance(death_data.get("date"), dict) else death_data.get("date"),
-        "death_place": death_data.get("location", {}).get("city") if isinstance(death_data.get("location"), dict) else None,
+        "birth_date": birth_data.get("date", {}).get("year")
+        if isinstance(birth_data.get("date"), dict)
+        else birth_data.get("date"),
+        "birth_place": birth_data.get("location", {}).get("city")
+        if isinstance(birth_data.get("location"), dict)
+        else None,
+        "death_date": death_data.get("date", {}).get("year")
+        if isinstance(death_data.get("date"), dict)
+        else death_data.get("date"),
+        "death_place": death_data.get("location", {}).get("city")
+        if isinstance(death_data.get("location"), dict)
+        else None,
         "parents": parents,
         "children": children,
         "spouses": spouses,

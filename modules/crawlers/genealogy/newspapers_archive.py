@@ -18,10 +18,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 SOURCE_RELIABILITY = 0.75
-_SEARCH_URL = (
-    "https://chroniclingamerica.loc.gov/search/titles/results/"
-    "?terms={name}&format=json"
-)
+_SEARCH_URL = "https://chroniclingamerica.loc.gov/search/titles/results/?terms={name}&format=json"
 
 
 def _parse_newspaper_result(data: dict) -> dict:

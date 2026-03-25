@@ -117,10 +117,13 @@ class AncestryHintsCrawler(HttpxCrawler):
         parsed = _parse_hints(json_data)
         found = bool(parsed)
 
+        # Ensure source_url from parsed doesn't conflict — prefer the request URL
+        if parsed:
+            parsed["source_url"] = url
+
         return self._result(
             identifier,
             found=found,
             **parsed,
             query=identifier,
-            source_url=url,
         )

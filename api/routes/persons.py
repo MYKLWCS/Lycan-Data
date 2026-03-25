@@ -951,6 +951,168 @@ async def get_identifier_history(
     }
 
 
+# ── Family tree ────────────────────────────────────────────────────────────────
+
+
+@router.get("/{person_id}/family-tree")
+async def get_family_tree(
+    person_id: str,
+    depth_ancestors: int = Query(4, ge=1, le=8),
+    depth_descendants: int = Query(3, ge=1, le=5),
+    session: AsyncSession = DbDep,
+):
+    """Return FamilyTreeSnapshot or trigger build if none exists."""
+    from sqlalchemy import desc
+
+    from shared.models.family_tree import FamilyTreeSnapshot
+
+    uid = _parse_uuid(person_id)
+    result = await session.execute(
+        select(FamilyTreeSnapshot)
+        .where(
+            FamilyTreeSnapshot.root_person_id == uid,
+            FamilyTreeSnapshot.is_stale.is_(False),
+        )
+        .order_by(desc(FamilyTreeSnapshot.built_at))
+        .limit(1)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot:
+        return {
+            "status": "not_built",
+            "message": "POST /persons/{id}/family-tree/build to start",
+        }
+    return {
+        "root_person_id": str(snapshot.root_person_id),
+        "tree_json": snapshot.tree_json,
+        "depth_ancestors": snapshot.depth_ancestors,
+        "depth_descendants": snapshot.depth_descendants,
+        "source_count": snapshot.source_count,
+        "built_at": snapshot.built_at.isoformat() if snapshot.built_at else None,
+        "is_stale": snapshot.is_stale,
+    }
+
+
+@router.post("/{person_id}/family-tree/build")
+async def build_family_tree(person_id: str, session: AsyncSession = DbDep):
+    """Trigger full family tree rebuild."""
+    uid = _parse_uuid(person_id)
+    person = await session.get(Person, uid)
+    if not person:
+        raise HTTPException(404, "Person not found")
+    person.meta = person.meta or {}
+    person.meta["needs_genealogy"] = "true"
+    await session.commit()
+    return {"status": "queued", "person_id": person_id}
+
+
+@router.get("/{person_id}/family-tree/status")
+async def family_tree_status(person_id: str, session: AsyncSession = DbDep):
+    """Return build progress."""
+    from sqlalchemy import desc
+
+    from shared.models.family_tree import FamilyTreeSnapshot
+
+    uid = _parse_uuid(person_id)
+    result = await session.execute(
+        select(FamilyTreeSnapshot)
+        .where(FamilyTreeSnapshot.root_person_id == uid)
+        .order_by(desc(FamilyTreeSnapshot.built_at))
+        .limit(1)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot:
+        return {"status": "not_started"}
+    return {
+        "status": "complete" if not snapshot.is_stale else "stale",
+        "built_at": snapshot.built_at.isoformat() if snapshot.built_at else None,
+        "source_count": snapshot.source_count,
+    }
+
+
+@router.get("/{person_id}/family-tree/gedcom")
+async def get_family_tree_gedcom(person_id: str, session: AsyncSession = DbDep):
+    """Export the family tree as a GEDCOM 5.5.5 file."""
+    from sqlalchemy import desc
+
+    from fastapi.responses import PlainTextResponse
+
+    from modules.export.gedcom import export_gedcom
+    from shared.models.family_tree import FamilyTreeSnapshot
+    from shared.models.relationship import Relationship
+
+    uid = _parse_uuid(person_id)
+    await _require_person(session, uid)
+
+    result = await session.execute(
+        select(FamilyTreeSnapshot)
+        .where(FamilyTreeSnapshot.root_person_id == uid)
+        .order_by(desc(FamilyTreeSnapshot.built_at))
+        .limit(1)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot:
+        raise HTTPException(404, "No family tree built yet — POST /build first")
+
+    node_ids = snapshot.tree_json.get("nodes", [])
+    persons_out: list[dict] = []
+    for nid in node_ids:
+        try:
+            p = await session.get(Person, uuid.UUID(nid))
+            if p:
+                persons_out.append(
+                    {
+                        "full_name": p.full_name,
+                        "date_of_birth": p.date_of_birth.isoformat() if p.date_of_birth else None,
+                        "gender": p.gender,
+                    }
+                )
+        except Exception:
+            pass
+
+    rels_result = await session.execute(select(Relationship).where(Relationship.person_a_id == uid))
+    rels = [
+        {
+            "person_a_id": str(r.person_a_id),
+            "person_b_id": str(r.person_b_id),
+            "rel_type": r.rel_type,
+        }
+        for r in rels_result.scalars().all()
+    ]
+
+    gedcom_content = export_gedcom(persons_out, rels)
+    return PlainTextResponse(
+        content=gedcom_content,
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="family_tree_{person_id[:8]}.ged"'},
+    )
+
+
+@router.get("/{person_id}/relatives")
+async def list_relatives(
+    person_id: str,
+    session: AsyncSession = DbDep,
+):
+    """Flat list of all known relatives."""
+    from shared.models.relationship import Relationship
+
+    uid = _parse_uuid(person_id)
+    result = await session.execute(select(Relationship).where(Relationship.person_a_id == uid))
+    rels = result.scalars().all()
+    relatives = []
+    for r in rels:
+        other = await session.get(Person, r.person_b_id)
+        relatives.append(
+            {
+                "person_id": str(r.person_b_id),
+                "full_name": other.full_name if other else None,
+                "relationship_type": r.rel_type,
+                "confidence": r.score,
+            }
+        )
+    return {"person_id": person_id, "relatives": relatives, "count": len(relatives)}
+
+
 # ── Internal helpers ───────────────────────────────────────────────────────────
 
 

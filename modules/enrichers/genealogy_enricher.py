@@ -76,9 +76,7 @@ class GenealogyEnricher:
     async def _process_pending(self) -> None:
         async with AsyncSessionLocal() as session:
             result = await session.execute(
-                select(Person.id)
-                .where(Person.meta["needs_genealogy"].astext == "true")
-                .limit(5)
+                select(Person.id).where(Person.meta["needs_genealogy"].astext == "true").limit(5)
             )
             person_ids = [row[0] for row in result.fetchall()]
             for person_id in person_ids:
@@ -195,13 +193,9 @@ class GenealogyEnricher:
                 )
         return relatives
 
-    async def _find_or_create_person(
-        self, rel: dict, session: AsyncSession
-    ) -> Person:
+    async def _find_or_create_person(self, rel: dict, session: AsyncSession) -> Person:
         name = rel.get("name", "Unknown")
-        result = await session.execute(
-            select(Person).where(Person.full_name == name).limit(1)
-        )
+        result = await session.execute(select(Person).where(Person.full_name == name).limit(1))
         existing = result.scalar_one_or_none()
         if existing:
             return existing
