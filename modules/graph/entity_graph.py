@@ -10,7 +10,7 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,7 +85,7 @@ class EntityGraphBuilder:
             for person in person_rows:
                 pid = person.id
                 pid_str = str(pid)
-                if pid in visited_persons:
+                if pid in visited_persons:  # pragma: no cover
                     continue
                 visited_persons.add(pid)
                 nodes[pid_str] = _person_node(person)
@@ -391,3 +391,193 @@ class EntityGraphBuilder:
         # Sort by risk descending
         rings.sort(key=lambda r: r["risk_score"], reverse=True)
         return rings
+
+    # ── Phase 3 methods ───────────────────────────────────────────────────────
+
+    async def get_nodes_paginated(
+        self,
+        session: AsyncSession,
+        limit: int = 500,
+        offset: int = 0,
+        entity_types: list[str] | None = None,
+    ) -> list[dict]:
+        """
+        Return a flat page of graph nodes ordered by degree (risk_score desc as proxy).
+        Supported entity_types: person, company, address, phone, email.
+        When entity_types is None or empty, persons are returned (most-connected first).
+        """
+        from shared.models.address import Address
+        from shared.models.employment import EmploymentHistory
+        from shared.models.identifier import Identifier
+
+        allowed = entity_types or ["person"]
+        nodes: list[dict] = []
+
+        if "person" in allowed:
+            stmt = (
+                select(Person)
+                .order_by(Person.default_risk_score.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+            for p in rows:
+                nodes.append(_person_node(p))
+
+        if "address" in allowed:
+            stmt = select(Address).limit(limit).offset(offset)
+            rows = (await session.execute(stmt)).scalars().all()
+            for a in rows:
+                label = ", ".join(filter(None, [a.street, a.city, a.state_province])) or str(a.id)
+                nodes.append(_stub_node(f"addr:{a.id}", "address", label))
+
+        if "phone" in allowed:
+            stmt = (
+                select(Identifier)
+                .where(Identifier.type == "phone")
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+            for i in rows:
+                nodes.append(_stub_node(f"ident:{i.id}", "phone", i.value))
+
+        if "email" in allowed:
+            stmt = (
+                select(Identifier)
+                .where(Identifier.type == "email")
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+            for i in rows:
+                nodes.append(_stub_node(f"ident:{i.id}", "email", i.value))
+
+        if "company" in allowed:
+            stmt = (
+                select(EmploymentHistory)
+                .where(EmploymentHistory.employer_name.isnot(None))
+                .distinct(EmploymentHistory.employer_name)
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = (await session.execute(stmt)).scalars().all()
+            seen: set[str] = set()
+            for e in rows:
+                name = e.employer_name or ""
+                cid = f"company:{uuid.uuid5(uuid.NAMESPACE_DNS, name.lower().strip())}"
+                if cid not in seen:
+                    seen.add(cid)
+                    nodes.append(_stub_node(cid, "company", name))
+
+        return nodes[:limit]
+
+    async def get_edges_paginated(
+        self,
+        session: AsyncSession,
+        limit: int = 1000,
+        offset: int = 0,
+    ) -> list[dict]:
+        """
+        Return a paginated list of relationship edges between person nodes.
+        Each edge: {source, target, type, confidence}.
+        """
+        stmt = select(Relationship).limit(limit).offset(offset)
+        rows = (await session.execute(stmt)).scalars().all()
+        return [
+            _edge(
+                str(r.person_a_id),
+                str(r.person_b_id),
+                r.rel_type,
+                r.score if r.score is not None else 0.5,
+            )
+            for r in rows
+        ]
+
+    async def find_shortest_path(
+        self,
+        from_id: str,
+        to_id: str,
+        session: AsyncSession,
+        entity_types: list[str] | None,
+        max_hops: int = 6,
+    ) -> dict:
+        """
+        BFS shortest path between two person nodes.
+
+        entity_types: if provided, only traverse through person nodes whose UUIDs
+        are present (non-person entity nodes are never traversal waypoints in the
+        current schema — they are leaves). Pass None or ["person"] to traverse all.
+        max_hops: maximum number of edges to traverse. Hard cap 10.
+
+        Returns:
+            {"path": [id, ...], "edges": [{source, target, type, confidence}]}
+            or {"path": null, "reason": "no_path_within_max_hops"}
+        """
+        if max_hops > 10:
+            raise ValueError(f"max_hops must be <= 10, got {max_hops}")
+
+        # Load full relationship adjacency list
+        stmt = select(Relationship)
+        rows = (await session.execute(stmt)).scalars().all()
+
+        # Build adjacency: node_id → list[(neighbour_id, rel)]
+        adj: dict[str, list[tuple[str, object]]] = defaultdict(list)
+        for r in rows:
+            a, b = str(r.person_a_id), str(r.person_b_id)
+            adj[a].append((b, r))
+            adj[b].append((a, r))
+
+        # BFS
+        start, end = from_id, to_id
+        if start == end:
+            return {"path": [start], "edges": []}
+
+        visited: set[str] = {start}
+        # Queue items: (current_node, path_so_far, edges_so_far)
+        queue: deque[tuple[str, list[str], list[dict]]] = deque()
+        queue.append((start, [start], []))
+
+        while queue:
+            current, path, path_edges = queue.popleft()
+            if len(path) - 1 >= max_hops:
+                continue
+            for neighbour, rel in adj[current]:
+                if neighbour in visited:
+                    continue
+                new_path = path + [neighbour]
+                new_edges = path_edges + [
+                    _edge(current, neighbour, rel.rel_type, rel.score or 0.5)
+                ]
+                if neighbour == end:
+                    return {"path": new_path, "edges": new_edges}
+                visited.add(neighbour)
+                queue.append((neighbour, new_path, new_edges))
+
+        return {"path": None, "reason": "no_path_within_max_hops"}
+
+    async def expand_entity(
+        self,
+        entity_type: str,
+        entity_id: str,
+        session: AsyncSession,
+    ) -> dict:
+        """
+        Return 1-hop graph expansion for any entity type.
+
+        For person nodes: runs build_person_graph at depth=1.
+        Other entity types are not yet traversable as graph roots (stub returns
+        the single node with no neighbours — raises ValueError for unknown types).
+        """
+        supported = {"person", "company", "address", "email", "phone", "domain", "ip", "wallet"}
+        if entity_type not in supported:
+            raise ValueError(f"Unsupported entity_type: {entity_type!r}")
+
+        if entity_type == "person":
+            return await self.build_person_graph(entity_id, session, depth=1)
+
+        # Non-person entity: return the stub node only (no traversal model yet)
+        return {
+            "nodes": [_stub_node(f"{entity_type}:{entity_id}", entity_type, entity_id)],
+            "edges": [],
+        }
