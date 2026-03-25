@@ -15,8 +15,6 @@ concurrency:
   group: code-review-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-
 jobs:
   gemini-review:
     name: Gemini Code Review
