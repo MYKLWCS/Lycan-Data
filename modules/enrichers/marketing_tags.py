@@ -80,6 +80,7 @@ class WealthTag(StrEnum):
 # ─── Thresholds ───────────────────────────────────────────────────────────────
 
 _THRESHOLDS: dict[str, float] = {
+    # --- existing entries ---
     LendingTag.TITLE_LOAN_CANDIDATE: 0.70,
     InvestmentTag.CRYPTO_INVESTOR: 0.70,
     InvestmentTag.REAL_ESTATE_INVESTOR: 0.70,
@@ -88,6 +89,19 @@ _THRESHOLDS: dict[str, float] = {
     BehaviouralTag.ACTIVE_GAMBLER: 0.65,
     BehaviouralTag.LUXURY_BUYER: 0.65,
     LifeStageTag.RETIRING_SOON: 0.65,
+    # --- phase 4 additions ---
+    InsuranceTag.INSURANCE_AUTO: 0.60,
+    InsuranceTag.INSURANCE_LIFE: 0.65,
+    InsuranceTag.INSURANCE_HEALTH: 0.65,
+    BankingTag.BANKING_BASIC: 0.60,
+    BankingTag.BANKING_PREMIUM: 0.70,
+    WealthTag.HIGH_NET_WORTH: 0.70,
+    LendingTag.AUTO_LOAN_CANDIDATE: 0.65,
+    LendingTag.PAYDAY_LOAN_CANDIDATE: 0.65,
+    LendingTag.PERSONAL_LOAN_CANDIDATE: 0.60,
+    LendingTag.MORTGAGE_CANDIDATE: 0.70,
+    LendingTag.REFINANCE_CANDIDATE: 0.65,
+    LendingTag.DEBT_CONSOLIDATION: 0.65,
 }
 
 _HIGH_INCOME_TITLES = (
