@@ -29,7 +29,7 @@ class LendingTag(StrEnum):
     TITLE_LOAN_CANDIDATE = "title_loan_candidate"
     PAYDAY_LOAN_CANDIDATE = "payday_loan_candidate"
     PERSONAL_LOAN_CANDIDATE = "personal_loan_candidate"
-    MORTGAGE_READY = "mortgage_ready"
+    MORTGAGE_CANDIDATE = "mortgage"
     REFINANCE_CANDIDATE = "refinance_candidate"
     AUTO_LOAN_CANDIDATE = "auto_loan_candidate"
     DEBT_CONSOLIDATION = "debt_consolidation"
@@ -60,6 +60,21 @@ class LifeStageTag(StrEnum):
     RECENT_MOVER = "recent_mover"
     RECENT_GRADUATE = "recent_graduate"
     RETIRING_SOON = "retiring_soon"
+
+
+class InsuranceTag(StrEnum):
+    INSURANCE_AUTO = "insurance_auto"
+    INSURANCE_LIFE = "insurance_life"
+    INSURANCE_HEALTH = "insurance_health"
+
+
+class BankingTag(StrEnum):
+    BANKING_BASIC = "banking_basic"
+    BANKING_PREMIUM = "banking_premium"
+
+
+class WealthTag(StrEnum):
+    HIGH_NET_WORTH = "high_net_worth"
 
 
 # ─── Thresholds ───────────────────────────────────────────────────────────────
