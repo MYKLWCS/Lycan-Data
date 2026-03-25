@@ -36,6 +36,7 @@ class BaseCrawler(ABC):
     source_reliability: float = 0.5
     requires_tor: bool = True
     tor_instance: TorInstance = TorInstance.TOR2
+    proxy_tier: str = "tor"  # residential | datacenter | tor | direct — override per crawler
 
     @abstractmethod
     async def scrape(self, identifier: str) -> CrawlerResult:
@@ -76,12 +77,34 @@ class BaseCrawler(ABC):
                 error=str(exc),
             )
 
+    async def get_proxy_async(self) -> str | None:
+        """
+        Return the best available proxy for this crawler's tier preference.
+
+        Falls back through the tier chain (residential → datacenter → tor → direct)
+        when the preferred tier has no healthy proxies available.
+        """
+        from shared.proxy_pool import proxy_pool
+
+        # Crawler explicitly opts out of all proxying
+        if not self.requires_tor and self.proxy_tier == "tor":
+            return None
+
+        # Resolve effective tier: honour proxy_tier unless it's "tor" and Tor is disabled
+        tier = self.proxy_tier
+        if tier == "tor" and not settings.tor_enabled:
+            tier = "datacenter"
+
+        proxy, _tier_used = await proxy_pool.next_with_fallback(tier)
+        return proxy
+
     def get_proxy(self) -> str | None:
-        """Return proxy URL for this crawler's Tor instance."""
+        """Sync fallback — returns Tor proxy or proxy_override."""
         if not self.requires_tor:
             return None
-        proxy = tor_manager.get_proxy(self.tor_instance)
-        return proxy or None
+        if settings.proxy_override:
+            return settings.proxy_override
+        return tor_manager.get_proxy(self.tor_instance) or None
 
     async def rotate_circuit(self) -> None:
         """Request new Tor circuit on block/ban detection."""
@@ -90,8 +113,23 @@ class BaseCrawler(ABC):
 
     @staticmethod
     async def _human_delay() -> None:
-        delay = random.uniform(DELAY_MIN, DELAY_MAX)
-        await asyncio.sleep(delay)
+        base = random.uniform(settings.human_delay_min, settings.human_delay_max)
+        if settings.jitter_enabled:
+            base *= random.uniform(0.8, 1.2)
+        await asyncio.sleep(base)
+
+    async def _handle_ban_response(self, proxy: str | None, status_code: int) -> None:
+        """
+        Call this when a ban signal is detected (403, 429, 503 with captcha).
+
+        Marks the proxy as banned in the pool and requests a fresh Tor circuit
+        so the next request gets a new exit IP.
+        """
+        if proxy and status_code in (403, 429, 503):
+            from shared.proxy_pool import proxy_pool
+
+            await proxy_pool.mark_banned(proxy, duration_minutes=20)
+            await self.rotate_circuit()
 
     def _result(self, identifier: str, found: bool, **data: Any) -> CrawlerResult:
         """Shorthand to build a CrawlerResult."""
