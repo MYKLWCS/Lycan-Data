@@ -1055,6 +1055,33 @@ class TestTwitchBranchGaps:
 class TestLinkedInSkillBranches:
     # --- branch 91→89: skill element inner_text is empty → not appended, loops back ---
     # --- branch 93→97: all skills empty → skills list is empty, not set in data ---
+    def test_extract_headline_and_location_present(self):
+        """Lines 71, 76: headline and location elements exist — inner_text called and set."""
+        import asyncio
+
+        from modules.crawlers.linkedin import LinkedInCrawler
+
+        crawler = LinkedInCrawler.__new__(LinkedInCrawler)
+        crawler.platform = "linkedin"
+        crawler.source_reliability = 0.75
+
+        headline_elem = MagicMock()
+        headline_elem.inner_text = AsyncMock(return_value="Software Engineer at ACME")
+        loc_elem = MagicMock()
+        loc_elem.inner_text = AsyncMock(return_value="San Francisco, CA")
+
+        page = MagicMock()
+        page.title = AsyncMock(return_value="Jane Doe | LinkedIn")
+        page.query_selector = AsyncMock(
+            side_effect=[headline_elem, loc_elem, None]  # headline, location, connections
+        )
+        page.query_selector_all = AsyncMock(return_value=[])
+        page.url = "https://www.linkedin.com/in/janedoe/"
+
+        result = asyncio.get_event_loop().run_until_complete(crawler._extract(page, "janedoe"))
+        assert result.get("headline") == "Software Engineer at ACME"
+        assert result.get("location") == "San Francisco, CA"
+
     def test_extract_skills_all_empty_text(self):
         """Branches 91→89 and 93→97: skill elements with empty text — skills not added."""
         import asyncio

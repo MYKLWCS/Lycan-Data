@@ -891,17 +891,20 @@ def test_parse_mt_html_script_mmsi_present_but_no_regex_match():
 
 def test_parse_mt_html_script_json_array_contains_non_dict_item():
     """Arc 113->112: parsed JSON array contains a non-dict item — isinstance check is False,
-    item is skipped, loop continues to next item."""
-    # Build HTML with a script that has 'mmsi' and a JSON array containing mixed types
+    item is skipped, loop continues to next item.
+
+    The regex requires the array to start with { so we put the valid dict first,
+    followed by a primitive value; the primitive triggers the False branch of
+    isinstance(item, dict) and the loop continues to the next item."""
     html = """
     <html><body>
     <script>
-    var vessels = [42, "string_item", {"MMSI": "111222333", "SHIPNAME": "MIXED SHIP",
-                   "FLAG": "PA", "TYPE_NAME": "Tanker", "GT": 5000}]
+    var vessels = [{"MMSI": "111222333", "SHIPNAME": "MIXED SHIP",
+                    "FLAG": "PA", "TYPE_NAME": "Tanker", "GT": 5000}, 42, "skip_me"]
     </script>
     </body></html>
     """
     vessels = _parse_marinetraffic_html(html)
-    # Non-dict items (42, "string_item") are skipped; the dict is processed
+    # The dict item is processed; non-dict items (42, "skip_me") are skipped
     mmsi_list = [v["mmsi"] for v in vessels]
     assert "111222333" in mmsi_list

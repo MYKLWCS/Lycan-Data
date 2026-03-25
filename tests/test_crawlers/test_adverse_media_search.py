@@ -641,3 +641,32 @@ async def test_search_propublica_parse_error():
     with patch.object(crawler, "get", new=AsyncMock(return_value=bad)):
         results = await crawler._search_propublica("X", "John Smith")
     assert results == []
+
+
+# ---------------------------------------------------------------------------
+# Branch gap: arc 182->184 in _parse_gdelt
+# seendates is NOT a dict (False branch of isinstance check) — goes to 184
+# ---------------------------------------------------------------------------
+
+
+def test_parse_gdelt_seendates_string_not_converted():
+    """Arc 182->184: seendates is a plain string (not a dict).
+    isinstance(summary, dict) is False — line 183 (str conversion) is skipped,
+    execution goes directly to line 184 (pub_date extraction)."""
+    data = {
+        "articles": [
+            {
+                "url": "https://example.com/article",
+                "title": "Fraud conviction",
+                "seendates": "2026-03-25",  # string, not dict — isinstance check is False
+                "seendate": "2026-03-25T10:00:00Z",
+                "domain": "example.com",
+                "sourcecountry": "US",
+            }
+        ]
+    }
+    results = _parse_gdelt(data)
+    assert len(results) == 1
+    # summary is already a string — isinstance check False, no conversion needed
+    assert isinstance(results[0]["summary"], str)
+    assert results[0]["publication_date"] == "2026-03-25T10:00:00Z"

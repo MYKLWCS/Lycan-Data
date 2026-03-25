@@ -327,6 +327,95 @@ def _fake_person_obj():
 
 
 # ---------------------------------------------------------------------------
+# Branch gap: line 258 — CommercialTaggerDaemon.stop() sets _running=False
+# Lines 304-305 — per-person exception handling in _run_batch
+# ---------------------------------------------------------------------------
+
+
+def test_daemon_stop_sets_running_false():
+    """Line 258: stop() sets _running to False — previously untested directly."""
+    from modules.enrichers.commercial_tagger import CommercialTaggerDaemon
+
+    daemon = CommercialTaggerDaemon()
+    daemon._running = True
+    daemon.stop()
+    assert daemon._running is False
+
+
+@pytest.mark.asyncio
+async def test_run_batch_per_person_exception_is_logged_and_continues():
+    """Lines 304-305: exception raised during per-person processing is caught,
+    logger.exception is called, and the loop continues to the next person."""
+    from modules.enrichers.commercial_tagger import CommercialTaggerDaemon
+
+    daemon = CommercialTaggerDaemon()
+
+    person1 = _fake_person_obj()
+    person2 = _fake_person_obj()
+
+    outer_result = MagicMock()
+    outer_result.scalars.return_value.all.return_value = [person1, person2]
+
+    outer_session = _make_session()
+    outer_session.execute = AsyncMock(return_value=outer_result)
+
+    call_count = [0]
+
+    class FakeCtx:
+        async def __aenter__(self_):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return outer_session
+            # Inner per-person sessions — first person raises, second succeeds
+            inner = _make_session()
+            return inner
+
+        async def __aexit__(self_, *args):
+            return False
+
+    # assemble_person_signals raises on first call, succeeds on second
+    assemble_calls = [0]
+
+    async def fake_assemble(person_id, session):
+        assemble_calls[0] += 1
+        if assemble_calls[0] == 1:
+            raise RuntimeError("simulated per-person failure")
+        return PersonSignals(
+            person_id=person_id,
+            has_vehicle=False,
+            has_property=False,
+            financial_distress_score=0.0,
+            gambling_score=0.0,
+            income_estimate=None,
+            net_worth_estimate=None,
+            is_employed=False,
+            age=None,
+            criminal_count=0,
+            has_investment_signals=False,
+        )
+
+    with (
+        patch(
+            "modules.enrichers.commercial_tagger.assemble_person_signals",
+            side_effect=fake_assemble,
+        ),
+        patch(
+            "modules.enrichers.commercial_tagger._upsert_commercial_tags",
+            new=AsyncMock(),
+        ),
+        patch(
+            "modules.enrichers.commercial_tagger.AsyncSessionLocal",
+            return_value=FakeCtx(),
+        ),
+    ):
+        await daemon._run_batch()
+
+    # Both persons were attempted; last_run_at updated even with partial failure
+    assert daemon._last_run_at is not None
+    assert assemble_calls[0] == 2  # both persons attempted
+
+
+# ---------------------------------------------------------------------------
 # 4. _upsert_commercial_tags (lines 325-347)
 # ---------------------------------------------------------------------------
 

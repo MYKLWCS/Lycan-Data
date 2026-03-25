@@ -836,6 +836,74 @@ async def test_branch_location_upsert_existing_all_fields_set():
     assert existing.region == "Ontario"
 
 
+# [161,147],[185,165],[218,199] — _from_*: _upsert returns False → count NOT incremented
+@pytest.mark.asyncio
+async def test_branch_location_from_addresses_upsert_false():
+    """
+    Line 157: `if updated:` is False → count not incremented (loop back to 143).
+    Patching _upsert to return False simulates a no-op update.
+    """
+    from unittest.mock import patch
+
+    addr = MagicMock()
+    addr.country_code = "US"
+    addr.country = "United States"
+    addr.city = "Austin"
+    addr.state_province = "TX"
+
+    addr_result = MagicMock()
+    addr_result.scalars.return_value.all.return_value = [addr]
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=addr_result)
+
+    enricher = LocationEnricher()
+    with patch.object(enricher, "_upsert", new=AsyncMock(return_value=False)):
+        count = await enricher._from_addresses(uuid.uuid4(), session)
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_branch_location_from_social_profiles_upsert_false():
+    """
+    Line 185: `if updated:` is False → count not incremented (loop back to 165).
+    """
+    from unittest.mock import patch
+
+    profile = MagicMock()
+    profile.profile_data = {"country_code": "FR", "city": "Paris"}
+
+    profiles_result = MagicMock()
+    profiles_result.scalars.return_value.all.return_value = [profile]
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=profiles_result)
+
+    enricher = LocationEnricher()
+    with patch.object(enricher, "_upsert", new=AsyncMock(return_value=False)):
+        count = await enricher._from_social_profiles(uuid.uuid4(), session)
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_branch_location_from_ip_geo_upsert_false():
+    """
+    Line 218: `if updated:` is False → count not incremented (loop back to 199).
+    """
+    from unittest.mock import patch
+
+    ident = MagicMock()
+    ident.meta = {"geo": {"country_code": "DE", "city": "Berlin"}}
+
+    idents_result = MagicMock()
+    idents_result.scalars.return_value.all.return_value = [ident]
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=idents_result)
+
+    enricher = LocationEnricher()
+    with patch.object(enricher, "_upsert", new=AsyncMock(return_value=False)):
+        count = await enricher._from_ip_geo(uuid.uuid4(), session)
+    assert count == 0
+
+
 # =============================================================================
 # 5. burner_detector.py
 # =============================================================================
@@ -887,15 +955,18 @@ def test_branch_burner_matching_carriers_no_mismatch_signal():
 from modules.enrichers.deduplication import FuzzyDeduplicator
 
 
-# [629,632] — _blocking_keys: full_name is empty string → last_name is empty → soundex skipped
-def test_branch_blocking_keys_empty_full_name_no_soundex():
+# [629,632] — _blocking_keys: last_name is empty after split (whitespace-only name) → soundex skipped
+def test_branch_blocking_keys_whitespace_only_name_no_soundex():
     """
-    Line 629: `if last_name:` is False — full_name is empty after strip/split.
+    Line 629: `if last_name:` is False.
+    full_name='   ' is truthy so passes `if full_name:` at 625, but strip().split()
+    returns [] so last_name = '' (falsy) → 629 False branch → jumps to 632.
     """
     dedup = FuzzyDeduplicator()
-    person = {"full_name": "", "dob": None, "phones": []}
+    # Whitespace-only: truthy string, but split() gives [], so last_name=""
+    person = {"full_name": "   ", "dob": None, "phones": []}
     keys = dedup._blocking_keys(person)
-    # No soundex key since full_name is empty
+    # No soundex key since last_name is empty after split
     assert not any(k.startswith("soundex:") for k in keys)
 
 

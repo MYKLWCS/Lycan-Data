@@ -1184,3 +1184,60 @@ class TestCountyAssessorMultiScrape:
             result = await crawler.scrape("Jane Doe | Cook County IL")
         assert result.data.get("query") == "Jane Doe"
         assert result.data.get("county_key") == "cook_il"
+
+
+# ---------------------------------------------------------------------------
+# Branch gap tests for _generic_table_parse — arcs 568->544 and 571->522
+# ---------------------------------------------------------------------------
+
+
+class TestGenericTableParseBranchGaps:
+    """Exercises missing branches in _generic_table_parse."""
+
+    def _fn(self, html: str, state: str = "TX", county: str = "Test"):
+        from bs4 import BeautifulSoup
+
+        from modules.crawlers.property.county_assessor_multi import _generic_table_parse
+
+        soup = BeautifulSoup(html, "html.parser")
+        return _generic_table_parse(soup, state, county)
+
+    def test_type_use_column_sets_property_type(self):
+        """Arc 568->544: 'type' or 'use' column header is present and non-empty —
+        elif branch at line 568 is True, property_type is set, then loop continues."""
+        html = (
+            "<table>"
+            "<tr><th>parcel</th><th>owner</th><th>use code</th></tr>"
+            "<tr><td>P-001</td><td>Jane Doe</td><td>SFR</td></tr>"
+            "</table>"
+        )
+        parcels = self._fn(html)
+        assert len(parcels) == 1
+        assert parcels[0]["property_type"] == "SFR"
+        assert parcels[0]["parcel_number"] == "P-001"
+
+    def test_row_with_no_parcel_or_owner_not_appended(self):
+        """Arc 571->522: row processed but neither parcel_number nor owner_name is set —
+        if prop['parcel_number'] or prop['owner_name']: is False, row is skipped."""
+        html = (
+            "<table>"
+            "<tr><th>parcel</th><th>owner</th><th>address</th></tr>"
+            "<tr><td></td><td></td><td>123 Unknown Rd</td></tr>"
+            "</table>"
+        )
+        parcels = self._fn(html)
+        # Neither parcel_number nor owner_name are set — row not appended
+        assert parcels == []
+
+    def test_multiple_rows_some_skipped(self):
+        """Combined: first row has neither parcel nor owner (skipped), second row has both."""
+        html = (
+            "<table>"
+            "<tr><th>parcel</th><th>owner</th><th>address</th></tr>"
+            "<tr><td></td><td></td><td>No ID Row</td></tr>"
+            "<tr><td>P-002</td><td>Bob Smith</td><td>456 Oak Ave</td></tr>"
+            "</table>"
+        )
+        parcels = self._fn(html)
+        assert len(parcels) == 1
+        assert parcels[0]["parcel_number"] == "P-002"

@@ -23,7 +23,7 @@ import modules.crawlers.public_voter  # noqa: F401
 from modules.crawlers.public_faa import (
     PublicFAACrawler,
     _extract_viewstate,
-    _parse_faa_html,
+    _parse_airmen_html,
 )
 from modules.crawlers.public_faa import (
     _split_name as faa_split_name,
@@ -244,8 +244,8 @@ def test_parse_providers():
     assert providers[0]["state"] == "TX"
 
 
-def test_parse_faa_html():
-    pilots = _parse_faa_html(SAMPLE_FAA_POST_HTML)
+def test_parse_airmen_html():
+    pilots = _parse_airmen_html(SAMPLE_FAA_POST_HTML)
     assert len(pilots) == 1
     assert pilots[0]["certificate_number"] == "123456789"
     assert pilots[0]["name"] == "John Smith"

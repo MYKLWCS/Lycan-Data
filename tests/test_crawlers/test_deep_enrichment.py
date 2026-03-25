@@ -390,24 +390,22 @@ def test_extract_platform_mentions_duplicate_platform_skipped():
 # ===========================================================================
 
 
-def test_parse_kg_panel_element_found_but_empty_text_loops_to_next_selector():
+def test_parse_google_kg_element_found_but_empty_text_loops_to_next_selector():
     """Arc 178->170: soup.select_one() returns an element but get_text(strip=True)
-    is empty — if text: is False, the loop continues to the next selector."""
-    from modules.crawlers.google_maps import _parse_kg_panel
+    is empty — if text: is False, the loop continues to the next selector without
+    setting address or breaking."""
+    from modules.crawlers.google_maps import _parse_google_kg
 
-    # Build HTML where the first selector finds a span with no text content,
-    # but a tel: link provides the phone so the function still returns data
+    # Build HTML where the first selector matches a span with no text content,
+    # but a tel: link provides the phone — function still returns data
     html = """
     <html><body>
     <span data-attrid='kc:/location/location:address'></span>
     <a href="tel:+15551234567">Call Us</a>
     </body></html>
     """
-    from bs4 import BeautifulSoup
-
-    soup = BeautifulSoup(html, "html.parser")
-    result = _parse_kg_panel(soup, "Test Business")
-    # address is None (empty text in first selector, others also fail),
-    # but phone is found via tel: link — result is not None
+    result = _parse_google_kg(html, "Test Business")
+    # address is None (element found but empty text → loop continues, no selector matches),
+    # phone found via tel: link — result is not None
     assert result is not None
     assert result["phone"] == "+15551234567"
