@@ -17,8 +17,8 @@ import pytest
 
 import modules.crawlers.gov.bis_entity_list  # noqa: F401 — trigger @register
 from modules.crawlers.gov.bis_entity_list import (
-    BisEntityListCrawler,
     _CACHE_PATH,
+    BisEntityListCrawler,
     _cache_valid,
     _search_csv,
     _word_overlap,

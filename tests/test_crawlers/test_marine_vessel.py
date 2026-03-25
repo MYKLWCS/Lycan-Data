@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from modules.crawlers.result import CrawlerResult
 from modules.crawlers.transport.marine_vessel import (
     MarineVesselCrawler,
     _estimate_value,
@@ -32,8 +33,6 @@ from modules.crawlers.transport.marine_vessel import (
     _parse_uscg_html,
     _parse_vesselfinder_html,
 )
-from modules.crawlers.result import CrawlerResult
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -640,7 +639,7 @@ async def test_search_vf_non_200():
 async def test_search_uscg_vessel_name_mode():
     crawler = _crawler()
     with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text=_USCG_HTML))) as mock_get:
-        results = await crawler._search_uscg("SEA+WOLF", "vessel_name")
+        await crawler._search_uscg("SEA+WOLF", "vessel_name")
     # URL should have query as vessel name, owner_query empty
     call_url = mock_get.call_args[0][0]
     assert "VesselName=SEA+WOLF" in call_url
@@ -650,7 +649,7 @@ async def test_search_uscg_vessel_name_mode():
 async def test_search_uscg_owner_name_mode():
     crawler = _crawler()
     with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text="<html></html>"))) as mock_get:
-        results = await crawler._search_uscg("John+Smith", "owner_name")
+        await crawler._search_uscg("John+Smith", "owner_name")
     call_url = mock_get.call_args[0][0]
     assert "Owner=John+Smith" in call_url
 

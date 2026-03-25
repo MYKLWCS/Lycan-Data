@@ -27,7 +27,6 @@ from modules.crawlers.pep.world_check_mirror import (
 )
 from modules.crawlers.result import CrawlerResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

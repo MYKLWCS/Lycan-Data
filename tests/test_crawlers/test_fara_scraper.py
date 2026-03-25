@@ -291,10 +291,10 @@ class TestParseHtmlTable:
                 real_bs4 = sys.modules.get("bs4")
                 sys.modules["bs4"] = None  # type: ignore[assignment]
                 try:
-                    result = _parse_html_table("<html></html>", "test")
+                    _parse_html_table("<html></html>", "test")
                     # If bs4 import fails, function catches and returns []
                 except Exception:
-                    result = []
+                    pass
                 finally:
                     if real_bs4 is not None:
                         sys.modules["bs4"] = real_bs4

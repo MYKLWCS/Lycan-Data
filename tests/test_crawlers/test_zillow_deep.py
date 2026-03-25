@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -438,7 +437,7 @@ class TestParseNextDataFallbackRegex:
         import modules.crawlers.property.zillow_deep as mod
 
         # Patch int to raise ValueError on the first call (for bedrooms conversion)
-        original_int = __builtins__["int"] if isinstance(__builtins__, dict) else int
+        __builtins__["int"] if isinstance(__builtins__, dict) else int
         html = '"bedrooms": 3'
 
         # Force ValueError by patching the built-in int inside the module
@@ -460,8 +459,9 @@ class TestParseNextDataFallbackRegex:
 
     def test_float_conversion_valueerror_branch(self):
         """Lines 274-275: float(val) raises ValueError → val stored as-is."""
-        import modules.crawlers.property.zillow_deep as mod
         import builtins
+
+        import modules.crawlers.property.zillow_deep as mod
 
         html = '"bathrooms": 2.5'
         real_float = builtins.float

@@ -32,7 +32,6 @@ from modules.crawlers.media.adverse_media_search import (
 )
 from modules.crawlers.result import CrawlerResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

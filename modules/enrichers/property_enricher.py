@@ -108,7 +108,7 @@ class PropertyEnricher:
             DeedRecorderCrawler(),
             CountyAssessorMultiCrawler(),
         ]
-        asset_crawlers = [
+        [
             FaaAircraftRegistryCrawler(),
             MarineVesselCrawler(),
         ]

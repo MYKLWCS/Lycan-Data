@@ -122,8 +122,9 @@ async def test_get_proxy_async_downgrades_tor_tier_when_tor_disabled():
     mock_settings = MagicMock()
     mock_settings.tor_enabled = False
 
-    import shared.proxy_pool as _pp_mod
     import unittest.mock as _mock
+
+    import shared.proxy_pool as _pp_mod
 
     with _mock.patch.object(_pp_mod, "proxy_pool", mock_pool):
         with patch("modules.crawlers.base.settings", mock_settings):

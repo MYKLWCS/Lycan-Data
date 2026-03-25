@@ -33,7 +33,6 @@ import pytest
 
 from modules.enrichers.property_enricher import PropertyEnricher
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -421,7 +420,7 @@ class TestUpsertProperty:
             "state": "TX",
             "country": "US",
         }
-        result = await enricher._upsert_property(session, uuid.uuid4(), prop_data)
+        await enricher._upsert_property(session, uuid.uuid4(), prop_data)
         session.add.assert_called_once()
         session.flush.assert_awaited_once()
 
@@ -469,7 +468,7 @@ class TestUpsertProperty:
         session = _make_session()
         # execute should not be called at all for lookup when both keys absent
         prop_data = {"city": "Miami", "state": "FL"}
-        result = await enricher._upsert_property(session, uuid.uuid4(), prop_data)
+        await enricher._upsert_property(session, uuid.uuid4(), prop_data)
         session.add.assert_called_once()
 
 
@@ -618,7 +617,7 @@ class TestUpsertAircraft:
         session.execute = AsyncMock(return_value=r)
 
         a_data = {"n_number": "N12345", "manufacturer": "Cessna", "model": "172"}
-        result = await enricher._upsert_aircraft(session, uuid.uuid4(), a_data)
+        await enricher._upsert_aircraft(session, uuid.uuid4(), a_data)
         session.add.assert_called_once()
         session.flush.assert_awaited_once()
 
@@ -642,7 +641,7 @@ class TestUpsertAircraft:
         enricher = PropertyEnricher()
         session = _make_session()
         a_data = {"manufacturer": "Beechcraft"}
-        result = await enricher._upsert_aircraft(session, uuid.uuid4(), a_data)
+        await enricher._upsert_aircraft(session, uuid.uuid4(), a_data)
         session.add.assert_called_once()
 
 
@@ -659,7 +658,7 @@ class TestUpsertVessel:
         session.execute = AsyncMock(return_value=r)
 
         v_data = {"mmsi": "123456789", "vessel_name": "Sea Breeze", "vessel_type": "yacht"}
-        result = await enricher._upsert_vessel(session, uuid.uuid4(), v_data)
+        await enricher._upsert_vessel(session, uuid.uuid4(), v_data)
         session.add.assert_called_once()
         session.flush.assert_awaited_once()
 
@@ -687,7 +686,7 @@ class TestUpsertVessel:
         session.execute = AsyncMock(return_value=r)
 
         v_data = {"imo_number": "IMO9999999", "vessel_name": "Deep Blue"}
-        result = await enricher._upsert_vessel(session, uuid.uuid4(), v_data)
+        await enricher._upsert_vessel(session, uuid.uuid4(), v_data)
         session.add.assert_called_once()
 
     async def test_updates_existing_vessel_by_imo(self):
@@ -709,7 +708,7 @@ class TestUpsertVessel:
         enricher = PropertyEnricher()
         session = _make_session()
         v_data = {"vessel_name": "Ghost Ship"}
-        result = await enricher._upsert_vessel(session, uuid.uuid4(), v_data)
+        await enricher._upsert_vessel(session, uuid.uuid4(), v_data)
         session.add.assert_called_once()
 
 

@@ -14,7 +14,6 @@ from modules.crawlers.adverse_media_search import AdverseMediaSearchCrawler
 from modules.crawlers.faa_aircraft_registry import FaaAircraftRegistryCrawler
 from modules.crawlers.result import CrawlerResult
 
-
 # ---------------------------------------------------------------------------
 # AdverseMediaSearchCrawler
 # ---------------------------------------------------------------------------

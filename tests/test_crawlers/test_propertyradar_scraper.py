@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -763,7 +762,7 @@ class TestPropertyRadarScrape:
             return _mock_resp(status=404, text="")
 
         with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
-            result = await crawler.scrape("John Smith CA")
+            await crawler.scrape("John Smith CA")
 
         # Property API should NOT have been called
         assert not any("properties?" in u for u in call_log)

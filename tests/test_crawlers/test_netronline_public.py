@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -93,7 +92,9 @@ class TestNetronlineParseIdentifier:
 
 class TestExtractAssessorUrl:
     def test_finds_assessor_link(self):
-        from modules.crawlers.property.netronline_public import _extract_assessor_url_from_netronline
+        from modules.crawlers.property.netronline_public import (
+            _extract_assessor_url_from_netronline,
+        )
 
         html = """
         <html><body>
@@ -105,7 +106,9 @@ class TestExtractAssessorUrl:
         assert url == "https://hcad.org/assessor/"
 
     def test_finds_appraiser_link(self):
-        from modules.crawlers.property.netronline_public import _extract_assessor_url_from_netronline
+        from modules.crawlers.property.netronline_public import (
+            _extract_assessor_url_from_netronline,
+        )
 
         html = """
         <html><body>
@@ -116,7 +119,9 @@ class TestExtractAssessorUrl:
         assert url == "https://example.com/appraiser/"
 
     def test_finds_property_link(self):
-        from modules.crawlers.property.netronline_public import _extract_assessor_url_from_netronline
+        from modules.crawlers.property.netronline_public import (
+            _extract_assessor_url_from_netronline,
+        )
 
         html = """
         <html><body>
@@ -127,7 +132,9 @@ class TestExtractAssessorUrl:
         assert url == "https://county.gov/property-search"
 
     def test_relative_url_gets_base_prepended(self):
-        from modules.crawlers.property.netronline_public import _extract_assessor_url_from_netronline
+        from modules.crawlers.property.netronline_public import (
+            _extract_assessor_url_from_netronline,
+        )
 
         html = """
         <html><body>
@@ -138,13 +145,17 @@ class TestExtractAssessorUrl:
         assert url == "https://www.netronline.com/assessor/search"
 
     def test_no_matching_link_returns_none(self):
-        from modules.crawlers.property.netronline_public import _extract_assessor_url_from_netronline
+        from modules.crawlers.property.netronline_public import (
+            _extract_assessor_url_from_netronline,
+        )
 
         html = "<html><body><a href='https://example.com'>Home</a></body></html>"
         assert _extract_assessor_url_from_netronline(html) is None
 
     def test_empty_html_returns_none(self):
-        from modules.crawlers.property.netronline_public import _extract_assessor_url_from_netronline
+        from modules.crawlers.property.netronline_public import (
+            _extract_assessor_url_from_netronline,
+        )
 
         assert _extract_assessor_url_from_netronline("") is None
 
@@ -236,6 +247,7 @@ class TestParseGenericAssessorHtml:
     def test_assessed_value_int_valueerror_branch(self):
         """Lines 216-217: int() raises ValueError for assessed value → field stays None."""
         import builtins
+
         import modules.crawlers.property.netronline_public as mod
 
         html = "<html><body>Assessed: $320,000 data here</body></html>"
@@ -256,6 +268,7 @@ class TestParseGenericAssessorHtml:
     def test_market_value_int_valueerror_branch(self):
         """Lines 224-225: int() raises ValueError for market value → field stays None."""
         import builtins
+
         import modules.crawlers.property.netronline_public as mod
 
         html = "<html><body>Market Value $450,000</body></html>"
@@ -276,6 +289,7 @@ class TestParseGenericAssessorHtml:
     def test_tax_int_valueerror_branch(self):
         """Lines 232-233: int() raises ValueError for tax → field stays None."""
         import builtins
+
         import modules.crawlers.property.netronline_public as mod
 
         html = "<html><body>Taxes: $4,800</body></html>"
@@ -296,6 +310,7 @@ class TestParseGenericAssessorHtml:
     def test_sq_ft_int_valueerror_branch(self):
         """Lines 245-246: int() raises ValueError for sq ft → field stays None."""
         import builtins
+
         import modules.crawlers.property.netronline_public as mod
 
         html = "<html><body>Sq. Ft: 1,850</body></html>"

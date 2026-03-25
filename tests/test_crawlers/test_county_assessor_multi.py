@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -172,6 +171,7 @@ class TestHelpers:
         """Regex matches but int() raises ValueError — returns None.
         We trigger this by patching int to raise on a specific call."""
         import re
+
         from modules.crawlers.property.county_assessor_multi import _money
         # Can't manufacture naturally; patch int() inside the function's scope
         original_int = int
@@ -203,6 +203,7 @@ class TestHelpers:
 class TestGenericTableParse:
     def _fn(self, html, state="TX", county="Test"):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.property.county_assessor_multi import _generic_table_parse
         soup = BeautifulSoup(html, "html.parser")
         return _generic_table_parse(soup, state, county)
@@ -1065,18 +1066,6 @@ class TestCountyAssessorMultiScrape:
 
     async def test_successful_scrape_returns_properties(self):
         crawler = self._make()
-        fake_properties = [
-            {
-                "parcel_number": "14-25-301",
-                "street_address": "500 W Madison",
-                "state": "IL",
-                "county": "Cook",
-                "owner_name": "Corp LLC",
-                "ownership_history": [],
-                "valuations": [],
-                "mortgages": [],
-            }
-        ]
         data = {"pins": [{"pin": "14-25-301", "address": "500 W Madison"}]}
         resp = _mock_resp(status=200, json_data=data)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):

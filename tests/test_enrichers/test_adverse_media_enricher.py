@@ -35,10 +35,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from modules.enrichers.adverse_media_enricher import (
-    AdverseMediaEnricher,
     _SEVERITY_WEIGHTS,
+    AdverseMediaEnricher,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -370,7 +369,7 @@ class TestPersistMediaRecord:
         enricher = AdverseMediaEnricher()
         session = _make_session()
         url = "https://example.com/article/1"
-        url_hash = hashlib.sha256(url.encode()).hexdigest()
+        hashlib.sha256(url.encode()).hexdigest()
 
         existing_media = MagicMock()
         r = MagicMock()
@@ -425,7 +424,7 @@ class TestPersistMediaRecord:
         session = _make_session()
 
         item = {"url": "", "headline": "No severity"}
-        result = await enricher._persist_media_record(session, uuid.uuid4(), item)
+        await enricher._persist_media_record(session, uuid.uuid4(), item)
         call_args = session.add.call_args[0][0]
         assert call_args.severity == "medium"
 

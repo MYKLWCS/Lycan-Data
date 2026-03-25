@@ -28,7 +28,6 @@ from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -315,7 +314,7 @@ class TestSearchMasterCsv:
 
     def _make_row_list(self, name="John Smith", n_number="12345"):
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
-        row = {col: "" for col in _MASTER_COLS}
+        row = dict.fromkeys(_MASTER_COLS, "")
         row["n_number"] = n_number
         row["name"] = name
         row["type_aircraft"] = "4"
@@ -591,7 +590,7 @@ class TestScrapeOwnerName:
         crawler = _make_crawler()
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
 
-        row = {col: "" for col in _MASTER_COLS}
+        row = dict.fromkeys(_MASTER_COLS, "")
         row["n_number"] = "54321"
         row["name"] = "JOHN SMITH"
         row["type_aircraft"] = "4"
@@ -670,8 +669,6 @@ class TestGetMasterCsv:
             zf.writestr("OTHER.txt", "irrelevant")
         zip_content_no_master = buf.getvalue()
 
-        real_open = open
-        open_count = [0]
 
         def _fake_open(*args, **kwargs):
             mode = args[1] if len(args) > 1 else kwargs.get("mode", "r")
@@ -717,7 +714,7 @@ class TestGetMasterCsv:
         crawler = _make_crawler()
 
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
-        row = {col: "" for col in _MASTER_COLS}
+        row = dict.fromkeys(_MASTER_COLS, "")
         row["n_number"] = "11111"
         row["name"] = "Test Owner"
         csv_text = ",".join(row[col] for col in _MASTER_COLS) + "\n"
@@ -795,7 +792,7 @@ class TestGetMasterCsv:
         crawler = _make_crawler()
 
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
-        row = {col: "" for col in _MASTER_COLS}
+        row = dict.fromkeys(_MASTER_COLS, "")
         row["n_number"] = "77777"
         row["name"] = "In Memory"
         csv_text_inner = ",".join(row[col] for col in _MASTER_COLS) + "\n"
@@ -917,7 +914,6 @@ class TestGetMasterCsv:
 
         real_zipfile = zipfile.ZipFile
 
-        open_count = [0]
 
         def _mock_zipfile_cls(*args, **kwargs):
             # First call (write ZIP): pass through

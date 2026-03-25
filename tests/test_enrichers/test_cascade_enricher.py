@@ -145,7 +145,7 @@ class TestCascadeEnricherEmailField:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0
@@ -159,7 +159,7 @@ class TestCascadeEnricherPhoneField:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0
@@ -171,7 +171,7 @@ class TestCascadeEnricherPhoneField:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result == 0
@@ -185,7 +185,7 @@ class TestCascadeEnricherSocialPlatformHandles:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0
@@ -197,7 +197,7 @@ class TestCascadeEnricherSocialPlatformHandles:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0
@@ -209,7 +209,7 @@ class TestCascadeEnricherSocialPlatformHandles:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0
@@ -224,8 +224,8 @@ class TestCascadeEnricherDeduplication:
         session = _make_session(existing_identifiers=[], social_profiles=[profile1, profile2])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
-            result = await enricher.enrich(str(uuid.uuid4()), session)
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
+            await enricher.enrich(str(uuid.uuid4()), session)
 
         # Should dispatch for the handle exactly once (multiple platforms, but 1 seed)
         identifiers_added = session.add.call_count
@@ -238,7 +238,7 @@ class TestCascadeEnricherDeduplication:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock):
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0

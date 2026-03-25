@@ -26,7 +26,6 @@ from modules.crawlers.social.vk_profile import (
     _parse_vk_html,
 )
 
-
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -452,12 +451,6 @@ def test_parse_vk_html_follower_count_non_numeric_after_match():
     """regex matches but value can't be int() — ValueError is caught silently."""
     # Craft HTML so re.search finds a match whose stripped text is non-numeric
     # Use a Unicode digit-like char that passes the digit pattern but fails int()
-    html = """
-    <html><body>
-      <h1>User</h1>
-      <span>\u2116 followers</span>
-    </body></html>
-    """
     # The regex pattern ([\d\s,]+) won't match №, so this path is hit only
     # when the matched group produces something int() rejects.
     # Force it by patching re.search to return a group() that's non-numeric.

@@ -99,11 +99,9 @@ _NAME_TO_CODE: dict[str, str] = {
     "taiwan": "TW",
 }
 
-# Valid ISO 3166-1 alpha-2 codes (2 uppercase letters)
-_ISO2 = re.compile(r"^[A-Z]{2}$") if False else None  # compiled below
-
 import re
 
+# Valid ISO 3166-1 alpha-2 codes (2 uppercase letters)
 _ISO2 = re.compile(r"^[A-Z]{2}$")
 
 

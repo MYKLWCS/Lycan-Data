@@ -27,8 +27,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from modules.enrichers.pep_enricher import PepEnricher, _LEVEL_RANK
-
+from modules.enrichers.pep_enricher import _LEVEL_RANK, PepEnricher
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -376,7 +375,7 @@ class TestPersistPepRecord:
         session.execute = AsyncMock(return_value=r)
 
         match = _pep_match()
-        result = await enricher._persist_pep_record(session, uuid.uuid4(), match)
+        await enricher._persist_pep_record(session, uuid.uuid4(), match)
         session.add.assert_called_once()
         session.flush.assert_awaited_once()
 

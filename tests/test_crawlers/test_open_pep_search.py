@@ -28,7 +28,6 @@ from modules.crawlers.pep.open_pep_search import (
 )
 from modules.crawlers.result import CrawlerResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

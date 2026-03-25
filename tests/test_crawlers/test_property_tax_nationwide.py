@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -294,11 +293,11 @@ class TestParseTaxHtml:
 
     def test_assessed_value_parse_valueerror_branch(self):
         """Lines 390-391: int() raises ValueError for assessed → field stays None."""
-        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
-
         # Use a match object that returns a non-digit string to trigger int() ValueError
         # We achieve this by patching re.search only for the assessed pattern
         import re as re_module
+
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
         original_search = re_module.search
         call_count = [0]
 
@@ -319,8 +318,9 @@ class TestParseTaxHtml:
 
     def test_market_value_parse_valueerror_branch(self):
         """Lines 398-399: int() raises ValueError for market value → field stays None."""
-        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
         import re as re_module
+
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
 
         original_search = re_module.search
         call_count = [0]
@@ -341,8 +341,9 @@ class TestParseTaxHtml:
 
     def test_annual_tax_parse_valueerror_branch(self):
         """Lines 406-407: int() raises ValueError for annual tax → field stays None."""
-        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
         import re as re_module
+
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
 
         original_search = re_module.search
         call_count = [0]
@@ -402,8 +403,9 @@ class TestParseTaxHtml:
         Uses a mock match object whose group() returns a value where
         .replace(',', '') produces something int() rejects.
         """
-        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
         import re as _re
+
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
 
         html = """
         <html><body>
@@ -441,8 +443,9 @@ class TestParseTaxHtml:
 
     def test_table_market_valueerror_branch(self):
         """Lines 460-461: ValueError in table market cell int conversion."""
-        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
         import re as _re
+
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
 
         html = """
         <html><body>
@@ -472,8 +475,9 @@ class TestParseTaxHtml:
 
     def test_table_tax_valueerror_branch(self):
         """Lines 467-468: ValueError in table tax cell int conversion."""
-        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
         import re as _re
+
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
 
         html = """
         <html><body>

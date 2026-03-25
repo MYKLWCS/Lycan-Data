@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -345,8 +344,9 @@ class TestParseDeedTable:
 
     def test_amount_int_valueerror_branch(self):
         """Lines 284-285: int() raises ValueError on amount string → deed still included."""
-        from modules.crawlers.property.deed_recorder import _parse_deed_table
         import builtins
+
+        from modules.crawlers.property.deed_recorder import _parse_deed_table
 
         html = """
         <html><body>

@@ -40,7 +40,6 @@ import pytest
 
 from modules.enrichers.timeline_builder import TimelineBuilder, _to_date
 
-
 # ── _to_date() ────────────────────────────────────────────────────────────────
 
 

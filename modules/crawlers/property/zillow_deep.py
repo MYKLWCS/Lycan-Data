@@ -237,7 +237,7 @@ def _parse_next_data(html: str) -> dict[str, Any]:
         # Zestimate
         details["zestimate_usd"] = _money(home.get("zestimate"))
         details["zestimate_low_usd"] = _money(
-            (home.get("zestimateLowPercent") or home.get("zestimateValueChange"))
+            home.get("zestimateLowPercent") or home.get("zestimateValueChange")
         )
 
     except Exception as exc:

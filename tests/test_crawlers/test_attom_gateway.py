@@ -13,7 +13,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -404,6 +403,7 @@ class TestParsePublicPortalHtml:
     def test_int_cast_valueerror_sets_none(self):
         """Lines 235-236: int() raises ValueError on sq_ft/beds/baths/year → set to None."""
         import builtins
+
         import modules.crawlers.property.attom_gateway as mod
 
         html = "<html><body>Sq. Ft: 1,800 Bedrooms: 3</body></html>"
@@ -425,6 +425,7 @@ class TestParsePublicPortalHtml:
     def test_money_label_int_valueerror_branch(self):
         """Lines 248-249: int() raises ValueError on money label → field stays unset."""
         import builtins
+
         import modules.crawlers.property.attom_gateway as mod
 
         html = "<html><body>Assessed Value $300,000</body></html>"
@@ -667,7 +668,7 @@ class TestAttomGatewayScrapeApiPath:
         detail_data = _api_property_response()
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(status=200, json_data=detail_data))) as mock_get:
-            result = await crawler.scrape("APN:123-456 TX")
+            await crawler.scrape("APN:123-456 TX")
 
         called_url = mock_get.call_args[0][0]
         # APN: prefix should be stripped, query should not contain "APN:"

@@ -64,7 +64,7 @@ class TestUpsertPerson:
 
         session.add.side_effect = _capture_add
 
-        result = await engine._upsert_person("New Person", "Acme Corp", "director", session)
+        await engine._upsert_person("New Person", "Acme Corp", "director", session)
         assert session.flush.called
         assert added_person is not None
         assert added_person.full_name == "New Person"

@@ -16,7 +16,6 @@ import pytest
 from modules.crawlers.linkedin import LinkedInCrawler
 from modules.crawlers.result import CrawlerResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
