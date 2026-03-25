@@ -460,3 +460,43 @@ def test_commercial_engine_no_signals_returns_empty():
     signals = _make_signals()  # all defaults — nothing fires
     results = engine.tag_person(signals)
     assert results == []
+
+
+# ── Task 8: CommercialTaggerDaemon ────────────────────────────────────────────
+
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from modules.enrichers.commercial_tagger import CommercialTaggerDaemon
+
+
+def test_daemon_instantiates():
+    daemon = CommercialTaggerDaemon()
+    assert not daemon._running
+
+
+async def test_daemon_stop_sets_running_false():
+    daemon = CommercialTaggerDaemon()
+    daemon._running = True
+    daemon.stop()
+    assert not daemon._running
+
+
+async def test_daemon_run_batch_calls_engine(monkeypatch):
+    """_run_batch with no persons in DB completes without error."""
+    daemon = CommercialTaggerDaemon()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = []
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+
+    with patch(
+        "modules.enrichers.commercial_tagger.AsyncSessionLocal",
+        return_value=mock_ctx,
+    ):
+        await daemon._run_batch()  # must not raise
