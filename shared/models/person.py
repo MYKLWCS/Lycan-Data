@@ -20,6 +20,12 @@ class Person(Base, TimestampMixin, DataQualityMixin):
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     profile_image_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    merged_into: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("persons.id"),
+        nullable=True,
+        index=True,
+    )
 
     # Overall risk scores
     relationship_score: Mapped[float] = mapped_column(default=0.0, nullable=False)
