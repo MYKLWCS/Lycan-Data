@@ -509,6 +509,156 @@ Both new tables require Alembic migrations. Migrations are generated (`alembic r
 
 ---
 
+## Phase 7 — Family Tree Builder
+
+### Purpose
+
+Given any seed person, automatically build their family tree: trace ancestors backward as far as records exist, trace descendants forward, authenticate each link with cross-referenced sources, and connect every family member as a node in the knowledge graph.
+
+### Data Model
+
+Genealogical relationships are stored in the existing `Relationship` table using new `rel_type` values. No new table required — the relationship model already has `person_a_id`, `person_b_id`, `rel_type`, `score`, and `meta` JSONB.
+
+New `rel_type` values for family:
+```
+parent_of, child_of, sibling_of, spouse_of,
+grandparent_of, grandchild_of, aunt_uncle_of, niece_nephew_of,
+half_sibling_of, step_parent_of, step_child_of
+```
+
+Each relationship row also carries:
+- `score` (0–1): confidence in the relationship (based on source corroboration)
+- `meta["sources"]`: list of source names that corroborate the link
+- `meta["marriage_date"]`, `meta["divorce_date"]` for spouse relationships
+- `meta["birth_record_url"]`, `meta["death_record_url"]` for parent/child links
+
+A new `FamilyTreeSnapshot` table caches the assembled tree per person so repeated views don't re-query all relationships:
+
+```python
+class FamilyTreeSnapshot(Base, TimestampMixin):
+    __tablename__ = "family_tree_snapshots"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    root_person_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("persons.id"), index=True)
+    tree_json: Mapped[dict] = mapped_column(JSONB)           # full serialised tree
+    depth_ancestors: Mapped[int]                              # how many generations back
+    depth_descendants: Mapped[int]                            # how many generations forward
+    source_count: Mapped[int]                                 # total sources used
+    built_at: Mapped[datetime]
+    is_stale: Mapped[bool] = mapped_column(default=False)    # set True when new data arrives
+```
+
+### Genealogy Crawlers
+
+New crawlers in `modules/crawlers/genealogy/`:
+
+| Crawler | Source | What it fetches |
+|---------|--------|-----------------|
+| `familysearch` | FamilySearch public API | Birth, marriage, death records; parent/child/spouse links |
+| `findagrave` | FindAGrave.com | Memorial pages with birth/death dates, spouse names |
+| `ancestry_hints` | Ancestry public hints (no auth) | Suggested relatives from public trees |
+| `census_records` | US Census via FamilySearch | Household members, ages, relationships (1790–1940) |
+| `obituary_search` | Legacy.com, Tributes.com | Survivor names (spouse, children, parents listed) |
+| `vitals_records` | State vital records APIs (where public) | Birth certificates, death certificates, marriage licenses |
+| `newspapers_archive` | Chronicling America (LOC) | Birth/marriage/death announcements |
+| `geni_public` | Geni.com public profiles | Family tree data from public profiles |
+
+Each crawler emits `CrawlerResult.data` with a standardised schema:
+```python
+{
+    "person_name": str,
+    "birth_date": str | None,
+    "birth_place": str | None,
+    "death_date": str | None,
+    "death_place": str | None,
+    "parents": [{"name": str, "birth_year": int | None}],
+    "children": [{"name": str, "birth_year": int | None}],
+    "spouses": [{"name": str, "marriage_date": str | None}],
+    "siblings": [{"name": str, "birth_year": int | None}],
+    "source_url": str,
+    "record_type": str,   # "birth_cert" | "census" | "obituary" | "memorial" | "tree"
+}
+```
+
+### Genealogy Enricher
+
+**Location:** `modules/enrichers/genealogy_enricher.py`
+
+`GenealogyEnricher` runs as an asyncio daemon checking for persons flagged `needs_genealogy=True` in `Person.meta`.
+
+**Algorithm:**
+
+```
+build_tree(seed_person_id):
+    queue = deque([(seed_person_id, 0, "root")])
+    visited = set()
+
+    while queue:
+        person_id, generation, direction = queue.popleft()
+        if person_id in visited or abs(generation) > 8:
+            continue
+        visited.add(person_id)
+
+        results = run_all_genealogy_crawlers(person_id)
+        relatives = parse_relatives(results)   # cross-reference across sources
+
+        for relative in relatives:
+            canonical = find_or_create_person(relative)  # dedup against existing persons
+            create_or_update_relationship(person_id, canonical.id, rel_type, confidence)
+            queue.append((canonical.id, generation + direction_delta, direction))
+```
+
+Generation depth limit: 8 ancestors back (great-great-great-great-great-great-grandparents), unlimited forward (but stops when no more descendants are found).
+
+**Authentication (confidence scoring):**
+- 1 source: confidence = 0.40
+- 2 independent sources agree: 0.72
+- 3+ sources agree: 0.92
+- Government record (birth/death cert, census): +0.15 bonus, capped at 1.0
+- Conflicting sources: confidence = max(source_scores) × 0.6, `conflict_flag=True` on relationship
+
+### Family Tree View (Frontend)
+
+New view accessible from:
+- Person contact card → "View Family Tree" button in left rail
+- Navigation: `#/persons/<id>/tree`
+
+**Layout:** D3 tree layout (not force-directed — hierarchical). Ancestors above the root, descendants below.
+
+```
+                    [Great-grandparent] [Great-grandparent]
+                           └──────┬──────┘
+                          [Grandparent] [Grandparent]
+                                  └──────┬──────┘
+                               [Parent]  [Parent]
+                                    └──────┬──────┘
+                    [Sibling] ──── [ROOT PERSON] ──── [Sibling]
+                                    ┌──────┴──────┐
+                               [Child]          [Child]
+                                  └──────┬──────┘
+                               [Grandchild] [Grandchild]
+```
+
+Each node is clickable — opens that person's contact card. Confidence shown as opacity (high confidence = solid, low = faded). Source count badge on each connection edge.
+
+**Controls:**
+- Generation depth slider (1–8 ancestors / 1–5 descendants)
+- "Show only verified (confidence ≥ 0.70)" toggle
+- "Expand to graph" button — loads all family members into the main knowledge graph
+- Export to GEDCOM format (standard genealogy file format)
+
+### Integration with Knowledge Graph
+
+Family tree nodes ARE Person nodes. When "Expand to graph" is clicked, all family members are added to the knowledge graph with `rel_type` edges. In the graph view, family edges are shown in a distinct color (gold) and the family filter checkbox controls their visibility.
+
+### New API Endpoints
+
+- `GET /persons/{id}/family-tree?depth_ancestors=4&depth_descendants=3` — return `FamilyTreeSnapshot` or trigger build if none exists
+- `POST /persons/{id}/family-tree/build` — trigger full rebuild
+- `GET /persons/{id}/family-tree/status` — build progress (how many generations complete)
+- `GET /persons/{id}/relatives` — flat list of all known relatives with relationship type and confidence
+
+---
+
 ## Build Order and Dependencies
 
 ```
@@ -517,6 +667,7 @@ Phase 4 (Commercial Tags)                   ← cleaner data = better signals
 Phase 2 (Contact Card)                      ← surfaces tags + merged_into redirect
 Phase 3 (Knowledge Graph)                   ← node click opens Phase 2 card
 Phase 5 (Expanded Crawlers)                 ← can run in parallel with 1-4
+Phase 7 (Family Tree)                       ← depends on Phase 2 (contact card) + Phase 3 (graph)
 Phase 6 (In-App Audit)                      ← audits everything above
 ```
 
@@ -528,6 +679,7 @@ Phase 6 (In-App Audit)                      ← audits everything above
 - Phase 2: existing `test_api_routes_extended.py` patterns; extend with new `/report` fields
 - Phase 3: unit test path-finding logic; frontend graph tested manually
 - Phase 5: each new crawler follows `test_crawler_gaps.py` mock-HTTP pattern
+- Phase 7: unit test genealogy enricher tree algorithm with seeded relatives; integration test GEDCOM export; crawler tests with mocked genealogy source responses
 
 ---
 
