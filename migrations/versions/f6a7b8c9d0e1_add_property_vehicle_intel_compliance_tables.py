@@ -22,7 +22,13 @@ def upgrade() -> None:
     op.create_table(
         "properties",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("parcel_number", sa.String(100), nullable=True, index=True),
         sa.Column("street_address", sa.String(500), nullable=True),
         sa.Column("city", sa.String(255), nullable=True),
@@ -71,15 +77,37 @@ def upgrade() -> None:
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
         # TimestampMixin
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "property_ownership_history",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("property_id", UUID(as_uuid=True), sa.ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "property_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("properties.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("owner_name", sa.String(500), nullable=True),
         sa.Column("owner_type", sa.String(50), nullable=True),
         sa.Column("acquisition_date", sa.Date, nullable=True),
@@ -97,14 +125,30 @@ def upgrade() -> None:
         sa.Column("days_held", sa.Integer, nullable=True),
         sa.Column("source_platform", sa.String(100), nullable=True),
         sa.Column("meta", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "property_valuations",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("property_id", UUID(as_uuid=True), sa.ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "property_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("properties.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("valuation_year", sa.Integer, nullable=True),
         sa.Column("assessed_value_usd", sa.Float, nullable=True),
         sa.Column("assessed_land_value_usd", sa.Float, nullable=True),
@@ -115,15 +159,37 @@ def upgrade() -> None:
         sa.Column("exemptions", JSONB, nullable=False, server_default="{}"),
         sa.Column("valuation_source", sa.String(100), nullable=True),
         sa.Column("meta", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "property_mortgages",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("property_id", UUID(as_uuid=True), sa.ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "property_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("properties.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("lender_name", sa.String(500), nullable=True),
         sa.Column("loan_type", sa.String(50), nullable=True),
         sa.Column("original_loan_amount_usd", sa.Float, nullable=True),
@@ -141,8 +207,18 @@ def upgrade() -> None:
         sa.Column("payoff_amount_usd", sa.Float, nullable=True),
         sa.Column("source_platform", sa.String(100), nullable=True),
         sa.Column("meta", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     # ------------------------------------------------------------------ #
@@ -151,7 +227,13 @@ def upgrade() -> None:
     op.create_table(
         "vehicles",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("vin", sa.String(17), nullable=True, index=True),
         sa.Column("make", sa.String(100), nullable=True),
         sa.Column("model", sa.String(100), nullable=True),
@@ -191,14 +273,30 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "aircraft",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("n_number", sa.String(10), nullable=True, index=True),
         sa.Column("serial_number", sa.String(100), nullable=True),
         sa.Column("manufacturer", sa.String(255), nullable=True),
@@ -229,14 +327,30 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "vessels",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("mmsi", sa.String(20), nullable=True, index=True),
         sa.Column("imo_number", sa.String(20), nullable=True),
         sa.Column("vessel_name", sa.String(255), nullable=True),
@@ -271,8 +385,18 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     # ------------------------------------------------------------------ #
@@ -281,8 +405,19 @@ def upgrade() -> None:
     op.create_table(
         "phone_intelligence",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("identifier_id", UUID(as_uuid=True), sa.ForeignKey("identifiers.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "identifier_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("identifiers.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("phone_number", sa.String(50), nullable=True),
         sa.Column("carrier_name", sa.String(255), nullable=True),
         sa.Column("carrier_type", sa.String(50), nullable=True),
@@ -313,15 +448,36 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "email_intelligence",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("identifier_id", UUID(as_uuid=True), sa.ForeignKey("identifiers.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "identifier_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("identifiers.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("email_address", sa.String(1024), nullable=True),
         sa.Column("domain", sa.String(500), nullable=True),
         sa.Column("domain_type", sa.String(50), nullable=True),
@@ -350,14 +506,30 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "ip_intelligence",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("ip_address", sa.String(45), nullable=True),
         sa.Column("ip_version", sa.Integer, nullable=False, server_default="4"),
         sa.Column("asn", sa.Integer, nullable=True),
@@ -393,8 +565,18 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     # ------------------------------------------------------------------ #
@@ -403,7 +585,13 @@ def upgrade() -> None:
     op.create_table(
         "pep_classifications",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("pep_level", sa.String(20), nullable=True),
         sa.Column("pep_category", sa.String(100), nullable=True),
         sa.Column("position_title", sa.String(500), nullable=True),
@@ -414,20 +602,41 @@ def upgrade() -> None:
         sa.Column("end_date", sa.Date, nullable=True),
         sa.Column("is_current", sa.Boolean, nullable=False, server_default="true"),
         sa.Column("is_former", sa.Boolean, nullable=False, server_default="false"),
-        sa.Column("related_to_pep_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "related_to_pep_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("relationship_to_pep", sa.String(100), nullable=True),
         sa.Column("source_platform", sa.String(100), nullable=True),
         sa.Column("source_url", sa.String(2048), nullable=True),
         sa.Column("confidence", sa.Float, nullable=False, server_default="0.5"),
         sa.Column("meta", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "adverse_media",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("headline", sa.String(2000), nullable=True),
         sa.Column("summary", sa.Text, nullable=True),
         sa.Column("url", sa.String(2048), nullable=True),
@@ -453,14 +662,30 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "shell_company_links",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("company_name", sa.String(500), nullable=True),
         sa.Column("company_type", sa.String(100), nullable=True),
         sa.Column("jurisdiction", sa.String(255), nullable=True),
@@ -487,8 +712,18 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     # ------------------------------------------------------------------ #
@@ -497,7 +732,13 @@ def upgrade() -> None:
     op.create_table(
         "professional_licenses",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("license_type", sa.String(200), nullable=True),
         sa.Column("license_number", sa.String(200), nullable=True),
         sa.Column("issuing_body", sa.String(500), nullable=True),
@@ -523,14 +764,30 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "corporate_directorships",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("company_name", sa.String(500), nullable=True),
         sa.Column("company_registration", sa.String(200), nullable=True),
         sa.Column("company_jurisdiction", sa.String(255), nullable=True),
@@ -559,14 +816,30 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "military_records",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("branch", sa.String(100), nullable=True),
         sa.Column("country", sa.String(100), nullable=False, server_default="US"),
         sa.Column("rank", sa.String(100), nullable=True),
@@ -592,8 +865,18 @@ def upgrade() -> None:
         sa.Column("data_quality", JSONB, nullable=False, server_default="{}"),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("scraped_from", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     # ------------------------------------------------------------------ #
@@ -602,7 +885,13 @@ def upgrade() -> None:
     op.create_table(
         "timeline_events",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("event_date", sa.Date, nullable=True),
         sa.Column("event_datetime", sa.DateTime(timezone=True), nullable=True),
         sa.Column("event_type", sa.String(100), nullable=True),
@@ -616,14 +905,30 @@ def upgrade() -> None:
         sa.Column("related_person_ids", JSONB, nullable=False, server_default="[]"),
         sa.Column("related_entity_ids", JSONB, nullable=False, server_default="[]"),
         sa.Column("meta", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "analyst_assessments",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("analyst_id", sa.String(255), nullable=True),
         sa.Column("assessment_type", sa.String(100), nullable=True),
         sa.Column("overall_risk", sa.String(20), nullable=False, server_default="unknown"),
@@ -632,18 +937,36 @@ def upgrade() -> None:
         sa.Column("key_findings", JSONB, nullable=False, server_default="[]"),
         sa.Column("red_flags", JSONB, nullable=False, server_default="[]"),
         sa.Column("recommendations", JSONB, nullable=False, server_default="[]"),
-        sa.Column("classification_level", sa.String(50), nullable=False, server_default="unclassified"),
+        sa.Column(
+            "classification_level", sa.String(50), nullable=False, server_default="unclassified"
+        ),
         sa.Column("tlp_color", sa.String(20), nullable=False, server_default="white"),
         sa.Column("valid_until", sa.Date, nullable=True),
         sa.Column("meta", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     op.create_table(
         "travel_history",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", UUID(as_uuid=True), sa.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "person_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("persons.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("departure_country", sa.String(10), nullable=True),
         sa.Column("departure_city", sa.String(255), nullable=True),
         sa.Column("arrival_country", sa.String(10), nullable=True),
@@ -660,8 +983,18 @@ def upgrade() -> None:
         sa.Column("confidence", sa.Float, nullable=False, server_default="0.5"),
         sa.Column("source_platform", sa.String(100), nullable=True),
         sa.Column("meta", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
     # ------------------------------------------------------------------ #
@@ -717,23 +1050,64 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Remove person columns
     person_new_cols = [
-        "height_cm", "weight_kg", "eye_color", "hair_color", "hair_length", "build", "skin_tone",
-        "distinguishing_marks", "place_of_birth", "country_of_birth", "citizenship_countries",
-        "languages_spoken", "religion", "ethnicity", "political_affiliation", "marital_status",
-        "number_of_children", "estimated_net_worth_usd", "estimated_annual_income_usd", "wealth_tier",
-        "property_count", "vehicle_count", "aircraft_count", "vessel_count", "pep_status", "pep_level",
-        "is_sanctioned", "sanctions_lists", "adverse_media_score", "adverse_media_count", "is_deceased",
-        "date_of_death", "cause_of_death", "data_completeness_pct", "last_full_enrichment_at",
+        "height_cm",
+        "weight_kg",
+        "eye_color",
+        "hair_color",
+        "hair_length",
+        "build",
+        "skin_tone",
+        "distinguishing_marks",
+        "place_of_birth",
+        "country_of_birth",
+        "citizenship_countries",
+        "languages_spoken",
+        "religion",
+        "ethnicity",
+        "political_affiliation",
+        "marital_status",
+        "number_of_children",
+        "estimated_net_worth_usd",
+        "estimated_annual_income_usd",
+        "wealth_tier",
+        "property_count",
+        "vehicle_count",
+        "aircraft_count",
+        "vessel_count",
+        "pep_status",
+        "pep_level",
+        "is_sanctioned",
+        "sanctions_lists",
+        "adverse_media_score",
+        "adverse_media_count",
+        "is_deceased",
+        "date_of_death",
+        "cause_of_death",
+        "data_completeness_pct",
+        "last_full_enrichment_at",
     ]
     for col in person_new_cols:
         op.drop_column("persons", col)
 
     for table in [
-        "travel_history", "analyst_assessments", "timeline_events",
-        "military_records", "corporate_directorships", "professional_licenses",
-        "shell_company_links", "adverse_media", "pep_classifications",
-        "ip_intelligence", "email_intelligence", "phone_intelligence",
-        "vessels", "aircraft", "vehicles",
-        "property_mortgages", "property_valuations", "property_ownership_history", "properties",
+        "travel_history",
+        "analyst_assessments",
+        "timeline_events",
+        "military_records",
+        "corporate_directorships",
+        "professional_licenses",
+        "shell_company_links",
+        "adverse_media",
+        "pep_classifications",
+        "ip_intelligence",
+        "email_intelligence",
+        "phone_intelligence",
+        "vessels",
+        "aircraft",
+        "vehicles",
+        "property_mortgages",
+        "property_valuations",
+        "property_ownership_history",
+        "properties",
     ]:
         op.drop_table(table)

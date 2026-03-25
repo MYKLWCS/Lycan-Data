@@ -57,7 +57,9 @@ class PhoneIntelligence(Base, TimestampMixin, DataQualityMixin):
     # Aliases / other names this number appears under
     known_aliases: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
 
-    last_seen_active: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_active: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     source_platform: Mapped[str | None] = mapped_column(String(100), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 

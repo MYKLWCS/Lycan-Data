@@ -226,8 +226,12 @@ def _parse_deed_table(html: str, grantor_or_grantee: str) -> list[dict[str, Any]
                         "document_number": cells[0],
                         "acquisition_type": _normalise_deed_type(cells[1]),
                         "acquisition_date": cells[2],
-                        "grantor": cells[3] if grantor_or_grantee == "grantee" else grantor_or_grantee,
-                        "grantee": cells[4] if grantor_or_grantee == "grantor" else grantor_or_grantee,
+                        "grantor": cells[3]
+                        if grantor_or_grantee == "grantee"
+                        else grantor_or_grantee,
+                        "grantee": cells[4]
+                        if grantor_or_grantee == "grantor"
+                        else grantor_or_grantee,
                         "acquisition_price_usd": None,
                         "loan_amount_usd": None,
                         "owner_name": cells[4] if grantor_or_grantee == "grantor" else cells[3],
@@ -244,7 +248,9 @@ def _parse_deed_table(html: str, grantor_or_grantee: str) -> list[dict[str, Any]
         if len(rows) < 2:
             continue
         headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
-        if not any(k in " ".join(headers) for k in ("grantor", "grantee", "document", "deed", "instrument")):
+        if not any(
+            k in " ".join(headers) for k in ("grantor", "grantee", "document", "deed", "instrument")
+        ):
             continue
         for row in rows[1:30]:
             cells = [c.get_text(strip=True) for c in row.find_all("td")]
@@ -284,7 +290,9 @@ def _parse_deed_table(html: str, grantor_or_grantee: str) -> list[dict[str, Any]
                         except ValueError:
                             pass
 
-            deed["owner_name"] = deed["grantee"] if grantor_or_grantee == "grantor" else deed["grantor"]
+            deed["owner_name"] = (
+                deed["grantee"] if grantor_or_grantee == "grantor" else deed["grantor"]
+            )
             if deed["document_number"] or deed["grantor"]:
                 deeds.append(deed)
 

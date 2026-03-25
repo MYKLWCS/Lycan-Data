@@ -45,7 +45,12 @@ def _api_property_response(attom_id="ATT-001", beds=3, baths=2):
                 },
                 "location": {"latitude": 32.78, "longitude": -96.79},
                 "building": {
-                    "summary": {"propType": "Single Family", "propSubType": "SFR", "yearBuilt": 2005, "levels": 2},
+                    "summary": {
+                        "propType": "Single Family",
+                        "propSubType": "SFR",
+                        "yearBuilt": 2005,
+                        "levels": 2,
+                    },
                     "size": {"livingSize": 1800},
                     "rooms": {"beds": beds, "bathsFull": baths, "bathsHalf": 1},
                     "parking": {"garageSpaces": 2},
@@ -57,7 +62,11 @@ def _api_property_response(attom_id="ATT-001", beds=3, baths=2):
                     "market": {"mktTtlValue": "400000"},
                 },
                 "tax": {"taxAmt": "4800"},
-                "sale": {"salesSearchDate": "2022-05-01", "salesAmt": "390000", "deedType": "Warranty Deed"},
+                "sale": {
+                    "salesSearchDate": "2022-05-01",
+                    "salesAmt": "390000",
+                    "deedType": "Warranty Deed",
+                },
                 "owner": {
                     "owner1": {"fullName": "SMITH JOHN"},
                     "ownerOccupied": "Y",
@@ -220,9 +229,7 @@ class TestParseApiSaleHistory:
                         {"buyerName": "B", "amount": "200000"},
                     ]
                 },
-                {
-                    "saleHistory": [{"buyerName": "C", "amount": "300000"}]
-                },
+                {"saleHistory": [{"buyerName": "C", "amount": "300000"}]},
             ]
         }
         result = _parse_api_sale_history(data, prop)
@@ -273,11 +280,7 @@ class TestParseApiAvm:
         from modules.crawlers.property.attom_gateway import _parse_api_avm
 
         prop = {"current_market_value_usd": None}
-        data = {
-            "property": [
-                {"avm": {"amount": {"value": 450000, "low": None, "high": None}}}
-            ]
-        }
+        data = {"property": [{"avm": {"amount": {"value": 450000, "low": None, "high": None}}}]}
         result = _parse_api_avm(data, prop)
         assert result["current_market_value_usd"] == 450000
 
@@ -285,11 +288,7 @@ class TestParseApiAvm:
         from modules.crawlers.property.attom_gateway import _parse_api_avm
 
         prop = {"current_market_value_usd": 400000}
-        data = {
-            "property": [
-                {"avm": {"amount": {"value": 350000}}}
-            ]
-        }
+        data = {"property": [{"avm": {"amount": {"value": 350000}}}]}
         result = _parse_api_avm(data, prop)
         assert result["current_market_value_usd"] == 400000
 
@@ -461,7 +460,16 @@ class TestAttomApiKeyProperty:
             del mock_settings.attom_api_key  # attribute does not exist
             mock_settings.__class__.attom_api_key = property(lambda self: None)
             # Simulate getattr returning None
-            with patch("builtins.getattr", side_effect=lambda obj, name, default=None: None if name == "attom_api_key" else getattr.__wrapped__(obj, name, default) if hasattr(getattr, "__wrapped__") else None):
+            with patch(
+                "builtins.getattr",
+                side_effect=lambda obj, name, default=None: (
+                    None
+                    if name == "attom_api_key"
+                    else getattr.__wrapped__(obj, name, default)
+                    if hasattr(getattr, "__wrapped__")
+                    else None
+                ),
+            ):
                 pass
         # Direct test: settings.attom_api_key should return None or empty string
         assert crawler._api_key is None or crawler._api_key == ""
@@ -562,14 +570,23 @@ class TestAttomGatewayScrapeApiPath:
             "property": [
                 {
                     "saleHistory": [
-                        {"buyerName": "JONES BOB", "amount": "350000", "saleTransDate": "2020-01-01"}
+                        {
+                            "buyerName": "JONES BOB",
+                            "amount": "350000",
+                            "saleTransDate": "2020-01-01",
+                        }
                     ]
                 }
             ]
         }
         avm_data = {
             "property": [
-                {"avm": {"amount": {"value": 400000, "low": 380000, "high": 420000}, "eventType": "MEDIUM"}}
+                {
+                    "avm": {
+                        "amount": {"value": 400000, "low": 380000, "high": 420000},
+                        "eventType": "MEDIUM",
+                    }
+                }
             ]
         }
 
@@ -667,7 +684,11 @@ class TestAttomGatewayScrapeApiPath:
         crawler = self._make_crawler()
         detail_data = _api_property_response()
 
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(status=200, json_data=detail_data))) as mock_get:
+        with patch.object(
+            crawler,
+            "get",
+            new=AsyncMock(return_value=_mock_resp(status=200, json_data=detail_data)),
+        ) as mock_get:
             await crawler.scrape("APN:123-456 TX")
 
         called_url = mock_get.call_args[0][0]

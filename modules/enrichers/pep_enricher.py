@@ -107,7 +107,9 @@ class PepEnricher:
             except Exception as exc:
                 logger.debug(
                     "PepEnricher: crawler %s failed for %s — %s",
-                    type(crawler).__name__, identifier, exc,
+                    type(crawler).__name__,
+                    identifier,
+                    exc,
                 )
 
         is_pep = len(pep_matches) > 0
@@ -116,7 +118,9 @@ class PepEnricher:
         for match in pep_matches:
             await self._persist_pep_record(session, person_id, match)
             level = match.get("pep_level", "tier3")
-            if highest_level is None or _LEVEL_RANK.get(level, 0) > _LEVEL_RANK.get(highest_level, 0):
+            if highest_level is None or _LEVEL_RANK.get(level, 0) > _LEVEL_RANK.get(
+                highest_level, 0
+            ):
                 highest_level = level
 
         # Update Person.meta
@@ -129,7 +133,10 @@ class PepEnricher:
 
         logger.info(
             "PepEnricher: person_id=%s — is_pep=%s level=%s matches=%d",
-            person_id, is_pep, highest_level, len(pep_matches),
+            person_id,
+            is_pep,
+            highest_level,
+            len(pep_matches),
         )
 
         # Create timeline events for newly found appointments
@@ -151,11 +158,13 @@ class PepEnricher:
         source_platform = pep_match.get("source_platform")
 
         result = await session.execute(
-            select(PepClassification).where(
+            select(PepClassification)
+            .where(
                 PepClassification.person_id == person_id,
                 PepClassification.position_title == position,
                 PepClassification.organization == organization,
-            ).limit(1)
+            )
+            .limit(1)
         )
         existing = result.scalar_one_or_none()
 

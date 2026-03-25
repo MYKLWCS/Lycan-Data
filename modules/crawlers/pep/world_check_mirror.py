@@ -30,30 +30,45 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 # ComplyAdvantage public-facing search (no API key for basic entity search)
-_COMPLY_ADVANTAGE_URL = (
-    "https://app.complyadvantage.com/public/search?q={query}&types=person"
-)
+_COMPLY_ADVANTAGE_URL = "https://app.complyadvantage.com/public/search?q={query}&types=person"
 # Dow Jones Risk public profile directory
-_DOW_JONES_URL = (
-    "https://www.dowjones.com/risk/?q={query}"
-)
+_DOW_JONES_URL = "https://www.dowjones.com/risk/?q={query}"
 # Acuris Risk Intelligence public search
-_ACURIS_URL = (
-    "https://www.acuris.com/risk-intelligence/search/?q={query}"
-)
+_ACURIS_URL = "https://www.acuris.com/risk-intelligence/search/?q={query}"
 
 _TIER1_KEYWORDS = {
-    "president", "prime minister", "minister", "senator",
-    "parliament", "congress", "head of state", "chairman", "director general",
-    "central bank", "supreme court", "chief justice", "ambassador",
+    "president",
+    "prime minister",
+    "minister",
+    "senator",
+    "parliament",
+    "congress",
+    "head of state",
+    "chairman",
+    "director general",
+    "central bank",
+    "supreme court",
+    "chief justice",
+    "ambassador",
 }
 _TIER2_KEYWORDS = {
-    "deputy", "assistant minister", "mp", "member of parliament",
-    "state-owned", "executive", "board member", "director", "mayor",
+    "deputy",
+    "assistant minister",
+    "mp",
+    "member of parliament",
+    "state-owned",
+    "executive",
+    "board member",
+    "director",
+    "mayor",
     "governor",
 }
 _TIER3_KEYWORDS = {
-    "relative", "close associate", "family member", "spouse", "associate",
+    "relative",
+    "close associate",
+    "family member",
+    "spouse",
+    "associate",
 }
 
 
@@ -116,10 +131,7 @@ def _parse_complyadvantage_html(html: str) -> list[dict[str, Any]]:
                 rows = table.find_all("tr")
                 if not rows:
                     continue
-                headers = [
-                    th.get_text(strip=True).lower()
-                    for th in rows[0].find_all(["th", "td"])
-                ]
+                headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
                 for row in rows[1:]:
                     cells = row.find_all("td")
                     record = {
@@ -165,6 +177,7 @@ def _parse_generic_kyc_html(html: str, source_site: str) -> list[dict[str, Any]]
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 import json
+
                 data = json.loads(script.string or "")
                 if isinstance(data, dict) and data.get("@type") == "Person":
                     name = data.get("name", "")
@@ -297,9 +310,7 @@ class WorldCheckMirrorCrawler(HttpxCrawler):
         url = _COMPLY_ADVANTAGE_URL.format(query=encoded)
         resp = await self.get(url)
         if resp is None or resp.status_code not in (200, 206):
-            logger.debug(
-                "ComplyAdvantage returned %s", resp.status_code if resp else "None"
-            )
+            logger.debug("ComplyAdvantage returned %s", resp.status_code if resp else "None")
             return []
         return _parse_complyadvantage_html(resp.text)
 

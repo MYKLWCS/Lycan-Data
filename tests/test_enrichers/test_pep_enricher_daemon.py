@@ -282,9 +282,7 @@ class TestCheckPerson:
 
         with (
             patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=boom),
-            patch(
-                "modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler", return_value=boom
-            ),
+            patch("modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler", return_value=boom),
         ):
             await enricher.check_person(person.id, session)
 
@@ -494,9 +492,7 @@ class TestCreatePepTimelineEvents:
             side_effect=ImportError("no timeline"),
         ):
             # Should not raise
-            await enricher._create_pep_timeline_events(
-                session, uuid.uuid4(), [_pep_match()]
-            )
+            await enricher._create_pep_timeline_events(session, uuid.uuid4(), [_pep_match()])
 
     async def test_title_includes_org_when_present(self):
         """Title includes '— OrgName' when organization is in the match."""
@@ -512,7 +508,9 @@ class TestCreatePepTimelineEvents:
 
         mock_builder._upsert_event = capture_upsert
 
-        matches = [_pep_match(position="Minister", org="Ministry of Finance", start_date="2018-05-01")]
+        matches = [
+            _pep_match(position="Minister", org="Ministry of Finance", start_date="2018-05-01")
+        ]
 
         with patch(
             "modules.enrichers.pep_enricher.TimelineBuilder",

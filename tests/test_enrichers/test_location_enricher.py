@@ -63,9 +63,7 @@ def _make_session(addresses=None, profiles=None, identifiers=None, existing_visi
 
     # For _upsert, each call needs a scalar_one_or_none for existing-visit lookup
     # We'll add those at the end
-    for _ in range(
-        len(addresses or []) + len(profiles or []) + len(identifiers or [])
-    ):
+    for _ in range(len(addresses or []) + len(profiles or []) + len(identifiers or [])):
         r = MagicMock()
         r.scalar_one_or_none.return_value = existing_visit
         calls.append(r)

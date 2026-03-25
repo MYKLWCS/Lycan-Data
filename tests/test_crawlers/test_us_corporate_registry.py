@@ -56,9 +56,7 @@ class TestParseOcOfficers:
                             "company_number": "C12345",
                             "jurisdiction_code": "us_de",
                             "current_status": "Active",
-                            "registered_address": {
-                                "in_full": "123 Main St, Wilmington, DE 19801"
-                            },
+                            "registered_address": {"in_full": "123 Main St, Wilmington, DE 19801"},
                         },
                     }
                 }
@@ -118,13 +116,7 @@ class TestParseOcOfficers:
         assert roles[0]["registered_address"] == "456 Elm St"
 
     def test_registered_address_none(self):
-        data = {
-            "results": {
-                "officers": [
-                    {"officer": {"company": {"registered_address": None}}}
-                ]
-            }
-        }
+        data = {"results": {"officers": [{"officer": {"company": {"registered_address": None}}}]}}
         roles = _parse_oc_officers(data)
         assert roles[0]["registered_address"] == "None"
 
@@ -157,8 +149,22 @@ class TestParseOcOfficers:
         data = {
             "results": {
                 "officers": [
-                    {"officer": {"company": {"name": "Corp A"}, "position": "CEO", "start_date": "", "end_date": ""}},
-                    {"officer": {"company": {"name": "Corp B"}, "position": "CFO", "start_date": "", "end_date": ""}},
+                    {
+                        "officer": {
+                            "company": {"name": "Corp A"},
+                            "position": "CEO",
+                            "start_date": "",
+                            "end_date": "",
+                        }
+                    },
+                    {
+                        "officer": {
+                            "company": {"name": "Corp B"},
+                            "position": "CFO",
+                            "start_date": "",
+                            "end_date": "",
+                        }
+                    },
                 ]
             }
         }
@@ -169,7 +175,14 @@ class TestParseOcOfficers:
         data = {
             "results": {
                 "officers": [
-                    {"officer": {"position": "VP", "start_date": "", "end_date": "", "company": None}}
+                    {
+                        "officer": {
+                            "position": "VP",
+                            "start_date": "",
+                            "end_date": "",
+                            "company": None,
+                        }
+                    }
                 ]
             }
         }
@@ -342,7 +355,9 @@ class TestSearchOpencorporates:
                 ]
             }
         }
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))
+        ):
             result = await crawler._search_opencorporates("Test+Corp")
         assert len(result) == 1
         assert result[0]["company_name"] == "Test Corp"
@@ -414,7 +429,9 @@ class TestUsCorporateRegistryCrawlerScrape:
                 ]
             }
         }
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=oc_data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=oc_data))
+        ):
             result = await crawler.scrape("Jane Doe")
 
         assert result.found is True
@@ -526,7 +543,9 @@ class TestUsCorporateRegistryCrawlerScrape:
                 ]
             }
         }
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=oc_data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=oc_data))
+        ):
             result = await crawler.scrape("Dual Role Person")
 
         assert result.data["role_count"] == 2

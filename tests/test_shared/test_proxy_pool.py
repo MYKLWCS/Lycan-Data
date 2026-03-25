@@ -54,7 +54,9 @@ def _make_settings(residential: str = "", datacenter: str = "") -> MagicMock:
     return s
 
 
-def _make_tor_manager(proxy: str | None = "socks5://127.0.0.1:9052", any_available: bool = True) -> MagicMock:
+def _make_tor_manager(
+    proxy: str | None = "socks5://127.0.0.1:9052", any_available: bool = True
+) -> MagicMock:
     tm = MagicMock()
     tm.get_proxy.return_value = proxy
     tm.any_available.return_value = any_available
@@ -76,6 +78,7 @@ def _make_pool(
         patch("shared.proxy_pool.tor_manager", tor_manager),
     ):
         from shared.proxy_pool import ProxyPool
+
         pool = ProxyPool()
         # Attach mocks so tests can inspect them
         pool._test_tor_manager = tor_manager
@@ -239,6 +242,7 @@ class TestNextWithFallback:
         """No fallback log when returned tier equals preferred tier."""
         pool = _make_pool(residential="http://r1:8080")
         import logging
+
         with patch("shared.proxy_pool.logger") as mock_logger:
             proxy, tier = await pool.next_with_fallback("residential")
             mock_logger.info.assert_not_called()

@@ -330,7 +330,9 @@ class TestIcijCrawlerTryJsonApi:
     async def test_returns_parsed_data_on_success(self):
         crawler = self._crawler()
         data = {"data": {"entities": [{"name": "Test Corp", "type": "company"}]}}
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))
+        ):
             result = await crawler._try_json_api("Test+Corp")
         assert len(result) == 1
 
@@ -387,7 +389,9 @@ class TestIcijOffshoreLeaksCrawlerScrape:
                 ]
             }
         }
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))
+        ):
             result = await crawler.scrape("Panama Corp")
 
         assert result.found is True
@@ -438,7 +442,9 @@ class TestIcijOffshoreLeaksCrawlerScrape:
                 ]
             }
         }
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))
+        ):
             result = await crawler.scrape("Corp")
 
         leak_names = result.data["leak_names"]
@@ -469,7 +475,9 @@ class TestIcijOffshoreLeaksCrawlerScrape:
                 ]
             }
         }
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))
+        ):
             result = await crawler.scrape("Corp C")
 
         assert "fincen_files" in result.data["leak_names"]

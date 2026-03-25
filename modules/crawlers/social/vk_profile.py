@@ -52,7 +52,7 @@ def _extract_username(identifier: str) -> str:
     uid = identifier.strip()
     for prefix in ("https://vk.com/", "http://vk.com/", "vk.com/"):
         if uid.lower().startswith(prefix):
-            uid = uid[len(prefix):]
+            uid = uid[len(prefix) :]
     return uid
 
 
@@ -147,9 +147,7 @@ def _parse_vk_html(html: str) -> dict[str, Any]:
 
         # Name: usually in <h1> or .profile_name
         name_el = (
-            soup.select_one("h1.profile_name")
-            or soup.select_one("h1")
-            or soup.select_one(".name")
+            soup.select_one("h1.profile_name") or soup.select_one("h1") or soup.select_one(".name")
         )
         if name_el:
             result["display_name"] = name_el.get_text(strip=True)
@@ -296,9 +294,7 @@ class VkProfileCrawler(HttpxCrawler):
         parsed["profile_url"] = f"https://vk.com/{username}"
         return parsed
 
-    async def _search_by_name(
-        self, name: str, country: str
-    ) -> dict[str, Any] | None:
+    async def _search_by_name(self, name: str, country: str) -> dict[str, Any] | None:
         """Search VK for a person by name using the users.search API."""
         encoded = quote_plus(name)
         url = _VK_API_SEARCH.format(query=encoded)

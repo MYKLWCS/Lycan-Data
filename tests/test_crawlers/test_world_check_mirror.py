@@ -59,7 +59,9 @@ def test_wc_classify_tier_tier1_parliament():
 
 
 def test_wc_classify_tier_tier1_central_bank():
-    assert _classify_tier("Governor central bank") == "tier2"  # "governor" triggers deputy/governor fast-path → tier2
+    assert (
+        _classify_tier("Governor central bank") == "tier2"
+    )  # "governor" triggers deputy/governor fast-path → tier2
 
 
 def test_wc_classify_tier_tier1_ambassador():
@@ -347,12 +349,32 @@ async def test_wc_scrape_dob_parsed_from_identifier():
 
 async def test_wc_scrape_highest_tier_selected():
     crawler = _crawler()
-    m1 = {"pep_level": "tier3", "source": "x", "source_site": "x", "name": "A",
-           "position": "", "country": "", "organization": "", "start_date": "",
-           "end_date": "", "is_current": True, "related_entities": []}
-    m2 = {"pep_level": "tier1", "source": "x", "source_site": "x", "name": "B",
-           "position": "", "country": "", "organization": "", "start_date": "",
-           "end_date": "", "is_current": True, "related_entities": []}
+    m1 = {
+        "pep_level": "tier3",
+        "source": "x",
+        "source_site": "x",
+        "name": "A",
+        "position": "",
+        "country": "",
+        "organization": "",
+        "start_date": "",
+        "end_date": "",
+        "is_current": True,
+        "related_entities": [],
+    }
+    m2 = {
+        "pep_level": "tier1",
+        "source": "x",
+        "source_site": "x",
+        "name": "B",
+        "position": "",
+        "country": "",
+        "organization": "",
+        "start_date": "",
+        "end_date": "",
+        "is_current": True,
+        "related_entities": [],
+    }
     with (
         patch.object(crawler, "_search_complyadvantage", new=AsyncMock(return_value=[m1])),
         patch.object(crawler, "_search_dowjones", new=AsyncMock(return_value=[m2])),
@@ -409,7 +431,9 @@ async def test_search_ca_non_200():
 
 async def test_search_dj_200():
     crawler = _crawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text="<html></html>"))):
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text="<html></html>"))
+    ):
         results = await crawler._search_dowjones("X")
     assert isinstance(results, list)
 
@@ -435,7 +459,9 @@ async def test_search_dj_non_200():
 
 async def test_search_acuris_200():
     crawler = _crawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text="<html></html>"))):
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text="<html></html>"))
+    ):
         results = await crawler._search_acuris("X")
     assert isinstance(results, list)
 
@@ -658,6 +684,7 @@ def test_parse_ca_html_table_empty_rows_skipped():
     """Line 118: table with <tr> tags that have no cells — `if not rows: continue` is not hit,
     but a table whose rows list has zero tr elements exercises the continue branch."""
     from bs4 import BeautifulSoup
+
     html = "<html><body><table></table><table><tr><th>Name</th></tr><tr><td>Sam Lee</td></tr></table></body></html>"
     results = _parse_complyadvantage_html(html)
     # First table has no rows → skipped via `if not rows: continue`; second produces Sam Lee.

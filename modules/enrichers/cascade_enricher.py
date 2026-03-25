@@ -76,11 +76,7 @@ class CascadeEnricher:
         for profile in profiles:
             # Mine structured handle field on the profile row
             if profile.handle:
-                new_seeds.extend(
-                    self._check_seed(
-                        SeedType.USERNAME, profile.handle.strip(), known
-                    )
-                )
+                new_seeds.extend(self._check_seed(SeedType.USERNAME, profile.handle.strip(), known))
 
             data: dict = profile.profile_data or {}
 
@@ -100,9 +96,7 @@ class CascadeEnricher:
             for key in _USERNAME_KEYS:
                 val = data.get(key)
                 if val and isinstance(val, str):
-                    new_seeds.extend(
-                        self._check_seed(SeedType.USERNAME, val.strip(), known)
-                    )
+                    new_seeds.extend(self._check_seed(SeedType.USERNAME, val.strip(), known))
 
             # Platform-specific pivot handles
             for key in _INSTAGRAM_KEYS:
@@ -115,16 +109,12 @@ class CascadeEnricher:
             for key in _TWITTER_KEYS:
                 val = data.get(key)
                 if val and isinstance(val, str):
-                    new_seeds.extend(
-                        self._check_seed(SeedType.TWITTER_HANDLE, val.strip(), known)
-                    )
+                    new_seeds.extend(self._check_seed(SeedType.TWITTER_HANDLE, val.strip(), known))
 
             for key in _LINKEDIN_KEYS:
                 val = data.get(key)
                 if val and isinstance(val, str):
-                    new_seeds.extend(
-                        self._check_seed(SeedType.LINKEDIN_URL, val.strip(), known)
-                    )
+                    new_seeds.extend(self._check_seed(SeedType.LINKEDIN_URL, val.strip(), known))
 
         if not new_seeds:
             return 0

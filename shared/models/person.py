@@ -39,7 +39,9 @@ class Person(Base, TimestampMixin, DataQualityMixin):
     eye_color: Mapped[str | None] = mapped_column(String(30), nullable=True)
     hair_color: Mapped[str | None] = mapped_column(String(30), nullable=True)
     hair_length: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    build: Mapped[str | None] = mapped_column(String(50), nullable=True)  # slim|medium|heavy|athletic
+    build: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # slim|medium|heavy|athletic
     skin_tone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     distinguishing_marks: Mapped[str | None] = mapped_column(Text, nullable=True)  # tattoos, scars
 
@@ -51,13 +53,17 @@ class Person(Base, TimestampMixin, DataQualityMixin):
     religion: Mapped[str | None] = mapped_column(String(100), nullable=True)
     ethnicity: Mapped[str | None] = mapped_column(String(100), nullable=True)
     political_affiliation: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    marital_status: Mapped[str | None] = mapped_column(String(50), nullable=True)  # single|married|divorced|widowed|separated|common_law
+    marital_status: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # single|married|divorced|widowed|separated|common_law
     number_of_children: Mapped[int | None] = mapped_column(nullable=True)
 
     # Wealth / financial summary (denormalised for fast access)
     estimated_net_worth_usd: Mapped[float | None] = mapped_column(nullable=True)
     estimated_annual_income_usd: Mapped[float | None] = mapped_column(nullable=True)
-    wealth_tier: Mapped[str | None] = mapped_column(String(50), nullable=True)  # ultra_hnw|hnw|affluent|mass_affluent|mass_market
+    wealth_tier: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # ultra_hnw|hnw|affluent|mass_affluent|mass_market
     property_count: Mapped[int] = mapped_column(default=0, nullable=False)
     vehicle_count: Mapped[int] = mapped_column(default=0, nullable=False)
     aircraft_count: Mapped[int] = mapped_column(default=0, nullable=False)
@@ -76,7 +82,9 @@ class Person(Base, TimestampMixin, DataQualityMixin):
 
     # Data completeness
     data_completeness_pct: Mapped[float] = mapped_column(default=0.0, nullable=False)
-    last_full_enrichment_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_full_enrichment_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     identifiers: Mapped[list["Identifier"]] = relationship(
@@ -101,8 +109,7 @@ class Person(Base, TimestampMixin, DataQualityMixin):
         back_populates="person", cascade="all, delete-orphan"
     )
     properties: Mapped[list["Property"]] = relationship(
-        back_populates="person", cascade="all, delete-orphan",
-        foreign_keys="Property.person_id"
+        back_populates="person", cascade="all, delete-orphan", foreign_keys="Property.person_id"
     )
     vehicles: Mapped[list["Vehicle"]] = relationship(
         back_populates="person", cascade="all, delete-orphan"
@@ -114,8 +121,9 @@ class Person(Base, TimestampMixin, DataQualityMixin):
         back_populates="person", cascade="all, delete-orphan"
     )
     pep_classifications: Mapped[list["PepClassification"]] = relationship(
-        back_populates="person", cascade="all, delete-orphan",
-        foreign_keys="PepClassification.person_id"
+        back_populates="person",
+        cascade="all, delete-orphan",
+        foreign_keys="PepClassification.person_id",
     )
     adverse_media: Mapped[list["AdverseMedia"]] = relationship(
         back_populates="person", cascade="all, delete-orphan"

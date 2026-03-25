@@ -192,7 +192,9 @@ def _parse_property_api(data: dict | list) -> list[dict[str, Any]]:
             "is_owner_occupied": _bool_flag(item.get("ownerOccupied")),
             "homestead_exemption": _bool_flag(item.get("homesteadExemption")),
             # PropertyRadar-specific flags
-            "is_pre_foreclosure": _bool_flag(item.get("preForeclosure") or item.get("inForeclosure")),
+            "is_pre_foreclosure": _bool_flag(
+                item.get("preForeclosure") or item.get("inForeclosure")
+            ),
             "is_tax_default": _bool_flag(item.get("taxDefault") or item.get("taxDelinquent")),
             "is_llc_owned": _bool_flag(item.get("llcOwned") or item.get("corporateOwned")),
             "is_absentee_owner": _bool_flag(item.get("absenteeOwner")),
@@ -231,14 +233,10 @@ def _parse_search_html(html: str, state: str) -> tuple[list[dict[str, Any]], lis
 
     # Try JSON embedded in page
     try:
-        m = re.search(r'window\.__INITIAL_STATE__\s*=\s*({.+?});', html, re.DOTALL)
+        m = re.search(r"window\.__INITIAL_STATE__\s*=\s*({.+?});", html, re.DOTALL)
         if m:
             page_data = json.loads(m.group(1))
-            owner_data = (
-                page_data.get("search", {}).get("owners")
-                or page_data.get("owners")
-                or []
-            )
+            owner_data = page_data.get("search", {}).get("owners") or page_data.get("owners") or []
             if owner_data:
                 owners = _parse_owner_api(owner_data)
     except Exception:
@@ -304,7 +302,7 @@ def _parse_property_detail_html(html: str) -> dict[str, Any]:
 
     # Try JSON embedded state
     try:
-        m = re.search(r'window\.__INITIAL_STATE__\s*=\s*({.+?});', html, re.DOTALL)
+        m = re.search(r"window\.__INITIAL_STATE__\s*=\s*({.+?});", html, re.DOTALL)
         if m:
             page_data = json.loads(m.group(1))
             property_data = page_data.get("property") or {}
@@ -353,7 +351,9 @@ def _parse_property_detail_html(html: str) -> dict[str, Any]:
 
     # Flags
     text_lower = text.lower()
-    prop["is_pre_foreclosure"] = "pre-foreclosure" in text_lower or "notice of default" in text_lower
+    prop["is_pre_foreclosure"] = (
+        "pre-foreclosure" in text_lower or "notice of default" in text_lower
+    )
     prop["is_tax_default"] = "tax default" in text_lower or "tax delinquent" in text_lower
     prop["is_absentee_owner"] = "absentee" in text_lower
     prop["is_vacant"] = "vacant" in text_lower
@@ -394,7 +394,9 @@ class PropertyRadarCrawler(HttpxCrawler):
         if not name:
             return self._result(identifier, found=False, error="name_required")
         if not state:
-            return self._result(identifier, found=False, error="state_required — append state abbr to identifier")
+            return self._result(
+                identifier, found=False, error="state_required — append state abbr to identifier"
+            )
 
         encoded_name = quote_plus(name)
 
@@ -436,7 +438,11 @@ class PropertyRadarCrawler(HttpxCrawler):
                         for p in props:
                             p["owner_name"] = p.get("owner_name") or owner.get("owner_name")
                             p["is_llc_owned"] = p.get("is_llc_owned") or (
-                                bool(re.search(r"\bllc\b|\bcorp\b", owner.get("owner_name", ""), re.I))
+                                bool(
+                                    re.search(
+                                        r"\bllc\b|\bcorp\b", owner.get("owner_name", ""), re.I
+                                    )
+                                )
                             )
                         all_properties.extend(props)
                     except Exception as exc:

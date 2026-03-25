@@ -87,7 +87,9 @@ class TestCascadeEnricherHandleField:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch(
+            "modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock
+        ) as mock_dispatch:
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0
@@ -102,7 +104,9 @@ class TestCascadeEnricherHandleField:
         session = _make_session(existing_identifiers=[existing], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch(
+            "modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock
+        ) as mock_dispatch:
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result == 0
@@ -117,7 +121,9 @@ class TestCascadeEnricherEmailField:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch(
+            "modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock
+        ) as mock_dispatch:
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result > 0
@@ -132,7 +138,9 @@ class TestCascadeEnricherEmailField:
         session = _make_session(existing_identifiers=[], social_profiles=[profile])
         enricher = CascadeEnricher()
 
-        with patch("modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock) as mock_dispatch:
+        with patch(
+            "modules.enrichers.cascade_enricher.dispatch_job", new_callable=AsyncMock
+        ) as mock_dispatch:
             result = await enricher.enrich(str(uuid.uuid4()), session)
 
         assert result == 0

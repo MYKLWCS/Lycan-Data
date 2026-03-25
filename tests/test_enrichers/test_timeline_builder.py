@@ -219,7 +219,11 @@ class TestBuild:
             "_events_from_breaches",
             "_events_from_travel",
         ]:
-            setattr(builder, attr, AsyncMock(return_value=[ev] if attr == "_events_from_criminal" else []))
+            setattr(
+                builder,
+                attr,
+                AsyncMock(return_value=[ev] if attr == "_events_from_criminal" else []),
+            )
 
         builder._upsert_event = AsyncMock(return_value=False)
 

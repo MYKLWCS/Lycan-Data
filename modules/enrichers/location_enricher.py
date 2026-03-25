@@ -137,9 +137,7 @@ class LocationEnricher:
         return touched
 
     async def _from_addresses(self, pid: uuid.UUID, session: AsyncSession) -> int:
-        result = await session.execute(
-            select(Address).where(Address.person_id == pid)
-        )
+        result = await session.execute(select(Address).where(Address.person_id == pid))
         addresses: list[Address] = list(result.scalars().all())
         count = 0
         for addr in addresses:
@@ -161,9 +159,7 @@ class LocationEnricher:
         return count
 
     async def _from_social_profiles(self, pid: uuid.UUID, session: AsyncSession) -> int:
-        result = await session.execute(
-            select(SocialProfile).where(SocialProfile.person_id == pid)
-        )
+        result = await session.execute(select(SocialProfile).where(SocialProfile.person_id == pid))
         profiles: list[SocialProfile] = list(result.scalars().all())
         count = 0
         for profile in profiles:

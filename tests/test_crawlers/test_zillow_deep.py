@@ -239,11 +239,7 @@ class TestParseNextData:
         else:
             gdp_cache = gdp_cache_raw
         page_data = {
-            "props": {
-                "pageProps": {
-                    "componentProps": {"gdpClientCache": json.dumps(gdp_cache)}
-                }
-            }
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
         }
         script = json.dumps(page_data)
         return f'<html><script id="__NEXT_DATA__">{script}</script></html>'
@@ -279,14 +275,18 @@ class TestParseNextData:
         from modules.crawlers.property.zillow_deep import _parse_next_data
 
         # No "property" wrapper — home directly has "bedrooms"
-        home = {"bedrooms": 4, "address": {"city": "Austin", "state": "TX", "streetAddress": "1 Elm St", "zipcode": "78701"}}
+        home = {
+            "bedrooms": 4,
+            "address": {
+                "city": "Austin",
+                "state": "TX",
+                "streetAddress": "1 Elm St",
+                "zipcode": "78701",
+            },
+        }
         gdp_cache = {"direct_key": home}
         page_data = {
-            "props": {
-                "pageProps": {
-                    "componentProps": {"gdpClientCache": json.dumps(gdp_cache)}
-                }
-            }
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
         }
         html = f'<html><script id="__NEXT_DATA__">{json.dumps(page_data)}</script></html>'
         details = _parse_next_data(html)
@@ -296,17 +296,18 @@ class TestParseNextData:
         from modules.crawlers.property.zillow_deep import _parse_next_data
 
         home = {
-            "address": {"streetAddress": "50 Oak Ave", "city": "Houston", "state": "TX", "zipcode": "77001"},
+            "address": {
+                "streetAddress": "50 Oak Ave",
+                "city": "Houston",
+                "state": "TX",
+                "zipcode": "77001",
+            },
             "bedrooms": 2,
         }
         gdp_cache = {"k": {"property": home}}
         # gdpClientCache is already a string (double-encoded)
         page_data = {
-            "props": {
-                "pageProps": {
-                    "componentProps": {"gdpClientCache": json.dumps(gdp_cache)}
-                }
-            }
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
         }
         html = f'<html><script id="__NEXT_DATA__">{json.dumps(page_data)}</script></html>'
         details = _parse_next_data(html)
@@ -442,6 +443,7 @@ class TestParseNextDataFallbackRegex:
 
         # Force ValueError by patching the built-in int inside the module
         import builtins
+
         real_int = builtins.int
         call_count = [0]
 
@@ -576,9 +578,7 @@ class TestZillowDeepCrawlerScrape:
         }
         gdp_cache = {"k": {"property": home}}
         page_data = {
-            "props": {
-                "pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}
-            }
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
         }
         page_html = f'<script id="__NEXT_DATA__">{json.dumps(page_data)}</script>'
 
@@ -689,9 +689,7 @@ class TestZillowDeepFetchPropertyPage:
         }
         gdp_cache = {"k": {"property": home}}
         page_data = {
-            "props": {
-                "pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}
-            }
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
         }
         html = f'<script id="__NEXT_DATA__">{json.dumps(page_data)}</script>'
         resp = _mock_resp(status=200, text=html)

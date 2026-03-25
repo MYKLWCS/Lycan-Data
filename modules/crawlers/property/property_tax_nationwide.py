@@ -304,13 +304,26 @@ _BROWSER_HEADERS = {
 
 # Known exemption types to scan for in HTML
 _EXEMPTION_KEYWORDS = [
-    "homestead", "senior", "veteran", "disability", "widow", "agricultural",
-    "religious", "nonprofit", "solar", "green",
+    "homestead",
+    "senior",
+    "veteran",
+    "disability",
+    "widow",
+    "agricultural",
+    "religious",
+    "nonprofit",
+    "solar",
+    "green",
 ]
 
 # Delinquency signals
 _DELINQUENCY_KEYWORDS = [
-    "delinquent", "past due", "tax lien", "unpaid", "default", "in arrears",
+    "delinquent",
+    "past due",
+    "tax lien",
+    "unpaid",
+    "default",
+    "in arrears",
 ]
 
 

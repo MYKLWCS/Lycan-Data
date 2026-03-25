@@ -154,20 +154,24 @@ async def _scrape_la_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list
         data = resp.json()
         parcels = []
         for item in (data.get("parcels") or data.get("results") or [])[:10]:
-            parcels.append({
-                "parcel_number": item.get("ain") or item.get("parcelnumber"),
-                "street_address": item.get("situs") or item.get("address"),
-                "city": item.get("city", ""),
-                "state": "CA",
-                "county": "Los Angeles",
-                "owner_name": item.get("ownerName") or item.get("owner"),
-                "current_assessed_value_usd": _money(str(item.get("totalValue", ""))),
-                "current_market_value_usd": _money(str(item.get("marketValue", ""))),
-                "year_built": item.get("yearBuilt"),
-                "sq_ft_living": item.get("sqftMain"),
-                "property_type": item.get("useCode"),
-                "ownership_history": [], "valuations": [], "mortgages": [],
-            })
+            parcels.append(
+                {
+                    "parcel_number": item.get("ain") or item.get("parcelnumber"),
+                    "street_address": item.get("situs") or item.get("address"),
+                    "city": item.get("city", ""),
+                    "state": "CA",
+                    "county": "Los Angeles",
+                    "owner_name": item.get("ownerName") or item.get("owner"),
+                    "current_assessed_value_usd": _money(str(item.get("totalValue", ""))),
+                    "current_market_value_usd": _money(str(item.get("marketValue", ""))),
+                    "year_built": item.get("yearBuilt"),
+                    "sq_ft_living": item.get("sqftMain"),
+                    "property_type": item.get("useCode"),
+                    "ownership_history": [],
+                    "valuations": [],
+                    "mortgages": [],
+                }
+            )
         return parcels
     except Exception:
         pass
@@ -176,7 +180,9 @@ async def _scrape_la_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list
     return _generic_table_parse(soup, "CA", "Los Angeles")
 
 
-async def _scrape_alameda_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_alameda_ca(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.acgov.org/ptax_pub_app/RealSearchInit.do?userAction=SEARCH&searchType=ADDR&searchAddr={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -185,7 +191,9 @@ async def _scrape_alameda_ca(crawler: CountyAssessorMultiCrawler, query: str) ->
     return _generic_table_parse(soup, "CA", "Alameda")
 
 
-async def _scrape_san_diego_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_san_diego_ca(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://arcc.co.san-diego.ca.us/onlinesvc/SearchParcel.aspx?address={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -195,7 +203,9 @@ async def _scrape_san_diego_ca(crawler: CountyAssessorMultiCrawler, query: str) 
 
 
 async def _scrape_sf_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
-    url = f"https://sfassessor.org/parcel-search?parcel={quote_plus(query)}&addr={quote_plus(query)}"
+    url = (
+        f"https://sfassessor.org/parcel-search?parcel={quote_plus(query)}&addr={quote_plus(query)}"
+    )
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
         return []
@@ -203,7 +213,9 @@ async def _scrape_sf_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list
     return _generic_table_parse(soup, "CA", "San Francisco")
 
 
-async def _scrape_orange_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_orange_ca(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.ocassessor.gov/asp/parcel.asp?address={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -212,7 +224,9 @@ async def _scrape_orange_ca(crawler: CountyAssessorMultiCrawler, query: str) -> 
     return _generic_table_parse(soup, "CA", "Orange")
 
 
-async def _scrape_riverside_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_riverside_ca(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://assessor.rivcoda.org/internetasmt/search?criteria.ownerName={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -221,8 +235,12 @@ async def _scrape_riverside_ca(crawler: CountyAssessorMultiCrawler, query: str) 
     return _generic_table_parse(soup, "CA", "Riverside")
 
 
-async def _scrape_miami_dade_fl(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
-    url = f"https://www.miamidade.gov/Apps/PA/propertysearch/Results.asp?address={quote_plus(query)}"
+async def _scrape_miami_dade_fl(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
+    url = (
+        f"https://www.miamidade.gov/Apps/PA/propertysearch/Results.asp?address={quote_plus(query)}"
+    )
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
         return []
@@ -235,22 +253,28 @@ async def _scrape_miami_dade_fl(crawler: CountyAssessorMultiCrawler, query: str)
         folio = cells[0].get_text(strip=True)
         if not folio or "folio" in folio.lower():
             continue
-        parcels.append({
-            "parcel_number": folio,
-            "street_address": cells[1].get_text(strip=True) if len(cells) > 1 else None,
-            "city": "Miami",
-            "state": "FL",
-            "county": "Miami-Dade",
-            "owner_name": cells[2].get_text(strip=True) if len(cells) > 2 else None,
-            "current_market_value_usd": _money(cells[3].get_text()) if len(cells) > 3 else None,
-            "ownership_history": [], "valuations": [], "mortgages": [],
-        })
+        parcels.append(
+            {
+                "parcel_number": folio,
+                "street_address": cells[1].get_text(strip=True) if len(cells) > 1 else None,
+                "city": "Miami",
+                "state": "FL",
+                "county": "Miami-Dade",
+                "owner_name": cells[2].get_text(strip=True) if len(cells) > 2 else None,
+                "current_market_value_usd": _money(cells[3].get_text()) if len(cells) > 3 else None,
+                "ownership_history": [],
+                "valuations": [],
+                "mortgages": [],
+            }
+        )
     if not parcels:
         parcels = _generic_table_parse(soup, "FL", "Miami-Dade")
     return parcels
 
 
-async def _scrape_broward_fl(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_broward_fl(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.bcpa.net/RecInfo.asp?URL_Folio=0000&URL_NAME=&URL_ADDR={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -259,7 +283,9 @@ async def _scrape_broward_fl(crawler: CountyAssessorMultiCrawler, query: str) ->
     return _generic_table_parse(soup, "FL", "Broward")
 
 
-async def _scrape_palm_beach_fl(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_palm_beach_fl(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.pbcgov.org/papa/Asps/PropertyDetail/PropertyDetail.aspx?parcel={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -268,7 +294,9 @@ async def _scrape_palm_beach_fl(crawler: CountyAssessorMultiCrawler, query: str)
     return _generic_table_parse(soup, "FL", "Palm Beach")
 
 
-async def _scrape_hillsborough_fl(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_hillsborough_fl(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://gis.hcpafl.org/propertysearch/#/nav/search?searchText={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -277,7 +305,9 @@ async def _scrape_hillsborough_fl(crawler: CountyAssessorMultiCrawler, query: st
     return _generic_table_parse(soup, "FL", "Hillsborough")
 
 
-async def _scrape_pinellas_fl(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_pinellas_fl(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.pcpao.org/search_res.php?qval={quote_plus(query)}&searchType=addr"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -292,7 +322,9 @@ async def _scrape_nyc_ny(crawler: CountyAssessorMultiCrawler, query: str) -> lis
         f"https://a836-acris.nyc.gov/DS/DocumentSearch/PartyName"
         f"?housenum=&lastname={quote_plus(query)}&firstname=&doctype=DEED&partytype=2"
     )
-    resp = await crawler.get(url, headers={**_BROWSER_HEADERS, "Referer": "https://a836-acris.nyc.gov/"})
+    resp = await crawler.get(
+        url, headers={**_BROWSER_HEADERS, "Referer": "https://a836-acris.nyc.gov/"}
+    )
     if not resp or resp.status_code != 200:
         return []
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -308,17 +340,21 @@ async def _scrape_cook_il(crawler: CountyAssessorMultiCrawler, query: str) -> li
         data = resp.json()
         parcels = []
         for item in (data.get("pins") or data.get("results") or [])[:10]:
-            parcels.append({
-                "parcel_number": item.get("pin") or item.get("PIN"),
-                "street_address": item.get("address") or item.get("propertyAddress"),
-                "city": item.get("city", "Chicago"),
-                "state": "IL",
-                "county": "Cook",
-                "owner_name": item.get("ownerName"),
-                "current_assessed_value_usd": _money(str(item.get("assessedValue", ""))),
-                "year_built": item.get("yearBuilt"),
-                "ownership_history": [], "valuations": [], "mortgages": [],
-            })
+            parcels.append(
+                {
+                    "parcel_number": item.get("pin") or item.get("PIN"),
+                    "street_address": item.get("address") or item.get("propertyAddress"),
+                    "city": item.get("city", "Chicago"),
+                    "state": "IL",
+                    "county": "Cook",
+                    "owner_name": item.get("ownerName"),
+                    "current_assessed_value_usd": _money(str(item.get("assessedValue", ""))),
+                    "year_built": item.get("yearBuilt"),
+                    "ownership_history": [],
+                    "valuations": [],
+                    "mortgages": [],
+                }
+            )
         if parcels:
             return parcels
     except Exception:
@@ -327,7 +363,9 @@ async def _scrape_cook_il(crawler: CountyAssessorMultiCrawler, query: str) -> li
     return _generic_table_parse(soup, "IL", "Cook")
 
 
-async def _scrape_maricopa_az(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_maricopa_az(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://mcassessor.maricopa.gov/mcs.php?q={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -341,16 +379,22 @@ async def _scrape_maricopa_az(crawler: CountyAssessorMultiCrawler, query: str) -
         apn = cells[0].get_text(strip=True)
         if not apn or "apn" in apn.lower():
             continue
-        parcels.append({
-            "parcel_number": apn,
-            "street_address": cells[1].get_text(strip=True) if len(cells) > 1 else None,
-            "city": cells[2].get_text(strip=True) if len(cells) > 2 else None,
-            "state": "AZ",
-            "county": "Maricopa",
-            "owner_name": cells[3].get_text(strip=True) if len(cells) > 3 else None,
-            "current_assessed_value_usd": _money(cells[4].get_text()) if len(cells) > 4 else None,
-            "ownership_history": [], "valuations": [], "mortgages": [],
-        })
+        parcels.append(
+            {
+                "parcel_number": apn,
+                "street_address": cells[1].get_text(strip=True) if len(cells) > 1 else None,
+                "city": cells[2].get_text(strip=True) if len(cells) > 2 else None,
+                "state": "AZ",
+                "county": "Maricopa",
+                "owner_name": cells[3].get_text(strip=True) if len(cells) > 3 else None,
+                "current_assessed_value_usd": _money(cells[4].get_text())
+                if len(cells) > 4
+                else None,
+                "ownership_history": [],
+                "valuations": [],
+                "mortgages": [],
+            }
+        )
     if not parcels:
         parcels = _generic_table_parse(soup, "AZ", "Maricopa")
     return parcels
@@ -374,7 +418,9 @@ async def _scrape_king_wa(crawler: CountyAssessorMultiCrawler, query: str) -> li
     return _generic_table_parse(soup, "WA", "King")
 
 
-async def _scrape_fulton_ga(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_fulton_ga(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://iaspublicaccess.fultoncountyga.gov/ias/Subscribers/FultonCountyGA/1/AccountDatalet.aspx?AccountNumber={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -383,7 +429,9 @@ async def _scrape_fulton_ga(crawler: CountyAssessorMultiCrawler, query: str) -> 
     return _generic_table_parse(soup, "GA", "Fulton")
 
 
-async def _scrape_dekalb_ga(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_dekalb_ga(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.qpublic.net/ga/dekalb/search.html?name={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -392,7 +440,9 @@ async def _scrape_dekalb_ga(crawler: CountyAssessorMultiCrawler, query: str) -> 
     return _generic_table_parse(soup, "GA", "DeKalb")
 
 
-async def _scrape_mecklenburg_nc(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_mecklenburg_nc(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://polaris3g.mecklenburgcountync.gov/search/parcelsearch?s={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -402,18 +452,22 @@ async def _scrape_mecklenburg_nc(crawler: CountyAssessorMultiCrawler, query: str
         parcels = []
         for item in (data.get("features") or data.get("results") or [])[:10]:
             attr = item.get("attributes") or item
-            parcels.append({
-                "parcel_number": attr.get("PIN") or attr.get("pid"),
-                "street_address": attr.get("FULL_ADDRESS") or attr.get("address"),
-                "city": attr.get("CITY", "Charlotte"),
-                "state": "NC",
-                "county": "Mecklenburg",
-                "owner_name": attr.get("OWNER_NAME") or attr.get("ownerName"),
-                "current_assessed_value_usd": _money(str(attr.get("TOTAL_VALUE", ""))),
-                "year_built": attr.get("YEAR_BUILT"),
-                "sq_ft_living": attr.get("HEATED_AREA"),
-                "ownership_history": [], "valuations": [], "mortgages": [],
-            })
+            parcels.append(
+                {
+                    "parcel_number": attr.get("PIN") or attr.get("pid"),
+                    "street_address": attr.get("FULL_ADDRESS") or attr.get("address"),
+                    "city": attr.get("CITY", "Charlotte"),
+                    "state": "NC",
+                    "county": "Mecklenburg",
+                    "owner_name": attr.get("OWNER_NAME") or attr.get("ownerName"),
+                    "current_assessed_value_usd": _money(str(attr.get("TOTAL_VALUE", ""))),
+                    "year_built": attr.get("YEAR_BUILT"),
+                    "sq_ft_living": attr.get("HEATED_AREA"),
+                    "ownership_history": [],
+                    "valuations": [],
+                    "mortgages": [],
+                }
+            )
         if parcels:
             return parcels
     except Exception:
@@ -422,7 +476,9 @@ async def _scrape_mecklenburg_nc(crawler: CountyAssessorMultiCrawler, query: str
     return _generic_table_parse(soup, "NC", "Mecklenburg")
 
 
-async def _scrape_denver_co(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_denver_co(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.denvergov.org/assessor/assessor/main/assessorAddress.aspx?addr={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -431,7 +487,9 @@ async def _scrape_denver_co(crawler: CountyAssessorMultiCrawler, query: str) -> 
     return _generic_table_parse(soup, "CO", "Denver")
 
 
-async def _scrape_arapahoe_co(crawler: CountyAssessorMultiCrawler, query: str) -> list[dict[str, Any]]:
+async def _scrape_arapahoe_co(
+    crawler: CountyAssessorMultiCrawler, query: str
+) -> list[dict[str, Any]]:
     url = f"https://www.arapahoegov.com/1297/Property-Search?search={quote_plus(query)}"
     resp = await crawler.get(url, headers=_BROWSER_HEADERS)
     if not resp or resp.status_code != 200:
@@ -456,7 +514,9 @@ def _generic_table_parse(soup: BeautifulSoup, state: str, county: str) -> list[d
         if len(rows) < 2:
             continue
         headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
-        if not any(k in " ".join(headers) for k in ("parcel", "owner", "account", "pin", "apn", "address")):
+        if not any(
+            k in " ".join(headers) for k in ("parcel", "owner", "account", "pin", "apn", "address")
+        ):
             continue
 
         for row in rows[1:20]:
@@ -464,12 +524,22 @@ def _generic_table_parse(soup: BeautifulSoup, state: str, county: str) -> list[d
             if not cells or all(c == "" for c in cells):
                 continue
             prop: dict[str, Any] = {
-                "parcel_number": None, "street_address": None, "city": None,
-                "state": state, "county": county, "country": "US",
-                "owner_name": None, "current_assessed_value_usd": None,
-                "current_market_value_usd": None, "current_tax_annual_usd": None,
-                "year_built": None, "sq_ft_living": None, "property_type": None,
-                "ownership_history": [], "valuations": [], "mortgages": [],
+                "parcel_number": None,
+                "street_address": None,
+                "city": None,
+                "state": state,
+                "county": county,
+                "country": "US",
+                "owner_name": None,
+                "current_assessed_value_usd": None,
+                "current_market_value_usd": None,
+                "current_tax_annual_usd": None,
+                "year_built": None,
+                "sq_ft_living": None,
+                "property_type": None,
+                "ownership_history": [],
+                "valuations": [],
+                "mortgages": [],
             }
             for i, header in enumerate(headers):
                 if i >= len(cells):

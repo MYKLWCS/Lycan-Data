@@ -30,6 +30,7 @@ from modules.crawlers.social.vk_profile import (
 # Registry
 # ---------------------------------------------------------------------------
 
+
 def test_crawler_registered():
     assert is_registered("vk_profile")
 
@@ -37,6 +38,7 @@ def test_crawler_registered():
 # ---------------------------------------------------------------------------
 # _is_username
 # ---------------------------------------------------------------------------
+
 
 def test_is_username_plain_handle():
     assert _is_username("durov") is True
@@ -62,6 +64,7 @@ def test_is_username_url_style():
 # ---------------------------------------------------------------------------
 # _extract_username
 # ---------------------------------------------------------------------------
+
 
 def test_extract_username_plain():
     assert _extract_username("durov") == "durov"
@@ -92,6 +95,7 @@ def test_extract_username_uppercase_url():
 # _parse_name_country
 # ---------------------------------------------------------------------------
 
+
 def test_parse_name_country_with_country():
     name, country = _parse_name_country("John Smith | Russia")
     assert name == "John Smith"
@@ -120,6 +124,7 @@ def test_parse_name_country_empty():
 # _parse_vk_api_user — dict with response list
 # ---------------------------------------------------------------------------
 
+
 def _sample_vk_user(**overrides):
     base = {
         "id": 1234,
@@ -140,9 +145,7 @@ def _sample_vk_user(**overrides):
         "photo_max_orig": "https://example.com/photo.jpg",
         "photo_max": "https://example.com/photo_small.jpg",
         "education": {"university_name": "MSU"},
-        "career": [
-            {"company": "Acme", "position": "Dev", "from": 2015, "until": 2020}
-        ],
+        "career": [{"company": "Acme", "position": "Dev", "from": 2015, "until": 2020}],
     }
     base.update(overrides)
     return base
@@ -290,6 +293,7 @@ def test_parse_vk_api_user_response_not_list_or_dict():
 
 def test_parse_vk_api_user_exception_returns_none():
     """An unexpected exception inside the try block is caught and returns None."""
+
     # Passing a dict that causes an AttributeError internally by using a mock
     # that raises when .get() is called inside _parse_vk_api_user.
     class Exploder:
@@ -303,6 +307,7 @@ def test_parse_vk_api_user_exception_returns_none():
 # ---------------------------------------------------------------------------
 # _parse_vk_html
 # ---------------------------------------------------------------------------
+
 
 def test_parse_vk_html_full():
     html = """
@@ -528,6 +533,7 @@ def test_parse_vk_html_page_block_status_class():
 # VkProfileCrawler — class attributes
 # ---------------------------------------------------------------------------
 
+
 def test_crawler_attributes():
     crawler = VkProfileCrawler()
     assert crawler.platform == "vk_profile"
@@ -539,6 +545,7 @@ def test_crawler_attributes():
 # ---------------------------------------------------------------------------
 # VkProfileCrawler.scrape — username path
 # ---------------------------------------------------------------------------
+
 
 async def test_scrape_username_found():
     crawler = VkProfileCrawler()
@@ -611,6 +618,7 @@ async def test_scrape_name_search_not_found():
 # ---------------------------------------------------------------------------
 # _fetch_by_username
 # ---------------------------------------------------------------------------
+
 
 async def test_fetch_by_username_api_success():
     crawler = VkProfileCrawler()
@@ -774,6 +782,7 @@ async def test_fetch_by_username_html_none_response_returns_none():
 # ---------------------------------------------------------------------------
 # _search_by_name
 # ---------------------------------------------------------------------------
+
 
 async def test_search_by_name_api_success():
     crawler = VkProfileCrawler()

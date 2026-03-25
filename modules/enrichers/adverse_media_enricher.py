@@ -74,10 +74,7 @@ class AdverseMediaEnricher:
                     (~Person.meta.has_key("adverse_media_score"))
                     | (Person.meta["adverse_media_score"].astext.cast(Float) == 0.0)
                     | (~Person.meta.has_key("adverse_media_checked_at"))
-                    | (
-                        Person.meta["adverse_media_checked_at"].astext.cast(DateTime)
-                        < stale_cutoff
-                    )
+                    | (Person.meta["adverse_media_checked_at"].astext.cast(DateTime) < stale_cutoff)
                 )
                 .limit(_BATCH_SIZE)
             )
@@ -90,9 +87,7 @@ class AdverseMediaEnricher:
                     await self.check_person(pid, session)
                     await session.commit()
             except Exception as exc:
-                logger.exception(
-                    "AdverseMediaEnricher: failed person_id=%s — %s", pid, exc
-                )
+                logger.exception("AdverseMediaEnricher: failed person_id=%s — %s", pid, exc)
 
     # ── Per-person check ──────────────────────────────────────────────────────
 
@@ -114,9 +109,7 @@ class AdverseMediaEnricher:
             if r and r.found:
                 raw_results = r.data if isinstance(r.data, list) else [r.data]
         except Exception as exc:
-            logger.debug(
-                "AdverseMediaEnricher: crawler failed for %s — %s", identifier, exc
-            )
+            logger.debug("AdverseMediaEnricher: crawler failed for %s — %s", identifier, exc)
 
         # Persist records and collect successfully persisted ones
         persisted: list[AdverseMedia] = []
@@ -134,9 +127,7 @@ class AdverseMediaEnricher:
         )
         all_media = list(all_result.scalars().all())
 
-        score = self._compute_adverse_score(
-            [{"severity": m.severity} for m in all_media]
-        )
+        score = self._compute_adverse_score([{"severity": m.severity} for m in all_media])
 
         # Update Person.meta
         meta = dict(person.meta or {})
@@ -147,13 +138,14 @@ class AdverseMediaEnricher:
 
         logger.info(
             "AdverseMediaEnricher: person_id=%s — new=%d total=%d score=%.4f",
-            person_id, len(persisted), len(all_media), score,
+            person_id,
+            len(persisted),
+            len(all_media),
+            score,
         )
 
         # Raise alerts for critical/high new records
-        critical_or_high = [
-            m for m in persisted if m.severity in _ALERT_SEVERITIES
-        ]
+        critical_or_high = [m for m in persisted if m.severity in _ALERT_SEVERITIES]
         if critical_or_high:
             await self._create_alerts(session, person_id, critical_or_high)
 
@@ -171,9 +163,11 @@ class AdverseMediaEnricher:
 
         if url_hash:
             result = await session.execute(
-                select(AdverseMedia).where(
+                select(AdverseMedia)
+                .where(
                     AdverseMedia.url_hash == url_hash,
-                ).limit(1)
+                )
+                .limit(1)
             )
             if result.scalar_one_or_none() is not None:
                 return None  # already stored
@@ -218,10 +212,7 @@ class AdverseMediaEnricher:
         if not media_list:
             return 0.0
 
-        scores = [
-            _SEVERITY_WEIGHTS.get(m.get("severity", "medium"), 0.4)
-            for m in media_list
-        ]
+        scores = [_SEVERITY_WEIGHTS.get(m.get("severity", "medium"), 0.4) for m in media_list]
         max_score = max(scores)
         count_weighted_avg = sum(scores) / len(scores)
         return round(max_score * 0.6 + count_weighted_avg * 0.4, 4)
@@ -249,9 +240,7 @@ class AdverseMediaEnricher:
                     "severity": record.severity,
                     "source_name": record.source_name,
                     "publication_date": (
-                        record.publication_date.isoformat()
-                        if record.publication_date
-                        else None
+                        record.publication_date.isoformat() if record.publication_date else None
                     ),
                 },
                 is_read=False,
@@ -261,5 +250,6 @@ class AdverseMediaEnricher:
 
         logger.info(
             "AdverseMediaEnricher: created %d alert(s) for person_id=%s",
-            len(media_records), person_id,
+            len(media_records),
+            person_id,
         )

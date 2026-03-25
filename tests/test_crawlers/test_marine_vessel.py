@@ -572,7 +572,9 @@ async def test_scrape_empty_results():
 
 async def test_search_mt_200():
     crawler = _crawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text=_MT_TABLE_HTML))):
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text=_MT_TABLE_HTML))
+    ):
         results = await crawler._search_marinetraffic("SEA+WOLF")
     assert isinstance(results, list)
 
@@ -638,7 +640,9 @@ async def test_search_vf_non_200():
 
 async def test_search_uscg_vessel_name_mode():
     crawler = _crawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text=_USCG_HTML))) as mock_get:
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text=_USCG_HTML))
+    ) as mock_get:
         await crawler._search_uscg("SEA+WOLF", "vessel_name")
     # URL should have query as vessel name, owner_query empty
     call_url = mock_get.call_args[0][0]
@@ -648,7 +652,9 @@ async def test_search_uscg_vessel_name_mode():
 
 async def test_search_uscg_owner_name_mode():
     crawler = _crawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text="<html></html>"))) as mock_get:
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_resp(200, text="<html></html>"))
+    ) as mock_get:
         await crawler._search_uscg("John+Smith", "owner_name")
     call_url = mock_get.call_args[0][0]
     assert "Owner=John+Smith" in call_url
@@ -841,6 +847,7 @@ def test_parse_uscg_html_exception_returns_empty_list():
 def test_parse_marinetraffic_html_outer_exception_returns_empty():
     """Lines 177-178: outer except in _parse_marinetraffic_html → returns []."""
     from modules.crawlers.transport.marine_vessel import _parse_marinetraffic_html
+
     with patch("bs4.BeautifulSoup", side_effect=Exception("mt boom")):
         vessels = _parse_marinetraffic_html("<html></html>")
     assert vessels == []

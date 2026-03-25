@@ -40,14 +40,40 @@ _CACHE_MAX_AGE_HOURS = 48.0
 # FAA MASTER.txt column names (fixed-width, CSV-in-zip)
 # Per FAA: https://registry.faa.gov/database/Help/RD/ReleasableAircraftDownloadHelp.pdf
 _MASTER_COLS = [
-    "n_number", "serial_number", "mfr_mdl_code", "eng_mfr_mdl",
-    "year_mfr", "type_registrant", "name", "street", "street2",
-    "city", "state", "zip_code", "region", "county", "country",
-    "last_action_date", "cert_issue_date", "certification",
-    "type_aircraft", "type_engine", "status_code", "mode_s_code",
-    "fract_owner", "air_worth_date", "other_names_1", "other_names_2",
-    "other_names_3", "other_names_4", "other_names_5", "expiration_date",
-    "unique_id", "kit_mfr", "kit_model", "mode_s_code_hex",
+    "n_number",
+    "serial_number",
+    "mfr_mdl_code",
+    "eng_mfr_mdl",
+    "year_mfr",
+    "type_registrant",
+    "name",
+    "street",
+    "street2",
+    "city",
+    "state",
+    "zip_code",
+    "region",
+    "county",
+    "country",
+    "last_action_date",
+    "cert_issue_date",
+    "certification",
+    "type_aircraft",
+    "type_engine",
+    "status_code",
+    "mode_s_code",
+    "fract_owner",
+    "air_worth_date",
+    "other_names_1",
+    "other_names_2",
+    "other_names_3",
+    "other_names_4",
+    "other_names_5",
+    "expiration_date",
+    "unique_id",
+    "kit_mfr",
+    "kit_model",
+    "mode_s_code_hex",
 ]
 
 _REGISTRANT_TYPES = {
@@ -241,12 +267,7 @@ def _parse_nnumber_html(html: str, n_number: str) -> list[dict[str, Any]]:
         if not data:
             return results
 
-        owner = (
-            data.get("name")
-            or data.get("registrant name")
-            or data.get("owner")
-            or ""
-        )
+        owner = data.get("name") or data.get("registrant name") or data.get("owner") or ""
         street = data.get("street", "") or data.get("address", "")
         city = data.get("city", "")
         state = data.get("state", "")
@@ -378,9 +399,7 @@ class FaaAircraftRegistryCrawler(HttpxCrawler):
         logger.info("FAA: downloading ReleasableAircraft.zip from %s", _FAA_ZIP_URL)
         resp = await self.get(_FAA_ZIP_URL)
         if resp is None or resp.status_code != 200:
-            logger.error(
-                "FAA: ZIP download failed (%s)", resp.status_code if resp else "None"
-            )
+            logger.error("FAA: ZIP download failed (%s)", resp.status_code if resp else "None")
             return None
 
         try:
@@ -392,9 +411,7 @@ class FaaAircraftRegistryCrawler(HttpxCrawler):
             # Try to parse from memory
             try:
                 zf = zipfile.ZipFile(io.BytesIO(resp.content))
-                master_name = next(
-                    (n for n in zf.namelist() if "MASTER" in n.upper()), None
-                )
+                master_name = next((n for n in zf.namelist() if "MASTER" in n.upper()), None)
                 if master_name:
                     text = zf.read(master_name).decode("latin-1", errors="replace")
                     return text
@@ -404,9 +421,7 @@ class FaaAircraftRegistryCrawler(HttpxCrawler):
 
         try:
             zf = zipfile.ZipFile(_CACHE_ZIP)
-            master_name = next(
-                (n for n in zf.namelist() if "MASTER" in n.upper()), None
-            )
+            master_name = next((n for n in zf.namelist() if "MASTER" in n.upper()), None)
             if not master_name:
                 logger.error("FAA: MASTER.txt not found in ZIP")
                 return None
@@ -425,8 +440,6 @@ class FaaAircraftRegistryCrawler(HttpxCrawler):
         url = _FAA_NNUMBER_URL.format(nnumber=n_clean)
         resp = await self.get(url)
         if resp is None or resp.status_code not in (200, 206):
-            logger.debug(
-                "FAA N-number inquiry returned %s", resp.status_code if resp else "None"
-            )
+            logger.debug("FAA N-number inquiry returned %s", resp.status_code if resp else "None")
             return []
         return _parse_nnumber_html(resp.text, n_number)

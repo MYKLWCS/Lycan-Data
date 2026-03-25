@@ -32,6 +32,7 @@ def _mock_resp(status: int = 200, json_data=None, text: str = "") -> MagicMock:
 
 def _make_crawler():
     from modules.crawlers.property.county_assessor_multi import CountyAssessorMultiCrawler
+
     return CountyAssessorMultiCrawler()
 
 
@@ -43,6 +44,7 @@ def _make_crawler():
 class TestParseIdentifier:
     def _fn(self, s):
         from modules.crawlers.property.county_assessor_multi import _parse_identifier
+
         return _parse_identifier(s)
 
     def test_pipe_county_state(self):
@@ -99,6 +101,7 @@ class TestParseIdentifier:
 class TestResolveCountyKey:
     def _fn(self, county, state):
         from modules.crawlers.property.county_assessor_multi import _resolve_county_key
+
         return _resolve_county_key(county, state)
 
     def test_exact_match(self):
@@ -134,37 +137,45 @@ class TestResolveCountyKey:
 class TestHelpers:
     def test_money_parses_usd(self):
         from modules.crawlers.property.county_assessor_multi import _money
+
         assert _money("$1,234,567") == 1234567
 
     def test_money_no_match(self):
         from modules.crawlers.property.county_assessor_multi import _money
+
         assert _money("N/A") is None
 
     def test_money_value_error(self):
         """Regex finds something but int() would fail — returns None."""
         from modules.crawlers.property.county_assessor_multi import _money
+
         # _money strips $ first, then looks for [\d,]{3,}
         # Can't easily trigger ValueError via the API, but coverage is met via None path
         assert _money("") is None
 
     def test_year_found(self):
         from modules.crawlers.property.county_assessor_multi import _year
+
         assert _year("Built in 1995") == 1995
 
     def test_year_not_found(self):
         from modules.crawlers.property.county_assessor_multi import _year
+
         assert _year("no year here") is None
 
     def test_sqft_with_sq_ft(self):
         from modules.crawlers.property.county_assessor_multi import _sqft
+
         assert _sqft("1,500 sq. ft") == 1500
 
     def test_sqft_with_sf(self):
         from modules.crawlers.property.county_assessor_multi import _sqft
+
         assert _sqft("2000 sf") == 2000
 
     def test_sqft_none(self):
         from modules.crawlers.property.county_assessor_multi import _sqft
+
         assert _sqft("no area") is None
 
     def test_money_value_error_branch(self):
@@ -173,6 +184,7 @@ class TestHelpers:
         import re
 
         from modules.crawlers.property.county_assessor_multi import _money
+
         # Can't manufacture naturally; patch int() inside the function's scope
         original_int = int
         call_count = [0]
@@ -190,6 +202,7 @@ class TestHelpers:
     def test_sqft_value_error_branch(self):
         """Regex matches but int() raises ValueError — returns None."""
         from modules.crawlers.property.county_assessor_multi import _sqft
+
         with patch("builtins.int", side_effect=ValueError("forced")):
             result = _sqft("1,200 sq ft")
         assert result is None
@@ -205,6 +218,7 @@ class TestGenericTableParse:
         from bs4 import BeautifulSoup
 
         from modules.crawlers.property.county_assessor_multi import _generic_table_parse
+
         soup = BeautifulSoup(html, "html.parser")
         return _generic_table_parse(soup, state, county)
 
@@ -236,12 +250,7 @@ class TestGenericTableParse:
         assert results[0]["owner_name"] == "John Smith"
 
     def test_table_all_empty_cells_skipped(self):
-        html = (
-            "<table>"
-            "<tr><th>parcel</th><th>owner</th></tr>"
-            "<tr><td></td><td></td></tr>"
-            "</table>"
-        )
+        html = "<table><tr><th>parcel</th><th>owner</th></tr><tr><td></td><td></td></tr></table>"
         assert self._fn(html) == []
 
     def test_table_header_mapping_all_types(self):
@@ -274,22 +283,14 @@ class TestGenericTableParse:
     def test_header_just_keyword(self):
         """Pin/apn/folio/account aliases all resolve to parcel_number."""
         for kw in ("pin", "apn", "folio", "account"):
-            html = (
-                f"<table><tr><th>{kw}</th></tr>"
-                "<tr><td>XYZ-999</td></tr></table>"
-            )
+            html = f"<table><tr><th>{kw}</th></tr><tr><td>XYZ-999</td></tr></table>"
             results = self._fn(html)
             if results:
                 assert results[0]["parcel_number"] == "XYZ-999"
 
     def test_row_owner_only_no_parcel(self):
         """Row with only owner set — still appended."""
-        html = (
-            "<table>"
-            "<tr><th>owner</th></tr>"
-            "<tr><td>Bob Jones</td></tr>"
-            "</table>"
-        )
+        html = "<table><tr><th>owner</th></tr><tr><td>Bob Jones</td></tr></table>"
         results = self._fn(html)
         assert len(results) == 1
         assert results[0]["owner_name"] == "Bob Jones"
@@ -329,9 +330,7 @@ class TestGenericTableParse:
 
     def test_max_20_rows(self):
         """Rows beyond index 20 are ignored."""
-        rows = "".join(
-            f"<tr><td>P-{i}</td></tr>" for i in range(25)
-        )
+        rows = "".join(f"<tr><td>P-{i}</td></tr>" for i in range(25))
         html = f"<table><tr><th>parcel</th></tr>{rows}</table>"
         results = self._fn(html)
         assert len(results) <= 19
@@ -361,6 +360,7 @@ class TestHandlerHttpFailures:
 
     async def _run(self, handler_fn, status=404):
         from modules.crawlers.property.county_assessor_multi import CountyAssessorMultiCrawler
+
         crawler = CountyAssessorMultiCrawler()
         resp = _mock_resp(status=status, text="<html></html>")
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
@@ -368,6 +368,7 @@ class TestHandlerHttpFailures:
 
     async def _run_none(self, handler_fn):
         from modules.crawlers.property.county_assessor_multi import CountyAssessorMultiCrawler
+
         crawler = CountyAssessorMultiCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
             return await handler_fn(crawler, "query")
@@ -376,154 +377,182 @@ class TestHandlerHttpFailures:
 
     async def test_la_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_la_ca
+
         assert await self._run_none(_scrape_la_ca) == []
 
     async def test_la_non_200(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_la_ca
+
         assert await self._run(_scrape_la_ca) == []
 
     # --- Alameda ------------------------------------------------------------
 
     async def test_alameda_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_alameda_ca
+
         assert await self._run_none(_scrape_alameda_ca) == []
 
     async def test_alameda_non_200(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_alameda_ca
+
         assert await self._run(_scrape_alameda_ca) == []
 
     # --- San Diego ----------------------------------------------------------
 
     async def test_san_diego_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_san_diego_ca
+
         assert await self._run_none(_scrape_san_diego_ca) == []
 
     # --- SF -----------------------------------------------------------------
 
     async def test_sf_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_sf_ca
+
         assert await self._run_none(_scrape_sf_ca) == []
 
     # --- Orange -------------------------------------------------------------
 
     async def test_orange_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_orange_ca
+
         assert await self._run_none(_scrape_orange_ca) == []
 
     # --- Riverside ----------------------------------------------------------
 
     async def test_riverside_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_riverside_ca
+
         assert await self._run_none(_scrape_riverside_ca) == []
 
     # --- Miami-Dade ---------------------------------------------------------
 
     async def test_miami_dade_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_miami_dade_fl
+
         assert await self._run_none(_scrape_miami_dade_fl) == []
 
     async def test_miami_dade_non_200(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_miami_dade_fl
+
         assert await self._run(_scrape_miami_dade_fl) == []
 
     # --- Broward ------------------------------------------------------------
 
     async def test_broward_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_broward_fl
+
         assert await self._run_none(_scrape_broward_fl) == []
 
     # --- Palm Beach ---------------------------------------------------------
 
     async def test_palm_beach_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_palm_beach_fl
+
         assert await self._run_none(_scrape_palm_beach_fl) == []
 
     # --- Hillsborough -------------------------------------------------------
 
     async def test_hillsborough_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_hillsborough_fl
+
         assert await self._run_none(_scrape_hillsborough_fl) == []
 
     # --- Pinellas -----------------------------------------------------------
 
     async def test_pinellas_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_pinellas_fl
+
         assert await self._run_none(_scrape_pinellas_fl) == []
 
     # --- NYC ----------------------------------------------------------------
 
     async def test_nyc_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_nyc_ny
+
         assert await self._run_none(_scrape_nyc_ny) == []
 
     async def test_nyc_non_200(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_nyc_ny
+
         assert await self._run(_scrape_nyc_ny) == []
 
     # --- Cook ---------------------------------------------------------------
 
     async def test_cook_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_cook_il
+
         assert await self._run_none(_scrape_cook_il) == []
 
     async def test_cook_non_200(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_cook_il
+
         assert await self._run(_scrape_cook_il) == []
 
     # --- Maricopa -----------------------------------------------------------
 
     async def test_maricopa_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_maricopa_az
+
         assert await self._run_none(_scrape_maricopa_az) == []
 
     async def test_maricopa_non_200(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_maricopa_az
+
         assert await self._run(_scrape_maricopa_az) == []
 
     # --- Clark NV -----------------------------------------------------------
 
     async def test_clark_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_clark_nv
+
         assert await self._run_none(_scrape_clark_nv) == []
 
     # --- King WA ------------------------------------------------------------
 
     async def test_king_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_king_wa
+
         assert await self._run_none(_scrape_king_wa) == []
 
     # --- Fulton GA ----------------------------------------------------------
 
     async def test_fulton_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_fulton_ga
+
         assert await self._run_none(_scrape_fulton_ga) == []
 
     # --- DeKalb GA ----------------------------------------------------------
 
     async def test_dekalb_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_dekalb_ga
+
         assert await self._run_none(_scrape_dekalb_ga) == []
 
     # --- Mecklenburg NC -----------------------------------------------------
 
     async def test_mecklenburg_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_mecklenburg_nc
+
         assert await self._run_none(_scrape_mecklenburg_nc) == []
 
     async def test_mecklenburg_non_200(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_mecklenburg_nc
+
         assert await self._run(_scrape_mecklenburg_nc) == []
 
     # --- Denver CO ----------------------------------------------------------
 
     async def test_denver_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_denver_co
+
         assert await self._run_none(_scrape_denver_co) == []
 
     # --- Arapahoe CO --------------------------------------------------------
 
     async def test_arapahoe_none(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_arapahoe_co
+
         assert await self._run_none(_scrape_arapahoe_co) == []
 
 
@@ -535,6 +564,7 @@ class TestHandlerHttpFailures:
 class TestLaCountyScraper:
     async def test_json_parcels_key(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_la_ca
+
         crawler = _make_crawler()
         data = {
             "parcels": [
@@ -561,6 +591,7 @@ class TestLaCountyScraper:
 
     async def test_json_results_key(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_la_ca
+
         crawler = _make_crawler()
         data = {
             "results": [
@@ -579,6 +610,7 @@ class TestLaCountyScraper:
     async def test_json_empty_returns_empty_list(self):
         """json() succeeds but both keys absent → returns empty list (no HTML fallback)."""
         from modules.crawlers.property.county_assessor_multi import _scrape_la_ca
+
         crawler = _make_crawler()
         data: dict = {}
         resp = _mock_resp(status=200, json_data=data)
@@ -590,13 +622,9 @@ class TestLaCountyScraper:
     async def test_json_exception_falls_back_to_html(self):
         """resp.json() raises → HTML BeautifulSoup fallback."""
         from modules.crawlers.property.county_assessor_multi import _scrape_la_ca
+
         crawler = _make_crawler()
-        html = (
-            "<table>"
-            "<tr><th>parcel</th></tr>"
-            "<tr><td>FALLBACK-1</td></tr>"
-            "</table>"
-        )
+        html = "<table><tr><th>parcel</th></tr><tr><td>FALLBACK-1</td></tr></table>"
         resp = _mock_resp(status=200, text=html)
         resp.json.side_effect = ValueError("bad json")
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
@@ -613,6 +641,7 @@ class TestLaCountyScraper:
 class TestCookCountyScraper:
     async def test_json_pins_key(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_cook_il
+
         crawler = _make_crawler()
         data = {
             "pins": [
@@ -635,6 +664,7 @@ class TestCookCountyScraper:
 
     async def test_json_results_key(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_cook_il
+
         crawler = _make_crawler()
         data = {"results": [{"PIN": "99-00", "propertyAddress": "1 N LaSalle"}]}
         resp = _mock_resp(status=200, json_data=data)
@@ -645,6 +675,7 @@ class TestCookCountyScraper:
     async def test_json_empty_falls_back_to_html(self):
         """JSON has no pins/results — HTML fallback runs."""
         from modules.crawlers.property.county_assessor_multi import _scrape_cook_il
+
         crawler = _make_crawler()
         data: dict = {}
         html = (
@@ -660,6 +691,7 @@ class TestCookCountyScraper:
 
     async def test_json_exception_falls_back_to_html(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_cook_il
+
         crawler = _make_crawler()
         resp = _mock_resp(status=200, text="<html></html>")
         resp.json.side_effect = RuntimeError("bad")
@@ -676,6 +708,7 @@ class TestCookCountyScraper:
 class TestMecklenburgScraper:
     async def test_json_features_key(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_mecklenburg_nc
+
         crawler = _make_crawler()
         data = {
             "features": [
@@ -702,6 +735,7 @@ class TestMecklenburgScraper:
     async def test_json_results_key_attr_is_item(self):
         """attr = item fallback when 'attributes' key missing."""
         from modules.crawlers.property.county_assessor_multi import _scrape_mecklenburg_nc
+
         crawler = _make_crawler()
         data = {
             "results": [
@@ -720,11 +754,10 @@ class TestMecklenburgScraper:
 
     async def test_json_empty_falls_back_to_html(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_mecklenburg_nc
+
         crawler = _make_crawler()
         data: dict = {}
-        html = (
-            "<table><tr><th>pin</th></tr><tr><td>NC-001</td></tr></table>"
-        )
+        html = "<table><tr><th>pin</th></tr><tr><td>NC-001</td></tr></table>"
         resp = _mock_resp(status=200, json_data=data, text=html)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             parcels = await _scrape_mecklenburg_nc(crawler, "query")
@@ -732,6 +765,7 @@ class TestMecklenburgScraper:
 
     async def test_json_exception_falls_back_to_html(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_mecklenburg_nc
+
         crawler = _make_crawler()
         resp = _mock_resp(status=200, text="<html></html>")
         resp.json.side_effect = RuntimeError("bad")
@@ -749,6 +783,7 @@ class TestMiamiDadeScraper:
     async def test_with_folio_rows(self):
         """Table rows with folio + address + owner + value."""
         from modules.crawlers.property.county_assessor_multi import _scrape_miami_dade_fl
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -769,6 +804,7 @@ class TestMiamiDadeScraper:
     async def test_folio_header_row_skipped(self):
         """Row where folio cell contains 'folio' — skip it."""
         from modules.crawlers.property.county_assessor_multi import _scrape_miami_dade_fl
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -786,6 +822,7 @@ class TestMiamiDadeScraper:
     async def test_empty_folio_skipped(self):
         """Row with empty first cell — skip."""
         from modules.crawlers.property.county_assessor_multi import _scrape_miami_dade_fl
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -802,6 +839,7 @@ class TestMiamiDadeScraper:
     async def test_row_only_one_cell_skipped(self):
         """Row with fewer than 2 <td> — skipped."""
         from modules.crawlers.property.county_assessor_multi import _scrape_miami_dade_fl
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -818,6 +856,7 @@ class TestMiamiDadeScraper:
     async def test_generic_fallback_when_no_miami_rows(self):
         """No table.property-search-results rows → generic fallback runs."""
         from modules.crawlers.property.county_assessor_multi import _scrape_miami_dade_fl
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -841,6 +880,7 @@ class TestMiamiDadeScraper:
 class TestMaricopaScraper:
     async def test_with_apn_rows(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_maricopa_az
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -859,6 +899,7 @@ class TestMaricopaScraper:
 
     async def test_apn_header_row_skipped(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_maricopa_az
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -874,14 +915,9 @@ class TestMaricopaScraper:
 
     async def test_empty_cells_skipped(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_maricopa_az
+
         crawler = _make_crawler()
-        html = (
-            "<html><body>"
-            '<table class="results">'
-            "<tr><td></td></tr>"
-            "</table>"
-            "</body></html>"
-        )
+        html = '<html><body><table class="results"><tr><td></td></tr></table></body></html>'
         resp = _mock_resp(status=200, text=html)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             parcels = await _scrape_maricopa_az(crawler, "query")
@@ -889,6 +925,7 @@ class TestMaricopaScraper:
 
     async def test_generic_fallback_when_no_maricopa_rows(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_maricopa_az
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -906,6 +943,7 @@ class TestMaricopaScraper:
     async def test_row_with_only_th_cells_skipped(self):
         """Row matched by selector has th but no td → cells empty → continue (line 340)."""
         from modules.crawlers.property.county_assessor_multi import _scrape_maricopa_az
+
         crawler = _make_crawler()
         html = (
             "<html><body>"
@@ -945,81 +983,97 @@ class TestSimpleHtmlHandlers:
 
     async def test_alameda_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_alameda_ca
+
         r = await self._run_handler(_scrape_alameda_ca)
         assert isinstance(r, list)
 
     async def test_san_diego_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_san_diego_ca
+
         r = await self._run_handler(_scrape_san_diego_ca)
         assert isinstance(r, list)
 
     async def test_sf_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_sf_ca
+
         r = await self._run_handler(_scrape_sf_ca)
         assert isinstance(r, list)
 
     async def test_orange_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_orange_ca
+
         r = await self._run_handler(_scrape_orange_ca)
         assert isinstance(r, list)
 
     async def test_riverside_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_riverside_ca
+
         r = await self._run_handler(_scrape_riverside_ca)
         assert isinstance(r, list)
 
     async def test_broward_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_broward_fl
+
         r = await self._run_handler(_scrape_broward_fl)
         assert isinstance(r, list)
 
     async def test_palm_beach_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_palm_beach_fl
+
         r = await self._run_handler(_scrape_palm_beach_fl)
         assert isinstance(r, list)
 
     async def test_hillsborough_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_hillsborough_fl
+
         r = await self._run_handler(_scrape_hillsborough_fl)
         assert isinstance(r, list)
 
     async def test_pinellas_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_pinellas_fl
+
         r = await self._run_handler(_scrape_pinellas_fl)
         assert isinstance(r, list)
 
     async def test_nyc_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_nyc_ny
+
         r = await self._run_handler(_scrape_nyc_ny)
         assert isinstance(r, list)
 
     async def test_clark_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_clark_nv
+
         r = await self._run_handler(_scrape_clark_nv)
         assert isinstance(r, list)
 
     async def test_king_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_king_wa
+
         r = await self._run_handler(_scrape_king_wa)
         assert isinstance(r, list)
 
     async def test_fulton_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_fulton_ga
+
         r = await self._run_handler(_scrape_fulton_ga)
         assert isinstance(r, list)
 
     async def test_dekalb_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_dekalb_ga
+
         r = await self._run_handler(_scrape_dekalb_ga)
         assert isinstance(r, list)
 
     async def test_denver_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_denver_co
+
         r = await self._run_handler(_scrape_denver_co)
         assert isinstance(r, list)
 
     async def test_arapahoe_success(self):
         from modules.crawlers.property.county_assessor_multi import _scrape_arapahoe_co
+
         r = await self._run_handler(_scrape_arapahoe_co)
         assert isinstance(r, list)
 

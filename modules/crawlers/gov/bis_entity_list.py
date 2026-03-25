@@ -80,27 +80,17 @@ def _search_csv(csv_text: str, query: str) -> list[dict[str, Any]]:
             score = _word_overlap(query, name)
             if score < _MATCH_THRESHOLD:
                 continue
-            country = (
-                row.get("Country")
-                or row.get("country", "")
-            ).strip()
+            country = (row.get("Country") or row.get("country", "")).strip()
             fr_citation = (
                 row.get("Federal Register Citation")
                 or row.get("FR Citation")
                 or row.get("federal_register_citation", "")
             ).strip()
             license_req = (
-                row.get("License Requirement")
-                or row.get("license_requirement", "")
+                row.get("License Requirement") or row.get("license_requirement", "")
             ).strip()
-            license_policy = (
-                row.get("License Policy")
-                or row.get("license_policy", "")
-            ).strip()
-            related = (
-                row.get("Related Persons")
-                or row.get("related_persons", "")
-            ).strip()
+            license_policy = (row.get("License Policy") or row.get("license_policy", "")).strip()
+            related = (row.get("Related Persons") or row.get("related_persons", "")).strip()
             matches.append(
                 {
                     "name": name,

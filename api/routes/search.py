@@ -262,9 +262,7 @@ class BatchSearchResponse(BaseModel):
 
 async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePerson]:
     """Return all Person records whose full_name matches (case-insensitive)."""
-    result = await session.execute(
-        select(Person).where(Person.full_name.ilike(value.strip()))
-    )
+    result = await session.execute(select(Person).where(Person.full_name.ilike(value.strip())))
     persons = result.scalars().all()
     candidates = []
     for p in persons:

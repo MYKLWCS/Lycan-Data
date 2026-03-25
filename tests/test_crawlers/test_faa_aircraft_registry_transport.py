@@ -43,12 +43,14 @@ def _mock_resp(status: int = 200, content: bytes = b"", text: str = "") -> Magic
 
 def _make_crawler():
     from modules.crawlers.transport.faa_aircraft_registry import FaaAircraftRegistryCrawler
+
     return FaaAircraftRegistryCrawler()
 
 
 def _make_csv_text(rows: list[dict]) -> str:
     """Build a positional FAA-style CSV from a list of dicts keyed by _MASTER_COLS."""
     from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
+
     output = io.StringIO()
     writer = csv.writer(output)
     for row in rows:
@@ -71,6 +73,7 @@ def _make_zip(csv_text: str, inner_name: str = "MASTER.txt") -> bytes:
 class TestCacheValid:
     def _fn(self, path, max_age_hours=48.0):
         from modules.crawlers.transport.faa_aircraft_registry import _cache_valid
+
         return _cache_valid(path, max_age_hours)
 
     def test_file_does_not_exist(self, tmp_path):
@@ -104,6 +107,7 @@ class TestCacheValid:
 class TestWordOverlap:
     def _fn(self, query, candidate):
         from modules.crawlers.transport.faa_aircraft_registry import _word_overlap
+
         return _word_overlap(query, candidate)
 
     def test_full_match(self):
@@ -131,6 +135,7 @@ class TestWordOverlap:
 class TestIsNnumber:
     def _fn(self, s):
         from modules.crawlers.transport.faa_aircraft_registry import _is_nnumber
+
         return _is_nnumber(s)
 
     def test_valid_nnumber(self):
@@ -171,6 +176,7 @@ class TestIsNnumber:
 class TestNormaliseNnumber:
     def _fn(self, s):
         from modules.crawlers.transport.faa_aircraft_registry import _normalise_nnumber
+
         return _normalise_nnumber(s)
 
     def test_already_has_n(self):
@@ -194,6 +200,7 @@ class TestNormaliseNnumber:
 class TestRowToAircraft:
     def _fn(self, row, is_deregistered=False):
         from modules.crawlers.transport.faa_aircraft_registry import _row_to_aircraft
+
         return _row_to_aircraft(row, is_deregistered)
 
     def _base_row(self, **overrides):
@@ -224,8 +231,11 @@ class TestRowToAircraft:
             "mode_s_code": "ABC",
             "fract_owner": "",
             "air_worth_date": "20000701",
-            "other_names_1": "", "other_names_2": "", "other_names_3": "",
-            "other_names_4": "", "other_names_5": "",
+            "other_names_1": "",
+            "other_names_2": "",
+            "other_names_3": "",
+            "other_names_4": "",
+            "other_names_5": "",
             "expiration_date": "20260101",
             "unique_id": "U001",
             "mode_s_code_hex": "0x1234",
@@ -285,18 +295,21 @@ class TestRowToAircraft:
 
     def test_all_registrant_types(self):
         from modules.crawlers.transport.faa_aircraft_registry import _REGISTRANT_TYPES
+
         for code, label in _REGISTRANT_TYPES.items():
             result = self._fn(self._base_row(type_registrant=code))
             assert result["registrant_type"] == label
 
     def test_all_aircraft_types(self):
         from modules.crawlers.transport.faa_aircraft_registry import _AIRCRAFT_TYPES
+
         for code, label in _AIRCRAFT_TYPES.items():
             result = self._fn(self._base_row(type_aircraft=code))
             assert result["aircraft_type"] == label
 
     def test_all_engine_types(self):
         from modules.crawlers.transport.faa_aircraft_registry import _ENGINE_TYPES
+
         for code, label in _ENGINE_TYPES.items():
             result = self._fn(self._base_row(type_engine=code))
             assert result["engine_type"] == label
@@ -310,10 +323,12 @@ class TestRowToAircraft:
 class TestSearchMasterCsv:
     def _fn(self, csv_text, query, threshold=0.6):
         from modules.crawlers.transport.faa_aircraft_registry import _search_master_csv
+
         return _search_master_csv(csv_text, query, threshold)
 
     def _make_row_list(self, name="John Smith", n_number="12345"):
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
+
         row = dict.fromkeys(_MASTER_COLS, "")
         row["n_number"] = n_number
         row["name"] = name
@@ -349,6 +364,7 @@ class TestSearchMasterCsv:
     def test_empty_owner_name_skipped(self):
         """Row where column 6 is empty — skipped."""
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
+
         row = [""] * len(_MASTER_COLS)
         row[6] = ""
         buf = io.StringIO()
@@ -382,6 +398,7 @@ class TestSearchMasterCsv:
 class TestParseNnumberHtml:
     def _fn(self, html, n_number="N12345"):
         from modules.crawlers.transport.faa_aircraft_registry import _parse_nnumber_html
+
         return _parse_nnumber_html(html, n_number)
 
     def test_dt_dd_path(self):
@@ -537,6 +554,7 @@ class TestParseNnumberHtml:
     def test_exception_inside_try_caught_and_logged(self):
         """Exception raised inside the try block (lines 292-293) — caught, empty list returned."""
         from modules.crawlers.transport.faa_aircraft_registry import _parse_nnumber_html
+
         # BeautifulSoup is imported inside the try block as `from bs4 import BeautifulSoup`
         # Patch bs4.BeautifulSoup to raise inside the try block
         with patch("bs4.BeautifulSoup", side_effect=RuntimeError("bs4 exploded")):
@@ -598,9 +616,7 @@ class TestScrapeOwnerName:
         row["type_registrant"] = "1"
         csv_text = ",".join(row[col] for col in _MASTER_COLS) + "\n"
 
-        with patch.object(
-            crawler, "_get_master_csv", new=AsyncMock(return_value=csv_text)
-        ):
+        with patch.object(crawler, "_get_master_csv", new=AsyncMock(return_value=csv_text)):
             result = await crawler.scrape("john smith")
 
         assert result.found is True
@@ -609,9 +625,7 @@ class TestScrapeOwnerName:
     async def test_owner_not_found(self):
         crawler = _make_crawler()
 
-        with patch.object(
-            crawler, "_get_master_csv", new=AsyncMock(return_value="no,data\n")
-        ):
+        with patch.object(crawler, "_get_master_csv", new=AsyncMock(return_value="no,data\n")):
             result = await crawler.scrape("nobody here")
 
         assert result.found is False
@@ -620,9 +634,7 @@ class TestScrapeOwnerName:
     async def test_csv_download_failed(self):
         crawler = _make_crawler()
 
-        with patch.object(
-            crawler, "_get_master_csv", new=AsyncMock(return_value=None)
-        ):
+        with patch.object(crawler, "_get_master_csv", new=AsyncMock(return_value=None)):
             result = await crawler.scrape("John Smith")
 
         assert result.found is False
@@ -669,7 +681,6 @@ class TestGetMasterCsv:
             zf.writestr("OTHER.txt", "irrelevant")
         zip_content_no_master = buf.getvalue()
 
-
         def _fake_open(*args, **kwargs):
             mode = args[1] if len(args) > 1 else kwargs.get("mode", "r")
             if mode == "r" or "r" in str(mode):
@@ -714,6 +725,7 @@ class TestGetMasterCsv:
         crawler = _make_crawler()
 
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
+
         row = dict.fromkeys(_MASTER_COLS, "")
         row["n_number"] = "11111"
         row["name"] = "Test Owner"
@@ -792,6 +804,7 @@ class TestGetMasterCsv:
         crawler = _make_crawler()
 
         from modules.crawlers.transport.faa_aircraft_registry import _MASTER_COLS
+
         row = dict.fromkeys(_MASTER_COLS, "")
         row["n_number"] = "77777"
         row["name"] = "In Memory"
@@ -914,7 +927,6 @@ class TestGetMasterCsv:
 
         real_zipfile = zipfile.ZipFile
 
-
         def _mock_zipfile_cls(*args, **kwargs):
             # First call (write ZIP): pass through
             # Second call (open saved ZIP): raise
@@ -940,8 +952,10 @@ class TestGetMasterCsv:
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
-            patch("modules.crawlers.transport.faa_aircraft_registry.zipfile.ZipFile",
-                  side_effect=_mock_zipfile_cls),
+            patch(
+                "modules.crawlers.transport.faa_aircraft_registry.zipfile.ZipFile",
+                side_effect=_mock_zipfile_cls,
+            ),
         ):
             result = await crawler._get_master_csv()
 

@@ -125,7 +125,9 @@ class PropertyEnricher:
             except Exception as exc:
                 logger.debug(
                     "PropertyEnricher: crawler %s failed for %s — %s",
-                    type(crawler).__name__, identifier, exc,
+                    type(crawler).__name__,
+                    identifier,
+                    exc,
                 )
 
         for prop_data in property_results:
@@ -203,7 +205,12 @@ class PropertyEnricher:
         logger.info(
             "PropertyEnricher: person_id=%s — props=%d aircraft=%d vessels=%d "
             "vehicles=%d net_worth=%.2f",
-            person_id, prop_count, aircraft_count, vessel_count, vehicle_count, net_worth,
+            person_id,
+            prop_count,
+            aircraft_count,
+            vessel_count,
+            vehicle_count,
+            net_worth,
         )
 
     # ── Upsert helpers ────────────────────────────────────────────────────────
@@ -218,33 +225,57 @@ class PropertyEnricher:
         existing: Property | None = None
         if parcel:
             result = await session.execute(
-                select(Property).where(
+                select(Property)
+                .where(
                     Property.person_id == person_id,
                     Property.parcel_number == parcel,
-                ).limit(1)
+                )
+                .limit(1)
             )
             existing = result.scalar_one_or_none()
         elif street:
             result = await session.execute(
-                select(Property).where(
+                select(Property)
+                .where(
                     Property.person_id == person_id,
                     Property.street_address == street,
-                ).limit(1)
+                )
+                .limit(1)
             )
             existing = result.scalar_one_or_none()
 
         if existing:
             # Update mutable fields
             for field in (
-                "city", "state", "zip_code", "county", "country",
-                "property_type", "sub_type", "year_built", "sq_ft_living",
-                "sq_ft_lot", "bedrooms", "bathrooms_full", "bathrooms_half",
-                "stories", "garage_spaces", "has_pool", "zoning",
-                "current_assessed_value_usd", "current_market_value_usd",
-                "current_tax_annual_usd", "last_sale_date", "last_sale_price_usd",
-                "last_sale_type", "owner_name", "is_owner_occupied",
-                "homestead_exemption", "is_investment_property",
-                "latitude", "longitude",
+                "city",
+                "state",
+                "zip_code",
+                "county",
+                "country",
+                "property_type",
+                "sub_type",
+                "year_built",
+                "sq_ft_living",
+                "sq_ft_lot",
+                "bedrooms",
+                "bathrooms_full",
+                "bathrooms_half",
+                "stories",
+                "garage_spaces",
+                "has_pool",
+                "zoning",
+                "current_assessed_value_usd",
+                "current_market_value_usd",
+                "current_tax_annual_usd",
+                "last_sale_date",
+                "last_sale_price_usd",
+                "last_sale_type",
+                "owner_name",
+                "is_owner_occupied",
+                "homestead_exemption",
+                "is_investment_property",
+                "latitude",
+                "longitude",
             ):
                 val = prop_data.get(field)
                 if val is not None:
@@ -305,10 +336,12 @@ class PropertyEnricher:
             existing = None
             if doc_num:
                 result = await session.execute(
-                    select(PropertyOwnershipHistory).where(
+                    select(PropertyOwnershipHistory)
+                    .where(
                         PropertyOwnershipHistory.property_id == property_id,
                         PropertyOwnershipHistory.document_number == doc_num,
-                    ).limit(1)
+                    )
+                    .limit(1)
                 )
                 existing = result.scalar_one_or_none()
             if existing:
@@ -344,15 +377,19 @@ class PropertyEnricher:
         if not year:
             return
         result = await session.execute(
-            select(PropertyValuation).where(
+            select(PropertyValuation)
+            .where(
                 PropertyValuation.property_id == property_id,
                 PropertyValuation.valuation_year == year,
                 PropertyValuation.valuation_source == source,
-            ).limit(1)
+            )
+            .limit(1)
         )
         existing = result.scalar_one_or_none()
         if existing:
-            existing.assessed_value_usd = val_data.get("assessed_value_usd", existing.assessed_value_usd)
+            existing.assessed_value_usd = val_data.get(
+                "assessed_value_usd", existing.assessed_value_usd
+            )
             existing.market_value_usd = val_data.get("market_value_usd", existing.market_value_usd)
             existing.tax_amount_usd = val_data.get("tax_amount_usd", existing.tax_amount_usd)
             existing.tax_rate = val_data.get("tax_rate", existing.tax_rate)
@@ -384,10 +421,12 @@ class PropertyEnricher:
         existing = None
         if instrument:
             result = await session.execute(
-                select(PropertyMortgage).where(
+                select(PropertyMortgage)
+                .where(
                     PropertyMortgage.property_id == property_id,
                     PropertyMortgage.instrument_number == instrument,
-                ).limit(1)
+                )
+                .limit(1)
             )
             existing = result.scalar_one_or_none()
         if existing:
@@ -425,20 +464,33 @@ class PropertyEnricher:
         existing = None
         if n_number:
             result = await session.execute(
-                select(Aircraft).where(
+                select(Aircraft)
+                .where(
                     Aircraft.person_id == person_id,
                     Aircraft.n_number == n_number,
-                ).limit(1)
+                )
+                .limit(1)
             )
             existing = result.scalar_one_or_none()
 
         if existing:
             for field in (
-                "manufacturer", "model", "aircraft_type", "engine_type",
-                "num_engines", "num_seats", "year_manufactured",
-                "airworthiness_class", "registration_date", "expiration_date",
-                "last_action_date", "owner_name", "registrant_type",
-                "registrant_address", "is_deregistered", "estimated_value_usd",
+                "manufacturer",
+                "model",
+                "aircraft_type",
+                "engine_type",
+                "num_engines",
+                "num_seats",
+                "year_manufactured",
+                "airworthiness_class",
+                "registration_date",
+                "expiration_date",
+                "last_action_date",
+                "owner_name",
+                "registrant_type",
+                "registrant_address",
+                "is_deregistered",
+                "estimated_value_usd",
             ):
                 val = aircraft_data.get(field)
                 if val is not None:
@@ -484,29 +536,47 @@ class PropertyEnricher:
 
         if mmsi:
             result = await session.execute(
-                select(Vessel).where(
+                select(Vessel)
+                .where(
                     Vessel.person_id == person_id,
                     Vessel.mmsi == mmsi,
-                ).limit(1)
+                )
+                .limit(1)
             )
             existing = result.scalar_one_or_none()
         elif imo:
             result = await session.execute(
-                select(Vessel).where(
+                select(Vessel)
+                .where(
                     Vessel.person_id == person_id,
                     Vessel.imo_number == imo,
-                ).limit(1)
+                )
+                .limit(1)
             )
             existing = result.scalar_one_or_none()
 
         if existing:
             for field in (
-                "vessel_name", "call_sign", "flag_country", "vessel_type",
-                "gross_tonnage", "length_meters", "beam_meters", "draft_meters",
-                "year_built", "builder", "owner_name", "operator_name",
-                "port_of_registry", "last_port", "destination_port",
-                "last_seen_lat", "last_seen_lon", "last_seen_at",
-                "is_active", "estimated_value_usd",
+                "vessel_name",
+                "call_sign",
+                "flag_country",
+                "vessel_type",
+                "gross_tonnage",
+                "length_meters",
+                "beam_meters",
+                "draft_meters",
+                "year_built",
+                "builder",
+                "owner_name",
+                "operator_name",
+                "port_of_registry",
+                "last_port",
+                "destination_port",
+                "last_seen_lat",
+                "last_seen_lon",
+                "last_seen_at",
+                "is_active",
+                "estimated_value_usd",
             ):
                 val = vessel_data.get(field)
                 if val is not None:
@@ -548,9 +618,7 @@ class PropertyEnricher:
 
     # ── Net worth computation ─────────────────────────────────────────────────
 
-    async def _compute_net_worth(
-        self, session: AsyncSession, person_id: uuid.UUID
-    ) -> float:
+    async def _compute_net_worth(self, session: AsyncSession, person_id: uuid.UUID) -> float:
         """Sum of current market values across properties, vehicles, aircraft, vessels."""
         prop_value = (
             await session.execute(
@@ -591,4 +659,6 @@ class PropertyEnricher:
             )
         ).scalar() or 0.0
 
-        return float(prop_value) + float(vehicle_value) + float(aircraft_value) + float(vessel_value)
+        return (
+            float(prop_value) + float(vehicle_value) + float(aircraft_value) + float(vessel_value)
+        )

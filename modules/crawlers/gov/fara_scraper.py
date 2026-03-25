@@ -23,15 +23,11 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 # FARA eFile API — JSON search endpoint
-_FARA_API = (
-    "https://efile.fara.gov/ords/fara/f"
-    "?p=API:SEARCH:::::P_SEARCH_TEXT:{query}"
-)
+_FARA_API = "https://efile.fara.gov/ords/fara/f?p=API:SEARCH:::::P_SEARCH_TEXT:{query}"
 
 # Alternative REST endpoint used by the FARA developer portal
 _FARA_REST = (
-    "https://efile.fara.gov/api/public/search/registrations"
-    "?searchText={query}&page=1&pageSize=50"
+    "https://efile.fara.gov/api/public/search/registrations?searchText={query}&page=1&pageSize=50"
 )
 
 _MATCH_THRESHOLD = 0.5
@@ -67,9 +63,7 @@ def _parse_rest_response(data: Any, query: str) -> list[dict[str, Any]]:
             continue
 
         reg_name: str = (
-            item.get("registrantName")
-            or item.get("registrant_name")
-            or item.get("name", "")
+            item.get("registrantName") or item.get("registrant_name") or item.get("name", "")
         )
         fp_name: str = (
             item.get("foreignPrincipalName")
@@ -139,13 +133,9 @@ def _parse_html_table(html: str, query: str) -> list[dict[str, Any]]:
             rows = table.find_all("tr")
             if len(rows) < 2:
                 continue
-            headers = [
-                th.get_text(strip=True).lower()
-                for th in rows[0].find_all(["th", "td"])
-            ]
+            headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
             if not any(
-                kw in " ".join(headers)
-                for kw in ("registrant", "principal", "registration")
+                kw in " ".join(headers) for kw in ("registrant", "principal", "registration")
             ):
                 continue
             for row in rows[1:]:
@@ -231,9 +221,7 @@ class FaraScraperCrawler(HttpxCrawler):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    async def _try_rest_api(
-        self, query: str, encoded: str
-    ) -> list[dict[str, Any]]:
+    async def _try_rest_api(self, query: str, encoded: str) -> list[dict[str, Any]]:
         """Attempt the FARA REST JSON endpoint."""
         url = _FARA_REST.format(query=encoded)
         resp = await self.get(url, headers={"Accept": "application/json"})
@@ -247,9 +235,7 @@ class FaraScraperCrawler(HttpxCrawler):
             return []
         return _parse_rest_response(data, query)
 
-    async def _try_html_search(
-        self, query: str, encoded: str
-    ) -> list[dict[str, Any]]:
+    async def _try_html_search(self, query: str, encoded: str) -> list[dict[str, Any]]:
         """Fallback: scrape the FARA eFile HTML search portal."""
         url = _FARA_API.format(query=encoded)
         resp = await self.get(url)

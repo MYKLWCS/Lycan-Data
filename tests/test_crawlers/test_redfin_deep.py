@@ -256,7 +256,12 @@ class TestParseGis:
             "payload": {
                 "homes": [
                     {
-                        "address": {"streetAddress": "1 A", "city": "X", "state": "TX", "zip": "00001"},
+                        "address": {
+                            "streetAddress": "1 A",
+                            "city": "X",
+                            "state": "TX",
+                            "zip": "00001",
+                        },
                         "latLong": {},
                         "url": "/home/55555",
                     }
@@ -323,9 +328,7 @@ class TestParseDetail:
                         }
                     ],
                 },
-                "schoolsInfo": {
-                    "servingThisHome": [{"districtName": "Dallas ISD"}]
-                },
+                "schoolsInfo": {"servingThisHome": [{"districtName": "Dallas ISD"}]},
                 "walkScore": {"walkScore": 72, "transitScore": 55, "bikeScore": 40},
             }
         }
@@ -391,11 +394,7 @@ class TestParsePriceHistory:
         from modules.crawlers.property.redfin_deep import _parse_price_history
 
         data = {
-            "payload": {
-                "rows": [
-                    {"eventName": "Listed", "price": 400000, "date": "2022-01-01"}
-                ]
-            }
+            "payload": {"rows": [{"eventName": "Listed", "price": 400000, "date": "2022-01-01"}]}
         }
         result = _parse_price_history(data)
         assert result[0]["acquisition_price_usd"] is None
@@ -403,22 +402,14 @@ class TestParsePriceHistory:
     def test_date_fallback_to_date_key(self):
         from modules.crawlers.property.redfin_deep import _parse_price_history
 
-        data = {
-            "payload": {
-                "rows": [{"eventName": "Sold", "price": 300000, "date": "2019-06-01"}]
-            }
-        }
+        data = {"payload": {"rows": [{"eventName": "Sold", "price": 300000, "date": "2019-06-01"}]}}
         result = _parse_price_history(data)
         assert result[0]["acquisition_date"] == "2019-06-01"
 
     def test_source_fallback_when_no_eventname(self):
         from modules.crawlers.property.redfin_deep import _parse_price_history
 
-        data = {
-            "payload": {
-                "rows": [{"source": "MLS", "price": 200000}]
-            }
-        }
+        data = {"payload": {"rows": [{"source": "MLS", "price": 200000}]}}
         result = _parse_price_history(data)
         assert result[0]["acquisition_type"] == "MLS"
 
@@ -569,16 +560,16 @@ class TestRedfinDeepCrawlerScrape:
                 "publicRecordsInfo": {
                     "apn": "123-456",
                     "ownerName": "SMITH JOHN",
-                    "taxHistories": [{"taxYear": 2021, "assessedValue": "300000", "taxAmount": "4500"}],
+                    "taxHistories": [
+                        {"taxYear": 2021, "assessedValue": "300000", "taxAmount": "4500"}
+                    ],
                 },
                 "schoolsInfo": {"servingThisHome": []},
                 "walkScore": {"walkScore": 70},
             }
         }
         hist_data = {
-            "payload": {
-                "rows": [{"eventName": "Sold", "price": 380000, "soldDate": "2022-05-01"}]
-            }
+            "payload": {"rows": [{"eventName": "Sold", "price": 380000, "soldDate": "2022-05-01"}]}
         }
 
         async def fake_get(url, **kwargs):
@@ -608,7 +599,12 @@ class TestRedfinDeepCrawlerScrape:
             "payload": {
                 "homes": [
                     {
-                        "address": {"streetAddress": "1 A St", "city": "X", "state": "TX", "zip": "00001"},
+                        "address": {
+                            "streetAddress": "1 A St",
+                            "city": "X",
+                            "state": "TX",
+                            "zip": "00001",
+                        },
                         "latLong": {},
                         "url": "/home/no-id-here",
                     }
@@ -618,7 +614,11 @@ class TestRedfinDeepCrawlerScrape:
         autocomplete_data = {
             "payload": {
                 "sections": [
-                    {"rows": [{"name": "1 A St", "url": "/home/77777", "id": "x", "type": "address"}]}
+                    {
+                        "rows": [
+                            {"name": "1 A St", "url": "/home/77777", "id": "x", "type": "address"}
+                        ]
+                    }
                 ]
             }
         }

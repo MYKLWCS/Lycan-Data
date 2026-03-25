@@ -26,19 +26,11 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 # MarineTraffic public search (returns JSON from their internal API)
-_MARINETRAFFIC_SEARCH = (
-    "https://www.marinetraffic.com/en/ais/index/search/all"
-    "/keyword:{keyword}"
-)
-_MARINETRAFFIC_API = (
-    "https://www.marinetraffic.com/getData/get_data_json_4"
-    "/z:10/X:0/Y:0/station:0"
-)
+_MARINETRAFFIC_SEARCH = "https://www.marinetraffic.com/en/ais/index/search/all/keyword:{keyword}"
+_MARINETRAFFIC_API = "https://www.marinetraffic.com/getData/get_data_json_4/z:10/X:0/Y:0/station:0"
 
 # VesselFinder public search page
-_VESSELFINDER_SEARCH = (
-    "https://www.vesselfinder.com/vessels?name={query}&type=0&flag=0&mmsi=&imo="
-)
+_VESSELFINDER_SEARCH = "https://www.vesselfinder.com/vessels?name={query}&type=0&flag=0&mmsi=&imo="
 
 # USCG NVDC online documentation lookup
 _USCG_NVDC_SEARCH = (
@@ -48,9 +40,7 @@ _USCG_NVDC_SEARCH = (
 )
 
 # IMO GISIS company/vessel search (public)
-_IMO_GISIS_SEARCH = (
-    "https://gisis.imo.org/Public/MSD/Default.aspx"
-)
+_IMO_GISIS_SEARCH = "https://gisis.imo.org/Public/MSD/Default.aspx"
 
 # Rough vessel value estimates by type and tonnage (USD)
 _VALUE_ESTIMATES = {
@@ -114,8 +104,9 @@ def _parse_marinetraffic_html(html: str) -> list[dict[str, Any]]:
             if '"mmsi"' in text or '"MMSI"' in text:
                 try:
                     import json
+
                     # Attempt to extract JSON array from script
-                    match = re.search(r'\[(\{[^;]+)\]', text, re.DOTALL)
+                    match = re.search(r"\[(\{[^;]+)\]", text, re.DOTALL)
                     if match:
                         data = json.loads(f"[{match.group(1)}]")
                         for item in data[:20]:
@@ -131,10 +122,7 @@ def _parse_marinetraffic_html(html: str) -> list[dict[str, Any]]:
                 rows = table.find_all("tr")
                 if len(rows) < 2:
                     continue
-                headers = [
-                    th.get_text(strip=True).lower()
-                    for th in rows[0].find_all(["th", "td"])
-                ]
+                headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
                 ht = " ".join(headers)
                 if not any(kw in ht for kw in ("vessel", "mmsi", "imo", "flag", "name")):
                     continue
@@ -222,10 +210,7 @@ def _parse_vesselfinder_html(html: str) -> list[dict[str, Any]]:
         rows = table.find_all("tr")
         if len(rows) < 2:
             return vessels
-        headers = [
-            th.get_text(strip=True).lower()
-            for th in rows[0].find_all(["th", "td"])
-        ]
+        headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
         for row in rows[1:]:
             cells = row.find_all("td")
             record = {
@@ -278,10 +263,7 @@ def _parse_uscg_html(html: str) -> list[dict[str, Any]]:
             rows = table.find_all("tr")
             if len(rows) < 2:
                 continue
-            headers = [
-                th.get_text(strip=True).lower()
-                for th in rows[0].find_all(["th", "td"])
-            ]
+            headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(["th", "td"])]
             ht = " ".join(headers)
             if not any(kw in ht for kw in ("vessel", "document", "owner", "name")):
                 continue
@@ -379,7 +361,9 @@ class MarineVesselCrawler(HttpxCrawler):
         seen: set[str] = set()
         deduped: list[dict[str, Any]] = []
         for v in all_vessels:
-            key = f"{v.get('vessel_name', '').lower()}|{v.get('mmsi', '')}|{v.get('imo_number', '')}"
+            key = (
+                f"{v.get('vessel_name', '').lower()}|{v.get('mmsi', '')}|{v.get('imo_number', '')}"
+            )
             if key not in seen:
                 seen.add(key)
                 deduped.append(v)
@@ -407,9 +391,7 @@ class MarineVesselCrawler(HttpxCrawler):
             },
         )
         if resp is None or resp.status_code not in (200, 206):
-            logger.debug(
-                "MarineTraffic returned %s", resp.status_code if resp else "None"
-            )
+            logger.debug("MarineTraffic returned %s", resp.status_code if resp else "None")
             return []
         return _parse_marinetraffic_html(resp.text)
 
@@ -420,9 +402,7 @@ class MarineVesselCrawler(HttpxCrawler):
             return []
         return _parse_vesselfinder_html(resp.text)
 
-    async def _search_uscg(
-        self, encoded: str, search_type: str
-    ) -> list[dict[str, Any]]:
+    async def _search_uscg(self, encoded: str, search_type: str) -> list[dict[str, Any]]:
         if search_type == "vessel_name":
             url = _USCG_NVDC_SEARCH.format(query=encoded, owner_query="")
         else:

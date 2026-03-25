@@ -32,6 +32,7 @@ def _mock_resp(status: int = 200, json_data=None, text: str = "") -> MagicMock:
 
 def _make_crawler():
     from modules.crawlers.property.propertyradar_scraper import PropertyRadarCrawler
+
     return PropertyRadarCrawler()
 
 
@@ -43,6 +44,7 @@ def _make_crawler():
 class TestParseIdentifier:
     def _fn(self, s):
         from modules.crawlers.property.propertyradar_scraper import _parse_identifier
+
         return _parse_identifier(s)
 
     def test_pipe_city_state(self):
@@ -90,6 +92,7 @@ class TestParseIdentifier:
 class TestMoney:
     def _fn(self, v):
         from modules.crawlers.property.propertyradar_scraper import _money
+
         return _money(v)
 
     def test_none_input(self):
@@ -122,6 +125,7 @@ class TestMoney:
 class TestBoolFlag:
     def _fn(self, v):
         from modules.crawlers.property.propertyradar_scraper import _bool_flag
+
         return _bool_flag(v)
 
     def test_true_bool(self):
@@ -163,12 +167,20 @@ class TestBoolFlag:
 class TestParseOwnerApi:
     def _fn(self, data):
         from modules.crawlers.property.propertyradar_scraper import _parse_owner_api
+
         return _parse_owner_api(data)
 
     def test_list_input(self):
         owners = [
-            {"ownerId": "O1", "name": "John Smith", "ownerType": "Individual",
-             "propertyCount": 3, "equity": "500000", "totalValue": "1000000", "state": "CA"}
+            {
+                "ownerId": "O1",
+                "name": "John Smith",
+                "ownerType": "Individual",
+                "propertyCount": 3,
+                "equity": "500000",
+                "totalValue": "1000000",
+                "state": "CA",
+            }
         ]
         result = self._fn(owners)
         assert len(result) == 1
@@ -177,21 +189,13 @@ class TestParseOwnerApi:
         assert result[0]["portfolio_value"] == 1000000
 
     def test_dict_owners_key(self):
-        data = {
-            "owners": [
-                {"id": "O2", "ownerName": "Corp LLC", "ownerType": "LLC"}
-            ]
-        }
+        data = {"owners": [{"id": "O2", "ownerName": "Corp LLC", "ownerType": "LLC"}]}
         result = self._fn(data)
         assert result[0]["owner_id"] == "O2"
         assert result[0]["owner_name"] == "Corp LLC"
 
     def test_dict_results_key(self):
-        data = {
-            "results": [
-                {"ownerId": "O3", "name": "Jane"}
-            ]
-        }
+        data = {"results": [{"ownerId": "O3", "name": "Jane"}]}
         result = self._fn(data)
         assert result[0]["owner_id"] == "O3"
 
@@ -215,6 +219,7 @@ class TestParseOwnerApi:
 class TestParsePropertyApi:
     def _fn(self, data):
         from modules.crawlers.property.propertyradar_scraper import _parse_property_api
+
         return _parse_property_api(data)
 
     def _full_item(self, **overrides):
@@ -354,6 +359,7 @@ class TestParsePropertyApi:
 class TestParseSearchHtml:
     def _fn(self, html, state="CA"):
         from modules.crawlers.property.propertyradar_scraper import _parse_search_html
+
         return _parse_search_html(html, state)
 
     def test_embedded_initial_state_owners(self):
@@ -381,23 +387,23 @@ class TestParseSearchHtml:
 
     def test_html_table_fallback(self):
         html = (
-            '<html><body>'
+            "<html><body>"
             '<table class="owner-results">'
             '<tr><td class="owner-name">John Smith</td></tr>'
             '<tr><td class="owner-name">name</td></tr>'  # "name" header row — skipped
-            '</table>'
-            '</body></html>'
+            "</table>"
+            "</body></html>"
         )
         owners, pids = self._fn(html)
         assert any(o["owner_name"] == "John Smith" for o in owners)
 
     def test_html_owner_card_fallback(self):
         html = (
-            '<html><body>'
+            "<html><body>"
             '<div class="owner-card">'
             '<span class="owner-name">Mary Jones</span>'
-            '</div>'
-            '</body></html>'
+            "</div>"
+            "</body></html>"
         )
         owners, pids = self._fn(html)
         # owner-card div parsed via row.find(class_=...) or row.find("td")
@@ -405,10 +411,10 @@ class TestParseSearchHtml:
 
     def test_property_id_links_extracted(self):
         html = (
-            '<html><body>'
+            "<html><body>"
             '<a href="/property/12345">View</a>'
             '<a href="/property/67890">View2</a>'
-            '</body></html>'
+            "</body></html>"
         )
         owners, pids = self._fn(html)
         assert "12345" in pids
@@ -423,11 +429,7 @@ class TestParseSearchHtml:
     def test_owner_is_header_skipped(self):
         """Name text is 'owner' — filtered out."""
         html = (
-            '<html><body>'
-            '<table class="owner-results">'
-            '<tr><td>owner</td></tr>'
-            '</table>'
-            '</body></html>'
+            '<html><body><table class="owner-results"><tr><td>owner</td></tr></table></body></html>'
         )
         owners, pids = self._fn(html)
         assert owners == []
@@ -441,6 +443,7 @@ class TestParseSearchHtml:
 class TestParsePropertyDetailHtml:
     def _fn(self, html):
         from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
+
         return _parse_property_detail_html(html)
 
     def test_embedded_initial_state_property(self):
@@ -544,6 +547,7 @@ class TestParsePropertyDetailHtml:
     def test_int_conversion_value_error(self):
         """year_built regex matches but value can't be int-cast — set to None."""
         from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
+
         # Can't easily manufacture ValueError from the regex pattern since it requires \d{4}
         # but we can test that non-numeric stays None via empty page
         result = _parse_property_detail_html("<html><body></body></html>")
@@ -563,6 +567,7 @@ class TestParsePropertyDetailHtml:
         """int() raises ValueError for an int_key field that matched regex — set to None.
         We force this by patching int() to raise on its first call."""
         from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
+
         # Craft HTML that matches year_built pattern but then int() raises
         html = "<html><body>Year Built: 1999</body></html>"
         original_int = int
@@ -582,6 +587,7 @@ class TestParsePropertyDetailHtml:
     def test_money_value_error_in_label_loop(self):
         """int() raises ValueError inside the label→dest regex loop — pass, field stays None."""
         from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
+
         # HTML that matches the "assessed" pattern
         html = "<html><body>assessed $400,000</body></html>"
         original_int = int
@@ -627,9 +633,7 @@ class TestPropertyRadarScrape:
     async def test_api_owners_then_property_api(self):
         crawler = self._make()
 
-        owner_data = [
-            {"ownerId": "O1", "name": "John Smith", "state": "CA"}
-        ]
+        owner_data = [{"ownerId": "O1", "name": "John Smith", "state": "CA"}]
         prop_data = [
             {
                 "apn": "123-456",
@@ -686,11 +690,7 @@ class TestPropertyRadarScrape:
             if "owners" in url:
                 return _mock_resp(status=403, text="Forbidden")
             if "app/search" in url:
-                html = (
-                    '<html><body>'
-                    '<a href="/property/99999">View</a>'
-                    '</body></html>'
-                )
+                html = '<html><body><a href="/property/99999">View</a></body></html>'
                 return _mock_resp(status=200, text=html)
             if "property/99999" in url:
                 return _mock_resp(status=200, text="<html><body>APN: 001</body></html>")
@@ -814,10 +814,10 @@ class TestPropertyRadarScrape:
         crawler = self._make()
 
         search_html = (
-            '<html><body>'
+            "<html><body>"
             '<a href="/property/11111">View</a>'
             '<a href="/property/22222">View2</a>'
-            '</body></html>'
+            "</body></html>"
         )
         detail_html = "<html><body>APN: 777-888</body></html>"
 
@@ -937,9 +937,7 @@ class TestPropertyRadarScrape:
         """Only first 3 owners are iterated for property fetches."""
         crawler = self._make()
 
-        owner_data = [
-            {"ownerId": f"O{i}", "name": f"Owner {i}"} for i in range(5)
-        ]
+        owner_data = [{"ownerId": f"O{i}", "name": f"Owner {i}"} for i in range(5)]
         prop_call_ids: list[str] = []
 
         async def _fake_get(url, **kwargs):
@@ -947,6 +945,7 @@ class TestPropertyRadarScrape:
                 return _mock_resp(status=200, json_data=owner_data)
             if "properties" in url:
                 import re
+
                 m = re.search(r"ownerId=(\w+)", url)
                 if m:
                     prop_call_ids.append(m.group(1))

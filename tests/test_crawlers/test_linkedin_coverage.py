@@ -224,7 +224,9 @@ async def test_extract_education_partial_fields():
 async def test_extract_education_multiple_entries_limited_to_five():
     """Lines 129: slice [:5] caps the edu loop at five items."""
     crawler = _crawler()
-    edu = [{"school": f"School {i}", "degree": "BA", "field": "Arts", "dates": ""} for i in range(8)]
+    edu = [
+        {"school": f"School {i}", "degree": "BA", "field": "Arts", "dates": ""} for i in range(8)
+    ]
     page = _make_page(
         title="Many Schools | LinkedIn",
         edu_items=edu,

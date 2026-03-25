@@ -150,8 +150,8 @@ def _parse_api_property(data: dict) -> dict[str, Any]:
 def _parse_api_sale_history(data: dict, prop: dict) -> dict:
     """Merge sale history into prop dict."""
     try:
-        for sale in (data.get("property") or []):
-            for event in (sale.get("saleHistory") or []):
+        for sale in data.get("property") or []:
+            for event in sale.get("saleHistory") or []:
                 prop["ownership_history"].append(
                     {
                         "owner_name": event.get("buyerName"),
@@ -306,7 +306,11 @@ class AttomGatewayCrawler(HttpxCrawler):
         detail_url = f"{_API_PROPERTY_DETAIL}?address={encoded}&postalcode=&attomId="
         resp = await self.get(detail_url, headers=headers)
         if resp is None or resp.status_code not in (200, 206):
-            return self._result(identifier, found=False, error=f"attom_api_http_{resp.status_code if resp else 'timeout'}")
+            return self._result(
+                identifier,
+                found=False,
+                error=f"attom_api_http_{resp.status_code if resp else 'timeout'}",
+            )
 
         try:
             detail_data = resp.json()

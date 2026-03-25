@@ -120,7 +120,9 @@ class TestAdverseMediaEnricherStart:
             if calls >= 1:
                 raise Exception("stop")
 
-        with patch("modules.enrichers.adverse_media_enricher.asyncio.sleep", side_effect=fake_sleep):
+        with patch(
+            "modules.enrichers.adverse_media_enricher.asyncio.sleep", side_effect=fake_sleep
+        ):
             with pytest.raises(Exception, match="stop"):
                 await enricher.start()
 

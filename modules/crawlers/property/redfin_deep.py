@@ -241,11 +241,9 @@ def _parse_price_history(data: dict) -> list[dict[str, Any]]:
 def _parse_tax_history(detail_data: dict) -> list[dict[str, Any]]:
     valuations: list[dict[str, Any]] = []
     try:
-        rows = (
-            (detail_data.get("payload") or {})
-            .get("publicRecordsInfo", {})
-            .get("taxHistories") or []
-        )
+        rows = (detail_data.get("payload") or {}).get("publicRecordsInfo", {}).get(
+            "taxHistories"
+        ) or []
         for row in rows:
             valuations.append(
                 {

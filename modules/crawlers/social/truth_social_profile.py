@@ -78,8 +78,7 @@ def _parse_account(data: dict) -> dict[str, Any]:
         "is_verified": data.get("verified", False),
         "is_bot": data.get("bot", False),
         "custom_fields": [
-            {"label": f.get("name", ""), "value": _clean_html(f.get("value", ""))}
-            for f in fields
+            {"label": f.get("name", ""), "value": _clean_html(f.get("value", ""))} for f in fields
         ],
     }
 
@@ -95,16 +94,10 @@ def _parse_statuses(data: list) -> list[dict[str, Any]]:
         # Handle retruth (reblog) vs original
         is_retruth = bool(status.get("reblog"))
         content_raw = (
-            status.get("reblog", {}).get("content", "")
-            if is_retruth
-            else status.get("content", "")
+            status.get("reblog", {}).get("content", "") if is_retruth else status.get("content", "")
         )
         content = _clean_html(content_raw)[:500]
-        url = (
-            status.get("reblog", {}).get("url", "")
-            if is_retruth
-            else status.get("url", "")
-        )
+        url = status.get("reblog", {}).get("url", "") if is_retruth else status.get("url", "")
         posts.append(
             {
                 "post_id": str(status.get("id", "")),
@@ -317,9 +310,7 @@ class TruthSocialProfileCrawler(HttpxCrawler):
         url = _API_SEARCH.format(query=encoded)
         resp = await self.get(url, headers={"Accept": "application/json"})
         if resp is None or resp.status_code != 200:
-            logger.debug(
-                "Truth Social search returned %s", resp.status_code if resp else "None"
-            )
+            logger.debug("Truth Social search returned %s", resp.status_code if resp else "None")
             return None
         try:
             data = resp.json()

@@ -294,8 +294,13 @@ def test_parse_courtlistener_absolute_url_prefixed():
     """Relative URLs get https://www.courtlistener.com prepended."""
     data = {
         "results": [
-            {"caseName": "X v Y", "court_id": "dc", "dateFiled": "",
-             "absolute_url": "/opinion/999/", "snippet": ""}
+            {
+                "caseName": "X v Y",
+                "court_id": "dc",
+                "dateFiled": "",
+                "absolute_url": "/opinion/999/",
+                "snippet": "",
+            }
         ]
     }
     results = _parse_courtlistener(data)
@@ -305,8 +310,13 @@ def test_parse_courtlistener_absolute_url_prefixed():
 def test_parse_courtlistener_full_url_not_prefixed():
     data = {
         "results": [
-            {"caseName": "X v Y", "court_id": "dc", "dateFiled": "",
-             "absolute_url": "https://www.courtlistener.com/opinion/999/", "snippet": ""}
+            {
+                "caseName": "X v Y",
+                "court_id": "dc",
+                "dateFiled": "",
+                "absolute_url": "https://www.courtlistener.com/opinion/999/",
+                "snippet": "",
+            }
         ]
     }
     results = _parse_courtlistener(data)

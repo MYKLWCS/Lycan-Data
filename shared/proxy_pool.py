@@ -42,7 +42,7 @@ class ProxyPool:
     def __init__(self) -> None:
         self._residential: list[str] = []
         self._datacenter: list[str] = []
-        self._banned: dict[str, float] = {}   # proxy_url → unban_timestamp
+        self._banned: dict[str, float] = {}  # proxy_url → unban_timestamp
         self._slow: set[str] = set()
         self._lock = asyncio.Lock()
         self._rr_indices: dict[str, int] = {"residential": 0, "datacenter": 0}
@@ -57,15 +57,11 @@ class ProxyPool:
         """Parse comma-separated proxy lists from settings."""
         if settings.residential_proxies:
             self._residential = [
-                p.strip()
-                for p in settings.residential_proxies.split(",")
-                if p.strip()
+                p.strip() for p in settings.residential_proxies.split(",") if p.strip()
             ]
         if settings.datacenter_proxies:
             self._datacenter = [
-                p.strip()
-                for p in settings.datacenter_proxies.split(",")
-                if p.strip()
+                p.strip() for p in settings.datacenter_proxies.split(",") if p.strip()
             ]
         logger.debug(
             "ProxyPool loaded — residential: %d, datacenter: %d",
@@ -115,9 +111,7 @@ class ProxyPool:
             proxy = await self.next(tier)
             if proxy is not None or tier == "direct":
                 if tier != preferred_tier:
-                    logger.info(
-                        "ProxyPool: fell back from '%s' → '%s'", preferred_tier, tier
-                    )
+                    logger.info("ProxyPool: fell back from '%s' → '%s'", preferred_tier, tier)
                 return proxy, tier
         return None, "direct"  # pragma: no cover
 
@@ -125,9 +119,7 @@ class ProxyPool:
         """Mark a proxy as banned for duration_minutes. It will auto-recover."""
         async with self._lock:
             self._banned[proxy] = time.time() + duration_minutes * 60
-            logger.warning(
-                "Proxy banned for %dm: %s…", duration_minutes, proxy[:40]
-            )
+            logger.warning("Proxy banned for %dm: %s…", duration_minutes, proxy[:40])
 
     async def mark_slow(self, proxy: str) -> None:
         """Deprioritise a proxy — it will only be used when no healthy proxy exists."""
@@ -165,14 +157,10 @@ class ProxyPool:
         return {
             "residential_total": len(self._residential),
             "residential_available": len(res_available),
-            "residential_slow": len(
-                [p for p in self._residential if p in self._slow]
-            ),
+            "residential_slow": len([p for p in self._residential if p in self._slow]),
             "datacenter_total": len(self._datacenter),
             "datacenter_available": len(dc_available),
-            "datacenter_slow": len(
-                [p for p in self._datacenter if p in self._slow]
-            ),
+            "datacenter_slow": len([p for p in self._datacenter if p in self._slow]),
             "banned_count": len(self._banned),
             "slow_count": len(self._slow),
             "tor_available": self._tor_manager.any_available(),

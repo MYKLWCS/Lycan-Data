@@ -28,10 +28,10 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 # --- Source URLs ---
-_GNEWS_RSS = (
-    'https://news.google.com/rss/search?q="{query}"+{terms}&hl=en-US&gl=US&ceid=US:en'
+_GNEWS_RSS = 'https://news.google.com/rss/search?q="{query}"+{terms}&hl=en-US&gl=US&ceid=US:en'
+_ADVERSE_TERMS = (
+    "fraud|corruption|arrested|indicted|convicted|bribery|laundering|sanctions|terrorist"
 )
-_ADVERSE_TERMS = "fraud|corruption|arrested|indicted|convicted|bribery|laundering|sanctions|terrorist"
 
 _GDELT_API = (
     "https://api.gdeltproject.org/api/v2/doc/doc"
@@ -41,29 +41,66 @@ _COURTLISTENER_SEARCH = (
     "https://www.courtlistener.com/api/rest/v3/search/"
     "?q={query}&type=o&order_by=score+desc&stat_Precedential=on"
 )
-_PROPUBLICA_NP = (
-    "https://projects.propublica.org/nonprofits/api/v2/search.json?q={query}"
-)
+_PROPUBLICA_NP = "https://projects.propublica.org/nonprofits/api/v2/search.json?q={query}"
 
 # --- Severity classification ---
 _SEVERITY_CRITICAL = {
-    "terrorism", "terrorist", "murder", "homicide", "genocide", "war crime",
-    "mass shooting", "bomb", "explosive",
+    "terrorism",
+    "terrorist",
+    "murder",
+    "homicide",
+    "genocide",
+    "war crime",
+    "mass shooting",
+    "bomb",
+    "explosive",
 }
 _SEVERITY_HIGH = {
-    "fraud", "corruption", "money laundering", "bribery", "embezzlement",
-    "indicted", "convicted", "arrested", "criminal", "racketeering",
-    "cartel", "drug trafficking", "human trafficking", "sanctions",
-    "ponzi", "insider trading", "wire fraud", "bank fraud",
+    "fraud",
+    "corruption",
+    "money laundering",
+    "bribery",
+    "embezzlement",
+    "indicted",
+    "convicted",
+    "arrested",
+    "criminal",
+    "racketeering",
+    "cartel",
+    "drug trafficking",
+    "human trafficking",
+    "sanctions",
+    "ponzi",
+    "insider trading",
+    "wire fraud",
+    "bank fraud",
 }
 _SEVERITY_MEDIUM = {
-    "lawsuit", "civil suit", "regulatory", "fine", "penalty", "violation",
-    "sec investigation", "doj", "fbi", "investigation", "probe", "alleged",
-    "misconduct", "breach", "negligence", "whistleblower",
+    "lawsuit",
+    "civil suit",
+    "regulatory",
+    "fine",
+    "penalty",
+    "violation",
+    "sec investigation",
+    "doj",
+    "fbi",
+    "investigation",
+    "probe",
+    "alleged",
+    "misconduct",
+    "breach",
+    "negligence",
+    "whistleblower",
 }
 _SEVERITY_LOW = {
-    "complaint", "minor", "dispute", "arbitration", "settlement",
-    "controversy", "criticism",
+    "complaint",
+    "minor",
+    "dispute",
+    "arbitration",
+    "settlement",
+    "controversy",
+    "criticism",
 }
 
 
@@ -337,9 +374,7 @@ class AdverseMediaSearchCrawler(HttpxCrawler):
             logger.debug("CourtListener parse error: %s", exc)
             return []
 
-    async def _search_propublica(
-        self, encoded: str, name: str
-    ) -> list[dict[str, Any]]:
+    async def _search_propublica(self, encoded: str, name: str) -> list[dict[str, Any]]:
         url = _PROPUBLICA_NP.format(query=encoded)
         resp = await self.get(url, headers={"Accept": "application/json"})
         if resp is None or resp.status_code != 200:

@@ -88,14 +88,9 @@ def _parse_json_results(data: Any) -> list[dict[str, Any]]:
             datasets = [_normalise_dataset(d) for d in datasets_raw]
 
             linked_to = item.get("linked_to") or item.get("connected_to", "")
-            registered_address = (
-                item.get("registered_address")
-                or item.get("address", "")
-            )
+            registered_address = item.get("registered_address") or item.get("address", "")
             incorporation_date = (
-                item.get("incorporation_date")
-                or item.get("inactivation_date", "")
-                or ""
+                item.get("incorporation_date") or item.get("inactivation_date", "") or ""
             )
             if isinstance(incorporation_date, dict):
                 incorporation_date = incorporation_date.get("value", "")
@@ -263,8 +258,6 @@ class IcijOffshoreLeaksCrawler(HttpxCrawler):
         url = _SEARCH_URL.format(query=encoded)
         resp = await self.get(url)
         if resp is None or resp.status_code != 200:
-            logger.debug(
-                "ICIJ HTML search returned %s", resp.status_code if resp else "None"
-            )
+            logger.debug("ICIJ HTML search returned %s", resp.status_code if resp else "None")
             return []
         return _parse_html_results(resp.text)

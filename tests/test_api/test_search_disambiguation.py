@@ -224,8 +224,10 @@ def test_search_full_name_disambiguation_when_multiple_persons():
     persons_result = MagicMock()
     persons_result.scalars.return_value.all.return_value = [p1, p2]
 
-    count_result1 = MagicMock(); count_result1.scalar.return_value = 2
-    count_result2 = MagicMock(); count_result2.scalar.return_value = 1
+    count_result1 = MagicMock()
+    count_result1.scalar.return_value = 2
+    count_result2 = MagicMock()
+    count_result2.scalar.return_value = 1
 
     # First execute → persons list, then two count queries
     session.execute = AsyncMock(side_effect=[persons_result, count_result1, count_result2])

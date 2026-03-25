@@ -81,9 +81,7 @@ class Property(Base, TimestampMixin, DataQualityMixin):
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
     # Relationships
-    person: Mapped["Person"] = relationship(
-        back_populates="properties", foreign_keys=[person_id]
-    )
+    person: Mapped["Person"] = relationship(back_populates="properties", foreign_keys=[person_id])
     ownership_history: Mapped[list["PropertyOwnershipHistory"]] = relationship(
         back_populates="property", cascade="all, delete-orphan"
     )
@@ -102,7 +100,10 @@ class PropertyOwnershipHistory(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     property_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("properties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     # Optional link to a resolved Lycan person entity
     person_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -152,7 +153,10 @@ class PropertyValuation(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     property_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("properties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     valuation_year: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -188,7 +192,10 @@ class PropertyMortgage(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     property_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("properties.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     person_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True

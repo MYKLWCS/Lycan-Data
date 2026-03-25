@@ -26,8 +26,7 @@ _OC_OFFICER_SEARCH = (
     "?q={query}&jurisdiction_code={jur}&format=json&per_page=50"
 )
 _OC_OFFICER_ALL = (
-    "https://api.opencorporates.com/v0.4/officers/search"
-    "?q={query}&format=json&per_page=100"
+    "https://api.opencorporates.com/v0.4/officers/search?q={query}&format=json&per_page=100"
 )
 
 # Key state portal search endpoints (public, no auth needed for basic search)
@@ -42,8 +41,18 @@ _STATE_PORTALS: dict[str, str] = {
 }
 
 _US_STATE_JURISDICTIONS = [
-    "us_de", "us_fl", "us_wy", "us_nv", "us_tx", "us_ca", "us_ny",
-    "us_il", "us_wa", "us_co", "us_ga", "us_nc",
+    "us_de",
+    "us_fl",
+    "us_wy",
+    "us_nv",
+    "us_tx",
+    "us_ca",
+    "us_ny",
+    "us_il",
+    "us_wa",
+    "us_co",
+    "us_ga",
+    "us_nc",
 ]
 
 
@@ -194,9 +203,7 @@ class UsCorporateRegistryCrawler(HttpxCrawler):
             logger.warning("OpenCorporates parse error: %s", exc)
             return []
 
-    async def _search_florida(
-        self, query: str, encoded: str
-    ) -> list[dict[str, Any]]:
+    async def _search_florida(self, query: str, encoded: str) -> list[dict[str, Any]]:
         """Scrape Florida Sunbiz entity name search."""
         url = _STATE_PORTALS["fl"].format(query=encoded)
         resp = await self.get(url)

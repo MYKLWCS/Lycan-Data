@@ -31,6 +31,7 @@ from modules.crawlers.social.truth_social_profile import (
 # Registry
 # ---------------------------------------------------------------------------
 
+
 def test_crawler_registered():
     assert is_registered("truth_social_profile")
 
@@ -38,6 +39,7 @@ def test_crawler_registered():
 # ---------------------------------------------------------------------------
 # _is_name_search
 # ---------------------------------------------------------------------------
+
 
 def test_is_name_search_true():
     assert _is_name_search("name:John Smith") is True
@@ -59,6 +61,7 @@ def test_is_name_search_empty():
 # _extract_name_query
 # ---------------------------------------------------------------------------
 
+
 def test_extract_name_query_basic():
     assert _extract_name_query("name:John Smith") == "John Smith"
 
@@ -75,6 +78,7 @@ def test_extract_name_query_no_name():
 # ---------------------------------------------------------------------------
 # _clean_html
 # ---------------------------------------------------------------------------
+
 
 def test_clean_html_strips_tags():
     assert _clean_html("<p>Hello <b>world</b></p>") == "Hello  world"
@@ -96,6 +100,7 @@ def test_clean_html_nested():
 # ---------------------------------------------------------------------------
 # _parse_account
 # ---------------------------------------------------------------------------
+
 
 def _sample_account_data(**overrides):
     base = {
@@ -188,6 +193,7 @@ def test_parse_account_defaults():
 # _parse_statuses
 # ---------------------------------------------------------------------------
 
+
 def _make_status(**overrides):
     base = {
         "id": "999",
@@ -262,6 +268,7 @@ def test_parse_statuses_max_20():
 # ---------------------------------------------------------------------------
 # _parse_profile_html
 # ---------------------------------------------------------------------------
+
 
 def test_parse_profile_html_full():
     html = """
@@ -438,6 +445,7 @@ def test_parse_profile_html_beautifulsoup_exception():
 # TruthSocialProfileCrawler — class attributes
 # ---------------------------------------------------------------------------
 
+
 def test_crawler_attributes():
     crawler = TruthSocialProfileCrawler()
     assert crawler.platform == "truth_social_profile"
@@ -449,6 +457,7 @@ def test_crawler_attributes():
 # ---------------------------------------------------------------------------
 # TruthSocialProfileCrawler.scrape — username path
 # ---------------------------------------------------------------------------
+
 
 async def test_scrape_username_found():
     crawler = TruthSocialProfileCrawler()
@@ -507,6 +516,7 @@ async def test_scrape_username_no_profile_url():
 # TruthSocialProfileCrawler.scrape — name search path
 # ---------------------------------------------------------------------------
 
+
 async def test_scrape_name_search_found():
     crawler = TruthSocialProfileCrawler()
     profile = {
@@ -534,6 +544,7 @@ async def test_scrape_name_search_not_found():
 # ---------------------------------------------------------------------------
 # _fetch_by_username
 # ---------------------------------------------------------------------------
+
 
 async def test_fetch_by_username_api_success():
     """API lookup returns 200 with valid account; statuses fetched via account_id."""
@@ -696,6 +707,7 @@ async def test_fetch_by_username_html_206_status_ok():
 # _fetch_statuses
 # ---------------------------------------------------------------------------
 
+
 async def test_fetch_statuses_success():
     crawler = TruthSocialProfileCrawler()
     raw = [
@@ -769,6 +781,7 @@ async def test_fetch_statuses_json_exception():
 # ---------------------------------------------------------------------------
 # _search_by_name
 # ---------------------------------------------------------------------------
+
 
 async def test_search_by_name_success_with_posts():
     crawler = TruthSocialProfileCrawler()

@@ -102,19 +102,13 @@ class TestParseRestResponse:
 
     def test_dict_with_registrations_key(self):
         data = {
-            "registrations": [
-                {"registrantName": "Mercury LLC", "registrationDate": "2020-01-01"}
-            ]
+            "registrations": [{"registrantName": "Mercury LLC", "registrationDate": "2020-01-01"}]
         }
         results = _parse_rest_response(data, "Mercury LLC")
         assert len(results) == 1
 
     def test_dict_with_results_key(self):
-        data = {
-            "results": [
-                {"registrantName": "Akin Gump", "registrationDate": "2019-05-01"}
-            ]
-        }
+        data = {"results": [{"registrantName": "Akin Gump", "registrationDate": "2019-05-01"}]}
         results = _parse_rest_response(data, "Akin Gump")
         assert len(results) == 1
 
@@ -124,9 +118,7 @@ class TestParseRestResponse:
         assert len(results) == 1
 
     def test_filters_low_score_names(self):
-        data = [
-            {"registrantName": "Completely Different Entity", "registrationDate": "2020-01-01"}
-        ]
+        data = [{"registrantName": "Completely Different Entity", "registrationDate": "2020-01-01"}]
         results = _parse_rest_response(data, "Podesta Group")
         assert results == []
 
@@ -348,7 +340,9 @@ class TestFaraScraperCrawlerTryRestApi:
     async def test_returns_parsed_results_on_success(self):
         crawler = self._crawler()
         data = [{"registrantName": "Test Firm", "registrationDate": "2021-01-01"}]
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))
+        ):
             result = await crawler._try_rest_api("Test Firm", "Test+Firm")
         assert len(result) == 1
 
@@ -401,7 +395,9 @@ class TestFaraScraperCrawlerScrape:
     async def test_scrape_uses_rest_on_success(self):
         crawler = self._crawler()
         data = [{"registrantName": "Podesta Group", "registrationDate": "2012-06-18"}]
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=data))
+        ):
             result = await crawler.scrape("Podesta Group")
 
         assert result.found is True

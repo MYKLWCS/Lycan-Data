@@ -298,6 +298,7 @@ class TestParseTaxHtml:
         import re as re_module
 
         from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
+
         original_search = re_module.search
         call_count = [0]
 
@@ -311,7 +312,10 @@ class TestParseTaxHtml:
                 return m
             return result
 
-        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=patched_search):
+        with patch(
+            "modules.crawlers.property.property_tax_nationwide.re.search",
+            side_effect=patched_search,
+        ):
             result = _parse_tax_html("<html><body>Assessed $300,000</body></html>")
 
         assert result["current_assessed_value_usd"] is None
@@ -334,7 +338,10 @@ class TestParseTaxHtml:
                 return m
             return result
 
-        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=patched_search):
+        with patch(
+            "modules.crawlers.property.property_tax_nationwide.re.search",
+            side_effect=patched_search,
+        ):
             result = _parse_tax_html("<html><body>Market Value $400,000</body></html>")
 
         assert result["current_market_value_usd"] is None
@@ -357,7 +364,10 @@ class TestParseTaxHtml:
                 return m
             return result
 
-        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=patched_search):
+        with patch(
+            "modules.crawlers.property.property_tax_nationwide.re.search",
+            side_effect=patched_search,
+        ):
             result = _parse_tax_html("<html><body>Annual Tax $4,800</body></html>")
 
         assert result["current_tax_annual_usd"] is None
@@ -418,6 +428,7 @@ class TestParseTaxHtml:
 
         class _BadMatch:
             """Match object whose group() returns a value that str.replace produces a non-int."""
+
             def group(self, n=0):
                 return "3e+5"  # passes [\d,]+ check? No — 'e' not matched. Use real match but broken replace.
 
@@ -436,7 +447,9 @@ class TestParseTaxHtml:
                 return bad
             return m
 
-        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect):
+        with patch(
+            "modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect
+        ):
             result = _parse_tax_html(html)
 
         assert isinstance(result["valuations"], list)
@@ -468,7 +481,9 @@ class TestParseTaxHtml:
                 return bad
             return m
 
-        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect):
+        with patch(
+            "modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect
+        ):
             result = _parse_tax_html(html)
 
         assert isinstance(result["valuations"], list)
@@ -500,7 +515,9 @@ class TestParseTaxHtml:
                 return bad
             return m
 
-        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect):
+        with patch(
+            "modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect
+        ):
             result = _parse_tax_html(html)
 
         assert isinstance(result["valuations"], list)
@@ -646,13 +663,17 @@ class TestPropertyTaxNationwideCrawlerScrape:
     async def test_found_true_with_valuations(self):
         """found=True when valuations list is non-empty."""
         crawler = self._make_crawler()
-        html = """
+        html = (
+            """
         <html><body>
         <table>
           <tr><th>Year</th><th>Tax</th></tr>
           <tr><td>2022</td><td>$4,500</td></tr>
         </table>
-        """ + "X" * 600 + "</body></html>"
+        """
+            + "X" * 600
+            + "</body></html>"
+        )
         resp = _mock_resp(status=200, text=html)
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):

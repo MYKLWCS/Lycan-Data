@@ -118,7 +118,9 @@ def _parse_price_history(history: list[dict]) -> list[dict[str, Any]]:
                     "owner_type": None,
                     "acquisition_date": date,
                     "disposition_date": None,
-                    "acquisition_price_usd": price if "sold" in event.lower() or "bought" in event.lower() else None,
+                    "acquisition_price_usd": price
+                    if "sold" in event.lower() or "bought" in event.lower()
+                    else None,
                     "acquisition_type": event,
                     "document_number": None,
                     "grantor": None,
@@ -209,10 +211,14 @@ def _parse_next_data(html: str) -> dict[str, Any]:
         details["has_pool"] = home.get("hasPool") or home.get("poolFeatures") is not None
         details["zoning"] = home.get("zoning")
         details["flood_zone"] = home.get("floodZoneDescription")
-        details["school_district"] = (home.get("schools") or [{}])[0].get("districtName") if home.get("schools") else None
+        details["school_district"] = (
+            (home.get("schools") or [{}])[0].get("districtName") if home.get("schools") else None
+        )
         details["current_assessed_value_usd"] = _money(home.get("assessorLastSalePrice"))
         details["current_market_value_usd"] = _money(home.get("zestimate"))
-        details["current_tax_annual_usd"] = _money(home.get("annualHomeownersInsurance"))  # best proxy available
+        details["current_tax_annual_usd"] = _money(
+            home.get("annualHomeownersInsurance")
+        )  # best proxy available
 
         # Last sale
         price_hist = home.get("priceHistory", [])
@@ -263,7 +269,13 @@ def _parse_next_data_fallback_regex(html: str) -> dict[str, Any]:
         m = re.search(pattern, html)
         if m:
             val = m.group(1)
-            if key in ("bedrooms", "sq_ft_living", "year_built", "current_market_value_usd", "last_sale_price_usd"):
+            if key in (
+                "bedrooms",
+                "sq_ft_living",
+                "year_built",
+                "current_market_value_usd",
+                "last_sale_price_usd",
+            ):
                 try:
                     details[key] = int(val)
                 except ValueError:

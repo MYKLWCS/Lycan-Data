@@ -552,7 +552,11 @@ class TestUpsertValuation:
         r.scalar_one_or_none.return_value = None
         session.execute = AsyncMock(return_value=r)
 
-        val_data = {"valuation_year": 2022, "valuation_source": "zillow", "market_value_usd": 300_000.0}
+        val_data = {
+            "valuation_year": 2022,
+            "valuation_source": "zillow",
+            "market_value_usd": 300_000.0,
+        }
         await enricher._upsert_valuation(session, uuid.uuid4(), val_data)
         session.add.assert_called_once()
 
@@ -672,7 +676,11 @@ class TestUpsertVessel:
         r.scalar_one_or_none.return_value = existing
         session.execute = AsyncMock(return_value=r)
 
-        v_data = {"mmsi": "123456789", "vessel_name": "Northern Star", "estimated_value_usd": 2_000_000.0}
+        v_data = {
+            "mmsi": "123456789",
+            "vessel_name": "Northern Star",
+            "estimated_value_usd": 2_000_000.0,
+        }
         result = await enricher._upsert_vessel(session, uuid.uuid4(), v_data)
         assert result is existing
         session.add.assert_not_called()

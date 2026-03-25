@@ -368,9 +368,7 @@ def test_parse_interpol_empty_data():
 def test_parse_interpol_no_nationality():
     data = {
         "_embedded": {
-            "notices": [
-                {"forename": "X", "name": "Y", "nationalities": [], "entity_id": "1"}
-            ]
+            "notices": [{"forename": "X", "name": "Y", "nationalities": [], "entity_id": "1"}]
         }
     }
     results = _parse_interpol(data)
@@ -378,11 +376,7 @@ def test_parse_interpol_no_nationality():
 
 
 def test_parse_interpol_missing_forename():
-    data = {
-        "_embedded": {
-            "notices": [{"name": "Surname", "nationalities": [], "entity_id": "2"}]
-        }
-    }
+    data = {"_embedded": {"notices": [{"name": "Surname", "nationalities": [], "entity_id": "2"}]}}
     results = _parse_interpol(data)
     assert results[0]["name"] == "Surname"
 
@@ -501,8 +495,8 @@ async def test_scrape_single_word_name_interpol_handling():
 
     # Called with (firstname, lastname) — single word → firstname="" (empty), lastname=encoded query
     args = mock_ip.call_args[0]
-    assert args[0] == ""           # single word → firstname empty
-    assert args[1] == "Mononym"    # encoded query becomes lastname
+    assert args[0] == ""  # single word → firstname empty
+    assert args[1] == "Mononym"  # encoded query becomes lastname
 
 
 # ---------------------------------------------------------------------------

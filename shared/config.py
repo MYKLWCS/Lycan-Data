@@ -45,9 +45,9 @@ class Settings(BaseSettings):
     enable_company_intel_crawl: bool = True
 
     # Third-party API keys (optional — crawlers fall back to scraping without these)
-    attom_api_key: str = ""          # ATTOM property data API
+    attom_api_key: str = ""  # ATTOM property data API
     opensanctions_api_key: str = ""  # OpenSanctions premium
-    opencorporates_api_key: str = "" # OpenCorporates
+    opencorporates_api_key: str = ""  # OpenCorporates
     marinetraffic_api_key: str = ""  # MarineTraffic AIS
 
     # Budget
@@ -65,20 +65,20 @@ class Settings(BaseSettings):
     # Proxy pool — residential (highest anonymity)
     residential_proxies: str = ""  # comma-separated: "http://user:pass@host:port,..."
     # Proxy pool — datacenter
-    datacenter_proxies: str = ""   # comma-separated
+    datacenter_proxies: str = ""  # comma-separated
 
     # Per-crawler proxy tier preference
     # Options: residential | datacenter | tor | direct
     default_proxy_tier: str = "tor"  # fallback tier if crawler doesn't specify
 
     # I2P (Invisible Internet Project) — alternative to Tor
-    i2p_socks: str = ""   # "socks5://127.0.0.1:4447" when I2P is running
+    i2p_socks: str = ""  # "socks5://127.0.0.1:4447" when I2P is running
     i2p_enabled: bool = False
 
     # Proxy timing & evasion
-    human_delay_min: float = 1.5   # seconds
+    human_delay_min: float = 1.5  # seconds
     human_delay_max: float = 6.0
-    jitter_enabled: bool = True     # add ±20% random jitter to delays
+    jitter_enabled: bool = True  # add ±20% random jitter to delays
     rotate_user_agent: bool = True
     rotate_tls_fingerprint: bool = True  # use curl-cffi impersonation
 

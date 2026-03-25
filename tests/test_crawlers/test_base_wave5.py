@@ -144,7 +144,9 @@ async def test_get_proxy_async_uses_preferred_tier_when_tor_enabled():
     crawler.proxy_tier = "residential"
 
     mock_pool = MagicMock()
-    mock_pool.next_with_fallback = AsyncMock(return_value=("http://residential.proxy:8080", "residential"))
+    mock_pool.next_with_fallback = AsyncMock(
+        return_value=("http://residential.proxy:8080", "residential")
+    )
 
     mock_settings = MagicMock()
     mock_settings.tor_enabled = True

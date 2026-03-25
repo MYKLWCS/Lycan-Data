@@ -211,9 +211,13 @@ if __name__ == "__main__":
         "--no-genealogy", action="store_true", help="Disable genealogy enricher daemon"
     )
     parser.add_argument("--no-audit", action="store_true", help="Disable audit daemon")
-    parser.add_argument("--no-property", action="store_true", help="Disable property enricher daemon")
+    parser.add_argument(
+        "--no-property", action="store_true", help="Disable property enricher daemon"
+    )
     parser.add_argument("--no-pep", action="store_true", help="Disable PEP enricher daemon")
-    parser.add_argument("--no-adverse-media", action="store_true", help="Disable adverse media daemon")
+    parser.add_argument(
+        "--no-adverse-media", action="store_true", help="Disable adverse media daemon"
+    )
     args = parser.parse_args()
 
     asyncio.run(

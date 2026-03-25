@@ -39,10 +39,7 @@ logger = logging.getLogger(__name__)
 # Netronline search endpoint
 # ---------------------------------------------------------------------------
 
-_NETRONLINE_SEARCH = (
-    "https://www.netronline.com/county_search.php"
-    "?state={state}&county={county}"
-)
+_NETRONLINE_SEARCH = "https://www.netronline.com/county_search.php?state={state}&county={county}"
 _NETRONLINE_BASE = "https://www.netronline.com"
 
 _BROWSER_HEADERS = {
@@ -63,23 +60,47 @@ _BROWSER_HEADERS = {
 
 _COUNTY_PORTALS: dict[tuple[str, str], str] = {
     # Texas
-    ("tx", "harris"): "https://hcad.org/hcad-resources/hcad-online-databases/hcad-real-property/?account={query}",
+    (
+        "tx",
+        "harris",
+    ): "https://hcad.org/hcad-resources/hcad-online-databases/hcad-real-property/?account={query}",
     ("tx", "dallas"): "https://www.dallascad.org/SearchAddr.aspx?addr={query}",
     ("tx", "tarrant"): "https://www.tad.org/property-search/?search_type=address&query={query}",
     ("tx", "bexar"): "https://www.bcad.org/propertysearch/?PropertySearch={query}",
-    ("tx", "travis"): "https://search.traviscad.org/results/?searchType=address&searchValue={query}",
+    (
+        "tx",
+        "travis",
+    ): "https://search.traviscad.org/results/?searchType=address&searchValue={query}",
     ("tx", "collin"): "https://www.collincad.org/propertysearch?AccountNumber={query}",
     ("tx", "denton"): "https://www.dentoncad.com/propertysearch?search={query}",
     # California
-    ("ca", "los angeles"): "https://portal.assessor.lacounty.gov/parcelsearch/search?search={query}",
-    ("ca", "alameda"): "https://www.acgov.org/ptax_pub_app/RealSearchInit.do?userAction=SEARCH&searchType=ADDR&searchAddr={query}",
-    ("ca", "san diego"): "https://arcc.co.san-diego.ca.us/onlinesvc/SearchParcel.aspx?address={query}",
+    (
+        "ca",
+        "los angeles",
+    ): "https://portal.assessor.lacounty.gov/parcelsearch/search?search={query}",
+    (
+        "ca",
+        "alameda",
+    ): "https://www.acgov.org/ptax_pub_app/RealSearchInit.do?userAction=SEARCH&searchType=ADDR&searchAddr={query}",
+    (
+        "ca",
+        "san diego",
+    ): "https://arcc.co.san-diego.ca.us/onlinesvc/SearchParcel.aspx?address={query}",
     ("ca", "orange"): "https://www.ocassessor.gov/asp/parcel.asp?address={query}",
-    ("ca", "riverside"): "https://assessor.rivcoda.org/internetasmt/search?criteria.ownerName={query}",
+    (
+        "ca",
+        "riverside",
+    ): "https://assessor.rivcoda.org/internetasmt/search?criteria.ownerName={query}",
     # Florida
-    ("fl", "miami-dade"): "https://www.miamidade.gov/Apps/PA/propertysearch/Results.asp?address={query}",
+    (
+        "fl",
+        "miami-dade",
+    ): "https://www.miamidade.gov/Apps/PA/propertysearch/Results.asp?address={query}",
     ("fl", "broward"): "https://www.bcpa.net/RecInfo.asp?URL_Folio=0000&URL_NAME=&URL_ADDR={query}",
-    ("fl", "palm beach"): "https://www.pbcgov.org/papa/Asps/PropertyDetail/PropertyDetail.aspx?parcel={query}",
+    (
+        "fl",
+        "palm beach",
+    ): "https://www.pbcgov.org/papa/Asps/PropertyDetail/PropertyDetail.aspx?parcel={query}",
     ("fl", "hillsborough"): "https://gis.hcpafl.org/propertysearch/#/nav/search?searchText={query}",
     ("fl", "pinellas"): "https://www.pcpao.org/search_res.php?qval={query}&searchType=addr",
     # New York
@@ -91,16 +112,31 @@ _COUNTY_PORTALS: dict[tuple[str, str], str] = {
     # Arizona
     ("az", "maricopa"): "https://mcassessor.maricopa.gov/mcs.php?q={query}",
     # Nevada
-    ("nv", "clark"): "https://www.clarkcountynv.gov/government/departments/assessor/property_search/index.php?search_str={query}",
+    (
+        "nv",
+        "clark",
+    ): "https://www.clarkcountynv.gov/government/departments/assessor/property_search/index.php?search_str={query}",
     # Washington
-    ("wa", "king"): "https://blue.kingcounty.com/Assessor/eRealProperty/default.aspx?search_type=address&search_str={query}",
+    (
+        "wa",
+        "king",
+    ): "https://blue.kingcounty.com/Assessor/eRealProperty/default.aspx?search_type=address&search_str={query}",
     # Georgia
-    ("ga", "fulton"): "https://iaspublicaccess.fultoncountyga.gov/ias/Subscribers/FultonCountyGA/1/AccountDatalet.aspx?AccountNumber={query}",
+    (
+        "ga",
+        "fulton",
+    ): "https://iaspublicaccess.fultoncountyga.gov/ias/Subscribers/FultonCountyGA/1/AccountDatalet.aspx?AccountNumber={query}",
     ("ga", "dekalb"): "https://www.qpublic.net/ga/dekalb/search.html?name={query}",
     # North Carolina
-    ("nc", "mecklenburg"): "https://polaris3g.mecklenburgcountync.gov/search/parcelsearch?s={query}",
+    (
+        "nc",
+        "mecklenburg",
+    ): "https://polaris3g.mecklenburgcountync.gov/search/parcelsearch?s={query}",
     # Colorado
-    ("co", "denver"): "https://www.denvergov.org/assessor/assessor/main/assessorAddress.aspx?addr={query}",
+    (
+        "co",
+        "denver",
+    ): "https://www.denvergov.org/assessor/assessor/main/assessorAddress.aspx?addr={query}",
     ("co", "arapahoe"): "https://www.arapahoegov.com/1297/Property-Search?search={query}",
 }
 
@@ -321,7 +357,9 @@ class NetronlinePublicCrawler(HttpxCrawler):
         prop["state"] = state
         prop["country"] = "US"
 
-        found = any(v for k, v in prop.items() if k not in ("county", "state", "country", "source_portal"))
+        found = any(
+            v for k, v in prop.items() if k not in ("county", "state", "country", "source_portal")
+        )
 
         return self._result(
             identifier,

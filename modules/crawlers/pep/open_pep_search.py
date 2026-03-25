@@ -25,8 +25,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _OPENSANCTIONS_SEARCH = (
-    "https://api.opensanctions.org/search/default"
-    "?q={query}&schema=Person&limit=50"
+    "https://api.opensanctions.org/search/default?q={query}&schema=Person&limit=50"
 )
 _INTERPOL_RED = (
     "https://ws-public.interpol.int/notices/v1/red"
@@ -35,19 +34,48 @@ _INTERPOL_RED = (
 
 # PEP tier classification keywords
 _TIER1_KEYWORDS = {
-    "president", "prime minister", "minister", "senator", "governor",
-    "parliament", "congress", "secretary of state", "foreign minister",
-    "head of state", "chairman", "director general", "central bank",
-    "supreme court", "chief justice", "ambassador", "general",
+    "president",
+    "prime minister",
+    "minister",
+    "senator",
+    "governor",
+    "parliament",
+    "congress",
+    "secretary of state",
+    "foreign minister",
+    "head of state",
+    "chairman",
+    "director general",
+    "central bank",
+    "supreme court",
+    "chief justice",
+    "ambassador",
+    "general",
 }
 _TIER2_KEYWORDS = {
-    "deputy", "assistant minister", "member of parliament", "mp",
-    "state-owned", "soe", "executive", "board member", "director",
-    "mayor", "councillor", "regional", "provincial",
+    "deputy",
+    "assistant minister",
+    "member of parliament",
+    "mp",
+    "state-owned",
+    "soe",
+    "executive",
+    "board member",
+    "director",
+    "mayor",
+    "councillor",
+    "regional",
+    "provincial",
 }
 _TIER3_KEYWORDS = {
-    "relative", "associate", "close associate", "family member",
-    "spouse", "child", "sibling", "parent",
+    "relative",
+    "associate",
+    "close associate",
+    "family member",
+    "spouse",
+    "child",
+    "sibling",
+    "parent",
 }
 
 _PEP_CATEGORY_MAP = {
@@ -151,10 +179,7 @@ def _parse_interpol(data: dict) -> list[dict[str, Any]]:
     "nationalities": [...], "entity_id": ..., ...}]}}
     """
     matches: list[dict[str, Any]] = []
-    notices = (
-        data.get("_embedded", {}).get("notices", [])
-        or data.get("notices", [])
-    )
+    notices = data.get("_embedded", {}).get("notices", []) or data.get("notices", [])
     for notice in notices:
         forename = notice.get("forename", "")
         surname = notice.get("name", "")
@@ -259,9 +284,7 @@ class OpenPepSearchCrawler(HttpxCrawler):
             logger.warning("OpenSanctions parse error: %s", exc)
             return []
 
-    async def _search_interpol(
-        self, firstname: str, lastname: str
-    ) -> list[dict[str, Any]]:
+    async def _search_interpol(self, firstname: str, lastname: str) -> list[dict[str, Any]]:
         url = _INTERPOL_RED.format(firstname=firstname, lastname=lastname)
         resp = await self.get(url, headers={"Accept": "application/json"})
         if resp is None or resp.status_code != 200:
