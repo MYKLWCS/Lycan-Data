@@ -476,6 +476,7 @@ a:hover { color: #5599ff; }
 .coverage-bar-wrap { background:var(--bg3); border-radius:4px; height:8px; overflow:hidden; margin:8px 0; }
 .coverage-bar { height:100%; background:var(--accent); border-radius:4px; transition:width 0.4s; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 </head>
 <body>
 <div class="classify-banner">
@@ -1226,6 +1227,11 @@ const App = {
     else if (hash === '#/dedup')      { document.getElementById('nav-dedup')?.classList.add('active');      this.renderDedup(); }
     else if (hash === '#/patterns')   { document.getElementById('nav-patterns')?.classList.add('active');   this.renderPatterns(); }
     else if (hash === '#/enrichment') { document.getElementById('nav-enrichment')?.classList.add('active'); this.renderEnrichment(); }
+    else if (hash.startsWith('#/persons/') && hash.includes('/tree')) {
+      document.getElementById('nav-persons')?.classList.add('active');
+      const parts = hash.split('/');
+      this.renderFamilyTree(parts[2]);
+    }
     else if (hash.startsWith('#/person/')) {
       document.getElementById('nav-persons')?.classList.add('active');
       this.renderPerson(hash.split('/')[2]);
@@ -2303,10 +2309,11 @@ const App = {
     actSection.appendChild(div('cc-rail-label','Actions'));
     const actions = div('cc-actions');
     [
-      { label:'View in Graph',   href:'#/graph?entity=person&q='+id },
-      { label:'Re-Enrich',       fn: ()=>{ apiPost('/persons/'+id+'/enrich',{}).catch(()=>{}); } },
-      { label:'Export Report',   fn: ()=>{ window.open('/persons/'+id+'/report','_blank'); } },
-      { label:'Flag for Review', fn: ()=>{ apiPost('/persons/'+id+'/flag',{}).catch(()=>{}); } },
+      { label:'View in Graph',    href:'#/graph?entity=person&q='+id },
+      { label:'View Family Tree', href:'#/persons/'+id+'/tree' },
+      { label:'Re-Enrich',        fn: ()=>{ apiPost('/persons/'+id+'/enrich',{}).catch(()=>{}); } },
+      { label:'Export Report',    fn: ()=>{ window.open('/persons/'+id+'/report','_blank'); } },
+      { label:'Flag for Review',  fn: ()=>{ apiPost('/persons/'+id+'/flag',{}).catch(()=>{}); } },
     ].forEach(a => {
       const btn = el('button','cc-action-btn', a.label);
       if (a.href) btn.onclick=()=>{ location.hash=a.href; };
@@ -2595,13 +2602,536 @@ const App = {
 
     const hdr = div('page-header');
     const left = div('');
-    left.append(div('page-title','Knowledge Graph'), div('page-sub','Company search, person networks, fraud ring detection'));
+    left.append(div('page-title','Knowledge Graph'), div('page-sub','Force-directed entity graph · 8 types · BFS path finder'));
     hdr.appendChild(left);
     this.root.appendChild(hdr);
 
-    // Section 1 — Company Search
-    const coCard = div('card');
-    const coHdr = div('card-header'); coHdr.appendChild(span('card-title','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Company Search'));
+    // ── Main layout: filter sidebar + SVG canvas ──────────────────────────
+    const layout = div('');
+    layout.style.cssText = 'display:flex;gap:16px;align-items:flex-start;';
+    this.root.appendChild(layout);
+
+    // ── Filter panel ──────────────────────────────────────────────────────
+    const filterPanel = div('card');
+    filterPanel.style.cssText = 'min-width:210px;max-width:210px;flex-shrink:0;';
+    const fpHdr = div('card-header'); fpHdr.appendChild(span('card-title','Filters'));
+    const fpBody = div('card-body');
+    fpBody.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+
+    // Entity type checkboxes
+    const entityTypes = [
+      {key:'person',  label:'Person'},
+      {key:'company', label:'Company'},
+      {key:'address', label:'Location'},
+      {key:'email',   label:'Email'},
+      {key:'phone',   label:'Phone'},
+      {key:'wallet',  label:'Wallet'},
+      {key:'domain',  label:'Domain'},
+    ];
+    const entityChecks = {};
+    const etGroup = div('');
+    const etLabel = div(''); etLabel.style.cssText='font-size:10px;font-weight:600;color:var(--text-mute);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;';
+    etLabel.textContent = 'Entity Types';
+    etGroup.appendChild(etLabel);
+    entityTypes.forEach(({key,label}) => {
+      const row = div(''); row.style.cssText='display:flex;align-items:center;gap:6px;margin:2px 0;';
+      const cb = el('input',''); cb.type='checkbox'; cb.checked=true; cb.id='et_'+key;
+      const lbl = el('label',''); lbl.htmlFor='et_'+key; lbl.textContent=label;
+      lbl.style.cssText='font-size:12px;cursor:pointer;color:var(--text);';
+      entityChecks[key] = cb;
+      row.append(cb, lbl);
+      etGroup.appendChild(row);
+    });
+    fpBody.appendChild(etGroup);
+
+    // Rel type checkboxes
+    const relTypes = [
+      {key:'social',            label:'Social'},
+      {key:'financial',         label:'Financial'},
+      {key:'geographic',        label:'Geographic'},
+      {key:'criminal',          label:'Criminal'},
+      {key:'shared-identifier', label:'Shared ID'},
+    ];
+    const relChecks = {};
+    const rtGroup = div('');
+    const rtLabel = div(''); rtLabel.style.cssText='font-size:10px;font-weight:600;color:var(--text-mute);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;margin-top:4px;';
+    rtLabel.textContent = 'Relationship Types';
+    rtGroup.appendChild(rtLabel);
+    relTypes.forEach(({key,label}) => {
+      const row = div(''); row.style.cssText='display:flex;align-items:center;gap:6px;margin:2px 0;';
+      const cb = el('input',''); cb.type='checkbox'; cb.checked=true; cb.id='rt_'+key;
+      const lbl = el('label',''); lbl.htmlFor='rt_'+key; lbl.textContent=label;
+      lbl.style.cssText='font-size:12px;cursor:pointer;color:var(--text);';
+      relChecks[key] = cb;
+      row.append(cb, lbl);
+      rtGroup.appendChild(row);
+    });
+    fpBody.appendChild(rtGroup);
+
+    // Min score slider
+    const scoreGroup = div('');
+    const scoreLabel = div(''); scoreLabel.style.cssText='font-size:10px;font-weight:600;color:var(--text-mute);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;margin-top:4px;';
+    scoreLabel.textContent = 'Min Edge Score';
+    const scoreVal = span('','0.0');
+    scoreVal.style.cssText='font-size:11px;color:var(--text-dim);margin-left:6px;';
+    const scoreSlider = el('input',''); scoreSlider.type='range'; scoreSlider.min=0; scoreSlider.max=1; scoreSlider.step=0.05; scoreSlider.value=0;
+    scoreSlider.style.cssText='width:100%;margin-top:4px;';
+    scoreSlider.addEventListener('input', () => { scoreVal.textContent = parseFloat(scoreSlider.value).toFixed(2); applyFilters(); });
+    scoreGroup.append(scoreLabel, scoreVal, scoreSlider);
+    fpBody.appendChild(scoreGroup);
+
+    // Text search
+    const searchGroup = div('');
+    const searchLabel = div(''); searchLabel.style.cssText='font-size:10px;font-weight:600;color:var(--text-mute);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;margin-top:4px;';
+    searchLabel.textContent = 'Search Label';
+    const searchInp = el('input','filter-input'); searchInp.placeholder='Filter by name…'; searchInp.style.cssText='width:100%;';
+    searchInp.addEventListener('input', applyFilters);
+    searchGroup.append(searchLabel, searchInp);
+    fpBody.appendChild(searchGroup);
+
+    // Load graph button
+    const loadBtn = el('button','btn primary','Load Graph');
+    loadBtn.style.cssText='width:100%;margin-top:8px;';
+    fpBody.appendChild(loadBtn);
+
+    filterPanel.append(fpHdr, fpBody);
+    layout.appendChild(filterPanel);
+
+    // ── SVG canvas ────────────────────────────────────────────────────────
+    const canvasWrap = div('card');
+    canvasWrap.style.cssText = 'flex:1;min-height:600px;position:relative;overflow:hidden;';
+    layout.appendChild(canvasWrap);
+
+    const svgEl = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svgEl.style.cssText = 'width:100%;height:600px;background:var(--bg2);border-radius:var(--radius);display:block;';
+    canvasWrap.appendChild(svgEl);
+
+    // Node side panel
+    const sidePanel = div('card');
+    sidePanel.style.cssText = 'position:absolute;right:12px;top:12px;width:200px;display:none;z-index:10;';
+    const sidePanelBody = div('card-body');
+    sidePanel.appendChild(sidePanelBody);
+    canvasWrap.appendChild(sidePanel);
+
+    // Context menu
+    const ctxMenu = div('');
+    ctxMenu.style.cssText = 'position:fixed;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:4px 0;display:none;z-index:100;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.5);';
+    document.body.appendChild(ctxMenu);
+    const ctxItems = [
+      {label:'Expand 1 hop',   action:'expand'},
+      {label:'Hide node',      action:'hide'},
+      {label:'Focus',          action:'focus'},
+      {label:'Find path to…',  action:'path'},
+    ];
+    ctxItems.forEach(({label,action}) => {
+      const item = div(''); item.textContent = label;
+      item.style.cssText='padding:7px 14px;font-size:12px;cursor:pointer;color:var(--text);transition:background .1s;';
+      item.dataset.action = action;
+      item.addEventListener('mouseenter', () => { item.style.background='var(--bg2)'; });
+      item.addEventListener('mouseleave', () => { item.style.background=''; });
+      ctxMenu.appendChild(item);
+    });
+    document.addEventListener('click', () => { ctxMenu.style.display='none'; }, {capture:true});
+
+    // ── D3 state ──────────────────────────────────────────────────────────
+    const ENTITY_COLORS = {
+      person:  '#1a6ef5',
+      company: '#805ad5',
+      address: '#d69e2e',
+      email:   '#00c48c',
+      phone:   '#38b2ac',
+      wallet:  '#e53e3e',
+      domain:  '#ed8936',
+      ip:      '#718096',
+    };
+    const EDGE_COLORS = {
+      social:              '#1a6ef5',
+      financial:           '#00c48c',
+      geographic:          '#d69e2e',
+      criminal:            '#e53e3e',
+      'shared-identifier': '#384a5c',
+    };
+
+    let allNodes = [], allEdges = [];
+    let visibleNodes = [], visibleEdges = [];
+    let pathNodeIds = new Set();
+    let shiftFirst = null;
+    let hiddenNodeIds = new Set();
+    let ctxTarget = null;
+    let worker = null;
+
+    const svg = d3.select(svgEl);
+    const svgW = () => svgEl.getBoundingClientRect().width || 900;
+    const svgH = () => svgEl.getBoundingClientRect().height || 600;
+
+    // Zoom/pan
+    const rootG = svg.append('g');
+    const zoom = d3.zoom().scaleExtent([0.05, 5]).on('zoom', (evt) => {
+      rootG.attr('transform', evt.transform);
+    });
+    svg.call(zoom);
+
+    // Layers
+    const edgeLayer = rootG.append('g').attr('class','edges');
+    const nodeLayer = rootG.append('g').attr('class','nodes');
+
+    // ── Shape drawing ──────────────────────────────────────────────────────
+    function drawShape(sel) {
+      sel.each(function(d) {
+        const g = d3.select(this);
+        g.selectAll('*').remove();
+        const col = ENTITY_COLORS[d.type] || '#718096';
+        switch(d.type) {
+          case 'person':
+            g.append('circle').attr('r',18).attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+          case 'company':
+            g.append('rect').attr('x',-14).attr('y',-14).attr('width',28).attr('height',28)
+             .attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+          case 'address': {
+            const s = 18;
+            g.append('polygon')
+             .attr('points', `0,${-s} ${s},0 0,${s} ${-s},0`)
+             .attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+          }
+          case 'email': {
+            const h = 20;
+            g.append('polygon')
+             .attr('points', `0,${-h} ${h*0.866},${h*0.5} ${-h*0.866},${h*0.5}`)
+             .attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+          }
+          case 'phone': {
+            const r = 16;
+            const pts = d3.range(6).map(i => {
+              const a = (Math.PI/3)*i - Math.PI/6;
+              return `${r*Math.cos(a)},${r*Math.sin(a)}`;
+            }).join(' ');
+            g.append('polygon').attr('points',pts)
+             .attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+          }
+          case 'wallet': {
+            const ro=16, ri=7;
+            const pts = d3.range(10).map(i => {
+              const a = (Math.PI/5)*i - Math.PI/2;
+              const r2 = i%2===0 ? ro : ri;
+              return `${r2*Math.cos(a)},${r2*Math.sin(a)}`;
+            }).join(' ');
+            g.append('polygon').attr('points',pts)
+             .attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+          }
+          case 'domain': {
+            const r2 = 15;
+            const pts2 = d3.range(8).map(i => {
+              const a = (Math.PI/4)*i - Math.PI/8;
+              return `${r2*Math.cos(a)},${r2*Math.sin(a)}`;
+            }).join(' ');
+            g.append('polygon').attr('points',pts2)
+             .attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+          }
+          case 'ip':
+          default:
+            g.append('circle').attr('r',10).attr('fill',col).attr('stroke','#0a0e14').attr('stroke-width',2);
+            break;
+        }
+        // Label
+        g.append('text')
+         .attr('y', 26).attr('text-anchor','middle')
+         .attr('font-size','10px').attr('fill','#8fa3b8')
+         .attr('pointer-events','none')
+         .text(d.label ? d.label.slice(0,18) : d.id.slice(0,12));
+      });
+    }
+
+    // ── Filter logic ──────────────────────────────────────────────────────
+    function applyFilters() {
+      const enabledTypes = new Set(Object.entries(entityChecks).filter(([,cb])=>cb.checked).map(([k])=>k));
+      const enabledRels  = new Set(Object.entries(relChecks).filter(([,cb])=>cb.checked).map(([k])=>k));
+      const minScore = parseFloat(scoreSlider.value);
+      const query = searchInp.value.trim().toLowerCase();
+
+      visibleNodes = allNodes.filter(n =>
+        !hiddenNodeIds.has(n.id) &&
+        enabledTypes.has(n.type) &&
+        (!query || (n.label||'').toLowerCase().includes(query))
+      );
+      const visNodeIds = new Set(visibleNodes.map(n=>n.id));
+      visibleEdges = allEdges.filter(e => {
+        const src = typeof e.source==='object' ? e.source.id : e.source;
+        const tgt = typeof e.target==='object' ? e.target.id : e.target;
+        if (!visNodeIds.has(src) || !visNodeIds.has(tgt)) return false;
+        const relKey = Object.keys(EDGE_COLORS).find(k => (e.type||'').toLowerCase().includes(k)) || 'social';
+        if (!enabledRels.has(relKey) && !enabledRels.has(e.type)) return false;
+        return (e.confidence || 0.5) >= minScore;
+      });
+      renderD3();
+    }
+
+    // ── D3 render ─────────────────────────────────────────────────────────
+    function renderD3() {
+      // Edges
+      const eSel = edgeLayer.selectAll('line.edge').data(visibleEdges, e => {
+        const s = typeof e.source==='object'?e.source.id:e.source;
+        const t = typeof e.target==='object'?e.target.id:e.target;
+        return s+'_'+t+'_'+e.type;
+      });
+      eSel.join(
+        enter => enter.append('line').attr('class','edge')
+          .attr('stroke', e => {
+            if (pathNodeIds.size) {
+              const s = typeof e.source==='object'?e.source.id:e.source;
+              const t = typeof e.target==='object'?e.target.id:e.target;
+              return (pathNodeIds.has(s)&&pathNodeIds.has(t)) ? '#f6c90e' : '#1e2a38';
+            }
+            const k = Object.keys(EDGE_COLORS).find(k2=>(e.type||'').toLowerCase().includes(k2));
+            return EDGE_COLORS[k] || '#253040';
+          })
+          .attr('stroke-width', e => Math.max(0.5, (e.confidence||0.5)*2.5))
+          .attr('opacity', 0.6),
+        update => update
+          .attr('stroke', e => {
+            if (pathNodeIds.size) {
+              const s = typeof e.source==='object'?e.source.id:e.source;
+              const t = typeof e.target==='object'?e.target.id:e.target;
+              return (pathNodeIds.has(s)&&pathNodeIds.has(t)) ? '#f6c90e' : '#1e2a38';
+            }
+            const k = Object.keys(EDGE_COLORS).find(k2=>(e.type||'').toLowerCase().includes(k2));
+            return EDGE_COLORS[k] || '#253040';
+          })
+          .attr('stroke-width', e => Math.max(0.5, (e.confidence||0.5)*2.5)),
+        exit => exit.remove()
+      );
+
+      // Nodes
+      const nSel = nodeLayer.selectAll('g.node').data(visibleNodes, n => n.id);
+      nSel.join(
+        enter => {
+          const g = enter.append('g').attr('class','node').style('cursor','pointer');
+          g.call(drawShape);
+          g.call(d3.drag()
+            .on('start', (evt, d) => {
+              if (worker) worker.postMessage({type:'pin', nodeId:d.id, x:evt.x, y:evt.y});
+            })
+            .on('drag', (evt, d) => {
+              d.fx = evt.x; d.fy = evt.y;
+              d3.select(evt.sourceEvent.target.closest('g.node')).attr('transform',`translate(${evt.x},${evt.y})`);
+              if (worker) worker.postMessage({type:'pin', nodeId:d.id, x:evt.x, y:evt.y});
+            })
+            .on('end', (_evt, _d) => {
+              // pin stays on release (drag = pin)
+            })
+          );
+          g.on('click', (evt, d) => {
+            if (evt.shiftKey) {
+              handleShiftClick(d);
+            } else {
+              showSidePanel(d);
+            }
+          });
+          g.on('dblclick', (evt, d) => {
+            evt.stopPropagation();
+            handleExpand(d);
+          });
+          g.on('contextmenu', (evt, d) => {
+            evt.preventDefault();
+            ctxTarget = d;
+            ctxMenu.style.left = evt.clientX+'px';
+            ctxMenu.style.top  = evt.clientY+'px';
+            ctxMenu.style.display = 'block';
+          });
+          return g;
+        },
+        update => update.call(drawShape),
+        exit => exit.remove()
+      );
+
+      // Path highlight dim
+      nodeLayer.selectAll('g.node').style('opacity', n => {
+        if (!pathNodeIds.size) return 1;
+        return pathNodeIds.has(n.id) ? 1 : 0.15;
+      });
+    }
+
+    // ── Worker tick → update positions ────────────────────────────────────
+    function applyTick(tickNodes) {
+      const posMap = {};
+      tickNodes.forEach(n => { posMap[n.id] = n; });
+      nodeLayer.selectAll('g.node').attr('transform', d => {
+        const p = posMap[d.id];
+        if (p) { d.x = p.x; d.y = p.y; }
+        return `translate(${d.x||0},${d.y||0})`;
+      });
+      edgeLayer.selectAll('line.edge')
+        .attr('x1', e => { const n = allNodes.find(n=>n.id===(typeof e.source==='object'?e.source.id:e.source)); return n ? n.x||0 : 0; })
+        .attr('y1', e => { const n = allNodes.find(n=>n.id===(typeof e.source==='object'?e.source.id:e.source)); return n ? n.y||0 : 0; })
+        .attr('x2', e => { const n = allNodes.find(n=>n.id===(typeof e.target==='object'?e.target.id:e.target)); return n ? n.x||0 : 0; })
+        .attr('y2', e => { const n = allNodes.find(n=>n.id===(typeof e.target==='object'?e.target.id:e.target)); return n ? n.y||0 : 0; });
+    }
+
+    // ── Side panel ────────────────────────────────────────────────────────
+    function showSidePanel(d) {
+      sidePanelBody.textContent = '';
+      const title = div(''); title.style.cssText='font-weight:600;font-size:13px;color:var(--text);margin-bottom:6px;';
+      title.textContent = d.label || d.id;
+      const typeBadge = span('tag muted', (d.type||'?').toUpperCase());
+      const risk = div(''); risk.style.cssText='font-size:11px;color:var(--text-dim);margin-top:4px;';
+      risk.textContent = 'Risk: '+(d.risk_score!=null ? Math.round(d.risk_score*100)+'%' : '—');
+      const openBtn = el('button','btn','Open full card');
+      openBtn.style.cssText='width:100%;margin-top:8px;font-size:11px;';
+      openBtn.addEventListener('click', () => {
+        if (d.type==='person') window.location.hash='#/profile/'+d.id;
+      });
+      sidePanelBody.append(title, typeBadge, risk, openBtn);
+      sidePanel.style.display = 'block';
+    }
+
+    // ── Context menu actions ───────────────────────────────────────────────
+    ctxMenu.querySelectorAll('[data-action]').forEach(item => {
+      item.addEventListener('click', async () => {
+        if (!ctxTarget) return;
+        const action = item.dataset.action;
+        ctxMenu.style.display='none';
+        if (action==='expand') await handleExpand(ctxTarget);
+        if (action==='hide') { hiddenNodeIds.add(ctxTarget.id); applyFilters(); }
+        if (action==='focus') {
+          const adj = new Set([ctxTarget.id]);
+          allEdges.forEach(e => {
+            const s=typeof e.source==='object'?e.source.id:e.source;
+            const t=typeof e.target==='object'?e.target.id:e.target;
+            if (s===ctxTarget.id) adj.add(t);
+            if (t===ctxTarget.id) adj.add(s);
+          });
+          hiddenNodeIds = new Set(allNodes.map(n=>n.id).filter(id=>!adj.has(id)));
+          applyFilters();
+        }
+        if (action==='path') {
+          shiftFirst = ctxTarget;
+          sidePanelBody.textContent='';
+          const hint=div(''); hint.style.cssText='font-size:11px;color:var(--yellow);';
+          hint.textContent='Now Shift+click a second node to find path';
+          sidePanelBody.appendChild(hint);
+          sidePanel.style.display='block';
+        }
+      });
+    });
+
+    // ── Shift+click shortest path ─────────────────────────────────────────
+    async function handleShiftClick(d) {
+      if (!shiftFirst) {
+        shiftFirst = d;
+        pathNodeIds.clear();
+        renderD3();
+        return;
+      }
+      if (shiftFirst.id === d.id) { shiftFirst=null; return; }
+      try {
+        const from = shiftFirst.id;
+        const to   = d.id;
+        shiftFirst = null;
+        const result = await apiGet(`/graph/path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&max_hops=6`);
+        if (result.path) {
+          pathNodeIds = new Set(result.path);
+          renderD3();
+          sidePanelBody.textContent='';
+          const info=div(''); info.style.cssText='font-size:12px;color:var(--green);margin-bottom:6px;';
+          info.textContent=`Path: ${result.path.length} nodes`;
+          const clearBtn=el('button','btn','Clear path'); clearBtn.style.cssText='width:100%;font-size:11px;';
+          clearBtn.addEventListener('click',()=>{ pathNodeIds.clear(); renderD3(); sidePanel.style.display='none'; });
+          sidePanelBody.append(info,clearBtn);
+          sidePanel.style.display='block';
+        } else {
+          sidePanelBody.textContent='';
+          const msg=div(''); msg.style.cssText='font-size:12px;color:var(--red);';
+          msg.textContent='No path found within 6 hops';
+          sidePanelBody.appendChild(msg);
+          sidePanel.style.display='block';
+        }
+      } catch(e) { console.error('path find failed',e); }
+    }
+
+    // ── Double-click expand ────────────────────────────────────────────────
+    async function handleExpand(d) {
+      try {
+        const rawId = d.id.replace(/^[^:]+:/, '');
+        const res = await apiGet(`/graph/entity/${d.type}/${encodeURIComponent(rawId)}/expand`);
+        const newNodes = res.nodes||[];
+        const newEdges = res.edges||[];
+        const existingIds = new Set(allNodes.map(n=>n.id));
+        newNodes.forEach(n => { if (!existingIds.has(n.id)) allNodes.push(n); });
+        newEdges.forEach(e => allEdges.push(e));
+        if (worker) {
+          worker.postMessage({type:'init', nodes:allNodes, edges:allEdges, width:svgW(), height:svgH()});
+        }
+        applyFilters();
+      } catch(e) { console.error('expand failed',e); }
+    }
+
+    // ── Load initial graph ─────────────────────────────────────────────────
+    async function loadGraph() {
+      loadBtn.disabled=true; loadBtn.textContent='Loading…';
+      try {
+        const [nd, ed] = await Promise.all([
+          apiGet('/graph/nodes?limit=500&offset=0&entity_types=person,company,address,email,phone'),
+          apiGet('/graph/edges?limit=1000&offset=0'),
+        ]);
+        allNodes = nd.nodes||[];
+        allEdges = ed.edges||[];
+
+        // Assign initial random positions
+        const w = svgW(), h = svgH();
+        allNodes.forEach(n => { n.x = Math.random()*w; n.y = Math.random()*h; });
+
+        // Start Web Worker
+        if (worker) worker.terminate();
+        worker = new Worker('/static/graph_worker.js');
+        worker.onmessage = (evt) => {
+          if (evt.data.type==='tick') applyTick(evt.data.nodes);
+        };
+        worker.postMessage({type:'init', nodes:allNodes, edges:allEdges, width:w, height:h});
+
+        applyFilters();
+
+        // "Load more" button
+        if ((nd.nodes||[]).length===500) {
+          const moreBtn=el('button','btn','Load next 500 nodes');
+          moreBtn.style.cssText='margin-top:10px;width:100%;';
+          moreBtn.addEventListener('click', async () => {
+            moreBtn.disabled=true;
+            const nd2 = await apiGet(`/graph/nodes?limit=500&offset=${allNodes.length}&entity_types=person,company,address,email,phone`);
+            const existing=new Set(allNodes.map(n=>n.id));
+            (nd2.nodes||[]).forEach(n=>{ if(!existing.has(n.id)) allNodes.push(n); });
+            worker.postMessage({type:'init', nodes:allNodes, edges:allEdges, width:svgW(), height:svgH()});
+            applyFilters();
+            if ((nd2.nodes||[]).length < 500) moreBtn.remove();
+            else moreBtn.disabled=false;
+          });
+          canvasWrap.appendChild(moreBtn);
+        }
+      } catch(e) {
+        canvasWrap.appendChild(span('red-txt','Failed to load graph: '+e.message));
+      } finally {
+        loadBtn.disabled=false; loadBtn.textContent='Reload Graph';
+      }
+    }
+
+    // Wire entity/rel checkboxes to live filter
+    Object.values(entityChecks).forEach(cb => cb.addEventListener('change', applyFilters));
+    Object.values(relChecks).forEach(cb => cb.addEventListener('change', applyFilters));
+    loadBtn.addEventListener('click', loadGraph);
+
+    // ── Legacy tool sections below graph canvas ────────────────────────────
+    this._renderGraphLegacyCards();
+  },
+
+  _renderGraphLegacyCards() {
+    // ── Section: Company Search ──────────────────────────────────────────
+    const coCard = div('card'); coCard.style.marginTop='16px';
+    const coHdr = div('card-header'); coHdr.appendChild(span('card-title','⬡ Company Search'));
     const coBody = div('card-body');
     const coBar = div('filter-bar');
     const coNameInp = el('input','filter-input'); coNameInp.placeholder='Company name…'; coNameInp.style.minWidth='220px';
@@ -2622,78 +3152,27 @@ const App = {
         coResults.textContent='';
         if (!d.companies || d.companies.length===0) { coResults.appendChild(div('dim','No companies found')); return; }
         d.companies.forEach(c => {
-          const card2 = div('card'); card2.style.marginBottom='10px';
-          const body2 = div('card-body');
-          const titleRow = div(''); titleRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px';
-          const nm = div('page-title'); nm.style.fontSize='14px'; nm.textContent=c.legal_name||'—';
-          const stBadge = span('status-pill '+(c.status==='ACTIVE'?'done':'failed'), (c.status||'—').toUpperCase());
-          titleRow.append(nm, stBadge);
-          const kv = div('kv-grid');
-          [['State',c.state||'—'],['Confidence',Math.round((c.confidence||0)*100)+'%'],['Officers',(c.officer_count||0)+' officers']].forEach(([k,v]) => {
-            const row2=div('kv-row'); const key=span('kv-key',k); const val=span('kv-val',v);
-            row2.append(key,val); kv.appendChild(row2);
+          const card2=div('card'); card2.style.marginBottom='10px';
+          const body2=div('card-body');
+          const titleRow=div(''); titleRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px';
+          const nm=div('page-title'); nm.style.fontSize='14px'; nm.textContent=c.legal_name||'—';
+          const stBadge=span('status-pill '+(c.status==='ACTIVE'?'done':'failed'),(c.status||'—').toUpperCase());
+          titleRow.append(nm,stBadge);
+          const kv=div('kv-grid');
+          [['State',c.state||'—'],['Confidence',Math.round((c.confidence||0)*100)+'%'],['Officers',(c.officer_count||0)+' officers']].forEach(([k,v])=>{
+            const row2=div('kv-row'); row2.append(span('kv-key',k),span('kv-val',v)); kv.appendChild(row2);
           });
-          body2.append(titleRow, kv);
-          card2.appendChild(body2);
-          coResults.appendChild(card2);
+          body2.append(titleRow,kv); card2.appendChild(body2); coResults.appendChild(card2);
         });
-      } catch(e) {
-        coResults.textContent=''; coResults.appendChild(span('red-txt','Failed: '+e.message));
-      } finally { coBtn.disabled=false; coBtn.textContent='Search'; }
+      } catch(e) { coResults.textContent=''; coResults.appendChild(span('red-txt','Failed: '+e.message)); }
+      finally { coBtn.disabled=false; coBtn.textContent='Search'; }
     };
     coBtn.addEventListener('click', doCoSearch);
-    coNameInp.addEventListener('keydown', e => { if(e.key==='Enter') doCoSearch(); });
+    coNameInp.addEventListener('keydown', e=>{ if(e.key==='Enter') doCoSearch(); });
 
-    // Section 2 — Person Network
-    const netCard = div('card'); netCard.style.marginTop='16px';
-    const netHdr = div('card-header'); netHdr.appendChild(span('card-title','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Person Network'));
-    const netBody = div('card-body');
-    const netBar = div('filter-bar');
-    const netPidInp = el('input','filter-input'); netPidInp.placeholder='Person ID…'; netPidInp.style.minWidth='260px';
-    const depthSel = el('select','filter-sel');
-    [['1','Depth 1'],['2','Depth 2'],['3','Depth 3']].forEach(([v,l]) => { const o=el('option','',l); o.value=v; depthSel.appendChild(o); });
-    const netBtn = el('button','btn primary','Build Graph');
-    netBar.append(netPidInp, span('filter-label','Depth'), depthSel, netBtn);
-    const netResults = div(''); netResults.style.marginTop='12px';
-    netBody.append(netBar, netResults);
-    netCard.append(netHdr, netBody);
-    this.root.appendChild(netCard);
-
-    netBtn.addEventListener('click', async () => {
-      const pid = netPidInp.value.trim(); if (!pid) return;
-      netBtn.disabled=true; netBtn.textContent='Building…';
-      netResults.textContent=''; netResults.appendChild(span('spinner'));
-      try {
-        const d = await apiGet('/graph/person/'+pid+'/network?depth='+depthSel.value);
-        netResults.textContent='';
-        const meta = div(''); meta.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
-        meta.textContent = (d.node_count||0)+' nodes · '+(d.edge_count||0)+' edges';
-        netResults.appendChild(meta);
-        const persons = (d.nodes||[]).filter(n => n.type==='person');
-        if (persons.length) {
-          const tbl=el('table','data-table');
-          const thead=el('tr','');
-          ['Name','Type','Risk Score'].forEach(h => { const th=el('th',''); th.textContent=h; thead.appendChild(th); });
-          tbl.appendChild(thead);
-          persons.forEach(n => {
-            const row=el('tr','');
-            const nm=el('td',''); nm.textContent=n.name||'—';
-            const tp=el('td',''); const tpTag=span('tag muted',(n.type||'—').toUpperCase()); tp.appendChild(tpTag);
-            const rs=el('td',''); rs.style.color=riskColor(n.risk_score||0); rs.textContent=n.risk_score!=null?Math.round(n.risk_score*100)+'%':'—';
-            row.append(nm,tp,rs); tbl.appendChild(row);
-          });
-          netResults.appendChild(tbl);
-        } else {
-          netResults.appendChild(div('dim','No person nodes in network'));
-        }
-      } catch(e) {
-        netResults.textContent=''; netResults.appendChild(span('red-txt','Failed: '+e.message));
-      } finally { netBtn.disabled=false; netBtn.textContent='Build Graph'; }
-    });
-
-    // Section 3 — Fraud Ring Detection
+    // ── Section: Fraud Ring Detection ────────────────────────────────────
     const frCard = div('card'); frCard.style.marginTop='16px';
-    const frHdr = div('card-header'); frHdr.appendChild(span('card-title','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Fraud Ring Detection'));
+    const frHdr = div('card-header'); frHdr.appendChild(span('card-title','⬡ Fraud Ring Detection'));
     const frBody = div('card-body');
     const frBar = div('filter-bar');
     const minConnSel = el('select','filter-sel');
@@ -2711,28 +3190,21 @@ const App = {
       try {
         const d = await apiPost('/graph/fraud-rings', {min_connections:parseInt(minConnSel.value,10)});
         frResults.textContent='';
-        const rings = d.rings||d.fraud_rings||[];
-        const meta = div(''); meta.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
-        meta.textContent = rings.length+' ring'+(rings.length!==1?'s':'')+' detected';
+        const rings=d.rings||d.fraud_rings||[];
+        const meta=div(''); meta.style.cssText='font-size:12px;color:var(--text-dim);margin-bottom:12px';
+        meta.textContent=rings.length+' ring'+(rings.length!==1?'s':'')+' detected';
         frResults.appendChild(meta);
-        rings.forEach((ring, i) => {
-          const rc = div('card'); rc.style.marginBottom='10px';
-          const rb = div('card-body');
-          const rl = div(''); rl.style.cssText='font-size:11px;font-weight:600;color:var(--red);margin-bottom:6px';
-          rl.textContent='Ring '+(i+1)+' · '+(ring.members||ring.nodes||[]).length+' members';
+        rings.forEach((ring,i)=>{
+          const rc=div('card'); rc.style.marginBottom='10px';
+          const rb=div('card-body');
+          const rl=div(''); rl.style.cssText='font-size:11px;font-weight:600;color:var(--red);margin-bottom:6px;';
+          rl.textContent='Ring '+(i+1)+' · '+(ring.persons||[]).length+' members';
           rb.appendChild(rl);
-          const row2 = div('tag-row');
-          (ring.members||ring.nodes||[]).forEach(m => {
-            const badge=span('tag red'); badge.textContent=m.name||m.person_id||String(m); row2.appendChild(badge);
-          });
-          rb.appendChild(row2);
           rc.appendChild(rb);
           frResults.appendChild(rc);
         });
-        if (!rings.length) frResults.appendChild(div('dim','No fraud rings detected at this threshold'));
-      } catch(e) {
-        frResults.textContent=''; frResults.appendChild(span('red-txt','Failed: '+e.message));
-      } finally { frBtn.disabled=false; frBtn.textContent='Detect'; }
+      } catch(e) { frResults.textContent=''; frResults.appendChild(span('red-txt','Failed: '+e.message)); }
+      finally { frBtn.disabled=false; frBtn.textContent='Detect'; }
     });
   },
 
