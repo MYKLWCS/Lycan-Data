@@ -5,6 +5,7 @@
             "name": "Lycan: Debug",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "auto-docstring: fix modified files",
             "module": "uvicorn",
             "args": [
                 "api.main:app",
@@ -28,6 +29,7 @@
             "name": "Lycan: Debug File",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "auto-docstring: fix modified files",
             "program": "${file}",
             "python": "${workspaceFolder}/.venv/bin/python",
             "pythonArgs": ["-Xfrozen_modules=off"],
@@ -45,6 +47,7 @@
             "name": "Lycan: Debug Tests",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "auto-docstring: fix modified files",
             "module": "pytest",
             "args": [
                 "${file}",
@@ -70,6 +73,7 @@
             "name": "Lycan: Debug All Tests",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "auto-docstring: fix modified files",
             "module": "pytest",
             "args": [
                 "tests/",
@@ -95,6 +99,7 @@
             "name": "Lycan: Debug All Tests MAX",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "auto-docstring: fix modified files",
             "module": "pytest",
             "args": [
                 "tests/",

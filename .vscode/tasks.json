@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "auto-docstring: fix modified files",
+            "type": "shell",
+            "command": "bash /home/wolf/.claude/scripts/auto_docstring.sh --scan ${workspaceFolder}",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false
+            },
+            "runOptions": {
+                "instanceLimit": 1
+            },
+            "problemMatcher": []
+        }
+    ]
+}

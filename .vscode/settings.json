@@ -1,4 +1,8 @@
 {
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000,
+    "editor.formatOnSave": false,
+
     "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
     "python.envFile": "${workspaceFolder}/.env",
     "python.analysis.extraPaths": [
@@ -28,5 +32,10 @@
             "uncaught": true,
             "userUnhandled": true
         }
+    ],
+    "debugpy.debugJustMyCode": false,
+    "python.analysis.ignore": [
+        "GeneratorExit",
+        "StopIteration"
     ]
 }
