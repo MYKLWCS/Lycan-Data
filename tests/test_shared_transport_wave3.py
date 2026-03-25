@@ -189,8 +189,9 @@ class TestTransportRegistryInMemoryFallback:
 
         await reg.record_blocked("nored.com")
 
-        # count stays 0 — no promotion, no memory update
-        assert reg._blocks["nored.com"] == 0
+        # Redis raised, falls back to in-memory increment → count is 1, below threshold
+        assert reg._blocks["nored.com"] == 1
+        # count=1 < threshold=3, no promotion
         mock_redis.get.assert_not_awaited()
 
     @pytest.mark.asyncio

@@ -36,13 +36,12 @@ def test_extract_pivots_valid_email_from_list():
     assert emails[0] == "alice@example.com"
 
 
-def test_extract_pivots_email_key_ignored_without_emails_list():
-    # When "emails" is not a list the entire email expression returns None —
-    # this is the actual behaviour of the ternary in the source.
+def test_extract_pivots_direct_email_field_extracted():
+    # After operator precedence fix, direct "email" key is extracted correctly.
     data = {"email": "alice@example.com"}
     result = _extract_pivots(data)
     emails = [v for t, v in result if t == "email"]
-    assert emails == []
+    assert emails == ["alice@example.com"]
 
 
 def test_extract_pivots_valid_phone():
