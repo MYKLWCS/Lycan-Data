@@ -2,42 +2,85 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "API Service",
+            "name": "Lycan: Debug",
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
             "args": [
                 "api.main:app",
                 "--host", "0.0.0.0",
-                "--port", "8000"
+                "--port", "8000",
+                "--reload"
             ],
-            "jinja": true,
-            "justMyCode": false,
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "pythonArgs": ["-Xfrozen_modules=off"],
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "DEBUG": "true"
+            },
             "cwd": "${workspaceFolder}",
-            "presentation": {
-                "hidden": true
-            }
+            "justMyCode": false,
+            "console": "integratedTerminal"
         },
         {
-            "name": "Worker Service",
+            "name": "Lycan: Debug File",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/worker.py",
-            "args": [
-                "--workers", "4"
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false,
+            "program": "${file}",
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "pythonArgs": ["-Xfrozen_modules=off"],
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
             "cwd": "${workspaceFolder}",
-            "presentation": {
-                "hidden": true
-            }
-        }
-    ],
-    "compounds": [
+            "justMyCode": false,
+            "console": "integratedTerminal"
+        },
         {
-            "name": "Lycan: Debug Everything (API & Worker)",
-            "configurations": ["API Service", "Worker Service"]
+            "name": "Lycan: Debug Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${file}",
+                "-v",
+                "--tb=short",
+                "--no-header",
+                "-x"
+            ],
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "pythonArgs": ["-Xfrozen_modules=off"],
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Lycan: Debug All Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "--ignore=tests/test_integration.py",
+                "-v",
+                "--tb=short",
+                "-x"
+            ],
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "pythonArgs": ["-Xfrozen_modules=off"],
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false,
+            "console": "integratedTerminal"
         }
     ]
 }
