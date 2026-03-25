@@ -442,7 +442,6 @@ class TestUsernameSherlock:
 
         with patch("asyncio.create_subprocess_exec", new=AsyncMock()) as mock_exec:
             mock_proc = MagicMock()
-            mock_proc.communicate = AsyncMock(side_effect=TimeoutError())
             mock_exec.return_value = mock_proc
             with patch("asyncio.wait_for", new=AsyncMock(side_effect=TimeoutError())):
                 result = await _check_sherlock_installed()

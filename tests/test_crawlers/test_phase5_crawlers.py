@@ -756,7 +756,7 @@ async def test_linkedin_extract_skills():
     skill_el_2.inner_text = AsyncMock(return_value="Machine Learning")
 
     mock_page.query_selector = AsyncMock(return_value=None)
-    mock_page.query_selector_all = AsyncMock(return_value=[skill_el_1, skill_el_2])
+    mock_page.query_selector_all = AsyncMock(side_effect=[[skill_el_1, skill_el_2], [], []])
 
     with patch.object(crawler, "page", return_value=mock_page):
         data = await crawler._extract(mock_page, "johndoe")
@@ -787,6 +787,9 @@ async def test_coverage_tracking_updates_person_meta():
         patch.object(orchestrator, "_run_burner", return_value=None),
         patch.object(orchestrator, "_run_relationship_score", return_value=None),
         patch.object(orchestrator, "_update_coverage", return_value=None) as mock_coverage,
+        patch.object(orchestrator, "_run_location", return_value=None),
+        patch.object(orchestrator, "_run_cascade", return_value=None),
+        patch.object(orchestrator, "_publish_completion", return_value=None),
     ):
         report = await orchestrator.enrich_person(person_id, mock_session)
 

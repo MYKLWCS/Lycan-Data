@@ -94,8 +94,7 @@ class TestDomainHarvesterCrawler:
     async def test_check_harvester_timeout(self):
         from modules.crawlers.domain_theharvester import _check_harvester_installed
 
-        fake_proc = AsyncMock()
-        fake_proc.communicate = AsyncMock(return_value=(b"", b""))
+        fake_proc = MagicMock()
         fake_proc.returncode = 0
 
         with (

@@ -128,7 +128,6 @@ class TestDomainHarvesterWave5:
 
         mock_proc = MagicMock()
         mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
 
         with patch(
             "modules.crawlers.domain_theharvester.asyncio.create_subprocess_exec",
@@ -155,7 +154,6 @@ class TestEmailHolehesWave5:
 
         mock_proc = MagicMock()
         mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
 
         with patch(
             "modules.crawlers.email_holehe.asyncio.create_subprocess_exec",
