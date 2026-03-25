@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lycan OSINT — Open Discovery</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+/* ── Discovery page layout ─────────────────────────────────────────────── */
+.page-header { margin-bottom: 28px; }
+.page-title  { font-family: var(--mono); font-size: 18px; font-weight: 700;
+               color: #e8eef5; letter-spacing: 0.08em; text-transform: uppercase;
+               margin-bottom: 4px; }
+.page-sub    { color: var(--text-dim); font-size: 13px; }
+
+/* ── Run Discovery bar ─────────────────────────────────────────────────── */
+.run-bar { display: flex; gap: 10px; margin-bottom: 24px; }
+.run-input { flex: 1; background: var(--bg2); border: 1px solid var(--border);
+             border-radius: var(--radius); color: var(--text); font-size: 14px;
+             font-family: var(--font); padding: 11px 16px; outline: none;
+             transition: border 0.15s; }
+.run-input:focus  { border-color: var(--accent); }
+.run-input::placeholder { color: var(--text-mute); }
+.run-btn  { background: var(--accent); border: none; border-radius: var(--radius);
+            color: #fff; font-size: 13px; font-weight: 600; font-family: var(--font);
+            padding: 0 22px; cursor: pointer; white-space: nowrap;
+            transition: background 0.15s; }
+.run-btn:hover    { background: var(--accent2); }
+.run-btn:disabled { opacity: 0.5; cursor: default; }
+.run-status { font-size: 12px; color: var(--text-dim); display: flex; align-items: center;
+              gap: 6px; padding: 0 12px; }
+.run-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-mute); }
+.run-dot.active { background: var(--accent); animation: pulse 1s infinite; }
+
+/* ── Stats strip ───────────────────────────────────────────────────────── */
+.stats-strip { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.sstat { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+         padding: 14px 20px; min-width: 120px; }
+.sstat-num   { font-family: var(--mono); font-size: 22px; font-weight: 700; color: #e8eef5; }
+.sstat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+               color: var(--text-dim); margin-top: 2px; }
+.sstat.pending .sstat-num  { color: var(--yellow); }
+.sstat.approved .sstat-num { color: var(--accent); }
+.sstat.rejected .sstat-num { color: var(--red); }
+.sstat.total .sstat-num    { color: #e8eef5; }
+
+/* ── Toolbar ───────────────────────────────────────────────────────────── */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px;
+           flex-wrap: wrap; }
+.filter-sel { background: var(--bg2); border: 1px solid var(--border);
+              border-radius: var(--radius); color: var(--text); font-size: 12px;
+              font-family: var(--font); padding: 7px 12px; cursor: pointer; outline: none; }
+.filter-sel:focus { border-color: var(--accent); }
+.bulk-btn { background: none; border: 1px solid var(--border2);
+            border-radius: var(--radius); color: var(--text-dim); font-size: 11px;
+            font-family: var(--font); padding: 6px 12px; cursor: pointer;
+            transition: all 0.15s; }
+.bulk-btn:hover { border-color: var(--accent); color: var(--accent); }
+.bulk-btn.approve { border-color: rgba(0,212,106,0.3); color: var(--accent); }
+.bulk-btn.reject  { border-color: rgba(255,23,68,0.3);  color: var(--red); }
+.bulk-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+.selected-badge { font-family: var(--mono); font-size: 11px; color: var(--accent);
+                  padding: 4px 10px; background: var(--accent-lo);
+                  border: 1px solid rgba(0,212,106,0.3); border-radius: var(--radius); }
+.spacer { flex: 1; }
+.pg-info { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
+.pg-btn  { background: none; border: 1px solid var(--border); border-radius: var(--radius);
+           color: var(--text-dim); font-size: 11px; padding: 5px 10px; cursor: pointer; }
+.pg-btn:hover    { border-color: var(--border2); color: var(--text); }
+.pg-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Source table ──────────────────────────────────────────────────────── */
+.src-table-wrap { background: var(--bg2); border: 1px solid var(--border);
+                  border-radius: var(--radius); overflow: hidden; }
+.src-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.src-table th { text-align: left; padding: 9px 14px; color: var(--text-mute);
+                font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+                text-transform: uppercase; border-bottom: 1px solid var(--border);
+                white-space: nowrap; background: var(--bg3); }
+.src-table td { padding: 10px 14px; border-bottom: 1px solid var(--border);
+                vertical-align: middle; }
+.src-table tr:last-child td { border-bottom: none; }
+.src-table tr:hover td { background: rgba(255,255,255,0.015); }
+.src-table tr.selected td { background: var(--accent-lo); }
+
+.col-check { width: 36px; }
+.col-name  { max-width: 200px; }
+.col-url   { max-width: 260px; }
+.col-cat   { width: 120px; }
+.col-tool  { width: 110px; }
+.col-qual  { width: 70px; text-align: center; }
+.col-risk  { width: 70px; }
+.col-status { width: 90px; }
+.col-act   { width: 140px; white-space: nowrap; }
+
+.src-name { font-weight: 600; color: #c9d6e3; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
+            display: block; }
+.src-url  { color: var(--accent); font-family: var(--mono); font-size: 10px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            display: block; max-width: 260px; text-decoration: none; }
+.src-url:hover { text-decoration: underline; }
+
+.cat-badge { display: inline-block; font-size: 9px; font-weight: 600;
+             letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px;
+             text-transform: uppercase; border: 1px solid var(--border);
+             color: var(--text-dim); background: var(--bg3); }
+.cat-badge.social       { color: #5599ff; border-color: rgba(85,153,255,0.3); background: rgba(85,153,255,0.07); }
+.cat-badge.professional { color: #06b6d4; border-color: rgba(6,182,212,0.3); background: rgba(6,182,212,0.07); }
+.cat-badge.court        { color: var(--yellow); border-color: rgba(255,171,0,0.3); background: var(--yellow-lo); }
+.cat-badge.government   { color: var(--yellow); border-color: rgba(255,171,0,0.3); background: var(--yellow-lo); }
+.cat-badge.criminal     { color: var(--red); border-color: rgba(255,23,68,0.3); background: var(--red-lo); }
+.cat-badge.business     { color: var(--purple); border-color: rgba(139,92,246,0.3); background: var(--purple-lo); }
+.cat-badge.subdomain    { color: var(--accent); border-color: rgba(0,212,106,0.3); background: var(--accent-lo); }
+.cat-badge.people_search{ color: #f97316; border-color: rgba(249,115,22,0.3); background: rgba(249,115,22,0.07); }
+.cat-badge.property     { color: #84cc16; border-color: rgba(132,204,22,0.3); background: rgba(132,204,22,0.07); }
+
+.tool-badge { font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+              background: var(--bg3); border: 1px solid var(--border);
+              padding: 2px 6px; border-radius: 3px; }
+
+.qual-bar-wrap { background: var(--bg3); border-radius: 3px; height: 4px;
+                 overflow: hidden; width: 52px; margin: 0 auto; }
+.qual-bar { height: 100%; border-radius: 3px; }
+
+.status-pill { display: inline-flex; align-items: center; gap: 4px;
+               font-size: 10px; font-weight: 600; padding: 3px 8px;
+               border-radius: 3px; letter-spacing: 0.04em; }
+.status-pill.pending  { color: var(--yellow); background: var(--yellow-lo);
+                        border: 1px solid rgba(255,171,0,0.25); }
+.status-pill.approved { color: var(--accent); background: var(--accent-lo);
+                        border: 1px solid rgba(0,212,106,0.25); }
+.status-pill.rejected { color: var(--red); background: var(--red-lo);
+                        border: 1px solid rgba(255,23,68,0.25); }
+
+.risk-lo  { color: var(--accent); }
+.risk-med { color: var(--yellow); }
+.risk-hi  { color: var(--red); }
+.risk-unk { color: var(--text-mute); }
+
+/* ── Row action buttons ─────────────────────────────────────────────────── */
+.row-btn { background: none; border: 1px solid var(--border); color: var(--text-dim);
+           font-size: 10px; font-family: var(--mono); padding: 3px 8px;
+           border-radius: 3px; cursor: pointer; transition: all 0.15s; }
+.row-btn:hover  { border-color: var(--border2); color: var(--text); }
+.row-btn.approve:hover { border-color: rgba(0,212,106,0.5); color: var(--accent); }
+.row-btn.reject:hover  { border-color: rgba(255,23,68,0.5);  color: var(--red); }
+.row-btn.build:hover   { border-color: rgba(139,92,246,0.5); color: var(--purple); }
+.row-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Detail drawer ──────────────────────────────────────────────────────── */
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+                  z-index: 100; display: none; }
+.drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 500px;
+          background: var(--bg2); border-left: 1px solid var(--border2);
+          z-index: 101; display: flex; flex-direction: column; overflow: hidden;
+          transform: translateX(100%); transition: transform 0.25s ease; }
+.drawer.open { transform: translateX(0); }
+.drawer-header { display: flex; align-items: center; justify-content: space-between;
+                 padding: 18px 22px; border-bottom: 1px solid var(--border); }
+.drawer-title  { font-family: var(--mono); font-size: 13px; font-weight: 700;
+                 color: #e8eef5; text-transform: uppercase; letter-spacing: 0.07em; }
+.drawer-close  { background: none; border: none; color: var(--text-dim);
+                 font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.drawer-close:hover { color: var(--text); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 22px; display: flex;
+               flex-direction: column; gap: 18px; }
+.drawer-section-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;
+                        color: var(--text-mute); margin-bottom: 8px; font-weight: 600; }
+.drawer-url { font-family: var(--mono); font-size: 11px; color: var(--accent);
+              word-break: break-all; }
+.drawer-url a { color: inherit; text-decoration: none; }
+.drawer-url a:hover { text-decoration: underline; }
+pre.code-block { background: var(--bg); border: 1px solid var(--border);
+                 border-radius: var(--radius); padding: 12px; font-size: 10px;
+                 font-family: var(--mono); line-height: 1.7; overflow-x: auto;
+                 color: var(--text); white-space: pre-wrap; word-break: break-all;
+                 max-height: 300px; }
+.drawer-actions { display: flex; flex-direction: column; gap: 10px; }
+.drawer-actions input, .drawer-actions select {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-size: 12px; font-family: var(--font); padding: 8px 12px;
+  outline: none; width: 100%; }
+.drawer-actions input:focus, .drawer-actions select:focus { border-color: var(--accent); }
+.drawer-actions label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+                        color: var(--text-mute); margin-bottom: 4px; display: block; }
+.btn-row { display: flex; gap: 8px; }
+.btn-approve { background: var(--accent); border: none; border-radius: var(--radius);
+               color: #fff; font-size: 12px; font-weight: 600; font-family: var(--font);
+               padding: 9px 18px; cursor: pointer; flex: 1; transition: background 0.15s; }
+.btn-approve:hover { background: var(--accent2); }
+.btn-reject  { background: none; border: 1px solid var(--red); border-radius: var(--radius);
+               color: var(--red); font-size: 12px; font-weight: 600; font-family: var(--font);
+               padding: 9px 18px; cursor: pointer; flex: 1; transition: all 0.15s; }
+.btn-reject:hover { background: var(--red-lo); }
+.btn-build   { background: var(--purple-lo); border: 1px solid rgba(139,92,246,0.4);
+               border-radius: var(--radius); color: var(--purple); font-size: 12px;
+               font-weight: 600; font-family: var(--font); padding: 9px 18px;
+               cursor: pointer; width: 100%; transition: all 0.15s; }
+.btn-build:hover { background: rgba(139,92,246,0.15); }
+.btn-build:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg3);
+         border: 1px solid var(--border2); border-radius: var(--radius);
+         padding: 12px 18px; font-size: 12px; color: var(--text);
+         z-index: 200; opacity: 0; transform: translateY(8px);
+         transition: all 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.ok    { border-color: rgba(0,212,106,0.5); color: var(--accent); }
+.toast.error { border-color: rgba(255,23,68,0.5);  color: var(--red); }
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.empty { text-align: center; padding: 60px 20px; color: var(--text-mute); }
+.empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.4; }
+.empty-msg  { font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">LYCAN</span>
+    </div>
+    <nav style="padding: 12px 0;">
+      <a class="nav-item" href="/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 21H3V3h7M14 3h7v18h-7M14 3v18"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="/ui/graph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h5M14 6.5l-2 4M14 17.5l-2-4"/></svg>
+        Knowledge Graph
+      </a>
+      <a class="nav-item active" href="/ui/discovery">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35M11 8v6M8 11h6"/></svg>
+        Open Discovery
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="status-row">
+        <span class="dot" id="sidebar-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text-mute);flex-shrink:0;"></span>
+        <span id="sidebar-status">Review Queue</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+    <div class="page-header">
+      <div class="page-title">Open Discovery — Review Queue</div>
+      <div class="page-sub">Track 2: SpiderFoot · Amass · theHarvester · Sherlock · Maigret · Google Dorking · crt.sh · Common Crawl · Wayback Machine</div>
+    </div>
+
+    <!-- Run Discovery -->
+    <div class="run-bar">
+      <input id="run-query" class="run-input" type="text"
+             placeholder="Search target: person name, domain, username, email…">
+      <div class="run-status"><span class="run-dot" id="run-dot"></span><span id="run-label">Ready</span></div>
+      <button class="run-btn" id="run-btn" onclick="runDiscovery()">Run Discovery</button>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="stats-strip" id="stats-strip">
+      <div class="sstat total">  <div class="sstat-num" id="stat-total">—</div>  <div class="sstat-label">Total Discovered</div></div>
+      <div class="sstat pending"><div class="sstat-num" id="stat-pending">—</div><div class="sstat-label">Pending Review</div></div>
+      <div class="sstat approved"><div class="sstat-num" id="stat-approved">—</div><div class="sstat-label">Approved</div></div>
+      <div class="sstat rejected"><div class="sstat-num" id="stat-rejected">—</div><div class="sstat-label">Rejected</div></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <select class="filter-sel" id="filter-status" onchange="reload()">
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="all">All</option>
+      </select>
+      <select class="filter-sel" id="filter-category" onchange="reload()">
+        <option value="">All Categories</option>
+        <option value="social">Social</option>
+        <option value="professional">Professional</option>
+        <option value="court">Court</option>
+        <option value="government">Government</option>
+        <option value="criminal">Criminal</option>
+        <option value="business">Business</option>
+        <option value="people_search">People Search</option>
+        <option value="property">Property</option>
+        <option value="subdomain">Subdomain</option>
+        <option value="web">Web</option>
+        <option value="archive">Archive</option>
+      </select>
+      <select class="filter-sel" id="filter-tool" onchange="reload()">
+        <option value="">All Tools</option>
+        <option value="Amass">Amass</option>
+        <option value="theHarvester">theHarvester</option>
+        <option value="Sherlock">Sherlock</option>
+        <option value="Maigret">Maigret</option>
+        <option value="GoogleDork">Google Dork</option>
+        <option value="crt.sh">crt.sh</option>
+        <option value="CommonCrawl">Common Crawl</option>
+        <option value="Wayback">Wayback</option>
+        <option value="SpiderFoot">SpiderFoot</option>
+      </select>
+      <span class="selected-badge" id="sel-badge" style="display:none">0 selected</span>
+      <button class="bulk-btn approve" id="bulk-approve" onclick="bulkAction('approve')" disabled>Bulk Approve</button>
+      <button class="bulk-btn reject"  id="bulk-reject"  onclick="bulkAction('reject')"  disabled>Bulk Reject</button>
+      <span class="spacer"></span>
+      <span class="pg-info" id="pg-info"></span>
+      <button class="pg-btn" id="pg-prev" onclick="prevPage()" disabled>‹ Prev</button>
+      <button class="pg-btn" id="pg-next" onclick="nextPage()">Next ›</button>
+    </div>
+
+    <!-- Source table -->
+    <div class="src-table-wrap">
+      <table class="src-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
+            <th class="col-name">Source / Name</th>
+            <th class="col-url">URL</th>
+            <th class="col-cat">Category</th>
+            <th class="col-tool">Discovered By</th>
+            <th class="col-qual">Quality</th>
+            <th class="col-risk">Legal Risk</th>
+            <th class="col-status">Status</th>
+            <th class="col-act">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="src-tbody">
+          <tr><td colspan="9"><div class="empty"><div class="empty-icon">◎</div><div class="empty-msg">Loading…</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- ── Detail Drawer ── -->
+<div class="drawer-overlay" id="overlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <span class="drawer-title" id="drawer-title">Source Detail</span>
+    <button class="drawer-close" onclick="closeDrawer()">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+let _offset     = 0;
+const _limit    = 50;
+let _total      = 0;
+let _selected   = new Set();
+let _currentId  = null;
+
+/* ── API helpers ─────────────────────────────────────────────────────────── */
+const API = '/discovery';
+const KEY = localStorage.getItem('lycan_api_key') || '';
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'X-API-Key': KEY, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+function toast(msg, cls = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + cls;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'toast'; }, 3200);
+}
+
+/* ── Stats ───────────────────────────────────────────────────────────────── */
+async function loadStats() {
+  try {
+    const s = await apiFetch('/stats');
+    document.getElementById('stat-total').textContent    = s.total ?? 0;
+    document.getElementById('stat-pending').textContent  = s.by_status?.pending  ?? 0;
+    document.getElementById('stat-approved').textContent = s.by_status?.approved ?? 0;
+    document.getElementById('stat-rejected').textContent = s.by_status?.rejected ?? 0;
+    const dot = document.getElementById('sidebar-dot');
+    dot.style.background = s.by_status?.pending > 0 ? 'var(--yellow)' : 'var(--accent)';
+    document.getElementById('sidebar-status').textContent =
+      s.by_status?.pending > 0 ? `${s.by_status.pending} pending` : 'Queue clear';
+  } catch { /* silent */ }
+}
+
+/* ── Main table load ─────────────────────────────────────────────────────── */
+async function reload() {
+  _offset = 0;
+  _selected.clear();
+  updateBulkBar();
+  await loadPage();
+}
+
+async function loadPage() {
+  const status   = document.getElementById('filter-status').value;
+  const category = document.getElementById('filter-category').value;
+  const tool     = document.getElementById('filter-tool').value;
+
+  let qs = `?status=${status}&limit=${_limit}&offset=${_offset}`;
+  if (category) qs += `&category=${encodeURIComponent(category)}`;
+  if (tool)     qs += `&discovered_by=${encodeURIComponent(tool)}`;
+
+  const tbody = document.getElementById('src-tbody');
+  tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon" style="font-size:18px;animation:pulse 1s infinite">◎</div><div class="empty-msg">Loading…</div></div></td></tr>';
+
+  try {
+    const data = await apiFetch('/sources' + qs);
+    _total = data.total;
+    renderTable(data.sources);
+    updatePagination();
+    loadStats();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-msg" style="color:var(--red)">${e.message}</div></div></td></tr>`;
+  }
+}
+
+function renderTable(sources) {
+  const tbody = document.getElementById('src-tbody');
+  if (!sources || !sources.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">◎</div><div class="empty-msg">No sources in this queue.</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sources.map(s => {
+    const qPct   = Math.round((s.data_quality_estimate || 0) * 100);
+    const qColor = qPct >= 70 ? 'var(--accent)' : qPct >= 40 ? 'var(--yellow)' : 'var(--red)';
+    const riskCls = { low: 'risk-lo', medium: 'risk-med', high: 'risk-hi' }[s.legal_risk] || 'risk-unk';
+    const selCls  = _selected.has(s.id) ? ' selected' : '';
+    const cat     = (s.category || 'web').replace(/[^a-z_]/g, '_');
+
+    return `
+    <tr class="${selCls}" data-id="${s.id}">
+      <td class="col-check"><input type="checkbox" class="row-check" data-id="${s.id}" ${_selected.has(s.id) ? 'checked' : ''} onchange="toggleRow(this)"></td>
+      <td class="col-name">
+        <span class="src-name" title="${esc(s.name)}">${esc(s.name)}</span>
+        ${s.data_types?.length ? `<span style="font-size:9px;color:var(--text-mute)">${esc(s.data_types.slice(0,3).join(', '))}</span>` : ''}
+      </td>
+      <td class="col-url"><a class="src-url" href="${esc(s.url)}" target="_blank" title="${esc(s.url)}">${esc(s.url)}</a></td>
+      <td class="col-cat"><span class="cat-badge ${cat}">${esc(s.category || 'web')}</span></td>
+      <td class="col-tool"><span class="tool-badge">${esc(s.discovered_by)}</span></td>
+      <td class="col-qual">
+        <div class="qual-bar-wrap"><div class="qual-bar" style="width:${qPct}%;background:${qColor}"></div></div>
+        <span style="font-size:9px;font-family:var(--mono);color:var(--text-dim)">${qPct}%</span>
+      </td>
+      <td class="col-risk"><span class="${riskCls}" style="font-size:11px;font-weight:600">${esc(s.legal_risk)}</span></td>
+      <td class="col-status"><span class="status-pill ${s.status}">${s.status}</span></td>
+      <td class="col-act">
+        <button class="row-btn" onclick="openDrawer('${s.id}')">Detail</button>
+        ${s.status === 'pending' ? `
+          <button class="row-btn approve" onclick="quickApprove('${s.id}')">✓</button>
+          <button class="row-btn reject"  onclick="quickReject('${s.id}')">✗</button>
+        ` : ''}
+        ${s.status === 'approved' && !s.crawler_template ? `
+          <button class="row-btn build" onclick="buildCrawler('${s.id}')">Build</button>
+        ` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+function updatePagination() {
+  const from = _offset + 1;
+  const to   = Math.min(_offset + _limit, _total);
+  document.getElementById('pg-info').textContent = _total ? `${from}–${to} of ${_total}` : '0 results';
+  document.getElementById('pg-prev').disabled = _offset === 0;
+  document.getElementById('pg-next').disabled = _offset + _limit >= _total;
+}
+
+function prevPage() { if (_offset > 0) { _offset -= _limit; loadPage(); } }
+function nextPage() { if (_offset + _limit < _total) { _offset += _limit; loadPage(); } }
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+function toggleRow(cb) {
+  const id = cb.dataset.id;
+  if (cb.checked) _selected.add(id); else _selected.delete(id);
+  const row = cb.closest('tr');
+  if (row) row.classList.toggle('selected', cb.checked);
+  updateBulkBar();
+}
+
+function toggleAll(master) {
+  document.querySelectorAll('.row-check').forEach(cb => {
+    cb.checked = master.checked;
+    const id = cb.dataset.id;
+    if (master.checked) _selected.add(id); else _selected.delete(id);
+    const row = cb.closest('tr');
+    if (row) row.classList.toggle('selected', master.checked);
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const n = _selected.size;
+  const badge = document.getElementById('sel-badge');
+  badge.style.display = n > 0 ? '' : 'none';
+  badge.textContent = `${n} selected`;
+  document.getElementById('bulk-approve').disabled = n === 0;
+  document.getElementById('bulk-reject').disabled  = n === 0;
+}
+
+/* ── Quick row actions ───────────────────────────────────────────────────── */
+async function quickApprove(id) {
+  try {
+    await apiFetch(`/sources/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes: '', reliability_tier: 'C' }),
+    });
+    toast('Approved');
+    loadPage();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function quickReject(id) {
+  try {
+    await apiFetch(`/sources/${id}/reject`, { method: 'POST', body: JSON.stringify({ notes: '' }) });
+    toast('Rejected');
+    loadPage();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function buildCrawler(id) {
+  try {
+    const res = await apiFetch(`/sources/${id}/build-crawler`, { method: 'POST' });
+    toast('Crawler template generated');
+    openDrawer(id);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ── Bulk actions ────────────────────────────────────────────────────────── */
+async function bulkAction(action) {
+  if (!_selected.size) return;
+  try {
+    await apiFetch('/sources/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ source_ids: [..._selected], action, reliability_tier: 'C' }),
+    });
+    toast(`${action === 'approve' ? 'Approved' : 'Rejected'} ${_selected.size} sources`);
+    _selected.clear();
+    document.getElementById('check-all').checked = false;
+    updateBulkBar();
+    loadPage();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ── Run Discovery ───────────────────────────────────────────────────────── */
+async function runDiscovery() {
+  const q = document.getElementById('run-query').value.trim();
+  if (!q) { toast('Enter a search query first', 'error'); return; }
+
+  const btn = document.getElementById('run-btn');
+  const dot = document.getElementById('run-dot');
+  const lbl = document.getElementById('run-label');
+
+  btn.disabled = true;
+  dot.classList.add('active');
+  lbl.textContent = 'Running…';
+
+  try {
+    await apiFetch('/run', { method: 'POST', body: JSON.stringify({ query: q }) });
+    lbl.textContent = 'Queued — results appear shortly';
+    toast(`Discovery queued for: "${q}"`);
+    setTimeout(() => { loadPage(); loadStats(); }, 5000);
+  } catch (e) {
+    toast(e.message, 'error');
+    lbl.textContent = 'Error';
+  } finally {
+    btn.disabled = false;
+    dot.classList.remove('active');
+    setTimeout(() => { lbl.textContent = 'Ready'; }, 8000);
+  }
+}
+
+/* ── Detail Drawer ───────────────────────────────────────────────────────── */
+async function openDrawer(id) {
+  _currentId = id;
+  document.getElementById('overlay').style.display = 'block';
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-body').innerHTML = '<div style="color:var(--text-mute);text-align:center;padding:40px">Loading…</div>';
+  document.getElementById('drawer-title').textContent = 'Source Detail';
+
+  try {
+    const s = await apiFetch(`/sources/${id}`);
+    renderDrawer(s);
+  } catch (e) {
+    document.getElementById('drawer-body').innerHTML = `<div style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function renderDrawer(s) {
+  document.getElementById('drawer-title').textContent = s.name || 'Source Detail';
+  const qPct = Math.round((s.data_quality_estimate || 0) * 100);
+
+  const kv = (label, val) =>
+    `<div style="display:flex;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="min-width:130px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute)">${label}</span>
+      <span style="font-size:12px;color:var(--text);word-break:break-all">${val}</span>
+    </div>`;
+
+  const crawlerSection = s.crawler_template
+    ? `<div>
+        <div class="drawer-section-label">Generated Crawler</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px">
+          File: <code style="color:var(--accent)">${esc(s.crawler_template.file_path || '')}</code>
+        </div>
+        <pre class="code-block">${esc(s.crawler_template.source_code || JSON.stringify(s.crawler_template, null, 2))}</pre>
+       </div>`
+    : '';
+
+  const rawSection = s.raw_context && Object.keys(s.raw_context).length
+    ? `<div>
+        <div class="drawer-section-label">Raw Context</div>
+        <pre class="code-block">${esc(JSON.stringify(s.raw_context, null, 2))}</pre>
+       </div>`
+    : '';
+
+  const actionsSection = s.status === 'pending'
+    ? `<div class="drawer-actions">
+        <div class="drawer-section-label">Review Decision</div>
+        <div>
+          <label>Reliability Tier</label>
+          <select id="d-tier">
+            <option value="A">A — Highly reliable (95%+)</option>
+            <option value="B">B — Reliable (80%)</option>
+            <option value="C" selected>C — Moderate (65%)</option>
+            <option value="D">D — Low (50%)</option>
+            <option value="E">E — Very low (35%)</option>
+            <option value="F">F — Unreliable</option>
+          </select>
+        </div>
+        <div>
+          <label>Notes</label>
+          <input type="text" id="d-notes" placeholder="Optional approval / rejection notes…">
+        </div>
+        <div class="btn-row">
+          <button class="btn-approve" onclick="drawerApprove()">Approve</button>
+          <button class="btn-reject"  onclick="drawerReject()">Reject</button>
+        </div>
+        ${!s.crawler_template ? `<button class="btn-build" onclick="drawerBuild()" id="d-build-btn" disabled>
+          Build Crawler Template (approve first)
+        </button>` : ''}
+      </div>`
+    : s.status === 'approved'
+    ? `<div class="drawer-actions">
+        ${!s.crawler_template
+          ? `<button class="btn-build" onclick="drawerBuild()">Generate Crawler Template</button>`
+          : `<div style="font-size:11px;color:var(--accent)">✓ Crawler template generated</div>`
+        }
+       </div>`
+    : '';
+
+  document.getElementById('drawer-body').innerHTML = `
+    <div>
+      <div class="drawer-section-label">URL</div>
+      <div class="drawer-url"><a href="${esc(s.url)}" target="_blank">${esc(s.url)}</a></div>
+    </div>
+    <div>
+      ${kv('Category',   `<span class="cat-badge ${(s.category||'web').replace(/[^a-z_]/g,'_')}">${esc(s.category||'web')}</span>`)}
+      ${kv('Discovered By', `<span class="tool-badge">${esc(s.discovered_by)}</span>`)}
+      ${kv('Query',      esc(s.discovery_query || '—'))}
+      ${kv('Quality',    `${qPct}%`)}
+      ${kv('Legal Risk', esc(s.legal_risk))}
+      ${kv('Data Types', esc((s.data_types||[]).join(', ') || '—'))}
+      ${kv('Status',     `<span class="status-pill ${s.status}">${s.status}</span>`)}
+      ${s.reliability_tier ? kv('Reliability', `Tier ${s.reliability_tier}`) : ''}
+      ${s.approval_notes   ? kv('Notes',       esc(s.approval_notes)) : ''}
+      ${s.crawl_success_rate != null ? kv('Crawl Success', `${Math.round(s.crawl_success_rate * 100)}%`) : ''}
+      ${s.total_records_harvested ? kv('Records Harvested', s.total_records_harvested) : ''}
+    </div>
+    ${rawSection}
+    ${crawlerSection}
+    ${actionsSection}
+  `;
+}
+
+async function drawerApprove() {
+  if (!_currentId) return;
+  const tier  = document.getElementById('d-tier')?.value || 'C';
+  const notes = document.getElementById('d-notes')?.value || '';
+  try {
+    await apiFetch(`/sources/${_currentId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes, reliability_tier: tier }),
+    });
+    toast('Source approved');
+    closeDrawer();
+    loadPage();
+    loadStats();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function drawerReject() {
+  if (!_currentId) return;
+  const notes = document.getElementById('d-notes')?.value || '';
+  try {
+    await apiFetch(`/sources/${_currentId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    toast('Source rejected');
+    closeDrawer();
+    loadPage();
+    loadStats();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function drawerBuild() {
+  if (!_currentId) return;
+  try {
+    await apiFetch(`/sources/${_currentId}/build-crawler`, { method: 'POST' });
+    toast('Crawler template generated');
+    openDrawer(_currentId);  // refresh drawer
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').style.display = 'none';
+  _currentId = null;
+}
+
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ── Init ────────────────────────────────────────────────────────────────── */
+loadPage();
+loadStats();
+setInterval(loadStats, 30000);  // refresh stats every 30s
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+FROM python:3.12-slim
+
+# System deps for Playwright, curl-cffi, spaCy, and asyncpg
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    wget \
+    git \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libatspi2.0-0 \
+    libx11-6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Poetry
+RUN pip install --no-cache-dir poetry==1.8.2
+
+# Copy dependency files first (Docker cache layer)
+COPY pyproject.toml poetry.lock* ./
+
+# Install Python dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-root
+
+# Install spaCy model and Playwright browsers
+RUN python -m spacy download en_core_web_lg \
+    && playwright install chromium --with-deps
+
+# Copy application source
+COPY . .
+
+EXPOSE 8000

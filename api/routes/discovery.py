@@ -140,8 +140,8 @@ async def trigger_discovery(
         raise HTTPException(400, "query must not be empty")
 
     async def _bg():
-        from shared.db import async_session_factory
-        async with async_session_factory() as bg_session:
+        from shared.db import AsyncSessionLocal
+        async with AsyncSessionLocal() as bg_session:
             try:
                 summary = await run_discovery(
                     body.query.strip(),

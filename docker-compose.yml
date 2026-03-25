@@ -1,6 +1,24 @@
 version: "3.9"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Lycan-Data — full infrastructure stack
+# ─────────────────────────────────────────────────────────────────────────────
+# Services:
+#   postgres    PostgreSQL 18 + Apache AGE (graph) + pgvector
+#   garnet      Microsoft Garnet (Redis-compatible cache / queue)
+#   meilisearch Full-text search for persons (sub-ms)
+#   typesense   Alternate search engine / vector hybrid search
+#   qdrant      Vector database for ML-based embeddings & dedup
+#   pulsar      Apache Pulsar — high-throughput event streaming
+#   tor-1/2/3   Tor proxy pool (3 independent circuits)
+#   flaresolverr Cloudflare JS-challenge solver
+#   api         FastAPI application server
+#   worker      Background workers (dispatcher, ingest, dedup, enrich)
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
+
+  # ── PostgreSQL + Apache AGE + pgvector ───────────────────────────────────
   postgres:
     build:
       context: .
@@ -19,30 +37,94 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
-  dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+  # ── Garnet (Redis-compatible, replaces Dragonfly) ─────────────────────────
+  garnet:
+    image: ghcr.io/microsoft/garnet:latest
     ulimits:
       memlock: -1
     volumes:
-      - dragonfly_data:/data
+      - garnet_data:/data
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -p 6379 ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
+  # ── MeiliSearch (full-text + filter search) ───────────────────────────────
   meilisearch:
     image: getmeili/meilisearch:latest
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      MEILI_ENV: production
     volumes:
       - meili_data:/meili_data
     ports:
       - "7700:7700"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7700/health | grep -q available"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
+  # ── Typesense (hybrid search / vector support) ────────────────────────────
+  typesense:
+    image: typesense/typesense:27.0
+    command: >
+      --data-dir /data
+      --api-key ${TYPESENSE_API_KEY:-changeme}
+      --listen-port 8108
+      --enable-cors
+    volumes:
+      - typesense_data:/data
+    ports:
+      - "8108:8108"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8108/health | grep -q ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Qdrant (vector database) ──────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"   # HTTP / REST
+      - "6334:6334"   # gRPC
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz | grep -q ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Apache Pulsar (event streaming / message bus) ─────────────────────────
+  pulsar:
+    image: apachepulsar/pulsar:3.3.0
+    command: bin/pulsar standalone
+    environment:
+      PULSAR_MEM: "-Xms512m -Xmx1g"
+    volumes:
+      - pulsar_data:/pulsar/data
+    ports:
+      - "6650:6650"   # broker
+      - "8082:8080"   # admin
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/admin/v2/clusters | grep -q standalone"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+    restart: unless-stopped
+
+  # ── Tor proxy instances (3 independent circuits) ──────────────────────────
   tor-1:
     image: dperson/torproxy:latest
     environment:
@@ -51,6 +133,7 @@ services:
     ports:
       - "9050:9050"
       - "9051:9051"
+    restart: unless-stopped
 
   tor-2:
     image: dperson/torproxy:latest
@@ -60,6 +143,7 @@ services:
     ports:
       - "9052:9050"
       - "9053:9051"
+    restart: unless-stopped
 
   tor-3:
     image: dperson/torproxy:latest
@@ -69,7 +153,9 @@ services:
     ports:
       - "9054:9050"
       - "9055:9051"
+    restart: unless-stopped
 
+  # ── FlareSolverr (Cloudflare / JS challenge bypass) ───────────────────────
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     environment:
@@ -86,7 +172,80 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ── API server ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    command: >
+      uvicorn api.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+      --proxy-headers
+      --log-level info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lycan}
+      DRAGONFLY_URL: redis://garnet:6379/0
+      MEILI_URL: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-changeme}
+      SECRET_KEY: ${SECRET_KEY}
+      API_KEYS: ${API_KEYS}
+      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD}
+      TOR1_SOCKS: socks5://tor-1:9050
+      TOR2_SOCKS: socks5://tor-2:9050
+      TOR3_SOCKS: socks5://tor-3:9050
+      FLARESOLVERR_URL: http://flaresolverr:8191
+      LOG_LEVEL: info
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      garnet:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/system/health | grep -q ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Background workers ────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    command: python worker.py --workers 4
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lycan}
+      DRAGONFLY_URL: redis://garnet:6379/0
+      MEILI_URL: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD}
+      TOR1_SOCKS: socks5://tor-1:9050
+      TOR1_CONTROL_PORT: "9051"
+      TOR2_SOCKS: socks5://tor-2:9050
+      TOR2_CONTROL_PORT: "9053"
+      TOR3_SOCKS: socks5://tor-3:9050
+      TOR3_CONTROL_PORT: "9055"
+      FLARESOLVERR_URL: http://flaresolverr:8191
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      garnet:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
-  dragonfly_data:
+  garnet_data:
   meili_data:
+  typesense_data:
+  qdrant_data:
+  pulsar_data:
