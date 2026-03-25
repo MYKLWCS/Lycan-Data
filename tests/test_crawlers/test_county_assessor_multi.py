@@ -1203,12 +1203,15 @@ class TestGenericTableParseBranchGaps:
         return _generic_table_parse(soup, state, county)
 
     def test_type_use_column_sets_property_type(self):
-        """Arc 568->544: 'type' or 'use' column header is present and non-empty —
-        elif branch at line 568 is True, property_type is set, then loop continues."""
+        """Arc 568->544: the elif chain at line 568 is the LAST elif. When a subsequent
+        column header does NOT match any elif condition, execution falls through the entire
+        elif chain to the next for-loop iteration (arc 568->544 — all elifs False)."""
+        # 'use code' matches elif at 568 (True), then 'misc_extra' matches nothing —
+        # the elif chain is exhausted (568->544) for the 'misc_extra' column.
         html = (
             "<table>"
-            "<tr><th>parcel</th><th>owner</th><th>use code</th></tr>"
-            "<tr><td>P-001</td><td>Jane Doe</td><td>SFR</td></tr>"
+            "<tr><th>parcel number</th><th>use code</th><th>misc extra</th></tr>"
+            "<tr><td>P-001</td><td>SFR</td><td>ignored</td></tr>"
             "</table>"
         )
         parcels = self._fn(html)

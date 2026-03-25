@@ -130,6 +130,7 @@ def _extract_viewstate(html: str) -> dict[str, str]:
 
 _parse_faa_html = _parse_airmen_html  # alias
 
+
 @register("public_faa")
 class PublicFAACrawler(HttpxCrawler):
     """

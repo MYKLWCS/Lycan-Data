@@ -60,19 +60,23 @@ def test_parse_profile_no_name_tag():
     assert data["bio"] == "Just a bio"
 
 
-# --- _parse_profile branch: "follower" label hit (88→81) ---
-def test_parse_profile_follower_stat_branch():
+# --- _parse_profile branch: label matches none of tweet/following/follower (88→81) ---
+def test_parse_profile_unknown_stat_label():
+    """Branch 88→81: label doesn't match 'tweet', 'following', or 'follower' — elif chain all False."""
     from bs4 import BeautifulSoup
 
     crawler = TwitterCrawler.__new__(TwitterCrawler)
-    # Only a "Followers" stat — exercises the elif "follower" branch at line 88
+    # Label "likes" matches none of the 3 elif conditions → 88→81 False branch taken
     html = """<html><body>
-      <div class="profile-stat-num">999</div>
-      <div class="profile-stat-header">Followers</div>
+      <div class="profile-stat-num">42</div>
+      <div class="profile-stat-header">Likes</div>
     </body></html>"""
     soup = BeautifulSoup(html, "html.parser")
     data = crawler._parse_profile(soup, "user")
-    assert data["follower_count"] == 999
+    # None of the known stat keys should be set
+    assert "post_count" not in data
+    assert "following_count" not in data
+    assert "follower_count" not in data
 
 
 # --- _parse_tweets branches (110→112, 113→115, 116→121, 119→117, 121→107) ---

@@ -1037,17 +1037,18 @@ class TestParseNnumberHtmlBranchGaps:
 
     def test_dt_without_dd_sibling_is_skipped(self):
         """Arc 254->251: <dt> exists but has no following <dd> sibling (if dd: is False).
+        The dt must appear AFTER all dd elements so find_next_sibling('dd') returns None.
         Loop continues to next <dt> without storing anything in data."""
         html = """
         <html><body>
         <dl>
-          <dt>Orphan Label No DD</dt>
           <dt>Name:</dt><dd>Valid Owner</dd>
+          <dt>Trailing Label With No Following DD</dt>
         </dl>
         </body></html>
         """
         results = self._fn(html)
-        # The dt without dd is skipped; the dt with dd is processed normally
+        # The trailing dt (no following dd) is skipped; the earlier dt+dd is processed
         assert len(results) == 1
         assert results[0]["owner_name"] == "Valid Owner"
 

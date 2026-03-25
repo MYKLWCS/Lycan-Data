@@ -873,19 +873,20 @@ def test_parse_mt_html_script_without_mmsi_keyword_not_processed():
 
 
 def test_parse_mt_html_script_mmsi_present_but_no_regex_match():
-    """Arc 110->117: script contains 'mmsi' keyword but re.search finds no JSON array match
-    (if match: is False) → skips json.loads, executes break → fallback table path."""
-    # Text has 'mmsi' but no bracket-wrapped object matching the regex pattern
+    """Arc 110->117: script contains literal '"mmsi"' string so the outer if-check at line 104
+    is True, but re.search finds no JSON array matching the pattern (if match: is False)
+    — skips json.loads, executes break directly at line 117."""
+    # The script contains the exact string '"mmsi"' (with double-quotes) so line 104 is True,
+    # but there is no [...] array literal with an opening { for the regex to capture
     html = """
     <html><body>
     <script>
-    // mmsi is mentioned in a comment only, no array literal follows
-    var config = {"mmsi_enabled": true};
+    var config = {"key": "mmsi", "value": 12345};
     </script>
     </body></html>
     """
     vessels = _parse_marinetraffic_html(html)
-    # No valid array extracted, no table either → empty list
+    # Regex finds no array match → if match: is False → break, no table either → empty list
     assert isinstance(vessels, list)
 
 

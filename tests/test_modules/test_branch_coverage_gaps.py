@@ -1009,47 +1009,56 @@ def test_branch_score_pair_empty_name_skips_jw():
     # Score may still be non-zero from other signals, but JW contribution is 0
 
 
-# [970,980] — score_person_dedup: dob is None → birth_year block skipped
+# Shared helpers for score_person_dedup tests
+def _sp_scalar(val):
+    rm = MagicMock()
+    rm.scalar_one_or_none.return_value = val
+    return rm
+
+
+def _sp_scalars(items):
+    sm = MagicMock()
+    sm.all.return_value = items
+    rm = MagicMock()
+    rm.scalars.return_value = sm
+    return rm
+
+
+def _sp_fetchall(rows):
+    rm = MagicMock()
+    rm.fetchall.return_value = rows
+    return rm
+
+
+# [970,980] — score_person_dedup: dob IS set but birth_year is non-digit → skip by_stmt
 @pytest.mark.asyncio
-async def test_branch_score_person_dedup_no_dob():
+async def test_branch_score_person_dedup_nondigt_birth_year():
     """
-    Line 970: `if dob:` is False — target person has no dob → birth_year block skipped.
+    Line 970: `if birth_year.isdigit():` is False.
+    dob is truthy (enters if dob: at 968), but str(dob)[:4] is non-digit.
+    Using a MagicMock dob whose str() begins with non-digit characters.
     """
     from modules.enrichers.deduplication import score_person_dedup
 
     person_id = str(uuid.uuid4())
     pid_uuid = uuid.UUID(person_id)
 
+    # A dob MagicMock that str() gives a non-digit prefix
+    dob_mock = MagicMock()
+    dob_mock.__str__ = MagicMock(return_value="XXXX-bad-dob")
+
     target = MagicMock()
     target.id = pid_uuid
-    target.dob = None  # triggers False branch at line 970
-    target.full_name = "Test Person"
-
-    def _scalar_one_or_none(val):
-        rm = MagicMock()
-        rm.scalar_one_or_none.return_value = val
-        return rm
-
-    def _scalars_result(items):
-        sm = MagicMock()
-        sm.all.return_value = items
-        rm = MagicMock()
-        rm.scalars.return_value = sm
-        return rm
-
-    def _fetchall(rows):
-        rm = MagicMock()
-        rm.fetchall.return_value = rows
-        rm.scalars.return_value.all.return_value = []
-        return rm
+    target.dob = dob_mock  # truthy → enters `if dob:`, but str()[:4]="XXXX" → not digit
+    target.full_name = ""  # skip full_name block
 
     session = AsyncMock()
     session.execute = AsyncMock(
         side_effect=[
-            _scalar_one_or_none(target),  # person lookup
-            _scalars_result([]),  # identifiers (no phones)
-            _fetchall([]),  # last_name lookup
-            _scalars_result([]),  # candidate persons fetch
+            _sp_scalar(target),
+            _sp_scalars([]),  # identifiers
+            # No by_stmt (birth_year not digit), no full_name block, no phones
+            # candidate_ids empty → return []
         ]
     )
     session.add = MagicMock()
@@ -1058,7 +1067,38 @@ async def test_branch_score_person_dedup_no_dob():
     assert isinstance(result, list)
 
 
-# [981,994] — score_person_dedup: full_name is empty → soundex block skipped
+# Bonus: cover the True branch (dob with digit birth_year → by_stmt fires)
+@pytest.mark.asyncio
+async def test_branch_score_person_dedup_with_valid_dob():
+    """
+    Lines 969-977: `if dob:` is True and `birth_year.isdigit()` is True → by_stmt executed.
+    """
+    from modules.enrichers.deduplication import score_person_dedup
+
+    person_id = str(uuid.uuid4())
+    pid_uuid = uuid.UUID(person_id)
+
+    target = MagicMock()
+    target.id = pid_uuid
+    target.dob = date(1985, 6, 15)  # str()[:4] = "1985" (digits)
+    target.full_name = ""  # skip full_name block
+
+    session = AsyncMock()
+    session.execute = AsyncMock(
+        side_effect=[
+            _sp_scalar(target),
+            _sp_scalars([]),  # identifiers
+            _sp_fetchall([]),  # by_stmt fetchall (birth_year IS digit)
+            # No full_name block (empty), no phones, candidate_ids empty → return []
+        ]
+    )
+    session.add = MagicMock()
+
+    result = await score_person_dedup(person_id, session)
+    assert isinstance(result, list)
+
+
+# [981,994] — score_person_dedup: full_name is empty/None → soundex block skipped
 @pytest.mark.asyncio
 async def test_branch_score_person_dedup_empty_full_name():
     """
@@ -1072,31 +1112,14 @@ async def test_branch_score_person_dedup_empty_full_name():
     target = MagicMock()
     target.id = pid_uuid
     target.dob = None
-    target.full_name = ""  # empty → triggers False branch at 981
-
-    def _scalar_one_or_none(val):
-        rm = MagicMock()
-        rm.scalar_one_or_none.return_value = val
-        return rm
-
-    def _scalars_result(items):
-        sm = MagicMock()
-        sm.all.return_value = items
-        rm = MagicMock()
-        rm.scalars.return_value = sm
-        return rm
-
-    def _fetchall(rows):
-        rm = MagicMock()
-        rm.fetchall.return_value = rows
-        return rm
+    target.full_name = ""  # empty string → getattr gives "" or "" = "" → falsy at 981
 
     session = AsyncMock()
     session.execute = AsyncMock(
         side_effect=[
-            _scalar_one_or_none(target),
-            _scalars_result([]),  # identifiers
-            _scalars_result([]),  # candidate persons
+            _sp_scalar(target),
+            _sp_scalars([]),  # identifiers — no phones
+            # No full_name block, no phone_prefix block, candidate_ids empty → return []
         ]
     )
     session.add = MagicMock()
@@ -1105,15 +1128,13 @@ async def test_branch_score_person_dedup_empty_full_name():
     assert isinstance(result, list)
 
 
-# [984,994] — score_person_dedup: last_name is empty after split → soundex/ln query skipped
+# [984,994] — score_person_dedup: whitespace full_name → last_name is empty → ln query skipped
 @pytest.mark.asyncio
-async def test_branch_score_person_dedup_single_token_name_no_empty_last():
+async def test_branch_score_person_dedup_whitespace_name_empty_last():
     """
-    Line 984: `if last_name:` — full_name is a non-empty single token.
-    last_name = parts[-1] which equals the single token — this IS non-empty.
-    We need full_name that reduces to empty last_name: technically impossible with split().
-    So we cover the variant where full_name has a real last_name token.
-    This test ensures the last_name IS set (line 984 True branch exercised).
+    Line 984: `if last_name:` is False.
+    full_name='  ' is truthy (passes `if full_name:`), strip().split() returns []
+    so last_name='' → False branch → jump to 994 (phone_prefix loop).
     """
     from modules.enrichers.deduplication import score_person_dedup
 
@@ -1123,32 +1144,18 @@ async def test_branch_score_person_dedup_single_token_name_no_empty_last():
     target = MagicMock()
     target.id = pid_uuid
     target.dob = None
-    target.full_name = "Zorro"  # single token → last_name = "Zorro" (truthy)
-
-    def _scalar_one_or_none(val):
-        rm = MagicMock()
-        rm.scalar_one_or_none.return_value = val
-        return rm
-
-    def _scalars_result(items):
-        sm = MagicMock()
-        sm.all.return_value = items
-        rm = MagicMock()
-        rm.scalars.return_value = sm
-        return rm
-
-    def _fetchall(rows):
-        rm = MagicMock()
-        rm.fetchall.return_value = rows
-        return rm
+    # Whitespace-only: truthy but produces empty last_name after split
+    # getattr returns "   ", then "   " or "" = "   " (truthy) → enters `if full_name:` block
+    # parts = "   ".strip().split() = [] → last_name = "" (falsy) → skips ln_stmt at 987
+    target.full_name = "   "
 
     session = AsyncMock()
     session.execute = AsyncMock(
         side_effect=[
-            _scalar_one_or_none(target),
-            _scalars_result([]),  # identifiers
-            _fetchall([]),  # last_name ilike query
-            _scalars_result([]),  # candidate persons
+            _sp_scalar(target),
+            _sp_scalars([]),  # identifiers — no phones
+            # No dob block, full_name truthy but last_name empty → no ln_stmt
+            # No phone_prefix block → candidate_ids empty → return []
         ]
     )
     session.add = MagicMock()
@@ -1401,3 +1408,204 @@ async def test_branch_education_no_start_but_graduated():
     assert "education_start" not in event_types
     # education_graduation SHOULD be present
     assert "education_graduation" in event_types
+
+
+# =============================================================================
+# Additional: company_intel.py remaining gaps
+# =============================================================================
+
+
+# [154] — search_company: state filter removes ALL rows → return []
+@pytest.mark.asyncio
+async def test_branch_search_company_state_filter_empties_all_rows():
+    """
+    Line 154: `if not rows:` is True after state filtering → return [].
+    """
+    emp = MagicMock()
+    emp.employer_name = "TX Only Corp"
+    emp.person_id = uuid.uuid4()
+    emp.job_title = None
+    emp.is_current = False
+    emp.location = "Dallas, TX"
+    emp.meta = {}
+
+    session = AsyncMock()
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = [emp]
+    session.execute = AsyncMock(return_value=result_mock)
+
+    engine = CompanyIntelligenceEngine()
+    # Filter for CA state — emp.location is "Dallas, TX" → excluded → rows empty
+    records = await engine.search_company("TX Only Corp", "CA", session)
+    assert records == []
+
+
+# [222] — get_company_network: emp row with None person_id → continue
+@pytest.mark.asyncio
+async def test_branch_get_company_network_none_person_id_skipped():
+    """
+    Line 222: `if not pid:` is True → continue (row with no person_id skipped).
+    """
+    emp_null = MagicMock()
+    emp_null.person_id = None  # triggers `if not pid: continue`
+    emp_null.job_title = "Director"
+    emp_null.is_current = True
+
+    def _scalars_result(items):
+        sm = MagicMock()
+        sm.all.return_value = items
+        rm = MagicMock()
+        rm.scalars.return_value = sm
+        return rm
+
+    session = AsyncMock()
+    session.execute = AsyncMock(
+        side_effect=[
+            _scalars_result([emp_null]),  # employment (person_id=None)
+            # No person query since person_ids set is empty
+        ]
+    )
+
+    engine = CompanyIntelligenceEngine()
+    network = await engine.get_company_network("NullCo", session)
+    # Only company node, no person nodes
+    person_nodes = [n for n in network["nodes"] if n["type"] == "person"]
+    assert len(person_nodes) == 0
+
+
+# [242-251] — get_company_network: multiple persons → relationship query fires
+@pytest.mark.asyncio
+async def test_branch_get_company_network_multi_person_relationships():
+    """
+    Lines 242-251: `if len(person_ids) > 1:` is True → relationship query executed.
+    """
+    pid_a = uuid.uuid4()
+    pid_b = uuid.uuid4()
+
+    emp_a = MagicMock()
+    emp_a.person_id = pid_a
+    emp_a.job_title = "CEO"
+    emp_a.is_current = True
+
+    emp_b = MagicMock()
+    emp_b.person_id = pid_b
+    emp_b.job_title = "CFO"
+    emp_b.is_current = True
+
+    person_a = MagicMock()
+    person_a.id = pid_a
+    person_a.full_name = "Alice"
+    person_a.default_risk_score = 0.1
+
+    person_b = MagicMock()
+    person_b.id = pid_b
+    person_b.full_name = "Bob"
+    person_b.default_risk_score = 0.2
+
+    rel = MagicMock()
+    rel.person_a_id = pid_a
+    rel.person_b_id = pid_b
+    rel.rel_type = "colleague"
+    rel.score = 0.7
+
+    def _scalars_result(items):
+        sm = MagicMock()
+        sm.all.return_value = items
+        rm = MagicMock()
+        rm.scalars.return_value = sm
+        return rm
+
+    session = AsyncMock()
+    session.execute = AsyncMock(
+        side_effect=[
+            _scalars_result([emp_a, emp_b]),  # employment (2 persons)
+            _scalars_result([person_a, person_b]),  # persons
+            _scalars_result([rel]),  # relationships (person_ids > 1 → this fires)
+        ]
+    )
+
+    engine = CompanyIntelligenceEngine()
+    network = await engine.get_company_network("BigCo", session)
+
+    assert "nodes" in network
+    assert any(n["type"] == "person" for n in network["nodes"])
+    # Relationship edge should be present
+    rel_edges = [e for e in network["edges"] if e["type"] == "colleague"]
+    assert len(rel_edges) == 1
+
+
+# =============================================================================
+# Additional: ubo_discovery.py remaining gaps (185→195, 238→247 via discover BFS)
+# =============================================================================
+
+
+# [185→195] and [238→247] — discover BFS: same company AND same person visited twice
+@pytest.mark.asyncio
+async def test_branch_ubo_discover_revisits_company_and_person_nodes():
+    """
+    Lines 185→195: company_node_id already in company_nodes (second encounter skipped).
+    Lines 238→247: person_id already in person_nodes (second encounter skipped).
+
+    Setup: Two root-level corporate officers from the same root company,
+    one natural person (Alice) and one subsidiary company (Alpha LLC) that also
+    lists Alice — causing company_nodes and person_nodes to be hit twice.
+    """
+    engine = UBODiscoveryEngine()
+
+    alice_ref = PersonRef(
+        name="Alice Smith",
+        source="opencorporates",
+        position="director",
+        jurisdiction="us",
+        company_name="Root Corp",
+    )
+    alpha_ref = PersonRef(
+        name="Alpha LLC",  # corporate name → goes back on queue
+        source="opencorporates",
+        position="subsidiary",
+        jurisdiction="us",
+        company_name="Root Corp",
+    )
+
+    # Root crawl returns Alice (person) + Alpha LLC (corporate)
+    crawled_root = _make_crawled("Root Corp", officers=[alice_ref, alpha_ref])
+    # Alpha LLC crawl also returns Alice → alice's person_node already in person_nodes
+    crawled_alpha = _make_crawled("Alpha LLC", officers=[alice_ref])
+
+    async def fake_crawl(name, jur):
+        norm = name.lower().strip()
+        if "root" in norm:
+            return crawled_root
+        if "alpha" in norm:
+            return crawled_alpha
+        return _make_crawled(name)
+
+    alice_person = MagicMock()
+    alice_person.id = uuid.uuid4()
+    alice_person.full_name = "Alice Smith"
+
+    emp_obj = MagicMock()
+
+    # Each _upsert_person: person lookup + emp lookup
+    call_responses = []
+    for _ in range(4):  # up to 4 upsert calls
+        call_responses.append(MagicMock(scalar_one_or_none=MagicMock(return_value=alice_person)))
+        call_responses.append(MagicMock(scalar_one_or_none=MagicMock(return_value=emp_obj)))
+    # Sanctions check
+    call_responses.append(
+        MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))))
+    )
+
+    session = AsyncMock()
+    session.execute = AsyncMock(side_effect=call_responses)
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+
+    with pytest.MonkeyPatch().context() as mp:
+        mp.setattr(engine, "_crawl_company", fake_crawl)
+        result = await engine.discover("Root Corp", "us", 2, session)
+
+    assert result.root_company == "Root Corp"
+    # Alice should appear as a UBO candidate (natural person)
+    ubo_names = [c.name for c in result.ubo_candidates]
+    assert any("Alice" in n for n in ubo_names)
