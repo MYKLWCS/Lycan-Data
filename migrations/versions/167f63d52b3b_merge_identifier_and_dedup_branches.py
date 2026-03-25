@@ -5,15 +5,16 @@ Revises: 0862064daa56, c4d5e6f7a8b9
 Create Date: 2026-03-25 13:17:54.048621
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+from typing import Union
+
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '167f63d52b3b'
-down_revision: Union[str, Sequence[str], None] = ('0862064daa56', 'c4d5e6f7a8b9')
+revision: str = "167f63d52b3b"
+down_revision: Union[str, Sequence[str], None] = ("0862064daa56", "c4d5e6f7a8b9")
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -16,9 +16,8 @@ import logging
 import re
 import uuid
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,12 +36,30 @@ logger = logging.getLogger(__name__)
 _COMPANY_CRAWLERS = ["company_opencorporates", "company_companies_house", "company_sec"]
 _GLEIF_CRAWLER = "gov_gleif"
 
-_OFFSHORE_JURISDICTIONS: frozenset[str] = frozenset({
-    "vg", "ky", "pa", "sc", "li", "mh", "bm", "ag", "ws", "vc",
-    "british virgin islands", "cayman islands", "panama", "seychelles",
-    "liechtenstein", "marshall islands", "bermuda", "antigua",
-    "western samoa", "st. vincent",
-})
+_OFFSHORE_JURISDICTIONS: frozenset[str] = frozenset(
+    {
+        "vg",
+        "ky",
+        "pa",
+        "sc",
+        "li",
+        "mh",
+        "bm",
+        "ag",
+        "ws",
+        "vc",
+        "british virgin islands",
+        "cayman islands",
+        "panama",
+        "seychelles",
+        "liechtenstein",
+        "marshall islands",
+        "bermuda",
+        "antigua",
+        "western samoa",
+        "st. vincent",
+    }
+)
 
 _CORP_SUFFIXES = re.compile(
     r"\b(llc|ltd|limited|corp|corporation|inc|incorporated|"
@@ -62,13 +79,13 @@ _MAX_COMPANY_QUEUE_SIZE = 50
 @dataclass
 class PersonRef:
     name: str
-    source: str                    # "opencorporates" | "companies_house" | "sec" | "db"
-    position: str                  # "director" | "officer" | "shareholder" etc.
+    source: str  # "opencorporates" | "companies_house" | "sec" | "db"
+    position: str  # "director" | "officer" | "shareholder" etc.
     jurisdiction: str | None
     company_name: str
     start_date: str | None = None
     end_date: str | None = None
-    person_id: str | None = None   # UUID string if persisted to DB
+    person_id: str | None = None  # UUID string if persisted to DB
     confidence: float = 0.7
 
 
@@ -93,7 +110,7 @@ class CrawledCompanyData:
 class UBOCandidate:
     name: str
     person_id: str | None
-    chain: list[str]               # [root_company, ..., person_name]
+    chain: list[str]  # [root_company, ..., person_name]
     depth: int
     controlling_roles: list[str]
     jurisdictions: list[str]
@@ -152,9 +169,9 @@ class UBODiscoveryEngine:
         person_nodes: dict[str, dict] = {}
         edges: list[dict] = []
         crawled_data: list[CrawledCompanyData] = []
-        chain_map: dict[str, list[str]] = {}   # person_id → ownership chain
-        role_map: dict[str, list[str]] = {}    # person_id → list of positions
-        jur_map: dict[str, list[str]] = {}     # person_id → jurisdictions
+        chain_map: dict[str, list[str]] = {}  # person_id → ownership chain
+        role_map: dict[str, list[str]] = {}  # person_id → list of positions
+        jur_map: dict[str, list[str]] = {}  # person_id → jurisdictions
         all_crawl_errors: list[str] = []
         has_circular = False
         company_queue_count = 0
@@ -182,7 +199,9 @@ class UBODiscoveryEngine:
             company_queue_count += 1
             if company_queue_count > _MAX_COMPANY_QUEUE_SIZE:
                 partial = True
-                logger.warning("UBO: queue cap (%d) hit for '%s'", _MAX_COMPANY_QUEUE_SIZE, company_name)
+                logger.warning(
+                    "UBO: queue cap (%d) hit for '%s'", _MAX_COMPANY_QUEUE_SIZE, company_name
+                )
                 continue
 
             crawled = await self._crawl_company(company_name_cur, jur_cur)
@@ -194,13 +213,15 @@ class UBODiscoveryEngine:
                     # Corporate nominee — recurse into it
                     sub_norm = _normalise(officer.name)
                     sub_node_id = f"company:{uuid.uuid5(uuid.NAMESPACE_DNS, sub_norm)}"
-                    edges.append({
-                        "source": company_node_id,
-                        "target": sub_node_id,
-                        "type": "subsidiary",
-                        "confidence": officer.confidence,
-                        "chain_position": depth,
-                    })
+                    edges.append(
+                        {
+                            "source": company_node_id,
+                            "target": sub_node_id,
+                            "type": "subsidiary",
+                            "confidence": officer.confidence,
+                            "chain_position": depth,
+                        }
+                    )
                     if sub_norm in visited_companies:
                         has_circular = True
                         continue
@@ -223,13 +244,15 @@ class UBODiscoveryEngine:
                             "risk_score": 0.0,
                         }
 
-                    edges.append({
-                        "source": company_node_id,
-                        "target": person_id,
-                        "type": officer.position or "officer",
-                        "confidence": officer.confidence,
-                        "chain_position": depth,
-                    })
+                    edges.append(
+                        {
+                            "source": company_node_id,
+                            "target": person_id,
+                            "type": officer.position or "officer",
+                            "confidence": officer.confidence,
+                            "chain_position": depth,
+                        }
+                    )
                     chain_map.setdefault(person_id, []).extend(chain + [officer.name])
                     role_map.setdefault(person_id, []).append(officer.position or "officer")
                     jur_map.setdefault(person_id, []).append(
@@ -316,8 +339,7 @@ class UBODiscoveryEngine:
         if sec_result and sec_result.found:
             sec_filings = sec_result.data.get("filings", [])
             has_proxy = any(
-                f.get("form_type", "").upper() in ("DEF 14A", "DEF14A")
-                for f in sec_filings
+                f.get("form_type", "").upper() in ("DEF 14A", "DEF14A") for f in sec_filings
             )
 
         # Extract company metadata from OpenCorporates
@@ -362,9 +384,7 @@ class UBODiscoveryEngine:
             crawl_errors=crawl_errors,
         )
 
-    async def _run_single_crawler(
-        self, platform: str, identifier: str
-    ) -> CrawlerResult | None:
+    async def _run_single_crawler(self, platform: str, identifier: str) -> CrawlerResult | None:
         """Instantiate and run one crawler. Returns None on any failure."""
         try:
             crawler_cls = get_crawler(platform)
@@ -418,8 +438,14 @@ class UBODiscoveryEngine:
                         seen[norm_key] = PersonRef(
                             name=name,
                             source=source_name,
-                            position=o.get("position") or o.get("appointment_count") and "director" or "officer",
-                            jurisdiction=o.get("jurisdiction") or o.get("company_url", "").split("/")[4] if o.get("company_url") else None,
+                            position=o.get("position")
+                            or o.get("appointment_count")
+                            and "director"
+                            or "officer",
+                            jurisdiction=o.get("jurisdiction")
+                            or o.get("company_url", "").split("/")[4]
+                            if o.get("company_url")
+                            else None,
                             company_name=o.get("company_name") or company_name,
                             start_date=o.get("start_date"),
                             end_date=o.get("end_date"),
@@ -464,9 +490,7 @@ class UBODiscoveryEngine:
         """Look up or create a Person. Upsert EmploymentHistory. Returns UUID str."""
         norm_name = name.strip()
 
-        stmt = select(Person).where(
-            func.lower(Person.full_name) == norm_name.lower()
-        ).limit(1)
+        stmt = select(Person).where(func.lower(Person.full_name) == norm_name.lower()).limit(1)
         result = await session.execute(stmt)
         person = result.scalar_one_or_none()
 
@@ -476,21 +500,27 @@ class UBODiscoveryEngine:
             await session.flush()
 
         # Upsert EmploymentHistory
-        emp_stmt = select(EmploymentHistory).where(
-            EmploymentHistory.person_id == person.id,
-            func.lower(EmploymentHistory.employer_name) == company_name.lower().strip(),
-        ).limit(1)
+        emp_stmt = (
+            select(EmploymentHistory)
+            .where(
+                EmploymentHistory.person_id == person.id,
+                func.lower(EmploymentHistory.employer_name) == company_name.lower().strip(),
+            )
+            .limit(1)
+        )
         emp_result = await session.execute(emp_stmt)
         existing_emp = emp_result.scalar_one_or_none()
 
         if not existing_emp:
-            session.add(EmploymentHistory(
-                person_id=person.id,
-                employer_name=company_name.strip(),
-                job_title=position,
-                is_current=True,
-                meta={"source": "ubo_discovery"},
-            ))
+            session.add(
+                EmploymentHistory(
+                    person_id=person.id,
+                    employer_name=company_name.strip(),
+                    job_title=position,
+                    is_current=True,
+                    meta={"source": "ubo_discovery"},
+                )
+            )
             await session.flush()
 
         return str(person.id)
@@ -513,11 +543,13 @@ class UBODiscoveryEngine:
         for row in rows:
             pid_str = str(row.person_id)
             if pid_str in out:
-                out[pid_str].append({
-                    "list_type": row.list_type,
-                    "match_name": row.match_name,
-                    "confidence": row.confidence,
-                })
+                out[pid_str].append(
+                    {
+                        "list_type": row.list_type,
+                        "match_name": row.match_name,
+                        "confidence": row.confidence,
+                    }
+                )
         return out
 
     # ── UBO identification ────────────────────────────────────────────────────
@@ -544,18 +576,20 @@ class UBODiscoveryEngine:
             base_conf = max(0.3, 1.0 - (depth - 1) * 0.15)
             risk = 1.0 if hits else 0.0
 
-            candidates.append(UBOCandidate(
-                name=node["label"],
-                person_id=person_id,
-                chain=chain,
-                depth=depth,
-                controlling_roles=roles,
-                jurisdictions=jurisdictions,
-                confidence=round(base_conf, 2),
-                is_natural_person=True,
-                sanctions_hits=hits,
-                risk_score=risk,
-            ))
+            candidates.append(
+                UBOCandidate(
+                    name=node["label"],
+                    person_id=person_id,
+                    chain=chain,
+                    depth=depth,
+                    controlling_roles=roles,
+                    jurisdictions=jurisdictions,
+                    confidence=round(base_conf, 2),
+                    is_natural_person=True,
+                    sanctions_hits=hits,
+                    risk_score=risk,
+                )
+            )
 
         candidates.sort(key=lambda c: c.depth)
         return candidates

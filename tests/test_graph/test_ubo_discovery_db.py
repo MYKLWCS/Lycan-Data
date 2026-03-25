@@ -21,7 +21,6 @@ from modules.graph.ubo_discovery import (
     UBODiscoveryEngine,
 )
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
@@ -173,14 +172,25 @@ class TestBFSDepthLimit:
         async def _spy_crawl(name, jur):
             crawl_called.append(name)
             return CrawledCompanyData(
-                company_name=name, jurisdiction=jur, company_numbers=[],
-                registered_addresses=[], status=None, incorporation_date=None,
-                entity_type=None, lei=None, officers=[], sec_filings=[],
-                has_proxy_filing=False, data_sources=[], crawl_errors=[],
+                company_name=name,
+                jurisdiction=jur,
+                company_numbers=[],
+                registered_addresses=[],
+                status=None,
+                incorporation_date=None,
+                entity_type=None,
+                lei=None,
+                officers=[],
+                sec_filings=[],
+                has_proxy_filing=False,
+                data_sources=[],
+                crawl_errors=[],
             )
 
-        with patch.object(engine, "_crawl_company", side_effect=_spy_crawl), \
-             patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={}):
+        with (
+            patch.object(engine, "_crawl_company", side_effect=_spy_crawl),
+            patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={}),
+        ):
             result = await engine.discover("RootCorp", "us", max_depth=0, session=AsyncMock())
 
         # depth=0 >= max_depth=0 → continue, no crawl

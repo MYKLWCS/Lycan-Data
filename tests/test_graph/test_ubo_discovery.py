@@ -11,15 +11,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from modules.graph.ubo_discovery import (
+    _CORP_SUFFIXES,
+    _MAX_COMPANY_QUEUE_SIZE,
     CrawledCompanyData,
     PersonRef,
     UBODiscoveryEngine,
     UBOResult,
     _normalise,
-    _CORP_SUFFIXES,
-    _MAX_COMPANY_QUEUE_SIZE,
 )
-
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────
 
@@ -141,7 +140,9 @@ class TestIdentifyUBOs:
     def test_returns_candidate_for_each_person(self):
         pid = str(uuid.uuid4())
         nodes = {pid: self._person_node(pid, "Alice", 1)}
-        candidates = self.engine._identify_ubos(nodes, [], {}, {pid: ["Acme", "Alice"]}, {pid: ["director"]}, {pid: ["us"]})
+        candidates = self.engine._identify_ubos(
+            nodes, [], {}, {pid: ["Acme", "Alice"]}, {pid: ["director"]}, {pid: ["us"]}
+        )
         assert len(candidates) == 1
         assert candidates[0].name == "Alice"
 
@@ -183,9 +184,19 @@ class TestComputeRiskFlags:
 
     def _cd(self, jur: str | None = None) -> CrawledCompanyData:
         return CrawledCompanyData(
-            company_name="Acme", jurisdiction=jur, company_numbers=[], registered_addresses=[],
-            status=None, incorporation_date=None, entity_type=None, lei=None,
-            officers=[], sec_filings=[], has_proxy_filing=False, data_sources=[], crawl_errors=[],
+            company_name="Acme",
+            jurisdiction=jur,
+            company_numbers=[],
+            registered_addresses=[],
+            status=None,
+            incorporation_date=None,
+            entity_type=None,
+            lei=None,
+            officers=[],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=[],
+            crawl_errors=[],
         )
 
     def test_shell_company_chain_flag(self):
@@ -194,9 +205,19 @@ class TestComputeRiskFlags:
 
     def test_no_shell_flag_when_ubos_found(self):
         from modules.graph.ubo_discovery import UBOCandidate
-        ubo = UBOCandidate(name="Alice", person_id="pid", chain=[], depth=1,
-                           controlling_roles=[], jurisdictions=[], confidence=0.9,
-                           is_natural_person=True, sanctions_hits=[], risk_score=0.0)
+
+        ubo = UBOCandidate(
+            name="Alice",
+            person_id="pid",
+            chain=[],
+            depth=1,
+            controlling_roles=[],
+            jurisdictions=[],
+            confidence=0.9,
+            is_natural_person=True,
+            sanctions_hits=[],
+            risk_score=0.0,
+        )
         flags = self.engine._compute_risk_flags([self._cd(), self._cd(), self._cd()], [ubo], False)
         assert "shell_company_chain" not in flags
 
@@ -214,16 +235,24 @@ class TestComputeRiskFlags:
 
     def test_sanctions_flag(self):
         from modules.graph.ubo_discovery import UBOCandidate
-        ubo = UBOCandidate(name="X", person_id="p", chain=[], depth=1, controlling_roles=[],
-                           jurisdictions=[], confidence=0.5, is_natural_person=True,
-                           sanctions_hits=[{"list_type": "ofac"}], risk_score=1.0)
+
+        ubo = UBOCandidate(
+            name="X",
+            person_id="p",
+            chain=[],
+            depth=1,
+            controlling_roles=[],
+            jurisdictions=[],
+            confidence=0.5,
+            is_natural_person=True,
+            sanctions_hits=[{"list_type": "ofac"}],
+            risk_score=1.0,
+        )
         flags = self.engine._compute_risk_flags([], [ubo], False)
         assert "person_on_sanctions_list" in flags
 
     def test_deduplicates_flags(self):
-        flags = self.engine._compute_risk_flags(
-            [self._cd("vg"), self._cd("ky")], [], False
-        )
+        flags = self.engine._compute_risk_flags([self._cd("vg"), self._cd("ky")], [], False)
         assert flags.count("offshore_jurisdiction") == 1
 
 
@@ -293,7 +322,10 @@ class TestCrawlCompany:
         sec_result = MagicMock()
         sec_result.found = True
         sec_result.error = None
-        sec_result.data = {"officers": [], "filings": [{"form_type": "DEF 14A", "date": "2024-01-01"}]}
+        sec_result.data = {
+            "officers": [],
+            "filings": [{"form_type": "DEF 14A", "date": "2024-01-01"}],
+        }
 
         async def _fake_crawler(platform, identifier):
             if platform == "company_sec":
@@ -317,19 +349,34 @@ class TestDiscover:
 
         # Mock _crawl_company to return one natural person officer
         person_officer = PersonRef(
-            name="Alice Smith", source="opencorporates", position="director",
-            jurisdiction="us", company_name="Acme Corp",
+            name="Alice Smith",
+            source="opencorporates",
+            position="director",
+            jurisdiction="us",
+            company_name="Acme Corp",
         )
         crawled = CrawledCompanyData(
-            company_name="Acme Corp", jurisdiction="us", company_numbers=["12345"],
-            registered_addresses=["123 Main St"], status="active",
-            incorporation_date="2010-01-01", entity_type="LLC", lei=None,
-            officers=[person_officer], sec_filings=[], has_proxy_filing=False,
-            data_sources=["opencorporates"], crawl_errors=[],
+            company_name="Acme Corp",
+            jurisdiction="us",
+            company_numbers=["12345"],
+            registered_addresses=["123 Main St"],
+            status="active",
+            incorporation_date="2010-01-01",
+            entity_type="LLC",
+            lei=None,
+            officers=[person_officer],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=["opencorporates"],
+            crawl_errors=[],
         )
-        with patch.object(engine, "_crawl_company", new_callable=AsyncMock, return_value=crawled), \
-             patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid), \
-             patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={pid: []}):
+        with (
+            patch.object(engine, "_crawl_company", new_callable=AsyncMock, return_value=crawled),
+            patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid),
+            patch.object(
+                engine, "_check_sanctions", new_callable=AsyncMock, return_value={pid: []}
+            ),
+        ):
             session = AsyncMock()
             result = await engine.discover("Acme Corp", "us", max_depth=3, session=session)
 
@@ -346,25 +393,49 @@ class TestDiscover:
         pid = str(uuid.uuid4())
 
         corp_officer = PersonRef(
-            name="Shell Holdings LLC", source="opencorporates", position="shareholder",
-            jurisdiction="vg", company_name="Acme Corp",
+            name="Shell Holdings LLC",
+            source="opencorporates",
+            position="shareholder",
+            jurisdiction="vg",
+            company_name="Acme Corp",
         )
         person_officer = PersonRef(
-            name="Bob Jones", source="opencorporates", position="director",
-            jurisdiction="vg", company_name="Shell Holdings LLC",
+            name="Bob Jones",
+            source="opencorporates",
+            position="director",
+            jurisdiction="vg",
+            company_name="Shell Holdings LLC",
         )
 
         crawled_root = CrawledCompanyData(
-            company_name="Acme Corp", jurisdiction="us", company_numbers=[],
-            registered_addresses=[], status="active", incorporation_date=None,
-            entity_type=None, lei=None, officers=[corp_officer], sec_filings=[],
-            has_proxy_filing=False, data_sources=[], crawl_errors=[],
+            company_name="Acme Corp",
+            jurisdiction="us",
+            company_numbers=[],
+            registered_addresses=[],
+            status="active",
+            incorporation_date=None,
+            entity_type=None,
+            lei=None,
+            officers=[corp_officer],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=[],
+            crawl_errors=[],
         )
         crawled_shell = CrawledCompanyData(
-            company_name="Shell Holdings LLC", jurisdiction="vg", company_numbers=[],
-            registered_addresses=[], status="active", incorporation_date=None,
-            entity_type=None, lei=None, officers=[person_officer], sec_filings=[],
-            has_proxy_filing=False, data_sources=[], crawl_errors=[],
+            company_name="Shell Holdings LLC",
+            jurisdiction="vg",
+            company_numbers=[],
+            registered_addresses=[],
+            status="active",
+            incorporation_date=None,
+            entity_type=None,
+            lei=None,
+            officers=[person_officer],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=[],
+            crawl_errors=[],
         )
 
         call_count = [0]
@@ -375,9 +446,13 @@ class TestDiscover:
                 return crawled_shell
             return crawled_root
 
-        with patch.object(engine, "_crawl_company", side_effect=_fake_crawl), \
-             patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid), \
-             patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={pid: []}):
+        with (
+            patch.object(engine, "_crawl_company", side_effect=_fake_crawl),
+            patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid),
+            patch.object(
+                engine, "_check_sanctions", new_callable=AsyncMock, return_value={pid: []}
+            ),
+        ):
             session = AsyncMock()
             result = await engine.discover("Acme Corp", "us", max_depth=5, session=session)
 
@@ -390,25 +465,49 @@ class TestDiscover:
         engine = UBODiscoveryEngine()
 
         corp_b = PersonRef(
-            name="Beta Corp", source="opencorporates", position="shareholder",
-            jurisdiction="us", company_name="Alpha Inc",
+            name="Beta Corp",
+            source="opencorporates",
+            position="shareholder",
+            jurisdiction="us",
+            company_name="Alpha Inc",
         )
         corp_a = PersonRef(
-            name="Alpha Inc", source="opencorporates", position="shareholder",
-            jurisdiction="us", company_name="Beta Corp",
+            name="Alpha Inc",
+            source="opencorporates",
+            position="shareholder",
+            jurisdiction="us",
+            company_name="Beta Corp",
         )
 
         crawled_a = CrawledCompanyData(
-            company_name="Alpha Inc", jurisdiction="us", company_numbers=[],
-            registered_addresses=[], status="active", incorporation_date=None,
-            entity_type=None, lei=None, officers=[corp_b], sec_filings=[],
-            has_proxy_filing=False, data_sources=[], crawl_errors=[],
+            company_name="Alpha Inc",
+            jurisdiction="us",
+            company_numbers=[],
+            registered_addresses=[],
+            status="active",
+            incorporation_date=None,
+            entity_type=None,
+            lei=None,
+            officers=[corp_b],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=[],
+            crawl_errors=[],
         )
         crawled_b = CrawledCompanyData(
-            company_name="Beta Corp", jurisdiction="us", company_numbers=[],
-            registered_addresses=[], status="active", incorporation_date=None,
-            entity_type=None, lei=None, officers=[corp_a], sec_filings=[],
-            has_proxy_filing=False, data_sources=[], crawl_errors=[],
+            company_name="Beta Corp",
+            jurisdiction="us",
+            company_numbers=[],
+            registered_addresses=[],
+            status="active",
+            incorporation_date=None,
+            entity_type=None,
+            lei=None,
+            officers=[corp_a],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=[],
+            crawl_errors=[],
         )
 
         async def _fake_crawl(name, jur):
@@ -416,8 +515,10 @@ class TestDiscover:
                 return crawled_b
             return crawled_a
 
-        with patch.object(engine, "_crawl_company", side_effect=_fake_crawl), \
-             patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={}):
+        with (
+            patch.object(engine, "_crawl_company", side_effect=_fake_crawl),
+            patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={}),
+        ):
             session = AsyncMock()
             result = await engine.discover("Alpha Inc", "us", max_depth=5, session=session)
 
@@ -428,18 +529,34 @@ class TestDiscover:
         pid = str(uuid.uuid4())
         engine = UBODiscoveryEngine()
         person_officer = PersonRef(
-            name="Offshore Person", source="opencorporates", position="director",
-            jurisdiction="vg", company_name="Offshore Co",
+            name="Offshore Person",
+            source="opencorporates",
+            position="director",
+            jurisdiction="vg",
+            company_name="Offshore Co",
         )
         crawled = CrawledCompanyData(
-            company_name="Offshore Co", jurisdiction="vg", company_numbers=[],
-            registered_addresses=[], status="active", incorporation_date=None,
-            entity_type=None, lei=None, officers=[person_officer], sec_filings=[],
-            has_proxy_filing=False, data_sources=[], crawl_errors=[],
+            company_name="Offshore Co",
+            jurisdiction="vg",
+            company_numbers=[],
+            registered_addresses=[],
+            status="active",
+            incorporation_date=None,
+            entity_type=None,
+            lei=None,
+            officers=[person_officer],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=[],
+            crawl_errors=[],
         )
-        with patch.object(engine, "_crawl_company", new_callable=AsyncMock, return_value=crawled), \
-             patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid), \
-             patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={pid: []}):
+        with (
+            patch.object(engine, "_crawl_company", new_callable=AsyncMock, return_value=crawled),
+            patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid),
+            patch.object(
+                engine, "_check_sanctions", new_callable=AsyncMock, return_value={pid: []}
+            ),
+        ):
             result = await engine.discover("Offshore Co", "vg", max_depth=3, session=AsyncMock())
 
         assert "offshore_jurisdiction" in result.risk_flags
@@ -449,20 +566,38 @@ class TestDiscover:
         pid = str(uuid.uuid4())
         engine = UBODiscoveryEngine()
         person_officer = PersonRef(
-            name="Sanctioned Person", source="opencorporates", position="director",
-            jurisdiction="us", company_name="Acme Corp",
+            name="Sanctioned Person",
+            source="opencorporates",
+            position="director",
+            jurisdiction="us",
+            company_name="Acme Corp",
         )
         crawled = CrawledCompanyData(
-            company_name="Acme Corp", jurisdiction="us", company_numbers=[],
-            registered_addresses=[], status="active", incorporation_date=None,
-            entity_type=None, lei=None, officers=[person_officer], sec_filings=[],
-            has_proxy_filing=False, data_sources=[], crawl_errors=[],
+            company_name="Acme Corp",
+            jurisdiction="us",
+            company_numbers=[],
+            registered_addresses=[],
+            status="active",
+            incorporation_date=None,
+            entity_type=None,
+            lei=None,
+            officers=[person_officer],
+            sec_filings=[],
+            has_proxy_filing=False,
+            data_sources=[],
+            crawl_errors=[],
         )
-        sanctions_hit = {pid: [{"list_type": "ofac", "match_name": "Sanctioned Person", "confidence": 0.98}]}
+        sanctions_hit = {
+            pid: [{"list_type": "ofac", "match_name": "Sanctioned Person", "confidence": 0.98}]
+        }
 
-        with patch.object(engine, "_crawl_company", new_callable=AsyncMock, return_value=crawled), \
-             patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid), \
-             patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value=sanctions_hit):
+        with (
+            patch.object(engine, "_crawl_company", new_callable=AsyncMock, return_value=crawled),
+            patch.object(engine, "_upsert_person", new_callable=AsyncMock, return_value=pid),
+            patch.object(
+                engine, "_check_sanctions", new_callable=AsyncMock, return_value=sanctions_hit
+            ),
+        ):
             result = await engine.discover("Acme Corp", "us", max_depth=3, session=AsyncMock())
 
         assert "person_on_sanctions_list" in result.risk_flags
@@ -480,18 +615,32 @@ class TestDiscover:
             call_count[0] += 1
             sub_name = f"SubCorp{call_count[0]} LLC"
             officer = PersonRef(
-                name=sub_name, source="opencorporates", position="shareholder",
-                jurisdiction="us", company_name=name,
+                name=sub_name,
+                source="opencorporates",
+                position="shareholder",
+                jurisdiction="us",
+                company_name=name,
             )
             return CrawledCompanyData(
-                company_name=name, jurisdiction="us", company_numbers=[],
-                registered_addresses=[], status="active", incorporation_date=None,
-                entity_type=None, lei=None, officers=[officer], sec_filings=[],
-                has_proxy_filing=False, data_sources=[], crawl_errors=[],
+                company_name=name,
+                jurisdiction="us",
+                company_numbers=[],
+                registered_addresses=[],
+                status="active",
+                incorporation_date=None,
+                entity_type=None,
+                lei=None,
+                officers=[officer],
+                sec_filings=[],
+                has_proxy_filing=False,
+                data_sources=[],
+                crawl_errors=[],
             )
 
-        with patch.object(engine, "_crawl_company", side_effect=_infinite_crawl), \
-             patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={}):
+        with (
+            patch.object(engine, "_crawl_company", side_effect=_infinite_crawl),
+            patch.object(engine, "_check_sanctions", new_callable=AsyncMock, return_value={}),
+        ):
             result = await engine.discover("Root Corp", "us", max_depth=100, session=AsyncMock())
 
         assert result.partial is True

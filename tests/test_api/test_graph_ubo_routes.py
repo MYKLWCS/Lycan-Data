@@ -26,7 +26,6 @@ from modules.graph.ubo_discovery import (
     UBOResult,
 )
 
-
 # ── Fixture helpers ────────────────────────────────────────────────────────────
 
 
@@ -53,15 +52,27 @@ def _make_app(session):
 
 def _empty_crawled(name: str = "Acme Corp") -> CrawledCompanyData:
     return CrawledCompanyData(
-        company_name=name, jurisdiction="us", company_numbers=["12345"],
-        registered_addresses=["123 Main St"], status="active",
-        incorporation_date="2010-01-01", entity_type="LLC", lei="LEI123",
+        company_name=name,
+        jurisdiction="us",
+        company_numbers=["12345"],
+        registered_addresses=["123 Main St"],
+        status="active",
+        incorporation_date="2010-01-01",
+        entity_type="LLC",
+        lei="LEI123",
         officers=[
-            PersonRef(name="Alice Smith", source="opencorporates", position="director",
-                      jurisdiction="us", company_name=name, confidence=0.85)
+            PersonRef(
+                name="Alice Smith",
+                source="opencorporates",
+                position="director",
+                jurisdiction="us",
+                company_name=name,
+                confidence=0.85,
+            )
         ],
         sec_filings=[{"form_type": "10-K", "date": "2024-01-01"}],
-        has_proxy_filing=False, data_sources=["opencorporates"],
+        has_proxy_filing=False,
+        data_sources=["opencorporates"],
         crawl_errors=["gleif:timeout"],
     )
 
@@ -76,9 +87,15 @@ def _empty_ubo_result(name: str = "Acme Corp") -> UBOResult:
         edges=[],
         ubo_candidates=[
             UBOCandidate(
-                name="Alice Smith", person_id=pid, chain=[name, "Alice Smith"],
-                depth=1, controlling_roles=["director"], jurisdictions=["us"],
-                confidence=0.85, is_natural_person=True, sanctions_hits=[],
+                name="Alice Smith",
+                person_id=pid,
+                chain=[name, "Alice Smith"],
+                depth=1,
+                controlling_roles=["director"],
+                jurisdictions=["us"],
+                confidence=0.85,
+                is_natural_person=True,
+                sanctions_hits=[],
                 risk_score=0.0,
             )
         ],
@@ -132,7 +149,9 @@ def test_company_intel_with_jurisdiction():
     with patch("api.routes.graph._ubo_engine") as mock_engine:
         mock_engine.crawl_company = AsyncMock(return_value=crawled)
         with TestClient(app) as client:
-            r = client.post("/graph/company/intel", json={"company_name": "UK Corp", "jurisdiction": "gb"})
+            r = client.post(
+                "/graph/company/intel", json={"company_name": "UK Corp", "jurisdiction": "gb"}
+            )
 
     assert r.status_code == 200
     assert r.json()["jurisdiction"] == "gb"
@@ -149,7 +168,9 @@ def test_company_ubo_returns_200():
     with patch("api.routes.graph._ubo_engine") as mock_engine:
         mock_engine.discover = AsyncMock(return_value=ubo_result)
         with TestClient(app) as client:
-            r = client.post("/graph/company/ubo", json={"company_name": "Acme Corp", "max_depth": 3})
+            r = client.post(
+                "/graph/company/ubo", json={"company_name": "Acme Corp", "max_depth": 3}
+            )
 
     assert r.status_code == 200
     data = r.json()
