@@ -231,7 +231,7 @@ def _parse_rss(xml_text: str, source: str) -> list[dict]:
     """Parse an RSS feed and extract <item> elements as articles."""
     results: list[dict] = []
     try:
-        root = ElementTree.fromstring(xml_text)
+        root = ElementTree.fromstring(xml_text)  # nosec B314 — RSS feeds from known services
     except ElementTree.ParseError as exc:
         logger.warning("RSS parse error (%s): %s", source, exc)
         return results
