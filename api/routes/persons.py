@@ -1033,9 +1033,8 @@ async def family_tree_status(person_id: str, session: AsyncSession = DbDep):
 @router.get("/{person_id}/family-tree/gedcom")
 async def get_family_tree_gedcom(person_id: str, session: AsyncSession = DbDep):
     """Export the family tree as a GEDCOM 5.5.5 file."""
-    from sqlalchemy import desc
-
     from fastapi.responses import PlainTextResponse
+    from sqlalchemy import desc
 
     from modules.export.gedcom import export_gedcom
     from shared.models.family_tree import FamilyTreeSnapshot
