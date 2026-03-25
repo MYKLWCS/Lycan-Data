@@ -5,6 +5,17 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from api.deps import verify_api_key
+
+
+@pytest.fixture(autouse=True)
+def restore_auth_for_auth_tests():
+    """Remove the conftest auth override so auth tests actually test auth."""
+    from api.main import app
+    app.dependency_overrides.pop(verify_api_key, None)
+    yield
+    app.dependency_overrides.pop(verify_api_key, None)
+
 
 def _get_app():
     """Import app fresh so settings patches take effect."""

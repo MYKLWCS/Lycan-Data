@@ -1793,7 +1793,7 @@ class TestGrowthDaemonUncovered:
         ):
             # Disable burner check kill switch
             mock_settings.enable_burner_check = False
-            await gd._fan_out(ident, "p1", depth=0)
+            await gd._fan_out(ident, "p1", depth=0, remaining_budget=50)
 
         # No phone_carrier/phone_fonefinder/phone_truecaller jobs dispatched
         dispatched_platforms = [
@@ -1817,7 +1817,7 @@ class TestGrowthDaemonUncovered:
             ) as mock_dispatch,
             patch.object(gd, "_job_exists", new=AsyncMock(return_value=True)),
         ):
-            await gd._fan_out(ident, "p1", depth=0)
+            await gd._fan_out(ident, "p1", depth=0, remaining_budget=50)
 
         mock_dispatch.assert_not_awaited()
 

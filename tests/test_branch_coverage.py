@@ -700,7 +700,7 @@ class TestDispatcherResultNoDataAttr:
             mock_bus.publish = AsyncMock()
             mock_bus.enqueue = AsyncMock(side_effect=_enqueue)
 
-            await dispatcher._process_one()
+            await dispatcher._process_one(job_dict)
 
         # Should have enqueued at least the ingest payload
         assert len(enqueued_payloads) >= 1

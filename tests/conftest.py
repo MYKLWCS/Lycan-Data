@@ -3,10 +3,28 @@ import logging
 
 import pytest
 
+from api.deps import verify_api_key
+from api.main import app
 from shared.db import get_test_db
 from shared.events import get_event_bus
 
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(autouse=True)
+def disable_api_auth():
+    """Bypass API key auth in all tests by default.
+
+    Tests that specifically verify auth behavior (test_auth.py)
+    remove this override in their own fixture.
+    """
+
+    async def _no_auth():
+        return "test-key"
+
+    app.dependency_overrides[verify_api_key] = _no_auth
+    yield
+    app.dependency_overrides.pop(verify_api_key, None)
 
 
 @pytest.fixture
