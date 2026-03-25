@@ -832,3 +832,16 @@ def test_parse_uscg_html_exception_returns_empty_list():
         vessels = _parse_uscg_html("<html><body></body></html>")
 
     assert vessels == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_marinetraffic_html — outer exception path (lines 177-178)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_marinetraffic_html_outer_exception_returns_empty():
+    """Lines 177-178: outer except in _parse_marinetraffic_html → returns []."""
+    from modules.crawlers.transport.marine_vessel import _parse_marinetraffic_html
+    with patch("bs4.BeautifulSoup", side_effect=Exception("mt boom")):
+        vessels = _parse_marinetraffic_html("<html></html>")
+    assert vessels == []

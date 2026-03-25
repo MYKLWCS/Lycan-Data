@@ -648,3 +648,51 @@ def test_parse_generic_kyc_heading_fallback_not_triggered_when_json_ld_present()
     names = [r["name"] for r in results]
     assert "Json Person" in names
     assert "Heading Person" not in names
+
+
+# ---------------------------------------------------------------------------
+# _parse_complyadvantage_html — table with empty rows (line 118) + exception (148-149)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_ca_html_table_empty_rows_skipped():
+    """Line 118: table with <tr> tags that have no cells — `if not rows: continue` is not hit,
+    but a table whose rows list has zero tr elements exercises the continue branch."""
+    from bs4 import BeautifulSoup
+    html = "<html><body><table></table><table><tr><th>Name</th></tr><tr><td>Sam Lee</td></tr></table></body></html>"
+    results = _parse_complyadvantage_html(html)
+    # First table has no rows → skipped via `if not rows: continue`; second produces Sam Lee.
+    assert any(r["name"] == "Sam Lee" for r in results)
+
+
+def test_parse_ca_html_exception_returns_empty():
+    """Lines 148-149: outer except catches BeautifulSoup errors → returns []."""
+    with patch("bs4.BeautifulSoup", side_effect=Exception("parse bomb")):
+        results = _parse_complyadvantage_html("<html></html>")
+    assert results == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_generic_kyc_html — JSON-LD exception continue (189-190) + outer except (215-216)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_generic_kyc_json_ld_exception_continues():
+    """Lines 189-190: invalid JSON in script tag → except Exception: continue, not crash."""
+    html = """
+    <html><head>
+    <script type="application/ld+json">NOT VALID JSON {{</script>
+    <script type="application/ld+json">{"@type": "Person", "name": "Valid Person"}</script>
+    </head><body></body></html>
+    """
+    results = _parse_generic_kyc_html(html, "test_site")
+    # Invalid JSON is skipped; valid script produces a result.
+    assert len(results) == 1
+    assert results[0]["name"] == "Valid Person"
+
+
+def test_parse_generic_kyc_outer_exception_returns_empty():
+    """Lines 215-216: outer except catches BeautifulSoup errors → returns []."""
+    with patch("bs4.BeautifulSoup", side_effect=Exception("boom")):
+        results = _parse_generic_kyc_html("<html></html>", "site")
+    assert results == []

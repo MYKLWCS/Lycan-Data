@@ -560,6 +560,45 @@ class TestParsePropertyDetailHtml:
         result = self._fn(html)
         assert result["owner_name"] is not None
 
+    def test_int_conversion_value_error_on_int_key(self):
+        """int() raises ValueError for an int_key field that matched regex — set to None.
+        We force this by patching int() to raise on its first call."""
+        from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
+        # Craft HTML that matches year_built pattern but then int() raises
+        html = "<html><body>Year Built: 1999</body></html>"
+        original_int = int
+        call_count = [0]
+
+        def _patched_int(v=None, base=10):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise ValueError("forced int error")
+            return original_int(v)
+
+        with patch("builtins.int", side_effect=_patched_int):
+            result = _parse_property_detail_html(html)
+        # The int_key that raised should have been set to None
+        assert result["year_built"] is None
+
+    def test_money_value_error_in_label_loop(self):
+        """int() raises ValueError inside the label→dest regex loop — pass, field stays None."""
+        from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
+        # HTML that matches the "assessed" pattern
+        html = "<html><body>assessed $400,000</body></html>"
+        original_int = int
+        call_count = [0]
+
+        def _patched_int(v=None, base=10):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise ValueError("forced")
+            return original_int(v)
+
+        with patch("builtins.int", side_effect=_patched_int):
+            result = _parse_property_detail_html(html)
+        # ValueError swallowed — field stays None
+        assert result["current_assessed_value_usd"] is None
+
 
 # ---------------------------------------------------------------------------
 # PropertyRadarCrawler.scrape()

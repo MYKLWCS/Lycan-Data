@@ -127,3 +127,26 @@ async def test_faa_requires_tor_false():
 async def test_faa_proxy_tier():
     crawler = FaaAircraftRegistryCrawler()
     assert crawler.proxy_tier == "direct"
+
+
+# ---------------------------------------------------------------------------
+# MarineVesselCrawler (stub)
+# ---------------------------------------------------------------------------
+
+from modules.crawlers.marine_vessel import MarineVesselCrawler
+
+
+async def test_marine_vessel_scrape_returns_not_found():
+    crawler = MarineVesselCrawler()
+    result = await crawler.scrape("Jane Doe")
+    assert isinstance(result, CrawlerResult)
+    assert result.found is False
+    assert result.platform == "marine_vessel"
+    assert result.identifier == "Jane Doe"
+
+
+async def test_marine_vessel_attributes():
+    crawler = MarineVesselCrawler()
+    assert crawler.source_reliability == 0.9
+    assert crawler.requires_tor is False
+    assert crawler.proxy_tier == "direct"
