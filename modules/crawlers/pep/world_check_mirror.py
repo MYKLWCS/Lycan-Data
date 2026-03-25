@@ -43,13 +43,14 @@ _ACURIS_URL = (
 )
 
 _TIER1_KEYWORDS = {
-    "president", "prime minister", "minister", "senator", "governor",
+    "president", "prime minister", "minister", "senator",
     "parliament", "congress", "head of state", "chairman", "director general",
     "central bank", "supreme court", "chief justice", "ambassador",
 }
 _TIER2_KEYWORDS = {
     "deputy", "assistant minister", "mp", "member of parliament",
     "state-owned", "executive", "board member", "director", "mayor",
+    "governor",
 }
 _TIER3_KEYWORDS = {
     "relative", "close associate", "family member", "spouse", "associate",
@@ -58,6 +59,9 @@ _TIER3_KEYWORDS = {
 
 def _classify_tier(position: str) -> str:
     pos = position.lower()
+    # "Deputy X" titles are tier2 even if X matches a tier1 keyword
+    if "deputy" in pos:
+        return "tier2"
     if any(kw in pos for kw in _TIER1_KEYWORDS):
         return "tier1"
     if any(kw in pos for kw in _TIER2_KEYWORDS):

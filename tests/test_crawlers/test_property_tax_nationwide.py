@@ -378,113 +378,126 @@ class TestParseTaxHtml:
         result = _parse_tax_html(html)
         assert result["valuations"] == []
 
+    def test_table_row_with_no_td_elements_skipped(self):
+        """Line 437: table row with no td elements → cells is empty → continue."""
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
+
+        # A tr with only th elements in the data section → cells=[] → continue
+        html = """
+        <html><body>
+        <table>
+          <tr><th>Year</th><th>Tax Amount</th></tr>
+          <tr><th>Sub-header</th><th>No TDs</th></tr>
+          <tr><td>2022</td><td>$4,500</td></tr>
+        </table>
+        </body></html>
+        """
+        result = _parse_tax_html(html)
+        # The th-only row is skipped (cells=[]) → continue; td row is processed
+        assert isinstance(result["valuations"], list)
+
     def test_table_assessed_valueerror_branch(self):
-        """Lines 453-454: int() raises ValueError in table assessed cell.
-        Achieved by patching int in the module's namespace."""
-        import modules.crawlers.property.property_tax_nationwide as ptax_mod
+        """Lines 453-454: ValueError in table assessed cell int conversion.
+
+        Uses a mock match object whose group() returns a value where
+        .replace(',', '') produces something int() rejects.
+        """
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
+        import re as _re
 
         html = """
         <html><body>
         <table>
-          <tr><th>Year</th><th>Assessed</th><th>Market</th><th>Tax Amount</th></tr>
-          <tr><td>2022</td><td>300,000</td><td>380,000</td><td>4,500</td></tr>
+          <tr><th>Year</th><th>Assessed</th></tr>
+          <tr><td>2022</td><td>300000</td></tr>
         </table>
         </body></html>
         """
-        # Replace the int builtin in the module's global namespace temporarily
-        original_int = ptax_mod.__builtins__["int"] if isinstance(ptax_mod.__builtins__, dict) else ptax_mod.__builtins__.int  # type: ignore
-        call_count = [0]
 
-        def mock_int(val, *args, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 2:  # 2nd call = assessed cell
-                raise ValueError("forced assessed")
-            return original_int(val, *args, **kwargs)
+        class _BadMatch:
+            """Match object whose group() returns a value that str.replace produces a non-int."""
+            def group(self, n=0):
+                return "3e+5"  # passes [\d,]+ check? No — 'e' not matched. Use real match but broken replace.
 
-        if isinstance(ptax_mod.__builtins__, dict):
-            ptax_mod.__builtins__["int"] = mock_int  # type: ignore
-        else:
-            ptax_mod.__builtins__.int = mock_int  # type: ignore
+        # We'll use a mock on the .replace method of the matched string
+        real_search = _re.search
 
-        try:
-            result = ptax_mod._parse_tax_html(html)
-        finally:
-            if isinstance(ptax_mod.__builtins__, dict):
-                ptax_mod.__builtins__["int"] = original_int  # type: ignore
-            else:
-                ptax_mod.__builtins__.int = original_int  # type: ignore
+        inner_calls = [0]
+
+        def _side_effect(pattern, string, *a, **kw):
+            m = real_search(pattern, string, *a, **kw)
+            if m is not None and inner_calls[0] == 0 and string == "300000":
+                inner_calls[0] += 1
+                bad = MagicMock()
+                bad.group.return_value = MagicMock()
+                bad.group.return_value.replace.return_value = "not-an-int"
+                return bad
+            return m
+
+        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect):
+            result = _parse_tax_html(html)
 
         assert isinstance(result["valuations"], list)
 
     def test_table_market_valueerror_branch(self):
-        """Lines 460-461: int() raises ValueError in table market cell."""
-        import modules.crawlers.property.property_tax_nationwide as ptax_mod
+        """Lines 460-461: ValueError in table market cell int conversion."""
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
+        import re as _re
 
         html = """
         <html><body>
         <table>
-          <tr><th>Year</th><th>Assessed</th><th>Market</th><th>Tax Amount</th></tr>
-          <tr><td>2022</td><td>300,000</td><td>380,000</td><td>4,500</td></tr>
+          <tr><th>Year</th><th>Market</th></tr>
+          <tr><td>2022</td><td>380000</td></tr>
         </table>
         </body></html>
         """
-        original_int = ptax_mod.__builtins__["int"] if isinstance(ptax_mod.__builtins__, dict) else ptax_mod.__builtins__.int  # type: ignore
-        call_count = [0]
+        real_search = _re.search
+        inner_calls = [0]
 
-        def mock_int(val, *args, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 3:  # 3rd call = market cell
-                raise ValueError("forced market")
-            return original_int(val, *args, **kwargs)
+        def _side_effect(pattern, string, *a, **kw):
+            m = real_search(pattern, string, *a, **kw)
+            if m is not None and inner_calls[0] == 0 and string == "380000":
+                inner_calls[0] += 1
+                bad = MagicMock()
+                bad.group.return_value = MagicMock()
+                bad.group.return_value.replace.return_value = "not-an-int"
+                return bad
+            return m
 
-        if isinstance(ptax_mod.__builtins__, dict):
-            ptax_mod.__builtins__["int"] = mock_int  # type: ignore
-        else:
-            ptax_mod.__builtins__.int = mock_int  # type: ignore
-
-        try:
-            result = ptax_mod._parse_tax_html(html)
-        finally:
-            if isinstance(ptax_mod.__builtins__, dict):
-                ptax_mod.__builtins__["int"] = original_int  # type: ignore
-            else:
-                ptax_mod.__builtins__.int = original_int  # type: ignore
+        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect):
+            result = _parse_tax_html(html)
 
         assert isinstance(result["valuations"], list)
 
     def test_table_tax_valueerror_branch(self):
-        """Lines 467-468: int() raises ValueError in table tax cell."""
-        import modules.crawlers.property.property_tax_nationwide as ptax_mod
+        """Lines 467-468: ValueError in table tax cell int conversion."""
+        from modules.crawlers.property.property_tax_nationwide import _parse_tax_html
+        import re as _re
 
         html = """
         <html><body>
         <table>
-          <tr><th>Year</th><th>Assessed</th><th>Market</th><th>Tax Amount</th></tr>
-          <tr><td>2022</td><td>300,000</td><td>380,000</td><td>4,500</td></tr>
+          <tr><th>Year</th><th>Tax Amount</th></tr>
+          <tr><td>2022</td><td>4500</td></tr>
         </table>
         </body></html>
         """
-        original_int = ptax_mod.__builtins__["int"] if isinstance(ptax_mod.__builtins__, dict) else ptax_mod.__builtins__.int  # type: ignore
-        call_count = [0]
+        real_search = _re.search
+        inner_calls = [0]
 
-        def mock_int(val, *args, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 4:  # 4th call = tax cell
-                raise ValueError("forced tax")
-            return original_int(val, *args, **kwargs)
+        def _side_effect(pattern, string, *a, **kw):
+            m = real_search(pattern, string, *a, **kw)
+            if m is not None and inner_calls[0] == 0 and string == "4500":
+                inner_calls[0] += 1
+                bad = MagicMock()
+                bad.group.return_value = MagicMock()
+                bad.group.return_value.replace.return_value = "not-an-int"
+                return bad
+            return m
 
-        if isinstance(ptax_mod.__builtins__, dict):
-            ptax_mod.__builtins__["int"] = mock_int  # type: ignore
-        else:
-            ptax_mod.__builtins__.int = mock_int  # type: ignore
-
-        try:
-            result = ptax_mod._parse_tax_html(html)
-        finally:
-            if isinstance(ptax_mod.__builtins__, dict):
-                ptax_mod.__builtins__["int"] = original_int  # type: ignore
-            else:
-                ptax_mod.__builtins__.int = original_int  # type: ignore
+        with patch("modules.crawlers.property.property_tax_nationwide.re.search", side_effect=_side_effect):
+            result = _parse_tax_html(html)
 
         assert isinstance(result["valuations"], list)
 

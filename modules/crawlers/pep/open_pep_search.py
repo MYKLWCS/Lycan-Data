@@ -62,6 +62,9 @@ _PEP_CATEGORY_MAP = {
 def _classify_tier(position: str) -> str:
     """Return 'tier1', 'tier2', or 'tier3' based on position keywords."""
     pos = position.lower()
+    # "Deputy X" titles are tier2 even if X is a tier1 keyword
+    if "deputy" in pos:
+        return "tier2"
     if any(kw in pos for kw in _TIER1_KEYWORDS):
         return "tier1"
     if any(kw in pos for kw in _TIER2_KEYWORDS):
