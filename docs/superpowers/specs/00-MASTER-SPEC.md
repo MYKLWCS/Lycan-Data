@@ -1,18 +1,19 @@
-# LYCAN OSINT/DATA BROKER PLATFORM — MASTER BUILD SPEC
+# LYCAN OSINT/DATA BROKER PLATFORM — MASTER BUILD SPEC (v3.0)
 
 ## CRITICAL: How to Use This Specification
 
 This document is **the** authoritative source for building Lycan from the ground up.
 
-**Read this first. Then read docs 01-12 in the `/docs` folder for detailed specifications.**
+**Read this first. Then read docs 01-14 in the `/docs` folder for detailed specifications.**
 
 Every developer receiving this should:
 1. Start with this document to understand the complete system
-2. Reference docs 01-12 as needed for implementation details
-3. Follow the Phase Plan sequentially
-4. Build modules in strict modular isolation (see Architecture section)
-5. Run tests after every module completion
-6. Validate against compliance rules in doc 12
+2. Reference docs 01-14 as needed for implementation details (see doc 14 for deep code audit)
+3. Verify all tool licenses comply with the License Safety Tier (below)
+4. Follow the Phase Plan sequentially
+5. Build modules in strict modular isolation (see Architecture section)
+6. Run tests after every module completion
+7. Validate against compliance rules in doc 12
 
 **This is production software.** The existing codebase is ~70% MVP, ~10% production-ready, ~5% enterprise-grade. This spec elevates it to 100% production + enterprise capability.
 
@@ -25,24 +26,26 @@ Lycan is a comprehensive **data broker and OSINT intelligence platform** that ag
 **Competitive Landscape:** Lycan competes with Axiom, LexisNexis, Spokeo, TransUnion, and Equifax in the data intelligence space.
 
 **Core Business Model:**
-- Data aggregation from 100+ public and semi-public sources
+- Data aggregation from 1,000+ public, semi-public, and open discovery sources
 - Zero-duplicate guarantees via 4-pass entity resolution
 - Enrichment to 2,350+ data points across 7 categories
 - Alternative credit scoring and financial intelligence
 - Marketing intelligence (segmentation, lead scoring, affinity modeling)
 - Real-time pattern detection and anomaly alerting
 - White-label API for enterprises, B2B2C, and fintech partners
+- Government-grade compliance and data handling
 
 ### What Lycan Does (Capabilities)
 
 1. **Data Collection & Aggregation** (docs 01, 09)
-   - Maintains 100+ active scraper/crawler workflows
+   - Maintains 1,000+ active scraper/crawler workflows (predefined + open discovery)
    - Collects from public records, open APIs, social platforms, government databases
-   - Auto-detects scraper failures and resets them
+   - Auto-detects scraper failures with never-give-up retry logic
    - Supports both push (webhook) and pull (polling) data sources
+   - Open discovery via SpiderFoot, Amass, theHarvester, Sherlock, Maigret, Google dorking, CT logs, Common Crawl, Wayback
 
 2. **Entity Resolution & Deduplication** (doc 03)
-   - 4-pass dedup: exact → fuzzy → graph → ML-based matching
+   - 4-pass dedup: exact → fuzzy → graph → ML-based matching via Splink (probabilistic)
    - Maintains golden record for each unique person/business
    - Tracks all mentions and aliases
    - Zero-duplicate guarantee — violations trigger alerts
@@ -52,6 +55,7 @@ Lycan is a comprehensive **data broker and OSINT intelligence platform** that ag
    - Enriches with external APIs (coordinates, reverse geocoding, etc.)
    - Cross-references records across sources
    - Assigns confidence scores to every data point
+   - Enrichment Score (0-100) with gap analysis and one-click "deep enrich"
 
 4. **Financial Intelligence** (doc 06)
    - Alternative credit scoring (for unbanked/subprime)
@@ -73,6 +77,7 @@ Lycan is a comprehensive **data broker and OSINT intelligence platform** that ag
    - Editable search parameters mid-flight
    - Business search with officer/agent tracking
    - Reverse phone/email/address search
+   - Multi-candidate presentation with photos and facial embeddings (pHash matching)
 
 7. **Pattern Detection & Networks** (doc 07)
    - Graph analysis for relationship mapping
@@ -80,6 +85,7 @@ Lycan is a comprehensive **data broker and OSINT intelligence platform** that ag
    - Fraud ring identification
    - Network visualization
    - Real-time alerting
+   - Admiralty Code quality framework for data scoring
 
 8. **API & Integration** (doc 01)
    - RESTful API for all operations
@@ -101,26 +107,65 @@ See doc 12 (Ethical & Legal Compliance) for the full framework.
 
 ---
 
+## Licensing Compliance (Definitive Blueprint v3.0)
+
+**ALL tools must use permissive open-source licenses. AGPL and BSL are BANNED.**
+
+### License Safety Tier
+
+| Category | Approved | Rejected | Reason |
+|----------|----------|----------|--------|
+| **MIT** | ✅ Apache 2.0 | ❌ AGPL | Permissive, government-safe |
+| **BSD** | ✅ BSD 2/3-Clause | ❌ BSL 1.1 | Too restrictive, commercial conflict |
+| **GPL** | ✅ GPL-2, GPL-3 | | Patent-safe, strong copyleft OK |
+| **MPL** | ✅ MPL 2.0 | | File-level copyleft, enterprise-friendly |
+| **LGPL** | ✅ LGPL-3 | | Lightweight copyleft, suitable for libraries |
+
+### Critical Tool License Decisions (v3.0)
+
+| Layer | Old | New | License | Notes |
+|-------|-----|-----|---------|-------|
+| **Browser Automation** | Nodriver | Playwright + playwright-stealth | Apache 2.0 | AGPL rejected |
+| **Full-Text Search** | MeiliSearch | Typesense | GPL-3 | BSL rejected, government-safe |
+| **Instant Search** | None | Typesense | GPL-3 | Lightweight alternative to ES |
+| **Cache/Broker** | Redis | Dragonfly | MIT/Polyform | 25x faster, MIT dual-licensed |
+| **Graph Database** | None | Apache AGE | Apache 2.0 | Native Postgres graph queries |
+| **Task Queue (Primary)** | Redis Streams | Temporal + Dramatiq | Temporal:Elastic / Dramatiq:LGPL-3 | Temporal: best-in-class, Dramatiq: lighter option |
+| **Entity Resolution** | Custom matching | Splink | BSD | Probabilistic record linkage |
+| **Source Discovery** | Custom | SpiderFoot + Amass + theHarvester + Sherlock + Maigret | Mix of MIT/GPL | Open discovery automation |
+| **Page Monitoring** | None | ChangeDetection.io + ArchiveBox | AGPL / BSD | For freshness tracking |
+
+**VERIFY ALL DEPENDENCIES** before deploying. Run `pip-audit` or `safety check` regularly.
+
+---
+
 ## Technical Architecture
 
 ### Tech Stack Summary
 
-| Layer | Tech | Justification |
-|-------|------|---------------|
-| **Language** | Python 3.12+ (primary) | Existing codebase, ML/NLP ecosystem, rapid iteration |
-| | Rust via PyO3 (secondary) | String matching, dedup engine, Bloom filters (performance-critical paths only) |
-| **API Framework** | FastAPI | Async-native, performance, OpenAPI docs, Pydantic validation |
-| **Database** | PostgreSQL 16 | JSONB, full-text search, pg_trgm, PostGIS, materialized views |
-| **Cache/Broker** | Dragonfly | Redis-compatible, 25x faster, lower memory footprint |
-| **Vector Search** | Qdrant | Semantic search, ML embeddings, similarity search |
-| **Full-Text Search** | MeiliSearch | Typo-tolerant, fast, already in codebase |
-| **Graph Queries** | Apache AGE (on Postgres) | Native graph database without separate infrastructure |
-| **Workflow Engine** | Temporal.io | Distributed workflows, retry logic, resumability |
-| **Async Tasks** | Redis Streams | Job queue, worker distribution, at-least-once delivery |
-| **Real-Time** | Server-Sent Events (SSE) | Browser-native, no WebSocket complexity, progress tracking |
-| **Monitoring** | Prometheus + Grafana | Metrics, dashboards, alerting |
-| **Containerization** | Docker + Docker Compose | Reproducible environments, local dev, cloud deployment |
-| **CI/CD** | GitHub Actions | Already configured, integrated with existing repo |
+| Layer | Tech | Justification | License |
+|-------|------|---------------|---------|
+| **Language** | Python 3.12+ (primary) | Existing codebase, ML/NLP ecosystem, rapid iteration | MIT |
+| | Rust via PyO3 (secondary) | String matching, dedup engine, Bloom filters (performance-critical paths only) | MIT |
+| **API Framework** | FastAPI | Async-native, performance, OpenAPI docs, Pydantic validation | MIT |
+| **Database** | PostgreSQL 16 | JSONB, full-text search, pg_trgm, PostGIS, materialized views | PostgreSQL License |
+| **Cache/Broker** | Dragonfly | Redis-compatible, 25x faster, lower memory footprint | MIT/Polyform |
+| **Vector Search** | Qdrant | Semantic search, ML embeddings, similarity search | AGPL (optional, use internal embeddings) |
+| **Full-Text Search (Primary)** | Typesense | Typo-tolerant, fast, government-safe, GPL-3 | GPL-3 |
+| **Full-Text Search (Secondary)** | Elasticsearch | Enterprise-grade FTS with aggregations | SSPL (optional, proprietary use) |
+| **Instant Search** | Typesense | Lightweight, GPL-3, alongside Elasticsearch | GPL-3 |
+| **Graph Queries** | Apache AGE (on Postgres) | Native graph database without separate infrastructure | Apache 2.0 |
+| **Workflow Engine** | Temporal.io | Distributed workflows, retry logic, resumability | Elastic License / SSPL |
+| **Async Tasks** | Dramatiq + Apache Pulsar | Job queue, worker distribution, at-least-once delivery | LGPL-3 / Apache 2.0 |
+| **Browser Automation** | Playwright + playwright-stealth | Headless automation, anti-bot stealth | Apache 2.0 |
+| **Entity Resolution** | Splink | Probabilistic record linkage, dedup at scale | BSD |
+| **Source Discovery** | SpiderFoot, Amass, theHarvester, Sherlock, Maigret | Open-source OSINT tools, automated reconnaissance | Mix of MIT/GPL |
+| **Page Monitoring** | ChangeDetection.io | Monitor site changes for freshness tracking | AGPL (air-gapped instance OK) |
+| **Page Archiving** | ArchiveBox | Self-hosted web archive, save snapshots | MIT |
+| **Real-Time** | Server-Sent Events (SSE) | Browser-native, no WebSocket complexity, progress tracking | N/A |
+| **Monitoring** | Prometheus + Grafana | Metrics, dashboards, alerting | Apache 2.0 / AGPL (SSPL option) |
+| **Containerization** | Docker + Docker Compose | Reproducible environments, local dev, cloud deployment | Apache 2.0 |
+| **CI/CD** | GitHub Actions | Already configured, integrated with existing repo | Proprietary |
 
 ### Why Python (Not Go/Rust/Node)?
 
@@ -130,7 +175,7 @@ See doc 12 (Ethical & Legal Compliance) for the full framework.
 - Existing codebase is Python + team expertise
 - ML/NLP ecosystem is unmatched (scikit-learn, XGBoost, sentence-transformers)
 - Data enrichment pipelines use pandas/Polars (Python)
-- OSINT tools (Sherlock, holehe, Maigret) are Python-based
+- OSINT tools (Sherlock, holehe, Maigret, SpiderFoot, Amass) are Python-based
 - Development velocity is critical in early stages
 - **Do not rewrite in Rust.** Profile first, optimize only where Python bottlenecks exist
 - Use Rust via PyO3 only for: string similarity (Levenshtein at 100K+ records/sec), Bloom filters, cryptographic hashing
@@ -139,7 +184,7 @@ See doc 12 (Ethical & Legal Compliance) for the full framework.
 
 #### Primary Database: PostgreSQL 16
 
-**Core Tables (28 existing + 6 new = 34 total)**
+**Core Tables (34 total: 20 existing + 14 new)**
 
 **Existing Person/Business Core:**
 ```
@@ -165,7 +210,7 @@ search_results        — Individual search result items
 scraper_runs          — Execution logs for crawlers/spiders
 ```
 
-**New Tables (Required for Phase 4-8):**
+**New Tables (Phase 4-8):**
 ```
 golden_records              — Canonical dedup'd person record
 entity_graph                — Relationship edges (person-person, person-business)
@@ -183,6 +228,8 @@ webhooks                    — Webhook registrations for push data
 progress_events             — Search progress tracking (SSE events)
 growth_discoveries          — Expanding search results
 data_quality_scores         — Per-record freshness and completeness
+candidate_faces             — pHash fingerprints and facial embeddings for multi-candidate matching
+source_discovery_log        — Review Tab: discovered sources awaiting approval
 ```
 
 **Indexes (Critical for Performance):**
@@ -202,8 +249,16 @@ CREATE INDEX idx_employment_person_id ON employment (person_id);
 CREATE INDEX idx_data_sources_collected_at ON data_sources (collected_at DESC);
 CREATE INDEX idx_audit_log_access_time ON audit_log (access_time DESC);
 
--- Full-text search (optional, use MeiliSearch instead)
-CREATE INDEX idx_persons_name_search ON persons USING GIN(to_tsvector('english', name));
+-- Enrichment and quality scoring
+CREATE INDEX idx_data_quality_scores_person_id ON data_quality_scores (person_id);
+CREATE INDEX idx_data_quality_scores_freshness ON data_quality_scores (freshness_score DESC);
+
+-- Multi-candidate matching
+CREATE INDEX idx_candidate_faces_person_id ON candidate_faces (person_id);
+CREATE INDEX idx_candidate_faces_phash ON candidate_faces (phash);
+
+-- Source discovery review
+CREATE INDEX idx_source_discovery_status ON source_discovery_log (status, created_at DESC);
 ```
 
 #### Cache Layer: Dragonfly (Redis-Compatible)
@@ -214,12 +269,15 @@ Dragonfly replaces Redis with 25x faster performance and 40% less memory:
 Cache Keys:
   person:{id}:full_record       — Full person record with all relations (TTL: 24h)
   person:{id}:enrichment_v2     — Enriched data only (TTL: 7d)
+  person:{id}:enrichment_score  — Enrichment score 0-100 with gap analysis (TTL: 1h)
   phone:{normalized}:person_id  — Phone-to-person mapping (TTL: 30d)
   email:{normalized}:person_id  — Email-to-person mapping (TTL: 30d)
   search:{search_id}:status     — Search status (TTL: 7d)
   search:{search_id}:results    — Cached results (TTL: 24h)
   scraper:{name}:health        — Scraper health status (TTL: 5m)
   rate_limit:{api_key}         — Per-key rate limit counter (TTL: 1m)
+  source_freshness:{source}    — Last crawl time and SLA tracking (TTL: depends on source)
+  candidate_faces:{search_id}  — Multi-candidate faces for current search (TTL: 24h)
 ```
 
 #### Vector Database: Qdrant
@@ -229,16 +287,27 @@ Collections:
   person_embeddings      — Sentence-BERT embeddings of person profiles (384-dim)
   social_profile_text    — Social profile text embeddings
   document_embeddings    — Text from documents (resumes, etc.)
+  facial_embeddings      — Deep facial embeddings for pHash matching
 ```
 
 Used for:
 - Semantic similarity search
 - Finding similar profiles across sources
 - Anomaly detection (outlier embeddings)
+- Multi-candidate facial matching (pHash + embedding cosine distance)
 
-#### Full-Text Search: MeiliSearch
+#### Full-Text Search: Typesense + Elasticsearch
 
-Already in codebase. Maintain for typo-tolerant search.
+**Typesense (Primary):**
+- Fast, typo-tolerant search
+- Government-safe (GPL-3)
+- Instant search for single-record lookup
+- Lighter than Elasticsearch, suitable for smaller deployments
+
+**Elasticsearch (Optional Secondary):**
+- Enterprise-scale FTS with complex aggregations
+- Use only if Typesense capacity exceeded
+- License: SSPL (commercial use requires agreement)
 
 #### Graph Database: Apache AGE (on PostgreSQL)
 
@@ -272,6 +341,344 @@ RETURN connected, relationships
 MATCH (p1:person)-[r1]->(shared:phone)-[r2]->(p2:person)
 WHERE p1.risk_score > 0.7 AND p2.risk_score > 0.7
 RETURN p1, p2, shared
+```
+
+---
+
+## Data Collection: Open Discovery Engine (NEW in v3.0)
+
+### Two Parallel Tracks
+
+**Track 1: Known Sources (1,000+)**
+- Predefined connectors for major platforms (LinkedIn, Facebook, Twitter, etc.)
+- Government records (courts, property, business registries)
+- Data brokers and public record aggregators
+- Financial and credit reporting (where legal)
+- Bulk crawlers managed by Scrapy
+
+**Track 2: Open Discovery**
+- **SpiderFoot**: Automated reconnaissance across 100+ integrations
+- **Amass**: Subdomain enumeration, certificate transparency logs, DNS
+- **theHarvester**: Email harvesting, DNS brute force, search engines
+- **Sherlock**: Username enumeration across 600+ platforms
+- **Maigret**: Cross-platform username search
+- **Google Dorking**: Automated search operators for deep indexing
+- **Certificate Transparency Logs**: SSL/TLS certificate tracking
+- **Common Crawl**: Historical web snapshots
+- **Wayback Machine API**: Historical webpage archives
+
+All discoverable sources feed into **Review Tab** for operator approval (see below).
+
+---
+
+## Review Tab: Source Approval & Crawler Self-Improvement (NEW in v3.0)
+
+### Operator Workflow
+
+1. **Discovery:** Open discovery tools find new data sources
+2. **Review Tab UI:** Operators see pending sources with:
+   - Source name, URL, category
+   - Data quality estimate
+   - Legal/licensing risk assessment
+   - Proposed extraction pattern
+3. **Approve/Reject:** One-click action
+4. **Build Crawler:** Approved sources → one-click Scrapy spider generation
+5. **Auto-Deploy:** Approved crawlers added to scraper fleet
+
+### Self-Improving Loop
+
+- Monitor crawler success/failure rates
+- Failed sources → de-prioritized or removed
+- High-quality sources → increase crawl frequency
+- Feedback loop: crawler performance → Review Tab → approve high-value sources
+
+---
+
+## Search & Multi-Candidate Presentation (NEW in v3.0)
+
+### Multi-Candidate Cards
+
+When multiple people match a search:
+
+1. **Card Presentation:**
+   - Name, age, location
+   - Photo (if available, from social profiles)
+   - Match score (0-100)
+   - Key identifiers (phone, email, address)
+
+2. **Facial Matching (pHash + Embedding):**
+   - Extract faces from discovered photos (social profiles, mugshots, business profiles)
+   - Compute pHash (perceptual hash) for each face
+   - Build facial embedding via deep neural network
+   - Cross-platform matching: find same person in different sources
+   - Cosine distance < threshold = same person (high confidence)
+
+3. **Visual Deduplication:**
+   - Merge candidates with same face across sources
+   - Show consolidated profile card
+
+### Implementation
+
+```python
+# Pseudo-code for facial matching
+for candidate in candidates:
+    faces = extract_faces(candidate.photos)
+    for face in faces:
+        phash = compute_phash(face)  # Perceptual hash
+        embedding = facial_model.encode(face)  # 128-dim or 512-dim
+        
+        # Check against known faces
+        for known_face in candidate_faces_db:
+            if phash_distance(phash, known_face.phash) < 5:  # Very similar
+                if cosine_distance(embedding, known_face.embedding) < 0.4:
+                    # High confidence: same person
+                    merge_candidates(candidate, known_face.person_id)
+```
+
+---
+
+## Enrichment Score & Gap Analysis (NEW in v3.0)
+
+### Visual Gauge: 0-100 Score
+
+```
+Enrichment Score: 73/100
+
+Gap Analysis:
+  [✓] Identity (90%) — Name, DOB, SSN, driver license
+  [⊙] Financial (40%) — Missing: credit score, bank accounts, tax liens
+  [✓] Employment (85%) — Current job, salary range
+  [⊘] Social (20%) — Only 1 social profile found
+  [✓] Legal (88%) — Court records, criminal history
+  [⊙] Property (50%) — Missing: detailed property values, mortgages
+  [✓] Relationships (80%) — Family, associates identified
+
+One-Click Actions:
+  [Deep Enrich] → Target gaps with targeted crawls
+  [Refresh All] → Re-crawl all sources
+  [Get Financial] → Trigger expensive financial data APIs
+```
+
+### Calculation
+
+```
+enrichment_score = (
+  0.20 * identity_completeness +
+  0.15 * financial_completeness +
+  0.15 * employment_completeness +
+  0.15 * social_completeness +
+  0.15 * legal_completeness +
+  0.10 * property_completeness +
+  0.10 * relationships_completeness
+)
+```
+
+---
+
+## Favourited Profile Continuous Enrichment (NEW in v3.0)
+
+### SLA-Based Freshness Re-Crawl
+
+```
+Freshness SLA by Source Type:
+  Social Media:      6-12 hours (volatile)
+  Business Profiles: Weekly (slower change)
+  Court Records:     Monthly (static once filed)
+  Sanctions Lists:   Daily (compliance-critical)
+  Property:          Monthly
+  Financial:         Weekly (APIs may rate-limit)
+```
+
+### Implementation
+
+```python
+# Batch job: refresh profiles by SLA
+def refresh_favourites():
+    profiles = get_favourited_profiles()
+    for profile in profiles:
+        for source in profile.data_sources:
+            if time_since_last_crawl(source) > source.sla:
+                # Re-crawl
+                result = crawl_source(source)
+                
+                # Diff-check
+                old_data = profile.data[source]
+                new_data = result
+                diffs = compare(old_data, new_data)
+                
+                if diffs:
+                    # Notify operator of changes
+                    send_notification({
+                        'profile_id': profile.id,
+                        'source': source,
+                        'changes': diffs,
+                        'timestamp': now()
+                    })
+                    
+                    # Store change history
+                    audit_log(profile, source, diffs)
+```
+
+---
+
+## Never-Give-Up Retry Logic (NEW in v3.0)
+
+### Intelligent Backoff & Failover
+
+**Failure Response Strategy:**
+
+```
+Attempt 1 (Immediate):
+  → Fail: Rate-limited or temporarily down
+  → Action: Switch proxy, try again
+
+Attempt 2 (After 5 minutes):
+  → Fail: Still down
+  → Action: Change User-Agent, update TLS fingerprint, retry
+
+Attempt 3 (Off-Peak):
+  → Fail: Peak hours?
+  → Action: Queue for batch crawl during low-traffic window (2-4am)
+
+Attempt 4+ (Capacity-Based):
+  → Monitor server load: if load < 60%, retry
+  → Exponential backoff: 5m → 15m → 60m → 4h → 24h
+  → Max retries: 10 per source
+```
+
+### Implementation
+
+```python
+# Retry decorator with smart backoff
+@retry_with_backoff(
+    max_attempts=10,
+    base_delay_seconds=300,  # 5 min
+    exponential_base=3,  # 5m → 15m → 60m
+)
+async def fetch_with_failover(url: str, source_name: str):
+    attempt = 0
+    while attempt < max_attempts:
+        try:
+            # Try with current proxy/UA
+            async with aiohttp.ClientSession() as session:
+                proxy = rotate_proxy()
+                ua = rotate_user_agent()
+                async with session.get(url, proxy=proxy, headers={'User-Agent': ua}) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+                    elif resp.status in (429, 503):  # Rate limit or service unavailable
+                        raise TemporaryError(f"Status {resp.status}")
+                    else:
+                        raise PermanentError(f"Status {resp.status}")
+        except TemporaryError:
+            attempt += 1
+            if attempt < max_attempts:
+                delay = base_delay * (exponential_base ** (attempt - 1))
+                # If off-peak, schedule for batch; otherwise wait
+                if is_peak_hours() and attempt >= 3:
+                    queue_for_batch(url, source_name, priority=HIGH)
+                    return None  # Defer
+                else:
+                    await asyncio.sleep(delay)
+            else:
+                raise
+        except PermanentError:
+            log_source_failure(source_name, url)
+            return None
+    
+    # Capacity-based retry
+    if get_server_load() < 0.60:
+        await asyncio.sleep(random.uniform(60, 300))
+        return await fetch_with_failover(url, source_name)  # Retry
+```
+
+---
+
+## Admiralty Code Quality Framework (NEW in v3.0)
+
+### Quality Score Calculation
+
+Each data point gets a quality score to inform relevance and trust:
+
+```
+quality_score = (
+    timeliness × 0.25 +
+    freshness × 0.25 +
+    credibility × 0.25 +
+    source_reliability × 0.25
+)
+
+where:
+  timeliness = (1 - (days_old / 365)) * credibility_multiplier
+  freshness = 1 - (days_since_last_refresh / max_age)
+  credibility = source_accuracy_rate (0-1)
+  source_reliability = source_uptime_percent (0-1)
+
+Result: 0-100 quality_score
+```
+
+### Source Reliability Tiers
+
+```
+Tier 1 (95-100): Government records, court filings, official business registries
+Tier 2 (85-95):  Major data brokers, social media APIs, credit bureaus
+Tier 3 (70-85):  Public web scraping, business listings, volunteer databases
+Tier 4 (50-70):  Third-party forums, user-submitted data, historical archives
+Tier 5 (<50):    Unreliable, manually-submitted, unverified sources
+```
+
+### Display in UI
+
+```
+Data Point: Jane Doe @ Acme Corp (Senior Manager)
+├─ Source: LinkedIn
+├─ Last Updated: 2026-01-15 (69 days old)
+├─ Quality Score: 87/100
+│  ├─ Timeliness: 80
+│  ├─ Freshness: 75 (should refresh weekly)
+│  ├─ Credibility: 95 (LinkedIn accuracy ~95%)
+│  └─ Source Reliability: 99 (LinkedIn uptime ~99.9%)
+└─ [Refresh This Record]
+```
+
+---
+
+## Task Orchestration & Queuing (NEW in v3.0)
+
+### Primary: Temporal.io
+
+Distributed workflow engine for:
+- Complex multi-step crawling workflows
+- Long-running searches
+- Scheduled re-crawls by SLA
+- Retry logic with exponential backoff
+- Resumability after crashes
+
+### Secondary: Dramatiq + Apache Pulsar
+
+Lighter-weight task queue for:
+- Simple fire-and-forget jobs (e.g., log entries)
+- High-throughput async tasks
+- Optional Pulsar for multi-region support
+- LGPL-3 license (approved)
+
+### Configuration
+
+```yaml
+# Temporal config
+temporal:
+  server_address: localhost:7233
+  namespace: lycan
+  worker_queue: default
+  max_concurrent_activities: 100
+
+# Dramatiq config (alternative)
+dramatiq:
+  broker: "amqp://rabbitmq:5672/"
+  # OR
+  broker: "redis://dragonfly:6379/"
+  worker_threads: 32
+  prefetch: 10
 ```
 
 ---
@@ -312,7 +719,9 @@ Request:
   "address": "123 Main St, Springfield, IL 62701",
   "dob": "1980-01-15",
   "expand_networks": true,
-  "timeout_seconds": 60
+  "timeout_seconds": 60,
+  "preferred_sources": ["linkedin", "facebook", "court_records"],
+  "skip_sources": ["rumor_sites"]
 }
 
 Response (201 Created):
@@ -345,7 +754,7 @@ Response:
 ```
 
 #### GET /api/v1/search/{search_id}/results
-Get search results. Paginated.
+Get search results. Paginated. Shows multi-candidate cards.
 
 ```json
 Response:
@@ -363,7 +772,18 @@ Response:
       "email": "john@example.com",
       "sources": ["spokeo", "whitepages", "linkedin"],
       "last_updated": "2026-03-20T00:00:00Z",
-      "confidence_score": 0.95
+      "confidence_score": 0.95,
+      "photos": [
+        {
+          "url": "https://...",
+          "source": "linkedin",
+          "phash": "8f8f8f8f...",
+          "facial_embedding": [0.1, 0.2, ...],
+          "confirmed_face": true
+        }
+      ],
+      "enrichment_score": 73,
+      "enrichment_gaps": ["financial", "property_details"]
     },
     ...
   ],
@@ -383,10 +803,19 @@ event: progress
 data: {"progress_percent": 25, "sources_checked": 12, "results_so_far": 1}
 
 event: result
-data: {"person_id": "person_abc", "name": "John Doe", "match_score": 0.98}
+data: {
+  "person_id": "person_abc",
+  "name": "John Doe",
+  "match_score": 0.98,
+  "candidate_faces": [...],
+  "enrichment_score": 73
+}
 
 event: source_status
 data: {"source": "facebook", "status": "checking"}
+
+event: enrichment_gap
+data: {"category": "financial", "action": "start_deep_enrich"}
 
 event: complete
 data: {"total_results": 3, "duration_seconds": 330}
@@ -399,535 +828,37 @@ Update search parameters while search is running.
 Request:
 {
   "expand_networks": true,
-  "include_deceased": true,
-  "timeout_seconds": 120
+  "timeout_seconds": 120,
+  "preferred_sources": ["linkedin", "facebook"]
 }
 
 Response (200 OK):
 {
   "search_id": "search_abc123def456",
-  "updated_params": {
-    "expand_networks": true,
-    "include_deceased": true,
-    "timeout_seconds": 120
-  },
-  "status": "running"
+  "updated_params": {...}
 }
 ```
 
-#### POST /api/v1/search/{search_id}/expand
-Trigger growth expansion (find associated networks).
-
-```json
-Response (202 Accepted):
-{
-  "search_id": "search_abc123def456",
-  "growth_started": true,
-  "additional_sources": 15,
-  "estimated_completion": "2026-03-24T10:20:00Z"
-}
-```
-
-#### POST /api/v1/search/business
-Search for business by name, EIN, address.
+#### POST /api/v1/search/{person_id}/enrichment/deep
+Trigger deep enrichment targeting specific gaps.
 
 ```json
 Request:
 {
-  "business_name": "Acme Corp",
-  "state": "CA",
-  "ein": "12-3456789",
-  "include_officers": true,
-  "include_filings": true
-}
-
-Response:
-{
-  "search_id": "search_biz_def456",
-  "status": "running",
-  ...
-}
-```
-
-#### POST /api/v1/search/phone
-Reverse phone lookup.
-
-```json
-Request:
-{
-  "phone": "555-0123",
-  "country": "US"
-}
-
-Response:
-{
-  "search_id": "search_phone_123",
-  "phone": "555-0123",
-  "matches": [
-    {
-      "person_id": "person_xyz",
-      "name": "John Doe",
-      "phone_type": "mobile",
-      "last_updated": "2026-03-20"
-    }
-  ]
-}
-```
-
-#### POST /api/v1/search/email
-Reverse email lookup.
-
-```json
-Request:
-{
-  "email": "john@example.com"
-}
-
-Response:
-{
-  "search_id": "search_email_456",
-  "email": "john@example.com",
-  "matches": [
-    {
-      "person_id": "person_xyz",
-      "name": "John Doe",
-      "email_verified": true,
-      "last_updated": "2026-03-20"
-    }
-  ]
-}
-```
-
-### Person Data Endpoints
-
-#### GET /api/v1/person/{person_id}
-Full person profile.
-
-```json
-Response:
-{
-  "person_id": "person_xyz789",
-  "name": "John Michael Doe",
-  "aliases": ["J Doe", "John M Doe"],
-  "dob": "1980-01-15",
-  "age": 46,
-  "gender": "Male",
-  "ssn_last_4": "6789",
-  "current_address": {
-    "street": "123 Main St",
-    "city": "Springfield",
-    "state": "IL",
-    "zip": "62701",
-    "country": "US",
-    "coordinates": [39.7817, -89.6501]
-  },
-  "address_history": [
-    {
-      "street": "456 Oak Ave",
-      "city": "Chicago",
-      "state": "IL",
-      "zip": "60601",
-      "from_date": "2018-01-15",
-      "to_date": "2023-01-15"
-    }
-  ],
-  "phones": [
-    {
-      "phone": "555-0123",
-      "type": "mobile",
-      "verified": true,
-      "carrier": "Verizon",
-      "last_seen": "2026-03-20"
-    }
-  ],
-  "emails": [
-    {
-      "email": "john@example.com",
-      "verified": true,
-      "last_seen": "2026-03-20"
-    }
-  ],
-  "employment": [
-    {
-      "employer": "Acme Corp",
-      "position": "Senior Manager",
-      "start_date": "2020-03-01",
-      "end_date": null,
-      "status": "current"
-    }
-  ],
-  "education": [
-    {
-      "institution": "University of Illinois",
-      "degree": "Bachelor of Science",
-      "field": "Computer Science",
-      "graduation_year": 2002
-    }
-  ],
-  "social_profiles": [
-    {
-      "platform": "linkedin",
-      "handle": "john-doe-123",
-      "url": "https://linkedin.com/in/john-doe-123",
-      "followers": 5000,
-      "verified": true
-    }
-  ],
-  "properties": [
-    {
-      "address": "123 Main St, Springfield, IL 62701",
-      "county": "Sangamon",
-      "property_type": "Single Family",
-      "value_estimate": 450000,
-      "ownership_date": "2019-06-15"
-    }
-  ],
-  "vehicles": [
-    {
-      "year": 2021,
-      "make": "Tesla",
-      "model": "Model 3",
-      "vin": "5YJ3E1EA5MF123456",
-      "registered_owner": true
-    }
-  ],
-  "court_records": [
-    {
-      "case_type": "Small Claims",
-      "amount": 5000,
-      "status": "Settled",
-      "date": "2018-03-15"
-    }
-  ],
-  "criminal_history": [
-    {
-      "offense": "Traffic Violation",
-      "conviction_date": "2015-06-20",
-      "sentence": "Fine",
-      "status": "Closed"
-    }
-  ],
-  "data_sources": [
-    {
-      "source_name": "spokeo",
-      "last_collected": "2026-03-20",
-      "collection_method": "scrape"
-    }
-  ],
-  "confidence_score": 0.95,
-  "data_freshness": "2026-03-20T00:00:00Z",
-  "last_updated": "2026-03-24T10:00:00Z"
-}
-```
-
-#### GET /api/v1/person/{person_id}/financial
-Financial profile (credit, AML, fraud).
-
-```json
-Response:
-{
-  "person_id": "person_xyz789",
-  "credit_profile": {
-    "alt_credit_score": 680,
-    "alt_credit_percentile": 65,
-    "model_version": "v2.3",
-    "calculated_date": "2026-03-24",
-    "factors": [
-      "limited_credit_history",
-      "high_utilization",
-      "missed_payments"
-    ]
-  },
-  "aml_screening": {
-    "screening_date": "2026-03-24T10:00:00Z",
-    "overall_risk": "low",
-    "sanctions_hit": false,
-    "pep_status": "not_pep",
-    "adverse_media": false,
-    "pep_details": null,
-    "sanctions_match": null
-  },
-  "fraud_risk": {
-    "fraud_score": 0.15,
-    "risk_level": "low",
-    "indicators": [
-      "velocity_check_passed",
-      "address_consistency_good"
-    ]
-  }
-}
-```
-
-#### GET /api/v1/person/{person_id}/marketing
-Marketing tags and segments.
-
-```json
-Response:
-{
-  "person_id": "person_xyz789",
-  "marketing_tags": [
-    {
-      "tag": "title_loan_candidate",
-      "confidence": 0.78,
-      "reason": "vehicle_ownership_high_debt_indicators"
-    },
-    {
-      "tag": "gambler",
-      "confidence": 0.45,
-      "reason": "online_activity_patterns"
-    }
-  ],
-  "ticket_size": {
-    "estimated_clv": 45000,
-    "percentile": 72,
-    "segments": ["middle_income", "suburban", "family_oriented"]
-  },
-  "segments": [
-    "suburban_middle_class",
-    "family_household",
-    "tech_adopter",
-    "home_improvement_interest"
-  ],
-  "lead_score": 0.82,
-  "propensity": {
-    "car_loan": 0.88,
-    "mortgage_refinance": 0.72,
-    "credit_card": 0.65
-  }
-}
-```
-
-#### GET /api/v1/person/{person_id}/connections
-Relationship graph.
-
-```json
-Response:
-{
-  "person_id": "person_xyz789",
-  "direct_connections": 12,
-  "network_size": 1247,
-  "relationships": [
-    {
-      "connected_person_id": "person_abc123",
-      "connected_name": "Jane Smith",
-      "relationship_type": "family",
-      "relationship_strength": 0.95,
-      "common_attributes": ["address", "phone"]
-    }
-  ],
-  "clusters": [
-    {
-      "cluster_id": "family_cluster_1",
-      "size": 5,
-      "members": ["person_xyz789", "person_abc123", ...]
-    }
-  ]
-}
-```
-
-#### GET /api/v1/person/{person_id}/score
-All scores aggregated.
-
-```json
-Response:
-{
-  "person_id": "person_xyz789",
-  "credit_score": 680,
-  "fraud_score": 0.15,
-  "aml_risk_score": 0.05,
-  "lead_score": 0.82,
-  "data_quality_score": 0.93,
-  "overall_risk_score": 0.15
-}
-```
-
-### Business Endpoints
-
-#### GET /api/v1/business/{business_id}
-Full business profile.
-
-```json
-Response:
-{
-  "business_id": "business_acme123",
-  "legal_name": "Acme Corporation",
-  "dba_names": ["Acme Corp", "ACME"],
-  "ein": "12-3456789",
-  "state_id": "CA-123456",
-  "business_type": "C Corporation",
-  "founded_date": "1995-03-15",
-  "status": "Active",
-  "industry": "Technology",
-  "naics_code": "541511",
-  "headquarters": {
-    "street": "100 Tech Drive",
-    "city": "San Francisco",
-    "state": "CA",
-    "zip": "94105"
-  },
-  "phone": "415-555-0123",
-  "website": "https://acme.com",
-  "employees_estimated": 5000,
-  "annual_revenue_estimated": 500000000,
-  "officers": [
-    {
-      "name": "John Smith",
-      "title": "CEO",
-      "person_id": "person_xyz123",
-      "tenure_start": "2010-01-15"
-    }
-  ],
-  "filings": [
-    {
-      "filing_type": "Annual Report",
-      "filing_date": "2024-12-31",
-      "revenue": 500000000,
-      "expenses": 450000000
-    }
-  ],
-  "data_sources": ["linkedin", "sec_filings", "state_sos"],
-  "risk_score": 0.08,
-  "last_updated": "2026-03-24T10:00:00Z"
-}
-```
-
-#### GET /api/v1/business/{business_id}/officers
-Officers and beneficial owners.
-
-```json
-Response:
-{
-  "business_id": "business_acme123",
-  "officers": [...],
-  "beneficial_owners": [
-    {
-      "person_id": "person_xyz123",
-      "name": "John Smith",
-      "ownership_percent": 45.5,
-      "title": "Beneficial Owner"
-    }
-  ]
-}
-```
-
-### Enrichment Endpoints
-
-#### POST /api/v1/enrich/person
-Enrich a person record with external data.
-
-```json
-Request:
-{
-  "person_id": "person_xyz789"
+  "target_categories": ["financial", "property"]
 }
 
 Response (202 Accepted):
 {
-  "enrichment_id": "enrich_abc123",
   "person_id": "person_xyz789",
+  "enrichment_job_id": "job_123",
   "status": "queued",
-  "estimated_completion": "2026-03-24T10:05:00Z"
+  "estimated_completion": "2026-03-24T11:00:00Z"
 }
 ```
 
-#### POST /api/v1/enrich/batch
-Batch enrichment.
-
-```json
-Request:
-{
-  "person_ids": ["person_xyz789", "person_abc123"],
-  "data_types": ["financial", "marketing", "network"]
-}
-
-Response:
-{
-  "batch_id": "batch_enrich_456",
-  "total_records": 2,
-  "status": "queued"
-}
-```
-
-### Financial Endpoints
-
-#### POST /api/v1/financial/credit-score/{person_id}
-Calculate alternative credit score.
-
-```json
-Request:
-{
-  "include_explainability": true
-}
-
-Response:
-{
-  "person_id": "person_xyz789",
-  "credit_score": 680,
-  "percentile": 65,
-  "model": "v2.3",
-  "factors": [
-    {
-      "factor": "payment_history",
-      "impact": -0.15,
-      "contribution": "negative"
-    }
-  ],
-  "recommended_actions": [
-    "reduce_credit_utilization",
-    "maintain_payment_schedule"
-  ]
-}
-```
-
-#### POST /api/v1/financial/aml-screen
-Run AML/KYC screening.
-
-```json
-Request:
-{
-  "person_id": "person_xyz789",
-  "check_sanctions": true,
-  "check_pep": true,
-  "check_adverse_media": true
-}
-
-Response:
-{
-  "screening_id": "aml_screen_789",
-  "person_id": "person_xyz789",
-  "status": "complete",
-  "overall_risk": "low",
-  "checks": {
-    "sanctions": { "status": "clear", "lists": ["OFAC", "EU", "UN"] },
-    "pep": { "status": "clear" },
-    "adverse_media": { "status": "no_hits" }
-  },
-  "recommendation": "approve"
-}
-```
-
-### Marketing Endpoints
-
-#### GET /api/v1/marketing/tags/{person_id}
-Marketing tags for person.
-
-```json
-Response:
-{
-  "person_id": "person_xyz789",
-  "tags": [
-    {
-      "tag": "title_loan_candidate",
-      "confidence": 0.78,
-      "model": "v1.2",
-      "last_updated": "2026-03-24"
-    }
-  ]
-}
-```
-
-#### POST /api/v1/marketing/segment
-Assign person to segments.
+#### POST /api/v1/profiles/favourite
+Mark a profile as favourite for continuous enrichment.
 
 ```json
 Request:
@@ -935,1070 +866,376 @@ Request:
   "person_id": "person_xyz789"
 }
 
-Response:
+Response (201 Created):
 {
   "person_id": "person_xyz789",
-  "segments": ["suburban_middle_class", "family_household"],
-  "confidence": 0.87
+  "favourite_id": "fav_123",
+  "refresh_sla": {...}
 }
 ```
 
-#### GET /api/v1/marketing/leads
-Query leads by criteria.
+#### GET /api/v1/profiles/favourite/{person_id}/changes
+Get recent changes to a favourited profile (continuous enrichment).
 
 ```json
-Request Query Parameters:
-?segment=suburban_middle_class&min_lead_score=0.75&tag=car_loan_candidate&limit=1000
-
 Response:
 {
-  "total_leads": 45000,
-  "returned": 1000,
-  "leads": [
+  "person_id": "person_xyz789",
+  "recent_changes": [
     {
-      "person_id": "person_xyz789",
-      "name": "John Doe",
-      "lead_score": 0.82,
-      "tags": ["title_loan_candidate"],
-      "segments": ["suburban_middle_class"]
-    }
+      "timestamp": "2026-03-24T09:30:00Z",
+      "source": "linkedin",
+      "field": "current_employer",
+      "old_value": "Acme Corp",
+      "new_value": "TechCorp Inc",
+      "quality_score": 92
+    },
+    ...
   ]
 }
 ```
 
-#### POST /api/v1/marketing/list/build
-Build a marketing audience list.
-
-```json
-Request:
-{
-  "list_name": "Title Loan Prospects Q2 2026",
-  "criteria": {
-    "tags": ["title_loan_candidate"],
-    "min_ticket_size": 50000,
-    "segments": ["suburban_middle_class"]
-  },
-  "include_contact": true,
-  "exclude_opted_out": true
-}
-
-Response:
-{
-  "list_id": "list_abc123",
-  "estimated_size": 45000,
-  "status": "building",
-  "expires_at": "2026-04-24T10:00:00Z"
-}
-```
-
-### Admin Endpoints
-
-#### GET /api/v1/admin/health
-System health check.
+#### GET /api/v1/sources/review
+Get pending discovered sources awaiting approval (Review Tab).
 
 ```json
 Response:
 {
-  "status": "healthy",
-  "timestamp": "2026-03-24T10:00:00Z",
-  "services": {
-    "postgres": "healthy",
-    "dragonfly": "healthy",
-    "temporal": "healthy",
-    "qdrant": "healthy"
-  },
-  "queue_depth": 245,
-  "active_searches": 12,
-  "active_scrapers": 87
-}
-```
-
-#### GET /api/v1/admin/scrapers
-Scraper status dashboard.
-
-```json
-Response:
-{
-  "total_scrapers": 103,
-  "healthy": 101,
-  "degraded": 2,
-  "failed": 0,
-  "scrapers": [
+  "pending_sources": [
     {
-      "name": "spokeo_people_search",
-      "status": "healthy",
-      "last_run": "2026-03-24T09:55:00Z",
-      "success_rate": 0.98,
-      "records_collected_today": 45000,
-      "errors": 0
-    }
+      "source_id": "src_123",
+      "name": "example.com/people",
+      "url": "https://example.com/people",
+      "category": "business_profiles",
+      "data_quality_estimate": 0.82,
+      "legal_risk": "low",
+      "proposed_pattern": {
+        "selectors": {"name": "h1.name", "email": "span.email"},
+        "pagination": "next_link"
+      },
+      "discovered_by": "SpiderFoot",
+      "discovered_at": "2026-03-24T08:00:00Z"
+    },
+    ...
   ]
 }
 ```
 
-#### GET /api/v1/admin/metrics
-Prometheus metrics (Grafana visualization).
-
-#### GET /api/v1/admin/queue
-Job queue status.
-
-```json
-Response:
-{
-  "total_jobs": 5000,
-  "queued": 245,
-  "running": 87,
-  "completed": 4668,
-  "failed": 0
-}
-```
-
-### Compliance Endpoints
-
-#### POST /api/v1/compliance/opt-out
-Consumer opt-out request.
+#### POST /api/v1/sources/{source_id}/approve
+Approve a discovered source and build crawler.
 
 ```json
 Request:
 {
-  "first_name": "John",
-  "last_name": "Doe",
-  "dob": "1980-01-15",
-  "email": "john@example.com",
-  "reason": "gdpr"
+  "approval_notes": "High-quality business directory"
 }
 
-Response (202 Accepted):
+Response (201 Created):
 {
-  "opt_out_id": "optout_xyz123",
-  "status": "processing",
-  "estimated_completion": "2026-03-31T00:00:00Z"
-}
-```
-
-#### GET /api/v1/compliance/access/{person_id}
-Consumer data access (GDPR, CCPA).
-
-```json
-Response:
-{
-  "person_id": "person_xyz789",
-  "full_profile": {...},
-  "data_sources": [...],
-  "collection_dates": [...]
-}
-```
-
-#### POST /api/v1/compliance/deletion
-Consumer data deletion.
-
-```json
-Request:
-{
-  "person_id": "person_xyz789",
-  "reason": "user_request"
-}
-
-Response (202 Accepted):
-{
-  "deletion_id": "del_xyz123",
-  "status": "queued"
+  "source_id": "src_123",
+  "status": "approved",
+  "crawler_job_id": "job_456",
+  "estimated_first_crawl": "2026-03-24T12:00:00Z"
 }
 ```
 
 ---
 
-## Directory Structure (Target)
-
-```
-/lycan
-├── /api                           # FastAPI application
-│   ├── /routes                    # API endpoint modules
-│   │   ├── search.py              # Search endpoints (person, business, phone, email)
-│   │   ├── person.py              # Person data endpoints
-│   │   ├── business.py            # Business data endpoints
-│   │   ├── enrichment.py          # Data enrichment endpoints
-│   │   ├── financial.py           # Credit/AML/fraud endpoints
-│   │   ├── marketing.py           # Marketing tags/segments endpoints
-│   │   ├── admin.py               # Health/metrics/admin endpoints
-│   │   ├── compliance.py          # Opt-out/access/deletion endpoints
-│   │   └── webhooks.py            # Incoming webhook handlers
-│   ├── /middleware                # Authentication, logging, rate limiting
-│   │   ├── auth.py                # JWT + API key validation
-│   │   ├── rate_limiter.py        # Per-key rate limiting
-│   │   ├── logging.py             # Structured request logging
-│   │   ├── cors.py                # CORS configuration
-│   │   └── request_id.py          # Request tracing
-│   ├── /schemas                   # Pydantic models for validation
-│   │   ├── search.py
-│   │   ├── person.py
-│   │   ├── business.py
-│   │   ├── financial.py
-│   │   └── common.py
-│   └── app.py                     # FastAPI app factory & initialization
-│
-├── /crawlers                      # Data collection infrastructure
-│   ├── /core                      # Base crawler classes
-│   │   ├── base_crawler.py        # Abstract base for all crawlers
-│   │   ├── http_crawler.py        # HTTP-based crawlers
-│   │   ├── headless_crawler.py    # Playwright-based crawlers
-│   │   ├── errors.py              # Crawler exceptions
-│   │   └── rate_limiter.py        # Per-source rate limiting
-│   ├── /people_search            # People search site scrapers
-│   │   ├── spokeo.py
-│   │   ├── whitepages.py
-│   │   ├── peoplefinder.py
-│   │   └── ...
-│   ├── /social_media             # Social platform scrapers
-│   │   ├── facebook.py
-│   │   ├── linkedin.py
-│   │   ├── twitter.py
-│   │   ├── instagram.py
-│   │   └── ...
-│   ├── /public_records           # Government data scrapers
-│   │   ├── sos_scraper.py        # Secretary of State
-│   │   ├── property_records.py
-│   │   ├── court_records.py
-│   │   ├── business_licenses.py
-│   │   └── ...
-│   ├── /financial                # Financial data scrapers
-│   │   ├── sec_filings.py
-│   │   ├── credit_bureaus.py
-│   │   └── ...
-│   ├── /business                 # Business intelligence scrapers
-│   │   ├── crunchbase.py
-│   │   ├── bloomberg.py
-│   │   └── ...
-│   ├── /sanctions_aml            # Sanctions & AML list scrapers
-│   │   ├── ofac_scraper.py
-│   │   ├── eu_sanction_scraper.py
-│   │   ├── un_scraper.py
-│   │   ├── pep_scraper.py
-│   │   └── ...
-│   ├── /phone_email              # Contact validation
-│   │   ├── phone_validator.py
-│   │   ├── email_validator.py
-│   │   └── ...
-│   ├── /property                 # Property records
-│   │   ├── zillow.py
-│   │   ├── county_assessor.py
-│   │   └── ...
-│   ├── /monitoring               # Change detection & monitoring
-│   │   ├── change_detector.py
-│   │   └── alert_generator.py
-│   ├── registry.py               # Auto-discovery scraper registry
-│   └── health_check.py           # Scraper health monitoring
-│
-├── /modules                      # Core business logic (strictly modular)
-│   ├── /dedup                    # Entity resolution & deduplication
-│   │   ├── base.py               # Dedup pipeline interface
-│   │   ├── exact_match.py        # Exact matching (100% confidence)
-│   │   ├── fuzzy_match.py        # Fuzzy string matching
-│   │   ├── graph_dedup.py        # Graph-based dedup
-│   │   ├── ml_dedup.py           # ML-based matching (Rust bridge)
-│   │   ├── golden_record.py      # Golden record construction
-│   │   ├── bloom_filter.py       # Fast existence checks
-│   │   └── confidence_scorer.py  # Dedup confidence scoring
-│   ├── /enrichment               # Data enrichment pipeline
-│   │   ├── pipeline.py           # Enrichment orchestrator
-│   │   ├── normalizer.py         # Field normalization
-│   │   ├── cross_reference.py    # Cross-source linking
-│   │   ├── api_enricher.py       # External API enrichment
-│   │   ├── confidence_scorer.py  # Data quality scoring
-│   │   └── freshness_manager.py  # Data staleness detection
-│   ├── /financial                # Financial intelligence
-│   │   ├── alt_credit_score.py   # Alternative credit scoring
-│   │   ├── aml_screener.py       # AML/KYC screening
-│   │   ├── sanctions_checker.py  # Sanctions list matching
-│   │   ├── pep_detector.py       # PEP detection
-│   │   ├── fraud_detector.py     # Fraud risk modeling
-│   │   └── adverse_media.py      # Adverse media monitoring
-│   ├── /marketing                # Marketing intelligence
-│   │   ├── consumer_tagger.py    # Consumer tag assignment
-│   │   ├── ticket_sizer.py       # CLV estimation
-│   │   ├── segment_engine.py     # Behavioral segmentation
-│   │   ├── lead_scorer.py        # Lead scoring models
-│   │   └── propensity_models.py  # Propensity to respond
-│   ├── /search                   # Search orchestration
-│   │   ├── orchestrator.py       # Search workflow coordinator
-│   │   ├── progress_tracker.py   # SSE progress tracking
-│   │   ├── growth_engine.py      # Network expansion search
-│   │   └── result_combiner.py    # Multi-source result merging
-│   ├── /patterns                 # Pattern detection & ML
-│   │   ├── graph_analyzer.py     # Network graph analysis
-│   │   ├── anomaly_detector.py   # Anomaly detection
-│   │   ├── predictive_model.py   # ML-based predictions
-│   │   └── fraud_ring_detector.py
-│   └── /compliance               # Legal compliance & regulations
-│       ├── opt_out_manager.py    # Opt-out request processing
-│       ├── consumer_access.py    # GDPR/CCPA data access
-│       ├── fcra_compliance.py    # FCRA compliance mode
-│       ├── audit_logger.py       # Compliance audit trail
-│       └── validator.py          # Data validation rules
-│
-├── /shared                       # Shared utilities (no internal imports)
-│   ├── /db                       # Database layer
-│   │   ├── models.py             # SQLAlchemy ORM models
-│   │   ├── connect.py            # Database connection pool
-│   │   ├── migrations/           # Alembic migration scripts
-│   │   └── queries.py            # Common query utilities
-│   ├── /cache                    # Cache layer (Dragonfly)
-│   │   ├── client.py             # Dragonfly client wrapper
-│   │   ├── keys.py               # Cache key conventions
-│   │   └── invalidation.py       # Cache invalidation logic
-│   ├── /config                   # Configuration management
-│   │   ├── settings.py           # Pydantic settings from env
-│   │   ├── features.py           # Feature flags
-│   │   └── secrets.py            # Secret management
-│   ├── /logging                  # Structured logging
-│   │   ├── logger.py             # JSON structured logging
-│   │   └── filters.py            # PII filtering
-│   ├── /security                 # Auth & encryption
-│   │   ├── jwt_handler.py        # JWT token generation/validation
-│   │   ├── api_key_handler.py    # API key management
-│   │   ├── encryption.py         # Field-level encryption
-│   │   └── secrets_manager.py    # Secret retrieval
-│   ├── /events                   # Event bus & SSE
-│   │   ├── event_bus.py          # Event publisher
-│   │   ├── sse_manager.py        # SSE connection manager
-│   │   └── event_types.py        # Event schema definitions
-│   ├── /http                     # HTTP utilities
-│   │   ├── client.py             # Async HTTP client with retries
-│   │   ├── retry_policy.py       # Retry logic
-│   │   └── circuit_breaker.py    # Circuit breaker pattern
-│   └── /utils                    # General utilities
-│       ├── phone_normalizer.py
-│       ├── email_validator.py
-│       ├── string_similarity.py  # Rust bridge for Levenshtein
-│       └── ...
-│
-├── /workflows                    # Temporal.io workflow definitions
-│   ├── search_workflow.py        # Person/business search workflow
-│   ├── enrichment_workflow.py    # Data enrichment workflow
-│   ├── growth_workflow.py        # Network expansion workflow
-│   ├── monitoring_workflow.py    # Continuous monitoring workflow
-│   └── activities.py             # Workflow activity implementations
-│
-├── /migrations                   # Alembic database migrations
-│   ├── env.py
-│   ├── script.py.mako
-│   └── versions/
-│
-├── /tests                        # Comprehensive test suite (target >80%)
-│   ├── /unit                     # Unit tests
-│   │   ├── test_dedup.py
-│   │   ├── test_enrichment.py
-│   │   ├── test_financial.py
-│   │   └── ...
-│   ├── /integration              # Integration tests
-│   │   ├── test_search_workflow.py
-│   │   ├── test_api_endpoints.py
-│   │   └── ...
-│   ├── /e2e                      # End-to-end tests
-│   │   ├── test_full_search.py
-│   │   └── ...
-│   ├── conftest.py               # Pytest fixtures
-│   ├── fixtures/                 # Test data
-│   └── mocks.py                  # Mock implementations
-│
-├── /static                       # Frontend assets
-│   ├── /css
-│   ├── /js
-│   └── /images
-│
-├── /templates                    # HTML templates (Jinja2)
-│   ├── base.html
-│   ├── search_results.html
-│   └── ...
-│
-├── /scripts                      # Utility & operational scripts
-│   ├── migrate_db.py            # Database migration runner
-│   ├── bulk_enrich.py           # Bulk enrichment runner
-│   ├── opt_out_processor.py     # Opt-out request processor
-│   ├── scraper_health_check.py  # Health check runner
-│   └── cleanup.py               # Data cleanup & retention
-│
-├── /docs                         # Specification documents
-│   ├── 01-tech-stack.md         # Technology decisions
-│   ├── 02-modular-architecture.md
-│   ├── 03-deduplication-verification.md
-│   ├── 04-[reserved]
-│   ├── 05-data-enrichment-categories.md
-│   ├── 06-financial-aml-credit.md
-│   ├── 07-patterns-indexing-future.md
-│   ├── 08-[reserved]
-│   ├── 09-bots-crawlers-catalog.md
-│   ├── 10-marketing-tags-scoring.md
-│   ├── 11-progress-realtime-ui.md
-│   └── 12-ethical-legal-compliance.md
-│
-├── docker-compose.yml            # Production services
-├── docker-compose.dev.yml        # Local development services
-├── Dockerfile                    # Application container
-├── Makefile                      # Common commands
-├── pyproject.toml               # Python project metadata & dependencies
-├── setup.py                     # Package setup
-├── lycan.py                     # CLI entry point
-├── worker.py                    # Background worker entry point
-├── wsgi.py                      # WSGI entry point for production
-├── README.md                    # Project overview
-└── .env.example                 # Example environment variables
-```
-
----
-
-## Build Phases (10 Phases, 24 Weeks to Production)
+## Phase Plan (Updated for v3.0)
 
 ### Phase 1: Foundation & Security (Week 1-2) ⚠️ CRITICAL PRIORITY
-**Goal:** Fix all critical security audit findings. Establish secure foundation.
+
+**Goals:**
+- Verify license compliance for all dependencies (new: Playwright, Typesense, Dramatiq)
+- Set up Dragonfly cache layer (replaces Redis)
+- Deploy Typesense instance (alongside or replacing MeiliSearch)
+- Begin Playwright + playwright-stealth integration (replaces Nodriver)
+- Set up Temporal.io or Dramatiq task queue
 
 **Tasks:**
-1. Implement JWT + API key authentication on all endpoints
-2. Add comprehensive Pydantic input validation to every route
-3. Fix Tor circuit reuse vulnerability (rotate circuits)
-4. Implement per-IP + per-API-key rate limiting (Dragonfly-backed)
-5. Add credential filtering in logs (regex scrubbing)
-6. Configure CORS properly (whitelist only safe origins)
-7. Add request ID correlation header to all requests
-8. Fix growth daemon infinite loop risk (add max iterations)
-9. Set up CI/CD pipeline for automated security checks
-10. Write security test suite
+1. License audit: run `pip-audit` + check all transitive dependencies against license safety tier
+2. Dragonfly: deploy and validate Redis-compatible cache
+3. Typesense: deploy and configure full-text search
+4. Playwright: install `playwright` + `playwright-stealth`, remove `nodriver`
+5. Task queue: set up Temporal.io server or Dramatiq broker
+6. Database: add new tables (reviewed above)
+7. Tests: unit tests for all license compliance
 
-**Tests to Write:** 20+ security tests (auth, validation, injection prevention)
-
-**Deliverables:**
-- All endpoints require auth ✓
-- No credentials in logs ✓
-- Rate limiting enforced ✓
-- Input validation on every route ✓
-
----
+**Definition of Done:**
+- All tools are MIT/Apache/BSD/GPL/LGPL/MPL-2.0 only
+- Dragonfly operational, tests passing
+- Typesense operational, typo-tolerant search working
+- Playwright stealth mode active, anti-bot detection bypass verified
+- Task queue operational, test jobs completing
 
 ### Phase 2: Core Infrastructure (Week 3-4)
-**Goal:** Build reliable backbone for at-scale operation.
+
+**Goals:**
+- Finalize PostgreSQL schema (34 tables)
+- Deploy Apache AGE for graph queries
+- Deploy Qdrant for vector embeddings
+- Integrate all databases
 
 **Tasks:**
-1. Set up Temporal.io cluster (Docker Compose local, Kubernetes prod)
-2. Implement Server-Sent Events (SSE) for progress streaming
-3. Implement Redis Streams job queue (replace ad-hoc queuing)
-4. Add circuit breaker to all HTTP requests (httpx-based)
-5. Implement health check system (readiness + liveness probes)
-6. Set up Prometheus metrics collection
-7. Set up Grafana dashboards for: queue depth, scraper health, search latency
-8. Implement structured JSON logging (remove console logs)
-9. Build request tracing (Jaeger or OpenTelemetry)
-10. Add database connection pooling validation
+1. PostgreSQL: create all 34 tables with indexes
+2. Apache AGE: install and configure on PostgreSQL
+3. Qdrant: deploy and create collections (person_embeddings, facial_embeddings)
+4. Migration scripts: populate existing data into new schema
+5. Validation: test all indexes and query performance
+6. Tests: integration tests across databases
 
-**Tests:** 15+ infrastructure tests
-
-**Deliverables:**
-- Temporal running locally and in production config ✓
-- SSE streaming works end-to-end ✓
-- Circuit breakers prevent cascading failures ✓
-- Prometheus + Grafana dashboards live ✓
-
----
+**Definition of Done:**
+- All 34 tables present with data
+- AGE graph queries working
+- Qdrant collections operational
+- Index performance validated (P99 < 100ms for common queries)
 
 ### Phase 3: Dedup & Entity Resolution (Week 5-6)
-**Goal:** Build 4-pass dedup pipeline for zero-duplicate guarantee.
+
+**Goals:**
+- Implement 4-pass dedup engine
+- Integrate Splink for probabilistic matching
+- Build golden record creation and merging
 
 **Tasks:**
-1. Implement exact match pass (hash on normalized fields)
-2. Implement fuzzy match pass (Levenshtein distance, Jaro-Winkler)
-3. Implement graph-based dedup (shared phones, addresses, emails)
-4. Implement ML-based dedup (Rust bridge for string similarity at scale)
-5. Build golden record construction (merge 4+ records)
-6. Build Bloom filters for fast existence checks
-7. Implement Apache AGE graph for relationship storage
-8. Add confidence scoring to dedup matches
-9. Add data freshness tracking
-10. Build dedup audit trail
+1. Splink: integrate for probabilistic record linkage
+2. Pass 1: exact match (name + DOB + phone)
+3. Pass 2: fuzzy match (Levenshtein on normalized fields)
+4. Pass 3: graph-based (shared phone/email → linked)
+5. Pass 4: ML-based (Splink model trained on known duplicates)
+6. Golden record: create canonical record, merge aliases
+7. Tests: dedup validation, golden record integrity
 
-**Rust Components to Build:**
-```rust
-// string_similarity.rs — Fast string matching
-pub fn levenshtein_distance(a: &str, b: &str) -> usize { ... }
-pub fn jaro_winkler_similarity(a: &str, b: &str) -> f64 { ... }
-pub fn phonetic_hash(s: &str) -> String { ... }  // Metaphone or Soundex
-pub fn bloom_filter_check(key: &[u8], filter: &[u8]) -> bool { ... }
-```
+**Definition of Done:**
+- All records have golden_record_id
+- 4-pass pipeline working end-to-end
+- Splink model trained and deployed
+- Zero-duplicate guarantee enforced
 
-**Tests:** 30+ dedup tests (exact, fuzzy, graph, ML)
+### Phase 4: Scraper Expansion & Open Discovery (Week 7-10)
 
-**Deliverables:**
-- 4-pass dedup working end-to-end ✓
-- Zero duplicate records in database ✓
-- Golden records properly merged ✓
-- Confidence scores on all matches ✓
-
----
-
-### Phase 4: Scraper Expansion (Week 7-10)
-**Goal:** Add 50+ new data sources. Establish reliable data pipeline.
+**Goals:**
+- Expand scraper count from 100+ to 1000+ sources
+- Implement Track 1 (predefined) and Track 2 (open discovery)
+- Deploy SpiderFoot, Amass, theHarvester, Sherlock, Maigret
+- Build Review Tab for source approval
 
 **Tasks:**
-1. Refactor all existing scrapers to use BaseCrawler interface
-2. Add 50+ new scrapers from catalog (09-bots-crawlers-catalog.md):
-   - People search: Spokeo, WhitePages, PeopleFinder, TruthFinder, Instant Checkmate
-   - Social: Facebook, LinkedIn, Twitter, Instagram, TikTok
-   - Public records: SOS, property assessor, court records, business licenses
-   - Financial: SEC EDGAR, credit bureaus, financial filings
-   - Business: Crunchbase, Bloomberg, Yahoo Finance
-   - Sanctions: OFAC, EU, UN, UK sanctions lists
-   - Phone/email: Phone lookup APIs, email validation services
-3. Implement scraper registry with auto-discovery
-4. Add per-scraper rate limiting (respect site ToS)
-5. Add per-scraper circuit breakers
-6. Build scraper health dashboard
-7. Implement continuous data monitoring (change detection)
-8. Add scraper failure alerts
-9. Write scraper tests (mock HTTP responses)
-10. Document each scraper's ToS and legal status
+1. SpiderFoot: deploy and integrate all 100+ reconnaissance modules
+2. Amass: configure for subdomain/DNS enumeration, CT logs
+3. theHarvester: email harvesting, search engine dorking
+4. Sherlock: username enumeration across 600+ platforms
+5. Maigret: cross-platform username search
+6. Google Dorking: automated search operator generation
+7. Common Crawl + Wayback: historical data ingestion
+8. Review Tab UI: operator approval workflow
+9. Auto-crawler: one-click spider generation from approved sources
+10. Never-give-up retry logic: proxy rotation, UA switching, off-peak batching
+11. Tests: crawler success rates, source quality scoring
 
-**Scraper Priority Order:**
-1. People search (Spokeo, WhitePages, PeopleFinder)
-2. Public records (SOS, property, court)
-3. Social media (LinkedIn, Facebook)
-4. Sanctions (OFAC, EU)
-5. Financial (SEC, credit bureaus)
-6. Business (Crunchbase)
-7. Phone/email validators
-8. Property (Zillow, county assessor)
-
-**Tests:** 50+ scraper tests (one per scraper, mock responses)
-
-**Deliverables:**
-- 50+ scrapers active ✓
-- Auto-discovery working ✓
-- Health dashboard shows status ✓
-- Rate limiting respected ✓
-
----
+**Definition of Done:**
+- 1,000+ sources configured (500 predefined + 500 discovered)
+- Track 1 and Track 2 both operational
+- Review Tab deployed and tested
+- Never-give-up retry hitting 95%+ success rate
+- Freshness SLA enforcement live
 
 ### Phase 5: Financial & AML Intelligence (Week 11-13)
-**Goal:** Build financial risk assessment capability.
+
+**Goals:**
+- Alternative credit scoring
+- AML/KYC screening
+- PEP detection
+- Fraud risk modeling
 
 **Tasks:**
-1. Build alternative credit scoring model:
-   - Features: payment behavior, debt-to-income, credit utilization
-   - Train on anonymized dataset
-   - Version model (v1.0, v1.1, etc.)
-   - Calculate percentile ranking
+1. Credit model: train on unbanked/subprime data, deploy scoring
+2. AML lists: integrate OFAC, EU sanctions, UK sanctions lists
+3. PEP detection: cross-reference against public PEP databases
+4. Fraud indicators: build risk model from historical fraud patterns
+5. APIs: integrate with external providers (if needed)
+6. Tests: compliance validation, risk score accuracy
 
-2. Implement AML/KYC screening:
-   - OFAC screening (download list weekly)
-   - EU sanctions (download weekly)
-   - UN sanctions (download weekly)
-   - UK sanctions (download weekly)
-
-3. Build PEP detection:
-   - Scrape PEP databases
-   - Match against persons database
-   - Flag high-risk profiles
-
-4. Build adverse media monitoring:
-   - News search APIs
-   - Negative keyword flagging
-   - Risk scoring
-
-5. Build fraud detection model:
-   - Velocity checks (new account, activity)
-   - Address consistency
-   - Device fingerprinting signals
-   - Fraud ring detection
-
-6. Add financial data aggregation:
-   - Bank account data (where available)
-   - Tax filing data
-   - Investment activity
-
-**ML Models to Train:**
-- Credit score model (gradient boosting)
-- Fraud detector (random forest)
-- PEP classifier (simple rules + ML)
-
-**Tests:** 20+ financial tests
-
-**Deliverables:**
-- Credit scores calculated ✓
-- AML screening working ✓
-- PEP detection active ✓
-- Fraud models scoring ✓
-
----
+**Definition of Done:**
+- Credit scores computed for 90%+ of records
+- AML screening automated, alert triggering working
+- PEP detection for all officers/associates
+- Fraud risk scoring deployed
 
 ### Phase 6: Marketing Intelligence (Week 14-15)
-**Goal:** Add consumer targeting & lead scoring capability.
+
+**Goals:**
+- Consumer tagging (title loans, gambling interest, etc.)
+- Ticket size (CLV) estimation
+- Behavioral segmentation
+- Lead scoring
 
 **Tasks:**
-1. Build consumer tagging engine:
-   - Title loan candidates (vehicle + debt indicators)
-   - Gamblers (gaming site activity)
-   - Home improvement interest (property records)
-   - Travel enthusiasts (booking site activity)
-   - Small business owners (employment + business records)
-   - Parents (school enrollment records)
+1. Tags: define 50+ consumer tags, build classification model
+2. CLV: train ticket size model from engagement data
+3. Segmentation: behavioral/demographic clustering
+4. Lead scoring: propensity models for common use cases
+5. Tests: tag accuracy, model calibration
 
-2. Implement ticket size estimation:
-   - Income estimation from data
-   - Asset estimation
-   - Debt load assessment
-   - Propensity modeling
-   - Calculate CLV (Customer Lifetime Value)
-
-3. Build segment engine:
-   - Behavioral segmentation (online activity)
-   - Demographic segmentation (age, income, family)
-   - Geographic segmentation
-   - Psychographic segmentation
-
-4. Implement lead scoring:
-   - Propensity to respond
-   - Likelihood to convert
-   - Revenue potential
-
-5. Build marketing list generation:
-   - Filter by tags, segments, scores
-   - Export to CSV for campaigns
-   - Respect opt-outs and compliance rules
-
-**Models to Train:**
-- Tag assignment (logistic regression per tag)
-- Ticket size estimator (gradient boosting)
-- Lead score model (ensemble)
-
-**Tests:** 15+ marketing tests
-
-**Deliverables:**
-- Consumer tags assigned ✓
-- Ticket sizes calculated ✓
-- Segments assigned ✓
-- Lead scoring working ✓
-
----
+**Definition of Done:**
+- Tags assigned to 95%+ of records
+- CLV estimated for all records
+- Segments created and validated
+- Lead scores computed and calibrated
 
 ### Phase 7: Search & UI Enhancements (Week 16-17)
-**Goal:** Make search fast, visual, and interactive.
+
+**Goals:**
+- Real-time search with progress bars
+- Multi-candidate cards with photos
+- Facial matching (pHash + embeddings)
+- Enrichment Score gauge with gap analysis
+- Favourited profile continuous enrichment
 
 **Tasks:**
-1. Implement progress bars on all search operations:
-   - Show % complete
-   - Show sources being checked
-   - Show results found so far
+1. Real-time search: SSE stream with progress
+2. Multi-candidate UI: card-based presentation
+3. Facial matching: extract faces, compute pHash, build embeddings
+4. Enrichment Score: calculate 0-100 score with gaps
+5. "Deep Enrich" button: trigger targeted crawls
+6. Favourites: SLA-based re-crawl, diff notifications
+7. UI tests: visual regression, performance
 
-2. Build expanding search (growth engine):
-   - Find related people via shared phone/email/address
-   - Network expansion
-   - Family unit detection
-   - Business associate detection
-
-3. Add editable search parameters:
-   - Adjust search during flight
-   - Add/remove criteria
-   - Expand/narrow scope
-
-4. Build network visualization:
-   - Graph visualization (relationships)
-   - Interactive node/edge inspection
-   - Cluster detection visualization
-
-5. Add map-based results view:
-   - Plot addresses on map
-   - Cluster analysis
-   - Geographic patterns
-
-6. Implement search history:
-   - Saved searches
-   - Recent searches
-   - Search templates
-
-7. Add bulk search capability:
-   - Upload CSV of people to search
-   - Batch processing
-   - Export results
-
-**Frontend Framework:** React or Vue (choose one)
-
-**Tests:** 20+ UI/UX tests (including UI component tests)
-
-**Deliverables:**
-- Search progress visible ✓
-- Growth expansion working ✓
-- Network visualization interactive ✓
-- Search history persistent ✓
-
----
+**Definition of Done:**
+- Search returns multi-candidate cards within 5 seconds
+- Facial matching finds same person across platforms (90%+ accuracy)
+- Enrichment Score accurate and actionable
+- Favourites re-crawl on schedule, diffs detected
 
 ### Phase 8: Pattern Detection & ML (Week 18-20)
-**Goal:** Detect patterns, fraud rings, anomalies.
+
+**Goals:**
+- Graph analysis for networks
+- Anomaly detection
+- Fraud ring identification
+- Admiralty Code quality framework
+- Real-time alerting
 
 **Tasks:**
-1. Implement graph-based pattern detection:
-   - Community detection (shared resources)
-   - Hub detection (highly connected nodes)
-   - Path finding (connection discovery)
+1. Graph queries: Apache AGE for network traversal
+2. Anomaly detection: isolation forest on embeddings
+3. Fraud rings: detect highly connected high-risk networks
+4. Admiralty Code: implement quality_score formula
+5. Alerting: real-time anomaly notifications
+6. Tests: fraud ring detection accuracy, alert precision
 
-2. Build anomaly detection:
-   - Isolation forests on numeric data
-   - Density-based anomalies
-   - Time-series anomalies
-
-3. Train predictive models:
-   - Risk prediction
-   - Behavior prediction
-   - Churn prediction
-
-4. Build real-time alerting:
-   - Alert on high-risk profiles
-   - Alert on new fraud patterns
-   - Alert on sanctions hits
-
-5. Implement fraud ring detection:
-   - Identify networks of coordinated fraud
-   - Track cross-linked identities
-   - Risk scoring for rings
-
-6. Build recommendation engine:
-   - Recommend similar profiles
-   - Recommend related records
-
-**Advanced ML:**
-- Graph neural networks for relationship prediction
-- Time-series forecasting
-- Anomaly detection models
-
-**Tests:** 15+ ML tests (with sample data)
-
-**Deliverables:**
-- Pattern detection working ✓
-- Anomaly alerts firing ✓
-- Fraud ring detection active ✓
-- ML models scoring ✓
-
----
+**Definition of Done:**
+- Graph queries fast (< 500ms for 3-hop traversal)
+- Anomalies detected with precision > 90%
+- Fraud rings identified (validated against known cases)
+- Quality scores accurate and useful
 
 ### Phase 9: Compliance & Hardening (Week 21-22)
-**Goal:** Achieve compliance, audit-readiness, production hardening.
+
+**Goals:**
+- GDPR/CCPA compliance
+- Opt-out enforcement
+- Audit logging
+- Data retention policies
 
 **Tasks:**
-1. Build opt-out system:
-   - Consumer opt-out requests
-   - GDPR right to erasure
-   - CCPA do-not-sell
-   - CPA delete requests
-   - Automatic enforcement
+1. Opt-outs: store and enforce against all searches
+2. Audit log: log all data access with user/timestamp/purpose
+3. Data deletion: implement GDPR right-to-be-forgotten
+4. Retention: automated data archival and deletion by policy
+5. Tests: compliance validation, audit trail integrity
 
-2. Implement consumer access portal:
-   - GDPR/CCPA data access rights
-   - Download data in portable format
-   - Transparency about sources
-
-3. Add FCRA compliance mode:
-   - Disclaimer on person profiles
-   - Permissible purpose checks
-   - Access logging
-   - Data source attribution
-
-4. Build audit logging system:
-   - Who accessed what data, when
-   - Immutable audit trail
-   - Compliance reporting
-
-5. Implement data retention policies:
-   - Auto-delete stale data
-   - Archive old records
-   - Retention schedule per data type
-
-6. Add SOC 2 controls documentation:
-   - Access controls
-   - Data security
-   - Audit trail
-   - Incident response
-
-7. Implement field-level encryption (optional):
-   - SSN, DOB encryption at rest
-   - Encryption keys in AWS KMS
-
-8. Add data masking for display:
-   - Show SSN last 4 only
-   - Show full phone only to authorized users
-
-**Tests:** 10+ compliance tests
-
-**Deliverables:**
-- Opt-out system working ✓
-- Consumer access portal live ✓
-- Audit logging immutable ✓
-- SOC 2 documentation complete ✓
-
----
+**Definition of Done:**
+- Opt-out requests enforced within 24 hours
+- Audit log 100% complete (no gaps)
+- Data deletion working correctly
+- GDPR/CCPA assessments passing
 
 ### Phase 10: Testing & Production (Week 23-24)
-**Goal:** Comprehensive testing, optimization, production readiness.
+
+**Goals:**
+- End-to-end testing
+- Load testing
+- Security hardening
+- Production deployment
 
 **Tasks:**
-1. Write comprehensive test suite (target >80% coverage):
-   - 100+ unit tests
-   - 50+ integration tests
-   - 20+ e2e tests
-   - All scrapers tested with mocks
+1. E2E tests: all workflows from search to enrichment
+2. Load testing: 1000 concurrent searches, 100 scraper threads
+3. Security: penetration testing, OWASP validation
+4. Monitoring: Prometheus + Grafana dashboards
+5. Deployment: Kubernetes or container orchestration
+6. Documentation: API docs, operator manuals, runbooks
 
-2. Load testing:
-   - 100 concurrent searches
-   - 1000 concurrent searches
-   - Monitor latency, memory, CPU
-   - Optimize bottlenecks
-
-3. Security audit:
-   - Penetration testing
-   - OWASP top 10 check
-   - SSL/TLS validation
-   - API security review
-
-4. Performance optimization:
-   - Database query optimization
-   - Cache warming
-   - Async optimization
-   - Memory profiling
-
-5. Documentation:
-   - API documentation (OpenAPI/Swagger)
-   - Architecture documentation
-   - Runbooks for operations
-   - Troubleshooting guides
-
-6. Production deployment:
-   - Kubernetes configuration
-   - Secrets management (Vault)
-   - Monitoring + alerting setup
-   - Backup/recovery procedures
-
-7. Disaster recovery:
-   - Backup strategy (daily backups)
-   - Recovery testing
-   - RTO/RPO definition
-
-8. Go-live checklist:
-   - Security review sign-off
-   - Performance sign-off
-   - Compliance sign-off
-   - Operations readiness
-
-**Tests:** 170+ total tests (100+50+20)
-
-**Deliverables:**
-- All tests passing ✓
-- Load test shows 1000 concurrent searches ✓
-- Security audit complete ✓
-- Production deployment ready ✓
+**Definition of Done:**
+- All tests passing (unit, integration, E2E)
+- Load test results meet SLAs
+- Security audit passed
+- Production metrics healthy
+- Documentation complete
 
 ---
 
-## Critical Rules for Building
+## Reference Documentation
 
-### 1. Modularity Rules (Non-Negotiable)
+All specifications are detailed in docs 01-14:
 
-Every module MUST follow these rules:
-
-```python
-# ✓ Good: Clean, testable interface
-from abc import ABC, abstractmethod
-
-class DeduplicationEngine(ABC):
-    @abstractmethod
-    def match(self, record1: Dict, record2: Dict) -> float:
-        """Return match confidence 0.0-1.0"""
-        pass
-
-class ExactMatchDeduplicator(DeduplicationEngine):
-    def match(self, record1, record2) -> float:
-        # Implementation
-        pass
-
-# ✗ Bad: Internal imports
-from modules.dedup.internals import _private_function  # DON'T DO THIS
-```
-
-**Modularity Checklist:**
-- [ ] Module has a clear interface (ABC or Protocol)
-- [ ] Module imports only from `shared/` or other module interfaces
-- [ ] Module can be tested without other modules
-- [ ] Module has no hardcoded configuration
-- [ ] Module never crashes the system (handles errors gracefully)
-- [ ] Adding/removing module requires zero changes elsewhere
-
-### 2. Performance Rules
-
-**All I/O must be async:**
-```python
-# ✓ Good: Async all the way
-async def search_person(criteria):
-    results = await asyncio.gather(
-        get_from_postgres(),
-        get_from_cache(),
-        get_from_qdrant()
-    )
-    return results
-
-# ✗ Bad: Blocking call
-import requests
-response = requests.get(url)  # BLOCKS EVENT LOOP
-```
-
-**Connection pooling everywhere:**
-```python
-# ✓ Good: Pool connections
-engine = create_async_engine(
-    DATABASE_URL,
-    poolclass=QueuePool,
-    pool_size=20,
-    max_overflow=10
-)
-
-# ✗ Bad: New connection per request
-conn = psycopg2.connect(database_url)
-```
-
-**Cache aggressively:**
-```python
-# ✓ Good: Cache for 24 hours
-await cache.setex(f"person:{person_id}:full", 86400, json.dumps(record))
-
-# ✗ Bad: No caching
-def get_person(person_id):
-    return db.query(Person).filter_by(id=person_id).first()  # DB hit every time
-```
-
-### 3. Security Rules (Enforce Everywhere)
-
-**All endpoints require auth:**
-```python
-# ✓ Good: Auth enforced
-@app.get("/api/v1/person/{person_id}")
-async def get_person(person_id: str, user=Depends(verify_auth)):
-    return {...}
-
-# ✗ Bad: No auth
-@app.get("/api/person/{person_id}")
-async def get_person(person_id: str):
-    return {...}
-```
-
-**All input validated with Pydantic:**
-```python
-# ✓ Good: Strict validation
-class PersonSearchRequest(BaseModel):
-    first_name: str = Field(..., min_length=1, max_length=100)
-    phone: Optional[str] = Field(None, regex=r'^\+?1?\d{10}$')
-    email: Optional[EmailStr] = None
-
-# ✗ Bad: No validation
-@app.post("/search")
-async def search(data: dict):
-    first_name = data.get("first_name")  # Could be anything
-    return search_db(first_name)
-```
-
-**All database queries are parameterized:**
-```python
-# ✓ Good: Parameterized (SQLAlchemy handles this)
-query = persons.select().where(persons.c.id == person_id)
-result = await db.execute(query, {"person_id": person_id})
-
-# ✗ Bad: String interpolation (SQL injection!)
-query = f"SELECT * FROM persons WHERE id = '{person_id}'"
-```
-
-**Secrets never in code:**
-```python
-# ✓ Good: From environment
-POSTGRES_URL = os.getenv("DATABASE_URL")
-API_KEY = os.getenv("API_KEY")
-
-# ✗ Bad: Hardcoded
-DATABASE_URL = "postgresql://user:password@localhost/lycan"
-```
-
-**Credentials filtered from logs:**
-```python
-# ✓ Good: Scrubbed
-def log_request(request):
-    body = scrub_sensitive_data(request.body)
-    logger.info(f"Request: {body}")
-
-# ✗ Bad: Leaking credentials
-logger.info(f"Request: {request.body}")  # Shows SSN, API keys, etc.
-```
-
-### 4. Data Quality Rules (Absolute)
-
-**Every data point must have:**
-1. Source attribution (which scraper/API collected it)
-2. Confidence score (0.0-1.0 trust level)
-3. Timestamp (when collected)
-4. Freshness indicator (how old is it)
-
-```python
-class DataPoint(BaseModel):
-    value: str
-    source: str  # "spokeo", "linkedin", etc.
-    confidence: float  # 0.0-1.0
-    collected_at: datetime
-    freshness_days: int  # Days since collection
-
-    @validator('confidence')
-    def confidence_valid(cls, v):
-        assert 0.0 <= v <= 1.0
-        return v
-```
-
-**Duplicates are never acceptable:**
-```python
-# ✓ Good: Check for duplicates before insert
-before_insert_count = await db.count(persons)
-await dedup_engine.run(new_records)
-after_insert_count = await db.count(persons)
-assert after_insert_count == before_insert_count + unique_records
-```
-
-**Stale data must be flagged:**
-```python
-# ✓ Good: Mark stale data
-def is_stale(collected_at: datetime, max_age_days: int = 90) -> bool:
-    age = (datetime.now() - collected_at).days
-    return age > max_age_days
-
-# Then in queries:
-stale_records = await db.query(persons).filter(
-    persons.c.stale == True
-).all()
-```
+1. **01-tech-stack.md** — Detailed tech stack decisions and justifications
+2. **02-modular-architecture.md** — Service boundaries, inter-service communication
+3. **03-deduplication-verification.md** — 4-pass dedup and golden record logic
+4. **04-collection-crawling.md** — Scraper architecture, Scrapy setup, retry logic
+5. **05-data-enrichment-categories.md** — 2,350+ data points across 7 categories
+6. **06-financial-aml-credit.md** — Credit scoring, AML/KYC, PEP detection
+7. **07-patterns-indexing-future.md** — Graph analysis, anomaly detection, ML roadmap
+8. **08-osint-audit-report.md** — Compliance audit findings and remediation
+9. **09-bots-crawlers-catalog.md** — Catalog of 1,000+ source crawlers
+10. **10-marketing-tags-scoring.md** — Consumer tagging, CLV, segmentation, lead scoring
+11. **11-progress-realtime-ui.md** — Real-time search, SSE, progress tracking
+12. **12-ethical-legal-compliance.md** — GDPR, CCPA, terms of service, opt-out framework
+13. **13-knowledge-graph-company-intel.md** — Company graph, officer tracking, network analysis
+14. **14-deep-code-audit.md** — Code review, security audit, performance bottlenecks, refactoring recommendations
 
 ---
 
-## Technology Decisions Reference
+## Key Decisions Summary (v3.0)
 
-For detailed tech stack decisions, read **doc 01-tech-stack.md**.
+1. **Licensing:** All tools must be MIT/Apache/BSD/GPL/LGPL/MPL-2.0. No AGPL or BSL. Playwright replaces Nodriver. Typesense replaces MeiliSearch.
 
-**TL;DR:**
-- **Language:** Python 3.12+ (team knows it, ML ecosystem is critical)
-- **API:** FastAPI (async-native, validation, OpenAPI)
-- **Database:** PostgreSQL 16 (JSONB, full-text, graph extensions)
-- **Cache:** Dragonfly (Redis alternative, 25x faster)
-- **Workflows:** Temporal.io (distributed, resilient)
-- **Scraping:** Playwright (headless browser), httpx (async HTTP)
-- **ML:** scikit-learn, XGBoost, sentence-transformers
-- **Search:** MeiliSearch (full-text), Qdrant (vector)
-- **Monitoring:** Prometheus + Grafana
+2. **Scale:** 1,000+ data sources (predefined + open discovery via SpiderFoot, Amass, theHarvester, Sherlock, Maigret).
+
+3. **Quality:** Admiralty Code framework for data quality scoring (timeliness × freshness + credibility × source_reliability + completeness + corroboration).
+
+4. **Continuous Enrichment:** Favourited profiles re-crawled per SLA (social 6-12h, business weekly, courts monthly, sanctions daily). Diff notifications on change.
+
+5. **Retry Logic:** Never-give-up with smart failover (proxy rotation → UA/TLS change → off-peak batch → capacity-based).
+
+6. **Multi-Candidate Matching:** Facial photos with pHash + embedding cosine distance for cross-platform deduplication.
+
+7. **Enrichment Score:** 0-100 gauge with gap analysis. One-click "Deep Enrich" to target gaps.
+
+8. **Review Tab:** Operators approve discovered sources. One-click crawler auto-generation and deployment.
+
+9. **Task Orchestration:** Temporal.io (primary) + Dramatiq (lightweight alternative).
+
+10. **Government-Grade:** Enterprise compliance, audit logging, opt-out enforcement, GDPR/CCPA ready.
 
 ---
 
-## Summary: Building Lycan
+## Building from This Spec
 
-This specification defines a **complete, production-ready data broker platform**.
+**For Claude Code or other agents:**
 
-**Start here, read docs 01-12 for details, then build module by module following the 10-phase plan.**
+1. Read this document in full
+2. Reference docs 01-14 for implementation details
+3. Follow the Phase Plan sequentially
+4. Use the API Specification as your contract
+5. Validate against the License Safety Tier before committing any dependency
+6. Run tests after every phase
 
-Every decision in this spec has trade-offs documented in the detailed specs. Follow the rules. Test relentlessly. Ship confidently.
+This spec is complete and actionable. You have everything needed to build Lycan.
 
-**Go build something great.**
+---
+
+**Document Version:** 3.0 (March 25, 2026)
+**Status:** Production-Ready
+**Next Review:** After Phase 10 completion
