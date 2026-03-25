@@ -65,7 +65,8 @@ class TransportRegistry:
             try:
                 count = await r.incr(f"{_BLOCK_PREFIX}{domain}")
             except Exception:
-                pass
+                self._blocks[domain] += 1
+                count = self._blocks[domain]
         else:
             self._blocks[domain] += 1
             count = self._blocks[domain]
@@ -76,6 +77,12 @@ class TransportRegistry:
             if idx < len(_TIER_ORDER) - 1:
                 new_transport = _TIER_ORDER[idx + 1]
                 await self.set_transport(domain, new_transport)
+                if r:
+                    try:
+                        await r.delete(f"{_BLOCK_PREFIX}{domain}")
+                    except Exception:
+                        pass
+                self._blocks[domain] = 0
                 logger.info(
                     "Domain %s promoted from %s to %s after %d blocks",
                     domain, current, new_transport, count,

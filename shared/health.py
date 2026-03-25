@@ -38,9 +38,11 @@ async def _check_dragonfly() -> bool:
         import redis.asyncio as aioredis
 
         r = aioredis.from_url("redis://localhost:6379", socket_connect_timeout=3)
-        await r.ping()
-        await r.aclose()
-        return True
+        try:
+            await r.ping()
+            return True
+        finally:
+            await r.aclose()
     except Exception:
         return False
 
