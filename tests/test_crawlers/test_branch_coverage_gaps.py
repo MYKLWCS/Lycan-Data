@@ -1014,6 +1014,49 @@ class TestMortgageHmdaBranchGaps:
         assert "denial_rate" in result
         assert result["denial_rate"] == 0.5
 
+    def test_summarise_hmda_with_approvals_and_denials(self):
+        """Lines 150-166: _summarise_hmda calculates denial_rate and top_lenders."""
+        from modules.crawlers.mortgage_hmda import _summarise_hmda
+
+        rows = [
+            {"action_taken": "1", "lei": "BANK_A"},
+            {"action_taken": "1", "lei": "BANK_A"},
+            {"action_taken": "3", "lei": "BANK_B"},
+        ]
+        result = _summarise_hmda(rows)
+        assert result["total_loans"] == 3
+        assert result["denial_rate"] == round(1 / 3, 4)
+        assert len(result["top_lenders"]) == 2
+        assert result["top_lenders"][0] == {"lender": "BANK_A", "loan_count": 2}
+
+    def test_summarise_hmda_no_approved_or_denied(self):
+        """Line 157 False branch: approved+denied==0 → denial_rate stays None."""
+        from modules.crawlers.mortgage_hmda import _summarise_hmda
+
+        rows = [{"action_taken": "5", "lei": "BANK_C"}]
+        result = _summarise_hmda(rows)
+        assert result["denial_rate"] is None
+        assert result["top_lenders"] == [{"lender": "BANK_C", "loan_count": 1}]
+
+    def test_summarise_hmda_uses_institution_name_when_lei_missing(self):
+        """Line 161: falls back to institution_name when lei is absent."""
+        from modules.crawlers.mortgage_hmda import _summarise_hmda
+
+        rows = [
+            {"action_taken": "1", "institution_name": "First National"},
+            {"action_taken": "1", "institution_name": "First National"},
+        ]
+        result = _summarise_hmda(rows)
+        assert result["top_lenders"][0]["lender"] == "First National"
+
+    def test_summarise_hmda_skips_empty_lender(self):
+        """Line 162: row with no lei and no institution_name is skipped in lender counts."""
+        from modules.crawlers.mortgage_hmda import _summarise_hmda
+
+        rows = [{"action_taken": "1"}]
+        result = _summarise_hmda(rows)
+        assert result["top_lenders"] == []
+
 
 # ===========================================================================
 # 17. public_faa.py
