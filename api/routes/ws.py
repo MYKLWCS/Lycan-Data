@@ -7,7 +7,9 @@ import logging
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
+from modules.pipeline.progress_tracker import ProgressAggregator
 from shared.events import event_bus
+from shared.schemas.progress import EventType
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

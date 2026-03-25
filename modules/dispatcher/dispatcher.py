@@ -21,6 +21,7 @@ from shared.constants import CrawlStatus
 from shared.db import AsyncSessionLocal
 from shared.events import event_bus
 from shared.models.crawl import CrawlJob, CrawlLog
+from shared.schemas.progress import EventType
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,9 @@ class CrawlDispatcher:
         await self._update_job_status(session, job_id, CrawlStatus.RUNNING)
         started_at = datetime.now(UTC)
 
+        # Emit scraper_running progress event
+        await self._emit_progress(person_id, EventType.SCRAPER_RUNNING, platform)
+
         try:
             crawler = crawler_cls()
             result = await crawler.run(identifier)
@@ -165,6 +169,12 @@ class CrawlDispatcher:
                         "found": True,
                     },
                 )
+                # Emit scraper_done with result count
+                data = ingest_payload.get("data") or {}
+                results_found = len(data) if isinstance(data, list) else (1 if data else 0)
+                await self._emit_progress(
+                    person_id, EventType.SCRAPER_DONE, platform, results_found=results_found
+                )
             else:
                 if result.error and "rate" in (result.error or "").lower():
                     await self._requeue_with_backoff(job_dict, retry_count)
@@ -176,12 +186,41 @@ class CrawlDispatcher:
                 await self._log_crawl(
                     session, job_id, platform, identifier, False, duration_ms, result.error
                 )
+                await self._emit_progress(person_id, EventType.SCRAPER_DONE, platform)
 
         except Exception as exc:
             logger.exception("Job %s failed: %s", job_id, exc)
             if retry_count < MAX_RETRIES:
                 await self._requeue_with_backoff(job_dict, retry_count)
             await self._update_job_status(session, job_id, CrawlStatus.FAILED, str(exc))
+            await self._emit_progress(
+                person_id, EventType.SCRAPER_FAILED, platform, error=str(exc)
+            )
+
+    async def _emit_progress(
+        self,
+        person_id: str | None,
+        event_type: str,
+        platform: str,
+        results_found: int = 0,
+        error: str | None = None,
+    ) -> None:
+        """Publish a scraper progress event to the progress channel (fire-and-forget)."""
+        if not person_id or not event_bus.is_connected:
+            return
+        try:
+            await event_bus.publish(
+                "progress",
+                {
+                    "event_type": event_type,
+                    "search_id": person_id,
+                    "scraper_name": platform,
+                    "results_found": results_found,
+                    "error": error,
+                },
+            )
+        except Exception:
+            pass  # Never let progress emission crash the job
 
     async def _update_job_status(
         self,

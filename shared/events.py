@@ -39,6 +39,7 @@ class EventBus:
         "alerts": "lycan:alerts",
         "freshness": "lycan:freshness",
         "graph": "lycan:graph",
+        "progress": "lycan:progress",
     }
 
     QUEUES = {

@@ -10,8 +10,10 @@ from api.deps import DbDep
 from modules.crawlers.registry import CRAWLER_REGISTRY
 from modules.dispatcher.dispatcher import dispatch_job
 from shared.constants import SeedType
+from shared.events import event_bus
 from shared.models.identifier import Identifier
 from shared.models.person import Person
+from shared.schemas.progress import EventType
 
 router = APIRouter()
 
@@ -400,6 +402,21 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
             queued.append(platform)
 
     await session.commit()
+
+    # Publish search_started so the SSE progress endpoint knows total scraper count
+    if event_bus.is_connected and queued:
+        try:
+            await event_bus.publish(
+                "progress",
+                {
+                    "event_type": EventType.SEARCH_STARTED,
+                    "search_id": str(person_id),
+                    "total_scrapers": len(queued),
+                    "scrapers": queued,
+                },
+            )
+        except Exception:
+            pass
 
     return SearchResponse(
         person_id=str(person_id),
