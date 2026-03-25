@@ -1,9 +1,9 @@
-import pytest
 from modules.crawlers.playwright_base import PlaywrightBaseCrawler
 
 
 def test_uses_patchright_import():
     import inspect
+
     import modules.crawlers.playwright_base as m
 
     src = inspect.getsource(m)

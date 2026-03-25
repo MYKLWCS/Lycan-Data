@@ -62,7 +62,7 @@ class PlaywrightCrawler(BaseCrawler):
                 ],
             )
             context: BrowserContext = await browser.new_context(
-                user_agent=random.choice(USER_AGENTS),
+                user_agent=random.choice(self.USER_AGENTS),
                 viewport={
                     "width": random.randint(1280, 1920),
                     "height": random.randint(720, 1080),
@@ -80,11 +80,11 @@ class PlaywrightCrawler(BaseCrawler):
             finally:
                 await browser.close()
 
-    def is_blocked(self, page: Page) -> bool:
+    async def is_blocked(self, page: Page) -> bool:
         """Heuristic: detect common block pages."""
-        title = page.title() if hasattr(page, "title") else ""
+        title = await page.title()
         blocked_signals = ["captcha", "blocked", "403", "access denied", "unusual traffic"]
-        return any(s in str(title).lower() for s in blocked_signals)
+        return any(s in title.lower() for s in blocked_signals)
 
 
 # Alias for callers expecting the plan-spec name
