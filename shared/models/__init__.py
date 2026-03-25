@@ -7,6 +7,7 @@ from shared.models.breach import BreachRecord
 from shared.models.burner import BurnerAssessment
 from shared.models.compliance_ext import AdverseMedia, PepClassification, ShellCompanyLink
 from shared.models.crawl import CrawlJob, CrawlLog, DataSource
+from shared.models.discovery import DiscoveredSource
 from shared.models.credit_risk import CreditRiskAssessment
 from shared.models.criminal import CriminalRecord
 from shared.models.darkweb import CryptoTransaction, CryptoWallet, DarkwebMention
@@ -58,6 +59,7 @@ __all__ = [
     "DataSource",
     "CrawlJob",
     "CrawlLog",
+    "DiscoveredSource",
     "Alert",
     "Address",
     "EmploymentHistory",

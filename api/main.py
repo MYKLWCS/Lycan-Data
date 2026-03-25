@@ -19,6 +19,7 @@ from api.routes import (
     compliance,
     crawls,
     dedup,
+    discovery,
     enrichment,
     export,
     financial,
@@ -122,6 +123,12 @@ async def ui_knowledge_graph():
     return FileResponse("templates/knowledge_graph.html")
 
 
+@app.get("/ui/discovery", include_in_schema=False)
+async def ui_discovery():
+    """Serve the Open Discovery / Review Tab page."""
+    return FileResponse("templates/discovery.html")
+
+
 @app.get("/ui/{path:path}", include_in_schema=False)
 async def ui_redirect(path: str):
     """Redirect old /ui/* routes to the SPA hash router."""
@@ -151,3 +158,4 @@ app.include_router(watchlist.router, prefix="/watchlist", tags=["watchlist"], de
 app.include_router(alerts.router, prefix="/alerts", tags=["alerts"], dependencies=_auth)
 app.include_router(compliance.router, prefix="/compliance", tags=["compliance"], dependencies=_auth)
 app.include_router(export.router, prefix="/export", tags=["export"], dependencies=_auth)
+app.include_router(discovery.router, prefix="/discovery", tags=["discovery"], dependencies=_auth)
