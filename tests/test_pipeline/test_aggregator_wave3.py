@@ -20,13 +20,17 @@ import pytest
 
 from modules.crawlers.result import CrawlerResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _make_result(platform: str, identifier: str = "test@example.com", data: dict | None = None, found: bool = True) -> CrawlerResult:
+def _make_result(
+    platform: str,
+    identifier: str = "test@example.com",
+    data: dict | None = None,
+    found: bool = True,
+) -> CrawlerResult:
     return CrawlerResult(
         platform=platform,
         identifier=identifier,
@@ -43,7 +47,9 @@ def _make_session():
     exec_result = MagicMock()
     exec_result.scalar_one_or_none = MagicMock(return_value=None)
     exec_result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
-    exec_result.mappings = MagicMock(return_value=MagicMock(one=MagicMock(return_value={"total_logs": 0, "found_count": 0})))
+    exec_result.mappings = MagicMock(
+        return_value=MagicMock(one=MagicMock(return_value={"total_logs": 0, "found_count": 0}))
+    )
     session.execute = AsyncMock(return_value=exec_result)
     session.add = MagicMock()
     session.flush = AsyncMock()
@@ -88,11 +94,15 @@ class TestAggregateResultDispatch:
         result = _make_result(
             "email_hibp",
             identifier="hack@example.com",
-            data={"breaches": [{"name": "TestSite", "date": "2022-01-01", "data_classes": ["email"]}]},
+            data={
+                "breaches": [{"name": "TestSite", "date": "2022-01-01", "data_classes": ["email"]}]
+            },
         )
 
         person = _make_person(uuid.UUID(person_id))
-        with patch("modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)):
+        with patch(
+            "modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)
+        ):
             outcome = await aggregate_result(session, result, person_id=person_id)
 
         assert outcome.get("breach_data") is True
@@ -111,7 +121,9 @@ class TestAggregateResultDispatch:
         )
 
         person = _make_person(uuid.UUID(person_id))
-        with patch("modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)):
+        with patch(
+            "modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)
+        ):
             outcome = await aggregate_result(session, result, person_id=person_id)
 
         assert "watchlist_hits" in outcome
@@ -130,7 +142,9 @@ class TestAggregateResultDispatch:
         )
 
         person = _make_person(uuid.UUID(person_id))
-        with patch("modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)):
+        with patch(
+            "modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)
+        ):
             outcome = await aggregate_result(session, result, person_id=person_id)
 
         assert outcome.get("darkweb") is True
@@ -148,7 +162,9 @@ class TestAggregateResultDispatch:
         )
 
         person = _make_person(uuid.UUID(person_id))
-        with patch("modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)):
+        with patch(
+            "modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)
+        ):
             outcome = await aggregate_result(session, result, person_id=person_id)
 
         assert outcome.get("addresses") is True
@@ -166,7 +182,9 @@ class TestAggregateResultDispatch:
         )
 
         person = _make_person(uuid.UUID(person_id))
-        with patch("modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)):
+        with patch(
+            "modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)
+        ):
             outcome = await aggregate_result(session, result, person_id=person_id)
 
         assert "criminal_records" in outcome
@@ -185,7 +203,9 @@ class TestAggregateResultDispatch:
         )
 
         person = _make_person(uuid.UUID(person_id))
-        with patch("modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)):
+        with patch(
+            "modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)
+        ):
             outcome = await aggregate_result(session, result, person_id=person_id)
 
         assert "sex_offender_records" in outcome
@@ -204,7 +224,9 @@ class TestAggregateResultDispatch:
         )
 
         person = _make_person(uuid.UUID(person_id))
-        with patch("modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)):
+        with patch(
+            "modules.pipeline.aggregator._get_or_create_person", new=AsyncMock(return_value=person)
+        ):
             outcome = await aggregate_result(session, result, person_id=person_id)
 
         assert outcome.get("bankruptcy") is True
@@ -229,11 +251,17 @@ class TestHandlePhoneEnrichment:
         exec_result.scalar_one_or_none = MagicMock(return_value=None)
         session.execute = AsyncMock(return_value=exec_result)
 
-        result = _make_result("phone_carrier", identifier="+15551234567", data={"carrier_name": "Verizon", "line_type": "mobile"})
+        result = _make_result(
+            "phone_carrier",
+            identifier="+15551234567",
+            data={"carrier_name": "Verizon", "line_type": "mobile"},
+        )
         person_id = uuid.uuid4()
 
-        with patch("modules.enrichers.burner_detector.compute_burner_score", return_value=0.1), \
-             patch("modules.enrichers.burner_detector.persist_burner_assessment", new=AsyncMock()):
+        with (
+            patch("modules.enrichers.burner_detector.compute_burner_score", return_value=0.1),
+            patch("modules.enrichers.burner_detector.persist_burner_assessment", new=AsyncMock()),
+        ):
             await _handle_phone_enrichment(session, result, person_id)
 
         session.add.assert_called_once()
@@ -249,11 +277,17 @@ class TestHandlePhoneEnrichment:
         exec_result.scalar_one_or_none = MagicMock(return_value=existing_ident)
         session.execute = AsyncMock(return_value=exec_result)
 
-        result = _make_result("phone_carrier", identifier="+15551234567", data={"carrier_name": "AT&T", "line_type": "landline"})
+        result = _make_result(
+            "phone_carrier",
+            identifier="+15551234567",
+            data={"carrier_name": "AT&T", "line_type": "landline"},
+        )
         person_id = uuid.uuid4()
 
-        with patch("modules.enrichers.burner_detector.compute_burner_score", return_value=0.2), \
-             patch("modules.enrichers.burner_detector.persist_burner_assessment", new=AsyncMock()):
+        with (
+            patch("modules.enrichers.burner_detector.compute_burner_score", return_value=0.2),
+            patch("modules.enrichers.burner_detector.persist_burner_assessment", new=AsyncMock()),
+        ):
             await _handle_phone_enrichment(session, result, person_id)
 
         # No new row added for existing identifier
@@ -269,7 +303,9 @@ class TestHandlePhoneEnrichment:
         exec_result.scalar_one_or_none = MagicMock(return_value=None)
         session.execute = AsyncMock(return_value=exec_result)
 
-        result = _make_result("phone_carrier", identifier="+447911123456", data={"carrier_name": "O2"})
+        result = _make_result(
+            "phone_carrier", identifier="+447911123456", data={"carrier_name": "O2"}
+        )
         person_id = uuid.uuid4()
 
         captured_args = {}
@@ -278,8 +314,12 @@ class TestHandlePhoneEnrichment:
             captured_args["area_code"] = area_code
             return 0.1
 
-        with patch("modules.enrichers.burner_detector.compute_burner_score", side_effect=_mock_score), \
-             patch("modules.enrichers.burner_detector.persist_burner_assessment", new=AsyncMock()):
+        with (
+            patch(
+                "modules.enrichers.burner_detector.compute_burner_score", side_effect=_mock_score
+            ),
+            patch("modules.enrichers.burner_detector.persist_burner_assessment", new=AsyncMock()),
+        ):
             await _handle_phone_enrichment(session, result, person_id)
 
         # UK number does not start with +1, so area_code should be None
@@ -320,7 +360,9 @@ class TestHandleDarkwebSourceTypes:
         session = _make_session()
         result = _make_result(
             "darkweb_forum_breach",
-            data={"mentions": [{"url": "http://forum.onion/thread/1", "title": "Leaked Passwords"}]},
+            data={
+                "mentions": [{"url": "http://forum.onion/thread/1", "title": "Leaked Passwords"}]
+            },
         )
         person_id = uuid.uuid4()
 

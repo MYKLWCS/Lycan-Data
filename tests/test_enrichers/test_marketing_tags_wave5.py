@@ -14,7 +14,6 @@ import pytest
 
 from modules.enrichers.marketing_tags import HighInterestBorrowerScorer
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -13,8 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from shared.transport_registry import TransportRegistry, _TIER_ORDER
-
+from shared.transport_registry import _TIER_ORDER, TransportRegistry
 
 # ---------------------------------------------------------------------------
 # Fake Redis with controllable delete

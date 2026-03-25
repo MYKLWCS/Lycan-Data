@@ -75,17 +75,19 @@ async def test_run_audit_builds_system_audit_row():
 
     daemon = AuditDaemon()
 
-    mock_session, added_objects = _make_mock_session([
-        _scalar(200),           # persons_total
-        _scalar(30),            # persons_low_coverage
-        _scalar(12),            # persons_stale
-        _scalar(3),             # persons_conflict
-        _scalar(5),             # crawlers_total (data_sources)
-        _crawl_result([]),      # crawl health — no jobs in 24h
-        _scalar(88),            # tags_assigned_today
-        _scalar(7),             # merges_today
-        _scalar(15),            # persons_ingested_today
-    ])
+    mock_session, added_objects = _make_mock_session(
+        [
+            _scalar(200),  # persons_total
+            _scalar(30),  # persons_low_coverage
+            _scalar(12),  # persons_stale
+            _scalar(3),  # persons_conflict
+            _scalar(5),  # crawlers_total (data_sources)
+            _crawl_result([]),  # crawl health — no jobs in 24h
+            _scalar(88),  # tags_assigned_today
+            _scalar(7),  # merges_today
+            _scalar(15),  # persons_ingested_today
+        ]
+    )
 
     mock_ctx = MagicMock()
     mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
@@ -122,17 +124,19 @@ async def test_run_audit_marks_degraded_crawlers():
         {"job_type": "empty_crawler", "found_count": 0, "error_count": 0},  # total==0 → skip
     ]
 
-    mock_session, added_objects = _make_mock_session([
-        _scalar(10),                    # persons_total
-        _scalar(1),                     # persons_low_coverage
-        _scalar(0),                     # persons_stale
-        _scalar(0),                     # persons_conflict
-        _scalar(2),                     # crawlers_total (data_sources)
-        _crawl_result(crawl_rows),      # crawl health
-        _scalar(5),                     # tags_assigned_today
-        _scalar(1),                     # merges_today
-        _scalar(2),                     # persons_ingested_today
-    ])
+    mock_session, added_objects = _make_mock_session(
+        [
+            _scalar(10),  # persons_total
+            _scalar(1),  # persons_low_coverage
+            _scalar(0),  # persons_stale
+            _scalar(0),  # persons_conflict
+            _scalar(2),  # crawlers_total (data_sources)
+            _crawl_result(crawl_rows),  # crawl health
+            _scalar(5),  # tags_assigned_today
+            _scalar(1),  # merges_today
+            _scalar(2),  # persons_ingested_today
+        ]
+    )
 
     mock_ctx = MagicMock()
     mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)

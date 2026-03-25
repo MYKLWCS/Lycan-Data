@@ -51,9 +51,7 @@ class AutoDedupDaemon:
         cutoff = datetime.now(UTC) - timedelta(minutes=BATCH_WINDOW_MINUTES)
 
         result = await session.execute(
-            select(Person)
-            .where(Person.updated_at >= cutoff)
-            .where(Person.merged_into.is_(None))
+            select(Person).where(Person.updated_at >= cutoff).where(Person.merged_into.is_(None))
         )
         persons = result.scalars().all()
 
@@ -93,12 +91,8 @@ class AutoDedupDaemon:
         """Determine canonical record and execute merge."""
         try:
             # Fetch both persons to compare richness
-            result_a = await session.execute(
-                select(Person).where(Person.id == candidate.id_a)
-            )
-            result_b = await session.execute(
-                select(Person).where(Person.id == candidate.id_b)
-            )
+            result_a = await session.execute(select(Person).where(Person.id == candidate.id_a))
+            result_b = await session.execute(select(Person).where(Person.id == candidate.id_b))
             person_a = result_a.scalar_one_or_none()
             person_b = result_b.scalar_one_or_none()
 
@@ -178,8 +172,7 @@ class AutoDedupDaemon:
         scalar_count = sum(
             1
             for col in person.__table__.columns
-            if col.name not in _SKIP
-            and getattr(person, col.name, None) is not None
+            if col.name not in _SKIP and getattr(person, col.name, None) is not None
         )
 
         # Child row counts

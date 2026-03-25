@@ -25,9 +25,7 @@ def upgrade() -> None:
         "persons",
         sa.Column("merged_into", postgresql.UUID(as_uuid=True), nullable=True),
     )
-    op.create_index(
-        "ix_persons_merged_into", "persons", ["merged_into"], unique=False
-    )
+    op.create_index("ix_persons_merged_into", "persons", ["merged_into"], unique=False)
     op.create_foreign_key(
         "fk_persons_merged_into_persons",
         "persons",
@@ -58,23 +56,13 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(
-            ["person_a_id"], ["persons.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["person_b_id"], ["persons.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["person_a_id"], ["persons.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["person_b_id"], ["persons.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_dedup_reviews_person_a_id", "dedup_reviews", ["person_a_id"]
-    )
-    op.create_index(
-        "ix_dedup_reviews_person_b_id", "dedup_reviews", ["person_b_id"]
-    )
-    op.create_index(
-        "ix_dedup_reviews_reviewed", "dedup_reviews", ["reviewed"]
-    )
+    op.create_index("ix_dedup_reviews_person_a_id", "dedup_reviews", ["person_a_id"])
+    op.create_index("ix_dedup_reviews_person_b_id", "dedup_reviews", ["person_b_id"])
+    op.create_index("ix_dedup_reviews_reviewed", "dedup_reviews", ["reviewed"])
 
 
 def downgrade() -> None:

@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -56,11 +55,13 @@ def make_page_cm(html: str, title: str = "People Search"):
 class TestPublicNPICrawler:
     def _make(self):
         from modules.crawlers.public_npi import PublicNPICrawler
+
         return PublicNPICrawler()
 
     # line 46 — _split_name single-word returns (identifier, "")
     def test_split_name_single_word(self):
         from modules.crawlers.public_npi import _split_name
+
         first, last = _split_name("Madonna")
         assert first == "Madonna"
         assert last == ""
@@ -68,6 +69,7 @@ class TestPublicNPICrawler:
     # lines 68-73 — org record path in _parse_providers (authorized_official_first_name set)
     def test_parse_providers_org_record(self):
         from modules.crawlers.public_npi import _parse_providers
+
         data = {
             "results": [
                 {
@@ -105,8 +107,13 @@ class TestPublicNPICrawler:
     @pytest.mark.asyncio
     async def test_scrape_org_prefix(self):
         crawler = self._make()
-        payload = {"result_count": 1, "results": [{"number": "111", "basic": {}, "addresses": [], "taxonomies": []}]}
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=payload))):
+        payload = {
+            "result_count": 1,
+            "results": [{"number": "111", "basic": {}, "addresses": [], "taxonomies": []}],
+        }
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=payload))
+        ):
             result = await crawler.scrape("org:Mayo Clinic")
         assert result.platform == "public_npi"
         assert isinstance(result.data.get("providers"), list)
@@ -171,7 +178,9 @@ class TestPublicNPICrawler:
                 }
             ],
         }
-        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=payload))):
+        with patch.object(
+            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=payload))
+        ):
             result = await crawler.scrape("Alice Smith")
         assert result.found is True
         assert result.data["result_count"] == 1
@@ -180,6 +189,7 @@ class TestPublicNPICrawler:
     # fallback taxonomy (no primary flag)
     def test_parse_providers_fallback_taxonomy(self):
         from modules.crawlers.public_npi import _parse_providers
+
         data = {
             "results": [
                 {
@@ -203,11 +213,13 @@ class TestPublicNPICrawler:
 class TestPublicNSOPWCrawler:
     def _make(self):
         from modules.crawlers.public_nsopw import PublicNSOPWCrawler
+
         return PublicNSOPWCrawler()
 
     # line 47 — _split_name single word
     def test_split_name_single_word(self):
         from modules.crawlers.public_nsopw import _split_name
+
         first, last = _split_name("Prince")
         assert first == "Prince"
         assert last == ""
@@ -259,7 +271,9 @@ class TestPublicNSOPWCrawler:
                 }
             ],
         }
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=payload))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=payload))
+        ):
             result = await crawler.scrape("John Smith")
         assert result.found is True
         assert result.data["result_count"] == 1
@@ -275,11 +289,13 @@ class TestPublicNSOPWCrawler:
 class TestPublicFAACrawler:
     def _make(self):
         from modules.crawlers.public_faa import PublicFAACrawler
+
         return PublicFAACrawler()
 
     # line 39 — _split_name single-word returns ("", identifier)
     def test_split_name_single_word(self):
         from modules.crawlers.public_faa import _split_name
+
         first, last = _split_name("Smith")
         assert first == ""
         assert last == "Smith"
@@ -287,6 +303,7 @@ class TestPublicFAACrawler:
     # line 59 — table with fewer than 2 rows is skipped
     def test_parse_airmen_html_single_row_table(self):
         from modules.crawlers.public_faa import _parse_airmen_html
+
         html = "<table><tr><th>Certificate Number</th></tr></table>"
         result = _parse_airmen_html(html)
         assert result == []
@@ -294,6 +311,7 @@ class TestPublicFAACrawler:
     # line 63 — headers fewer than 3 columns
     def test_parse_airmen_html_sparse_headers(self):
         from modules.crawlers.public_faa import _parse_airmen_html
+
         html = "<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
         result = _parse_airmen_html(html)
         assert result == []
@@ -301,6 +319,7 @@ class TestPublicFAACrawler:
     # line 70 — table without airmen-related keywords in headers
     def test_parse_airmen_html_non_airmen_table(self):
         from modules.crawlers.public_faa import _parse_airmen_html
+
         html = (
             "<table>"
             "<tr><th>Product</th><th>Price</th><th>Quantity</th></tr>"
@@ -313,6 +332,7 @@ class TestPublicFAACrawler:
     # line 75 — row with no <td> cells is skipped gracefully
     def test_parse_airmen_html_empty_row(self):
         from modules.crawlers.public_faa import _parse_airmen_html
+
         html = (
             "<table>"
             "<tr><th>Certificate Number</th><th>First Name</th><th>Last Name</th></tr>"
@@ -326,6 +346,7 @@ class TestPublicFAACrawler:
     # BeautifulSoup is imported inside _parse_airmen_html, so patch at bs4 level
     def test_parse_airmen_html_exception(self):
         from modules.crawlers.public_faa import _parse_airmen_html
+
         with patch("bs4.BeautifulSoup", side_effect=RuntimeError("parse fail")):
             result = _parse_airmen_html("<html></html>")
         assert result == []
@@ -403,6 +424,7 @@ class TestPublicFAACrawler:
 class TestFastPeopleSearchCrawler:
     def _make(self):
         from modules.crawlers.fastpeoplesearch import FastPeopleSearchCrawler
+
         return FastPeopleSearchCrawler()
 
     # line 36 — no last name: name_path = first_slug only
@@ -418,6 +440,7 @@ class TestFastPeopleSearchCrawler:
     # line 114 — phone_els found (class containing "phone")
     def test_extract_fps_card_phone_els(self):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.fastpeoplesearch import _extract_fps_card
 
         html = """
@@ -435,6 +458,7 @@ class TestFastPeopleSearchCrawler:
     # line 123 — full_name empty → returns None
     def test_extract_fps_card_no_name_returns_none(self):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.fastpeoplesearch import _extract_fps_card
 
         html = "<div class='card-block'><span>No name here</span></div>"
@@ -477,11 +501,13 @@ class TestFastPeopleSearchCrawler:
 class TestTruePeopleSearchCrawler:
     def _make(self):
         from modules.crawlers.truepeoplesearch import TruePeopleSearchCrawler
+
         return TruePeopleSearchCrawler()
 
     # line 95 — name_el falls back to h2/h3 (no "name" class)
     def test_extract_tps_card_fallback_name_el(self):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.truepeoplesearch import _extract_tps_card
 
         html = "<div class='card'><h2>Bob Smith</h2><span>Age 40</span></div>"
@@ -493,6 +519,7 @@ class TestTruePeopleSearchCrawler:
     # line 114 — phone_els branch (class containing "phone")
     def test_extract_tps_card_phone_els(self):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.truepeoplesearch import _extract_tps_card
 
         html = """
@@ -509,6 +536,7 @@ class TestTruePeopleSearchCrawler:
     # line 121 — relatives el found
     def test_extract_tps_card_relatives(self):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.truepeoplesearch import _extract_tps_card
 
         html = """
@@ -528,6 +556,7 @@ class TestTruePeopleSearchCrawler:
     # line 128 — associates el found
     def test_extract_tps_card_associates(self):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.truepeoplesearch import _extract_tps_card
 
         html = """
@@ -546,6 +575,7 @@ class TestTruePeopleSearchCrawler:
     # line 133 — no full_name → returns None
     def test_extract_tps_card_no_name_returns_none(self):
         from bs4 import BeautifulSoup
+
         from modules.crawlers.truepeoplesearch import _extract_tps_card
 
         html = "<div class='card'><span>Age 30</span></div>"

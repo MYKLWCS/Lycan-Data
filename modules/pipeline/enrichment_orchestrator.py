@@ -291,9 +291,7 @@ class EnrichmentOrchestrator:
 
         # Total enabled data sources
         enabled_result = await session.execute(
-            select(func.count())
-            .select_from(DataSource)
-            .where(DataSource.is_enabled == True)  # noqa: E712
+            select(func.count()).select_from(DataSource).where(DataSource.is_enabled == True)  # noqa: E712
         )
         total_enabled: int = enabled_result.scalar() or 1  # avoid div-by-zero
 

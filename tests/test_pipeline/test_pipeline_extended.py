@@ -441,6 +441,7 @@ class TestAggregatorCourtRecords:
         rec = next(a for a in added if isinstance(a, CriminalRecord))
         assert rec.offense_level == "misdemeanor"
         from datetime import date
+
         assert rec.arrest_date == date(2020, 6, 15)
         assert rec.disposition_date == date(2021, 1, 10)
 
@@ -514,11 +515,7 @@ class TestAggregatorSexOffender:
         result = _make_crawler_result(
             platform="public_nsopw",
             identifier="John Smith",
-            data={
-                "hits": [
-                    {"offense": "Lewd Acts", "jurisdiction": "TX", "state": "Texas"}
-                ]
-            },
+            data={"hits": [{"offense": "Lewd Acts", "jurisdiction": "TX", "state": "Texas"}]},
         )
         count = await _handle_sex_offender(session, result, uuid.uuid4())
         assert count == 1
@@ -792,7 +789,7 @@ class TestAggregatorBehavioural:
             platform="social_posts_analyzer",
             identifier="@user",
             data={
-                "gambling_language": True,   # 1.0 > 0.3 → should update
+                "gambling_language": True,  # 1.0 > 0.3 → should update
                 "substance_language": False,  # 0.0 < 0.5 → should keep 0.5
                 "financial_stress_language": False,
                 "aggression_language": True,  # 1.0 > 0.0 → should update
@@ -800,7 +797,7 @@ class TestAggregatorBehavioural:
         )
         await _handle_behavioural(session, result, pid)
         assert existing.gambling_score == 1.0
-        assert existing.drug_signal_score == 0.5   # kept at max
+        assert existing.drug_signal_score == 0.5  # kept at max
         assert existing.violence_score == 1.0
 
 
@@ -971,9 +968,7 @@ class TestEnrichmentOrchestratorRunBurner:
         exec_result.scalars.return_value = scalars_m
         session.execute = AsyncMock(return_value=exec_result)
 
-        with patch(
-            "modules.enrichers.burner_detector.compute_burner_score"
-        ) as mock_score:
+        with patch("modules.enrichers.burner_detector.compute_burner_score") as mock_score:
             await orchestrator._run_burner("person-1", session)
         mock_score.assert_not_called()
 
@@ -1003,9 +998,7 @@ class TestEnrichmentOrchestratorRunBurner:
 
         with (
             patch("modules.enrichers.burner_detector.compute_burner_score", mock_score),
-            patch(
-                "modules.enrichers.burner_detector.persist_burner_assessment", mock_persist
-            ),
+            patch("modules.enrichers.burner_detector.persist_burner_assessment", mock_persist),
         ):
             await orchestrator._run_burner("person-1", session)
 
@@ -1086,7 +1079,10 @@ class TestEnrichmentOrchestratorPublishCompletion:
 
     @pytest.mark.asyncio
     async def test_publish_completion_exception_is_swallowed(self):
-        from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator, EnrichmentReport
+        from modules.pipeline.enrichment_orchestrator import (
+            EnrichmentOrchestrator,
+            EnrichmentReport,
+        )
 
         orchestrator = EnrichmentOrchestrator()
         report = EnrichmentReport(
@@ -1134,14 +1130,10 @@ class TestIngestionDaemonUncovered:
 
         with (
             patch("modules.pipeline.ingestion_daemon.event_bus") as mock_bus,
-            patch(
-                "modules.pipeline.ingestion_daemon.AsyncSessionLocal", return_value=mock_session
-            ),
+            patch("modules.pipeline.ingestion_daemon.AsyncSessionLocal", return_value=mock_session),
             patch(
                 "modules.pipeline.ingestion_daemon.aggregate_result",
-                new=AsyncMock(
-                    return_value={"person_id": "00000000-0000-0000-0000-000000000001"}
-                ),
+                new=AsyncMock(return_value={"person_id": "00000000-0000-0000-0000-000000000001"}),
             ),
             patch(
                 "modules.pipeline.ingestion_daemon.pivot_from_result",
@@ -1182,14 +1174,10 @@ class TestIngestionDaemonUncovered:
 
         with (
             patch("modules.pipeline.ingestion_daemon.event_bus") as mock_bus,
-            patch(
-                "modules.pipeline.ingestion_daemon.AsyncSessionLocal", return_value=mock_session
-            ),
+            patch("modules.pipeline.ingestion_daemon.AsyncSessionLocal", return_value=mock_session),
             patch(
                 "modules.pipeline.ingestion_daemon.aggregate_result",
-                new=AsyncMock(
-                    return_value={"person_id": "00000000-0000-0000-0000-000000000001"}
-                ),
+                new=AsyncMock(return_value={"person_id": "00000000-0000-0000-0000-000000000001"}),
             ),
             patch(
                 "modules.pipeline.ingestion_daemon.pivot_from_result",
@@ -1229,14 +1217,16 @@ class TestEntityGraphUncovered:
         # Hop1 always fires 6 queries: persons, addresses, identifiers, employment, social, rels.
         # Person query returns empty → no nodes added. next_frontier stays empty.
         # Hop2 hits `if not frontier: break` before any queries.
-        session = self._make_session([
-            _scalars_result([]),  # hop1: persons (empty)
-            _scalars_result([]),  # hop1: addresses
-            _scalars_result([]),  # hop1: identifiers
-            _scalars_result([]),  # hop1: employment
-            _scalars_result([]),  # hop1: social
-            _scalars_result([]),  # hop1: relationships
-        ])
+        session = self._make_session(
+            [
+                _scalars_result([]),  # hop1: persons (empty)
+                _scalars_result([]),  # hop1: addresses
+                _scalars_result([]),  # hop1: identifiers
+                _scalars_result([]),  # hop1: employment
+                _scalars_result([]),  # hop1: social
+                _scalars_result([]),  # hop1: relationships
+            ]
+        )
         builder = EntityGraphBuilder()
         graph = await builder.build_person_graph(person_id, session, depth=2)
         assert graph["nodes"] == []
@@ -1438,13 +1428,13 @@ class TestEntityGraphUncovered:
 
         session = self._make_session(
             [
-                _scalars_result([person]),   # hop1: persons
-                self._empty(),               # addresses
-                self._empty(),               # identifiers
-                self._empty(),               # employment
-                self._empty(),               # social
-                _scalars_result([rel]),      # relationships → other_pid in next_frontier
-                _scalars_result([]),         # hop2: persons (other person not in DB)
+                _scalars_result([person]),  # hop1: persons
+                self._empty(),  # addresses
+                self._empty(),  # identifiers
+                self._empty(),  # employment
+                self._empty(),  # social
+                _scalars_result([rel]),  # relationships → other_pid in next_frontier
+                _scalars_result([]),  # hop2: persons (other person not in DB)
                 self._empty(),
                 self._empty(),
                 self._empty(),
@@ -1521,8 +1511,8 @@ class TestEntityGraphUncovered:
 
         session = self._make_session(
             [
-                self._empty(),                                       # identifiers (no shared)
-                self._empty(),                                       # addresses (no shared)
+                self._empty(),  # identifiers (no shared)
+                self._empty(),  # addresses (no shared)
                 _scalars_result([_emp(pid_a_uuid), _emp(pid_b_uuid)]),  # employment
             ]
         )
@@ -1549,7 +1539,7 @@ class TestEntityGraphUncovered:
 
         session = self._make_session(
             [
-                self._empty(),           # addresses
+                self._empty(),  # addresses
                 _scalars_result(phone_rows),  # phones
             ]
         )
@@ -1622,7 +1612,7 @@ class TestCompanyIntelUncovered:
         # Return employment but empty persons
         session = self._make_session(
             _scalars_result([emp]),  # employment
-            _scalars_result([]),     # persons → empty person_map
+            _scalars_result([]),  # persons → empty person_map
         )
         engine = CompanyIntelligenceEngine()
         network = await engine.get_company_network("Orphan Corp", session)
@@ -1658,9 +1648,9 @@ class TestCompanyIntelUncovered:
         rel.score = 0.8
 
         session = self._make_session(
-            _scalars_result([emp_a, emp_b]),        # employment
+            _scalars_result([emp_a, emp_b]),  # employment
             _scalars_result([person_a, person_b]),  # persons
-            _scalars_result([rel]),                 # relationships (2 persons → fires)
+            _scalars_result([rel]),  # relationships (2 persons → fires)
         )
         engine = CompanyIntelligenceEngine()
         network = await engine.get_company_network("TwoPerson Inc", session)
@@ -1746,7 +1736,7 @@ class TestGrowthDaemonUncovered:
 
     @pytest.mark.asyncio
     async def test_handle_event_stops_at_max_depth(self):
-        from modules.dispatcher.growth_daemon import GrowthDaemon, MAX_DEPTH
+        from modules.dispatcher.growth_daemon import MAX_DEPTH, GrowthDaemon
 
         gd = GrowthDaemon()
         with patch.object(gd, "_get_person_identifiers", new=AsyncMock()) as mock_get:
@@ -1781,9 +1771,7 @@ class TestGrowthDaemonUncovered:
             ),
             patch.object(gd, "_fan_out", new=AsyncMock()) as mock_fan_out,
         ):
-            await gd._handle_event(
-                {"event": "crawl_complete", "person_id": "p1", "depth": 0}
-            )
+            await gd._handle_event({"event": "crawl_complete", "person_id": "p1", "depth": 0})
 
         mock_fan_out.assert_awaited_once()
 
@@ -1798,7 +1786,9 @@ class TestGrowthDaemonUncovered:
 
         with (
             patch("modules.dispatcher.growth_daemon.settings") as mock_settings,
-            patch("modules.dispatcher.growth_daemon.dispatch_job", new=AsyncMock()) as mock_dispatch,
+            patch(
+                "modules.dispatcher.growth_daemon.dispatch_job", new=AsyncMock()
+            ) as mock_dispatch,
             patch.object(gd, "_job_exists", new=AsyncMock(return_value=False)),
         ):
             # Disable burner check kill switch
@@ -1807,8 +1797,7 @@ class TestGrowthDaemonUncovered:
 
         # No phone_carrier/phone_fonefinder/phone_truecaller jobs dispatched
         dispatched_platforms = [
-            c.kwargs.get("platform") or c.args[0]
-            for c in mock_dispatch.await_args_list
+            c.kwargs.get("platform") or c.args[0] for c in mock_dispatch.await_args_list
         ]
         assert "phone_carrier" not in dispatched_platforms
         assert "phone_fonefinder" not in dispatched_platforms
@@ -1823,7 +1812,9 @@ class TestGrowthDaemonUncovered:
         ident.value = "sherlock_user"
 
         with (
-            patch("modules.dispatcher.growth_daemon.dispatch_job", new=AsyncMock()) as mock_dispatch,
+            patch(
+                "modules.dispatcher.growth_daemon.dispatch_job", new=AsyncMock()
+            ) as mock_dispatch,
             patch.object(gd, "_job_exists", new=AsyncMock(return_value=True)),
         ):
             await gd._fan_out(ident, "p1", depth=0)

@@ -10,6 +10,7 @@ Targets:
   lines 134-142: _auto_merge — merge fails (result.merged=False) + exception branch
   lines 171-203: _count_populated_fields — scalar + child row counting
 """
+
 from __future__ import annotations
 
 import uuid
@@ -19,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from modules.enrichers.auto_dedup import AutoDedupDaemon
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -208,13 +208,9 @@ async def test_auto_merge_person_b_richer_becomes_canonical():
     session.execute = AsyncMock(side_effect=[result_a, result_b])
 
     # person_b is richer (count_b=10 > count_a=3)
-    with patch.object(
-        daemon, "_count_populated_fields", new=AsyncMock(side_effect=[3, 10])
-    ):
+    with patch.object(daemon, "_count_populated_fields", new=AsyncMock(side_effect=[3, 10])):
         merge_result = {"merged": True}
-        with patch(
-            "modules.enrichers.auto_dedup.AsyncMergeExecutor"
-        ) as mock_exec_cls:
+        with patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as mock_exec_cls:
             mock_exec_cls.return_value.execute = AsyncMock(return_value=merge_result)
             await daemon._auto_merge(candidate, session)
 
@@ -251,13 +247,9 @@ async def test_auto_merge_merge_failed_logs_warning():
 
     session.execute = AsyncMock(side_effect=[result_a, result_b])
 
-    with patch.object(
-        daemon, "_count_populated_fields", new=AsyncMock(side_effect=[5, 3])
-    ):
+    with patch.object(daemon, "_count_populated_fields", new=AsyncMock(side_effect=[5, 3])):
         merge_result = {"merged": False, "error": "conflict"}
-        with patch(
-            "modules.enrichers.auto_dedup.AsyncMergeExecutor"
-        ) as mock_exec_cls:
+        with patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as mock_exec_cls:
             mock_exec_cls.return_value.execute = AsyncMock(return_value=merge_result)
             # Should not raise
             await daemon._auto_merge(candidate, session)

@@ -12,6 +12,7 @@ Targets:
   sanctions_un              line 41
   sanctions_worldbank_debarment  lines 31, 58
 """
+
 from __future__ import annotations
 
 import os
@@ -44,6 +45,8 @@ def _mock_resp(status=200, json_data=None, text=""):
 import modules.crawlers.sanctions_canada  # noqa: F401 — trigger @register
 from modules.crawlers.sanctions_canada import (
     SanctionsCanadaCrawler,
+)
+from modules.crawlers.sanctions_canada import (
     _cache_valid as canada_cache_valid,
 )
 
@@ -75,10 +78,10 @@ class TestCanadaGetCsvOsError:
     async def test_cache_read_oserror_falls_through_to_download(self):
         crawler = SanctionsCanadaCrawler()
         csv_text = "LastName,FirstName\nSmith,John\n"
-        with patch(
-            "modules.crawlers.sanctions_canada._cache_valid", return_value=True
-        ), patch("builtins.open", side_effect=OSError("disk error")), patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))
+        with (
+            patch("modules.crawlers.sanctions_canada._cache_valid", return_value=True),
+            patch("builtins.open", side_effect=OSError("disk error")),
+            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
             result = await crawler._get_csv()
         assert result == csv_text
@@ -100,10 +103,10 @@ class TestCanadaCacheWriteOsError:
                 raise OSError("read-only filesystem")
             raise FileNotFoundError("not cached")
 
-        with patch(
-            "modules.crawlers.sanctions_canada._cache_valid", return_value=False
-        ), patch("builtins.open", side_effect=selective_open), patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))
+        with (
+            patch("modules.crawlers.sanctions_canada._cache_valid", return_value=False),
+            patch("builtins.open", side_effect=selective_open),
+            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
             result = await crawler._get_csv()
         assert result == csv_text
@@ -116,6 +119,8 @@ class TestCanadaCacheWriteOsError:
 import modules.crawlers.sanctions_ofac  # noqa: F401
 from modules.crawlers.sanctions_ofac import (
     SanctionsOFACCrawler,
+)
+from modules.crawlers.sanctions_ofac import (
     _cache_path as ofac_cache_path,
 )
 
@@ -134,10 +139,10 @@ class TestOfacGetCsvOsError:
     async def test_cache_read_oserror_falls_through(self):
         crawler = SanctionsOFACCrawler()
         csv_text = "Ent_num,SDN_Name\n1,TEST PERSON\n"
-        with patch(
-            "modules.crawlers.sanctions_ofac._cache_valid", return_value=True
-        ), patch("builtins.open", side_effect=OSError("io error")), patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))
+        with (
+            patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=True),
+            patch("builtins.open", side_effect=OSError("io error")),
+            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
             result = await crawler._get_csv()
         assert result == csv_text
@@ -156,10 +161,10 @@ class TestOfacCacheWriteOsError:
                 raise OSError("no space left")
             raise FileNotFoundError("miss")
 
-        with patch(
-            "modules.crawlers.sanctions_ofac._cache_valid", return_value=False
-        ), patch("builtins.open", side_effect=selective_open), patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))
+        with (
+            patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+            patch("builtins.open", side_effect=selective_open),
+            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
             result = await crawler._get_csv()
         assert result == csv_text
@@ -218,10 +223,10 @@ class TestAustraliaGetCsvOsError:
     async def test_cache_read_oserror_falls_through(self):
         crawler = SanctionsAustraliaCrawler()
         csv_text = "Name,DOB\nSmith John,1970-01-01\n"
-        with patch(
-            "modules.crawlers.sanctions_australia._cache_valid", return_value=True
-        ), patch("builtins.open", side_effect=OSError("permission denied")), patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))
+        with (
+            patch("modules.crawlers.sanctions_australia._cache_valid", return_value=True),
+            patch("builtins.open", side_effect=OSError("permission denied")),
+            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
             result = await crawler._get_csv()
         assert result == csv_text
@@ -261,10 +266,10 @@ class TestEuGetCsvOsError:
     async def test_cache_read_oserror_falls_through(self):
         crawler = EUSanctionsCrawler()
         csv_text = "Id;Entity_logical_id;Name_alias_wholename\n1;42;Smith John\n"
-        with patch(
-            "modules.crawlers.sanctions_eu._cache_valid", return_value=True
-        ), patch("builtins.open", side_effect=OSError("stale fd")), patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))
+        with (
+            patch("modules.crawlers.sanctions_eu._cache_valid", return_value=True),
+            patch("builtins.open", side_effect=OSError("stale fd")),
+            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
             result = await crawler._get_csv()
         assert result == csv_text
@@ -387,7 +392,12 @@ class TestParseDebarredNonDictRecord:
     """Line 58: non-dict records in list are skipped (continue)."""
 
     def test_non_dict_items_skipped(self):
-        payload = ["not a dict", 42, None, {"firmName": "Acme Corp", "ineligibilityType": "DEBARMENT"}]
+        payload = [
+            "not a dict",
+            42,
+            None,
+            {"firmName": "Acme Corp", "ineligibilityType": "DEBARMENT"},
+        ]
         results = _parse_debarred(payload, "acme corp")
         # Non-dict entries skipped, matching dict entry returned
         assert len(results) == 1

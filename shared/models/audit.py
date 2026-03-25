@@ -56,6 +56,4 @@ class SystemAudit(Base, TimestampMixin):
     # Freeform extra data
     meta: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
-    __table_args__ = (
-        Index("ix_system_audits_run_at", "run_at"),
-    )
+    __table_args__ = (Index("ix_system_audits_run_at", "run_at"),)

@@ -20,11 +20,10 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ===========================================================================
 # api/serializers.py — lines 15, 17
@@ -117,8 +116,10 @@ class TestApiEnrichmentLine55:
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
 
-        with patch("shared.db.AsyncSessionLocal", return_value=mock_session), \
-             patch("api.routes.enrichment._orchestrator") as mock_orch:
+        with (
+            patch("shared.db.AsyncSessionLocal", return_value=mock_session),
+            patch("api.routes.enrichment._orchestrator") as mock_orch,
+        ):
             mock_orch.enrich_person = AsyncMock(side_effect=RuntimeError("boom"))
             await _background_enrich("00000000-0000-0000-0000-000000000001")
 
@@ -249,6 +250,7 @@ class TestCircuitBreakerLine123:
     async def test_is_open_half_open_within_timeout_allows_probe(self):
         """HALF_OPEN within timeout → allows probe (line 121 return False)."""
         import time
+
         from shared.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(half_open_timeout_s=60)
@@ -314,11 +316,19 @@ class TestIngestionDaemonLines99_100:
 
         written = {"person_id": "00000000-0000-0000-0000-000000000001"}
 
-        with patch("modules.pipeline.ingestion_daemon.event_bus") as mock_bus, \
-             patch("modules.pipeline.ingestion_daemon.AsyncSessionLocal", return_value=mock_session), \
-             patch("modules.pipeline.ingestion_daemon.aggregate_result", new=AsyncMock(return_value=written)), \
-             patch("modules.pipeline.ingestion_daemon.pivot_from_result", new=AsyncMock(side_effect=RuntimeError("pivot error"))), \
-             patch("modules.pipeline.ingestion_daemon._orchestrator") as mock_orch:
+        with (
+            patch("modules.pipeline.ingestion_daemon.event_bus") as mock_bus,
+            patch("modules.pipeline.ingestion_daemon.AsyncSessionLocal", return_value=mock_session),
+            patch(
+                "modules.pipeline.ingestion_daemon.aggregate_result",
+                new=AsyncMock(return_value=written),
+            ),
+            patch(
+                "modules.pipeline.ingestion_daemon.pivot_from_result",
+                new=AsyncMock(side_effect=RuntimeError("pivot error")),
+            ),
+            patch("modules.pipeline.ingestion_daemon._orchestrator") as mock_orch,
+        ):
             mock_bus.dequeue = AsyncMock(return_value=payload)
             mock_bus.enqueue = AsyncMock()
             mock_orch.enrich_person = AsyncMock()
@@ -351,11 +361,15 @@ class TestIndexDaemonLines76_77:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("modules.search.index_daemon.event_bus") as mock_bus, \
-             patch("modules.search.index_daemon.AsyncSessionLocal", return_value=mock_session):
+        with (
+            patch("modules.search.index_daemon.event_bus") as mock_bus,
+            patch("modules.search.index_daemon.AsyncSessionLocal", return_value=mock_session),
+        ):
             mock_bus.dequeue = AsyncMock(return_value=payload)
 
-            with patch.object(daemon, "_index_person", new=AsyncMock(side_effect=RuntimeError("index error"))):
+            with patch.object(
+                daemon, "_index_person", new=AsyncMock(side_effect=RuntimeError("index error"))
+            ):
                 await daemon._process_one()
 
         # Exception was caught and logged
@@ -432,11 +446,11 @@ class TestCompanyIntelLine222:
             c = call_count[0]
             call_count[0] += 1
             if c == 0:
-                r.scalars.return_value = _scalars_all([emp_row])   # emp rows
+                r.scalars.return_value = _scalars_all([emp_row])  # emp rows
             elif c == 1:
-                r.scalars.return_value = _scalars_all([])          # person rows
+                r.scalars.return_value = _scalars_all([])  # person rows
             else:
-                r.scalars.return_value = _scalars_all([])          # rel rows
+                r.scalars.return_value = _scalars_all([])  # rel rows
             return r
 
         session.execute = fake_execute

@@ -6,6 +6,7 @@ Missing lines:
   55-58  WS timeout → server ping → send_json raises → break
   98-99  SSE heartbeat on queue.get() timeout
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -14,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
-
 
 # ---------------------------------------------------------------------------
 # WS _forward callback coverage (lines 33-37)
@@ -124,7 +124,7 @@ class TestWSTimeoutPaths:
                     coro.close()
                 except Exception:
                     pass
-                raise asyncio.TimeoutError()
+                raise TimeoutError()
             # Second call: let receive_text raise WebSocketDisconnect immediately
             return await original_wf(coro, timeout=timeout)
 
@@ -158,7 +158,7 @@ class TestWSTimeoutPaths:
                 coro.close()
             except Exception:
                 pass
-            raise asyncio.TimeoutError()
+            raise TimeoutError()
 
         async def _hang(ch, cb):
             await asyncio.sleep(9999)
@@ -206,7 +206,7 @@ class TestSSEHeartbeat:
                     coro.close()
                 except Exception:
                     pass
-                raise asyncio.TimeoutError()
+                raise TimeoutError()
             return await original_wf(coro, timeout=timeout)
 
         async def _hang_sub(ch, cb):

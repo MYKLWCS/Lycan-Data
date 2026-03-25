@@ -12,14 +12,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.enrichers.marketing_tags import (
+    _THRESHOLDS,
     BankingTag,
     InsuranceTag,
     LendingTag,
-    MarketingTagsEngine,
     TagResult,
     WealthTag,
-    _THRESHOLDS,
-    _clamp,
     _compute_age,
     _score_auto_loan_candidate,
     _score_banking_basic,
@@ -35,7 +33,6 @@ from modules.enrichers.marketing_tags import (
     _score_refinance_candidate,
 )
 from shared.db import AsyncSessionLocal
-from shared.events import event_bus
 from shared.models.behavioural import BehaviouralProfile
 from shared.models.criminal import CriminalRecord
 from shared.models.employment import EmploymentHistory
@@ -67,11 +64,7 @@ class PersonSignals:
 async def assemble_person_signals(person_id: UUID, session: AsyncSession) -> PersonSignals:
     """Build a PersonSignals from DB in sequential queries (single session)."""
 
-    person = (
-        (await session.execute(select(Person).where(Person.id == person_id)))
-        .scalars()
-        .first()
-    )
+    person = (await session.execute(select(Person).where(Person.id == person_id))).scalars().first()
 
     # Employment — is_current rows
     employment = list(
@@ -214,9 +207,7 @@ class CommercialTagsEngine:
         )
         scoring_map.append((LendingTag.PAYDAY_LOAN_CANDIDATE, s, r))
 
-        s, r = _score_personal_loan_candidate(
-            signals.is_employed, signals.financial_distress_score
-        )
+        s, r = _score_personal_loan_candidate(signals.is_employed, signals.financial_distress_score)
         scoring_map.append((LendingTag.PERSONAL_LOAN_CANDIDATE, s, r))
 
         s, r = _score_mortgage_candidate(signals.has_property, signals.income_estimate)

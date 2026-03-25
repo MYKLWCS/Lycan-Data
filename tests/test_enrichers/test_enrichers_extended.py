@@ -18,7 +18,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # DEDUPLICATION — _person_similarity (lines 311-337)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -31,8 +30,22 @@ class TestPersonSimilarityEdgeCases:
         """Phone embedded in identifiers list (not phones key) also triggers 0.95."""
         from modules.enrichers.deduplication import _person_similarity
 
-        a = {"id": "1", "full_name": "Joe Blow", "dob": "", "phones": [], "emails": [], "identifiers": ["2025551234"]}
-        b = {"id": "2", "full_name": "Joe Blow", "dob": "", "phones": [], "emails": [], "identifiers": ["2025551234"]}
+        a = {
+            "id": "1",
+            "full_name": "Joe Blow",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": ["2025551234"],
+        }
+        b = {
+            "id": "2",
+            "full_name": "Joe Blow",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": ["2025551234"],
+        }
         score, reasons = _person_similarity(a, b)
         assert score == 0.95
         assert any("shared phone" in r for r in reasons)
@@ -41,8 +54,22 @@ class TestPersonSimilarityEdgeCases:
         """Email embedded in identifiers list triggers 0.95 fast path."""
         from modules.enrichers.deduplication import _person_similarity
 
-        a = {"id": "1", "full_name": "Jane Roe", "dob": "", "phones": [], "emails": [], "identifiers": ["jane@corp.com"]}
-        b = {"id": "2", "full_name": "Jane Roe", "dob": "", "phones": [], "emails": [], "identifiers": ["jane@corp.com"]}
+        a = {
+            "id": "1",
+            "full_name": "Jane Roe",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": ["jane@corp.com"],
+        }
+        b = {
+            "id": "2",
+            "full_name": "Jane Roe",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": ["jane@corp.com"],
+        }
         score, reasons = _person_similarity(a, b)
         assert score == 0.95
         assert any("shared email" in r for r in reasons)
@@ -52,8 +79,22 @@ class TestPersonSimilarityEdgeCases:
         from modules.enrichers.deduplication import _person_similarity
 
         shared = ["token-abc", "token-def"]
-        a = {"id": "1", "full_name": "A B", "dob": "", "phones": [], "emails": [], "identifiers": shared}
-        b = {"id": "2", "full_name": "A B", "dob": "", "phones": [], "emails": [], "identifiers": shared}
+        a = {
+            "id": "1",
+            "full_name": "A B",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": shared,
+        }
+        b = {
+            "id": "2",
+            "full_name": "A B",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": shared,
+        }
         score, reasons = _person_similarity(a, b)
         # name(1.0*0.40) + idents(min(0.20, 2*0.10)=0.20) = 0.60 total
         assert score == pytest.approx(0.60, abs=0.01)
@@ -64,8 +105,22 @@ class TestPersonSimilarityEdgeCases:
         from modules.enrichers.deduplication import _person_similarity
 
         shared = ["tok-1", "tok-2", "tok-3"]
-        a = {"id": "1", "full_name": "X Y", "dob": "", "phones": [], "emails": [], "identifiers": shared}
-        b = {"id": "2", "full_name": "X Y", "dob": "", "phones": [], "emails": [], "identifiers": shared}
+        a = {
+            "id": "1",
+            "full_name": "X Y",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": shared,
+        }
+        b = {
+            "id": "2",
+            "full_name": "X Y",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": shared,
+        }
         score, reasons = _person_similarity(a, b)
         # name(0.40) + idents(0.20 cap) = 0.60
         assert score == pytest.approx(0.60, abs=0.01)
@@ -74,8 +129,22 @@ class TestPersonSimilarityEdgeCases:
         """DOB exact match contributes 0.30."""
         from modules.enrichers.deduplication import _person_similarity
 
-        a = {"id": "1", "full_name": "John Smith", "dob": "1990-06-15", "phones": [], "emails": [], "identifiers": []}
-        b = {"id": "2", "full_name": "John Smith", "dob": "1990-06-15", "phones": [], "emails": [], "identifiers": []}
+        a = {
+            "id": "1",
+            "full_name": "John Smith",
+            "dob": "1990-06-15",
+            "phones": [],
+            "emails": [],
+            "identifiers": [],
+        }
+        b = {
+            "id": "2",
+            "full_name": "John Smith",
+            "dob": "1990-06-15",
+            "phones": [],
+            "emails": [],
+            "identifiers": [],
+        }
         score, reasons = _person_similarity(a, b)
         # name(1.0*0.40) + dob(0.30) = 0.70
         assert score == pytest.approx(0.70, abs=0.01)
@@ -95,7 +164,15 @@ class TestFuzzyDeduplicatorBlockingKeys:
         from modules.enrichers.deduplication import FuzzyDeduplicator
 
         fd = FuzzyDeduplicator()
-        person = {"id": "1", "full_name": "Alice Smith", "dob": "1988-04-12", "phones": [], "emails": [], "identifiers": [], "addresses": []}
+        person = {
+            "id": "1",
+            "full_name": "Alice Smith",
+            "dob": "1988-04-12",
+            "phones": [],
+            "emails": [],
+            "identifiers": [],
+            "addresses": [],
+        }
         keys = fd._blocking_keys(person)
         assert any(k.startswith("birth_year:") for k in keys)
         assert "birth_year:1988" in keys
@@ -105,7 +182,15 @@ class TestFuzzyDeduplicatorBlockingKeys:
         from modules.enrichers.deduplication import FuzzyDeduplicator, soundex
 
         fd = FuzzyDeduplicator()
-        person = {"id": "1", "full_name": "John Smith", "dob": "", "phones": [], "emails": [], "identifiers": [], "addresses": []}
+        person = {
+            "id": "1",
+            "full_name": "John Smith",
+            "dob": "",
+            "phones": [],
+            "emails": [],
+            "identifiers": [],
+            "addresses": [],
+        }
         keys = fd._blocking_keys(person)
         expected_soundex = soundex("Smith")
         assert f"soundex:{expected_soundex}" in keys
@@ -115,7 +200,15 @@ class TestFuzzyDeduplicatorBlockingKeys:
         from modules.enrichers.deduplication import FuzzyDeduplicator
 
         fd = FuzzyDeduplicator()
-        person = {"id": "1", "full_name": "Bob Jones", "dob": "", "phones": ["+12025551234"], "emails": [], "identifiers": [], "addresses": []}
+        person = {
+            "id": "1",
+            "full_name": "Bob Jones",
+            "dob": "",
+            "phones": ["+12025551234"],
+            "emails": [],
+            "identifiers": [],
+            "addresses": [],
+        }
         keys = fd._blocking_keys(person)
         assert any(k.startswith("phone_prefix:") for k in keys)
         assert "phone_prefix:120" in keys
@@ -125,7 +218,15 @@ class TestFuzzyDeduplicatorBlockingKeys:
         from modules.enrichers.deduplication import FuzzyDeduplicator
 
         fd = FuzzyDeduplicator()
-        person = {"id": "1", "full_name": "", "dob": None, "phones": [], "emails": [], "identifiers": [], "addresses": []}
+        person = {
+            "id": "1",
+            "full_name": "",
+            "dob": None,
+            "phones": [],
+            "emails": [],
+            "identifiers": [],
+            "addresses": [],
+        }
         keys = fd._blocking_keys(person)
         assert keys == []
 
@@ -134,7 +235,15 @@ class TestFuzzyDeduplicatorBlockingKeys:
         from modules.enrichers.deduplication import FuzzyDeduplicator
 
         fd = FuzzyDeduplicator()
-        person = {"id": "1", "full_name": "Test User", "dob": "unknown-01-01", "phones": [], "emails": [], "identifiers": [], "addresses": []}
+        person = {
+            "id": "1",
+            "full_name": "Test User",
+            "dob": "unknown-01-01",
+            "phones": [],
+            "emails": [],
+            "identifiers": [],
+            "addresses": [],
+        }
         keys = fd._blocking_keys(person)
         # "unkn" is not all digits so birth_year key should be absent
         assert not any(k.startswith("birth_year:") for k in keys)
@@ -144,7 +253,15 @@ class TestFuzzyDeduplicatorBlockingKeys:
         from modules.enrichers.deduplication import FuzzyDeduplicator
 
         fd = FuzzyDeduplicator()
-        person = {"id": "1", "full_name": "Multi Phone", "dob": "", "phones": ["+12025551234", "+13105559876"], "emails": [], "identifiers": [], "addresses": []}
+        person = {
+            "id": "1",
+            "full_name": "Multi Phone",
+            "dob": "",
+            "phones": ["+12025551234", "+13105559876"],
+            "emails": [],
+            "identifiers": [],
+            "addresses": [],
+        }
         keys = fd._blocking_keys(person)
         phone_prefix_keys = [k for k in keys if k.startswith("phone_prefix:")]
         assert len(phone_prefix_keys) == 1
@@ -286,8 +403,12 @@ class TestFuzzyScorePair:
 
         fd = FuzzyDeduplicator(levenshtein_threshold=0.5)
         addr = {"city": "Houston", "state": "TX"}
-        a = _fp("1", "Frank Hill", dob="1990-01-01", identifiers=["id-abc", "id-def"], addresses=[addr])
-        b = _fp("2", "Frank Hill", dob="1990-01-01", identifiers=["id-abc", "id-def"], addresses=[addr])
+        a = _fp(
+            "1", "Frank Hill", dob="1990-01-01", identifiers=["id-abc", "id-def"], addresses=[addr]
+        )
+        b = _fp(
+            "2", "Frank Hill", dob="1990-01-01", identifiers=["id-abc", "id-def"], addresses=[addr]
+        )
         score, _ = fd._score_pair(a, b)
         assert score <= 1.0
 
@@ -671,7 +792,10 @@ class TestBurnerDetectorEdgeCases:
     @pytest.mark.asyncio
     async def test_persist_burner_updates_existing_assessment(self):
         """When an existing assessment is found, it is updated in-place (not re-added)."""
-        from modules.enrichers.burner_detector import compute_burner_score, persist_burner_assessment
+        from modules.enrichers.burner_detector import (
+            compute_burner_score,
+            persist_burner_assessment,
+        )
         from shared.constants import LineType
 
         score = compute_burner_score(

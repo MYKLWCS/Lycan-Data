@@ -7,15 +7,21 @@ from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 
 class _TestCrawler(FlareSolverrCrawler):
     platform = "test"
-    async def scrape(self, identifier): return self._result(identifier, False)
+
+    async def scrape(self, identifier):
+        return self._result(identifier, False)
+
 
 def test_flaresolverr_is_curl_subclass():
     from modules.crawlers.curl_base import CurlCrawler
+
     assert issubclass(FlareSolverrCrawler, CurlCrawler)
+
 
 def test_health_cache_is_class_level():
     assert hasattr(FlareSolverrCrawler, "_fs_healthy")
     assert hasattr(FlareSolverrCrawler, "_fs_checked_at")
+
 
 @pytest.mark.asyncio
 async def test_fs_get_falls_back_when_unavailable():

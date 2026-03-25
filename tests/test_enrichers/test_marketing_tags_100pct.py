@@ -9,6 +9,7 @@ Targets:
   - Line 668-669: elif income_estimate >= 80_000 in _score_mortgage_candidate
   - Line 715-717: elif loan_signal_count == 1 in _score_debt_consolidation
 """
+
 from __future__ import annotations
 
 from modules.enrichers.marketing_tags import (
@@ -19,7 +20,6 @@ from modules.enrichers.marketing_tags import (
     _score_mortgage_candidate,
     _score_payday_loan_candidate,
 )
-
 
 # ---------------------------------------------------------------------------
 # _score_banking_premium — elif income_estimate >= 60_000 (lines 531-532)

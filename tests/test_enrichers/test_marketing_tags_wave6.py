@@ -9,19 +9,19 @@ Targets the specific missing lines:
   668-669: _score_mortgage_candidate — income >= 50k (moderate branch)
   715-717: _score_debt_consolidation — loan_signal_count == 1 (single signal)
 """
+
 from __future__ import annotations
 
 import pytest
 
 from modules.enrichers.marketing_tags import (
-    _score_banking_premium,
-    _score_high_net_worth,
     _score_auto_loan_candidate,
-    _score_payday_loan_candidate,
-    _score_mortgage_candidate,
+    _score_banking_premium,
     _score_debt_consolidation,
+    _score_high_net_worth,
+    _score_mortgage_candidate,
+    _score_payday_loan_candidate,
 )
-
 
 # ---------------------------------------------------------------------------
 # lines 531-532: _score_banking_premium — upper-middle income branch (60k-99k)
@@ -198,7 +198,7 @@ def test_score_debt_consolidation_single_signal():
     score, reasons = _score_debt_consolidation(
         financial_distress_score=0.6,
         criminal_count=0,
-        has_vehicle=True,    # one signal
+        has_vehicle=True,  # one signal
         has_property=False,
     )
     assert score > 0.0
@@ -209,8 +209,8 @@ def test_score_debt_consolidation_multiple_signals():
     """Lines 712-714: two or more loan signals → score += 0.30."""
     score, reasons = _score_debt_consolidation(
         financial_distress_score=0.6,
-        criminal_count=1,    # signal 1
-        has_vehicle=True,    # signal 2
+        criminal_count=1,  # signal 1
+        has_vehicle=True,  # signal 2
         has_property=False,
     )
     assert score > 0.0

@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -300,9 +299,7 @@ class TestBankruptcyPacerCrawler:
         cfpb_resp = _mock_resp(200)
         cfpb_resp.json.side_effect = ValueError("bad cfpb json")
 
-        with patch.object(
-            crawler, "get", new=AsyncMock(side_effect=[recap_resp, cfpb_resp])
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=[recap_resp, cfpb_resp])):
             result = await crawler.scrape("Test Debtor")
 
         assert result.found is True

@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -109,9 +108,7 @@ class TestVehicleNhtsaCrawler:
         recalls_resp = _mock_resp(200)
         recalls_resp.json.side_effect = ValueError("bad recalls json")
 
-        with patch.object(
-            crawler, "get", new=AsyncMock(side_effect=[decode_resp, recalls_resp])
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=[decode_resp, recalls_resp])):
             result = await crawler.scrape(_VALID_VIN)
 
         assert result.found is True
@@ -139,9 +136,7 @@ class TestVehicleNhtsaCrawler:
             },
         )
 
-        with patch.object(
-            crawler, "get", new=AsyncMock(side_effect=[decode_resp, recalls_resp])
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=[decode_resp, recalls_resp])):
             result = await crawler.scrape(_VALID_VIN)
 
         assert result.found is True

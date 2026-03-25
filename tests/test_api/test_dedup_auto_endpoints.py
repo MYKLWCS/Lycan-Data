@@ -34,16 +34,21 @@ def test_get_auto_queue_returns_list():
 
     app.dependency_overrides[db_session] = _override
 
-    with patch("api.routes.dedup.get_auto_queue_rows", new=AsyncMock(return_value=[
-        {
-            "id": str(uuid.uuid4()),
-            "person_a_id": str(uuid.uuid4()),
-            "person_b_id": str(uuid.uuid4()),
-            "similarity_score": 0.77,
-            "reviewed": False,
-            "decision": None,
-        }
-    ])):
+    with patch(
+        "api.routes.dedup.get_auto_queue_rows",
+        new=AsyncMock(
+            return_value=[
+                {
+                    "id": str(uuid.uuid4()),
+                    "person_a_id": str(uuid.uuid4()),
+                    "person_b_id": str(uuid.uuid4()),
+                    "similarity_score": 0.77,
+                    "reviewed": False,
+                    "decision": None,
+                }
+            ]
+        ),
+    ):
         with TestClient(app) as client:
             resp = client.get("/dedup/auto-queue")
             assert resp.status_code == 200

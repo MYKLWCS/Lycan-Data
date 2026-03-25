@@ -168,7 +168,11 @@ async def test_fs_get_happy_path_returns_fs_response():
 
     # Verify the payload sent to FlareSolverr
     call_kwargs = mock_client.post.call_args
-    payload = call_kwargs.kwargs.get("json") or call_kwargs.args[1] if len(call_kwargs.args) > 1 else call_kwargs.kwargs.get("json")
+    payload = (
+        call_kwargs.kwargs.get("json") or call_kwargs.args[1]
+        if len(call_kwargs.args) > 1
+        else call_kwargs.kwargs.get("json")
+    )
     assert payload["cmd"] == "request.get"
     assert payload["url"] == "http://cf-protected.com"
 
@@ -195,7 +199,9 @@ async def test_fs_get_status_not_ok_raises_and_falls_back():
 
     with (
         patch("modules.crawlers.flaresolverr_base.httpx.AsyncClient", return_value=mock_client),
-        patch.object(crawler, "get", new_callable=AsyncMock, return_value=fallback_resp) as mock_get,
+        patch.object(
+            crawler, "get", new_callable=AsyncMock, return_value=fallback_resp
+        ) as mock_get,
     ):
         result = await crawler.fs_get("http://cf-protected.com")
 
@@ -222,7 +228,9 @@ async def test_fs_get_http_exception_falls_back():
 
     with (
         patch("modules.crawlers.flaresolverr_base.httpx.AsyncClient", return_value=mock_client),
-        patch.object(crawler, "get", new_callable=AsyncMock, return_value=fallback_resp) as mock_get,
+        patch.object(
+            crawler, "get", new_callable=AsyncMock, return_value=fallback_resp
+        ) as mock_get,
     ):
         result = await crawler.fs_get("http://cf-protected.com")
 

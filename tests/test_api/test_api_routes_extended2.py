@@ -181,9 +181,7 @@ class TestPersonCertificate:
         mock_cert.improvement_actions = []
         mock_cert.certified_at = "2024-01-01T00:00:00"
 
-        with patch(
-            "modules.enrichers.certification.certify_person", return_value=mock_cert
-        ):
+        with patch("modules.enrichers.certification.certify_person", return_value=mock_cert):
             client = _client(session)
             r = client.get(f"/persons/{pid}/certificate")
 
@@ -375,9 +373,7 @@ class TestPersonRegionGrow:
 
         with (
             patch("modules.crawlers.registry.CRAWLER_REGISTRY", {"whitepages": MagicMock()}),
-            patch(
-                "modules.dispatcher.dispatcher.dispatch_job", new=AsyncMock(return_value=None)
-            ),
+            patch("modules.dispatcher.dispatcher.dispatch_job", new=AsyncMock(return_value=None)),
         ):
             client = _client(session)
             r = client.post(
@@ -396,9 +392,7 @@ class TestPersonRegionGrow:
         session = _make_session()
         with (
             patch("modules.crawlers.registry.CRAWLER_REGISTRY", {}),
-            patch(
-                "modules.dispatcher.dispatcher.dispatch_job", new=AsyncMock(return_value=None)
-            ),
+            patch("modules.dispatcher.dispatcher.dispatch_job", new=AsyncMock(return_value=None)),
         ):
             client = _client(session)
             r = client.post(
@@ -953,9 +947,7 @@ class TestEnrichmentRoutes:
 class TestSearchAutoDetect:
     def _search_session(self):
         session = AsyncMock()
-        session.execute.return_value = MagicMock(
-            scalar_one_or_none=MagicMock(return_value=None)
-        )
+        session.execute.return_value = MagicMock(scalar_one_or_none=MagicMock(return_value=None))
         session.add = MagicMock()
         session.flush = AsyncMock()
         session.commit = AsyncMock()
@@ -966,9 +958,7 @@ class TestSearchAutoDetect:
         app.dependency_overrides[db_session] = _override_db(self._search_session())
         with patch("api.routes.search.dispatch_job", new=AsyncMock()):
             client = TestClient(app, raise_server_exceptions=False)
-            r = client.post(
-                "/search", json={"value": "0xAbCd1234567890abcdef1234567890AbCdEf1234"}
-            )
+            r = client.post("/search", json={"value": "0xAbCd1234567890abcdef1234567890AbCdEf1234"})
         assert r.status_code == 200
         assert r.json()["seed_type"] == "crypto_wallet"
 
@@ -1107,7 +1097,9 @@ class TestApiDeps:
 class TestMainLifespan:
     def test_app_survives_event_bus_connect_failure(self):
         """App starts up even when EventBus.connect raises."""
-        with patch("shared.events.event_bus.connect", new=AsyncMock(side_effect=Exception("no redis"))):
+        with patch(
+            "shared.events.event_bus.connect", new=AsyncMock(side_effect=Exception("no redis"))
+        ):
             client = TestClient(app, raise_server_exceptions=False)
             r = client.get("/system/health/simple")
         assert r.status_code == 200

@@ -3,22 +3,23 @@
 import asyncio
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
+
+import shared.models.address  # noqa: F401
 
 # Import all models upfront so SQLAlchemy can resolve string-based relationships
 import shared.models.criminal  # noqa: F401
 import shared.models.identifier  # noqa: F401
-import shared.models.social_profile  # noqa: F401
-import shared.models.address  # noqa: F401
 import shared.models.identifier_history  # noqa: F401
 import shared.models.identity_document  # noqa: F401
+import shared.models.social_profile  # noqa: F401
 from modules.enrichers.auto_dedup import AutoDedupDaemon
 from modules.enrichers.deduplication import MergeCandidate
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_person(pid=None, fields=5):
     """Return a mock Person ORM object."""
@@ -31,8 +32,7 @@ def _make_person(pid=None, fields=5):
 
 def _candidate(id_a, id_b, score):
     return MergeCandidate(
-        id_a=str(id_a), id_b=str(id_b),
-        similarity_score=score, match_reasons=["name_match"]
+        id_a=str(id_a), id_b=str(id_b), similarity_score=score, match_reasons=["name_match"]
     )
 
 
@@ -56,9 +56,7 @@ async def test_run_batch_auto_merges_high_score(monkeypatch):
 
     # Mock recent persons query
     mock_persons_result = MagicMock()
-    mock_persons_result.scalars.return_value.all.return_value = [
-        _make_person(pid=person_a_id)
-    ]
+    mock_persons_result.scalars.return_value.all.return_value = [_make_person(pid=person_a_id)]
 
     # Mock score_person_dedup returning high-score candidate
     candidate = _candidate(person_a_id, person_b_id, 0.92)
@@ -67,10 +65,13 @@ async def test_run_batch_auto_merges_high_score(monkeypatch):
     async def mock_count(person, sess):
         return 20 if person.id == person_a_id else 10
 
-    with patch("modules.enrichers.auto_dedup.score_person_dedup",
-               new=AsyncMock(return_value=[candidate])), \
-         patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec:
-
+    with (
+        patch(
+            "modules.enrichers.auto_dedup.score_person_dedup",
+            new=AsyncMock(return_value=[candidate]),
+        ),
+        patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec,
+    ):
         daemon._count_populated_fields = mock_count
         session.execute = AsyncMock(return_value=mock_persons_result)
 
@@ -93,19 +94,20 @@ async def test_run_batch_queues_medium_score(monkeypatch):
     person_b_id = uuid.uuid4()
 
     mock_persons_result = MagicMock()
-    mock_persons_result.scalars.return_value.all.return_value = [
-        _make_person(pid=person_a_id)
-    ]
+    mock_persons_result.scalars.return_value.all.return_value = [_make_person(pid=person_a_id)]
 
     candidate = _candidate(person_a_id, person_b_id, 0.77)
 
     added_objects = []
     session.add = MagicMock(side_effect=lambda obj: added_objects.append(obj))
 
-    with patch("modules.enrichers.auto_dedup.score_person_dedup",
-               new=AsyncMock(return_value=[candidate])), \
-         patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec:
-
+    with (
+        patch(
+            "modules.enrichers.auto_dedup.score_person_dedup",
+            new=AsyncMock(return_value=[candidate]),
+        ),
+        patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec,
+    ):
         daemon._count_populated_fields = AsyncMock(return_value=5)
         session.execute = AsyncMock(return_value=mock_persons_result)
 
@@ -128,19 +130,20 @@ async def test_run_batch_skips_low_score(monkeypatch):
     person_b_id = uuid.uuid4()
 
     mock_persons_result = MagicMock()
-    mock_persons_result.scalars.return_value.all.return_value = [
-        _make_person(pid=person_a_id)
-    ]
+    mock_persons_result.scalars.return_value.all.return_value = [_make_person(pid=person_a_id)]
 
     candidate = _candidate(person_a_id, person_b_id, 0.45)
 
     added_objects = []
     session.add = MagicMock(side_effect=lambda obj: added_objects.append(obj))
 
-    with patch("modules.enrichers.auto_dedup.score_person_dedup",
-               new=AsyncMock(return_value=[candidate])), \
-         patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec:
-
+    with (
+        patch(
+            "modules.enrichers.auto_dedup.score_person_dedup",
+            new=AsyncMock(return_value=[candidate]),
+        ),
+        patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec,
+    ):
         daemon._count_populated_fields = AsyncMock(return_value=5)
         session.execute = AsyncMock(return_value=mock_persons_result)
 
@@ -161,8 +164,9 @@ async def test_run_batch_empty_persons_returns_early():
     session.execute = AsyncMock(return_value=mock_result)
 
     # Should return without calling score_person_dedup
-    with patch("modules.enrichers.auto_dedup.score_person_dedup",
-               new=AsyncMock(return_value=[])) as mock_score:
+    with patch(
+        "modules.enrichers.auto_dedup.score_person_dedup", new=AsyncMock(return_value=[])
+    ) as mock_score:
         await daemon._run_batch(session)
         mock_score.assert_not_called()
 
@@ -179,8 +183,10 @@ async def test_run_batch_score_person_dedup_exception_continues():
     mock_result.scalars.return_value.all.return_value = [_make_person(pid=person_a_id)]
     session.execute = AsyncMock(return_value=mock_result)
 
-    with patch("modules.enrichers.auto_dedup.score_person_dedup",
-               new=AsyncMock(side_effect=RuntimeError("db error"))):
+    with patch(
+        "modules.enrichers.auto_dedup.score_person_dedup",
+        new=AsyncMock(side_effect=RuntimeError("db error")),
+    ):
         # Should not raise
         await daemon._run_batch(session)
 
@@ -212,10 +218,10 @@ async def test_run_batch_deduplicates_seen_pairs():
         # first call: pid_a, second call: pid_b — both return same pair
         return [cand_ab] if str(pid_a) in pid_str else [cand_ba]
 
-    with patch("modules.enrichers.auto_dedup.score_person_dedup",
-               side_effect=score_side_effect), \
-         patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec:
-
+    with (
+        patch("modules.enrichers.auto_dedup.score_person_dedup", side_effect=score_side_effect),
+        patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec,
+    ):
         daemon._count_populated_fields = AsyncMock(return_value=5)
         mock_exec_instance = AsyncMock()
         mock_exec_instance.execute = AsyncMock(return_value={"merged": True})
@@ -262,6 +268,7 @@ async def test_auto_merge_person_b_richer_becomes_canonical():
 
     # First execute returns person_a, second returns person_b
     call_count = [0]
+
     async def fake_execute(stmt):
         r = MagicMock()
         c = call_count[0]
@@ -305,6 +312,7 @@ async def test_auto_merge_merge_failed_logs_warning():
     person_b = _make_person(pid=pid_b)
 
     call_count = [0]
+
     async def fake_execute(stmt):
         r = MagicMock()
         c = call_count[0]

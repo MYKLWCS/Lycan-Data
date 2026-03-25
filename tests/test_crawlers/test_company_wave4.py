@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -45,7 +44,6 @@ def _mock_resp(status: int = 200, json_data=None, text: str = "", json_raises=Fa
 
 
 import modules.crawlers.company_companies_house  # noqa: F401 — trigger @register
-
 from modules.crawlers.company_companies_house import CompaniesHouseCrawler
 
 
@@ -101,7 +99,6 @@ class TestCompaniesHouseJsonErrors:
 
 
 import modules.crawlers.company_opencorporates  # noqa: F401 — trigger @register
-
 from modules.crawlers.company_opencorporates import OpenCorporatesCrawler
 
 
@@ -154,7 +151,6 @@ class TestOpenCorporatesJsonErrors:
 
 
 import modules.crawlers.company_sec  # noqa: F401 — trigger @register
-
 from modules.crawlers.company_sec import SECEdgarCrawler
 
 _VALID_ATOM_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -250,7 +246,6 @@ class TestSECEdgarNon200AndFTS:
 
 
 import modules.crawlers.financial_worldbank  # noqa: F401 — trigger @register
-
 from modules.crawlers.financial_worldbank import FinancialWorldBankCrawler
 
 _COUNTRY_META_RESPONSE = [

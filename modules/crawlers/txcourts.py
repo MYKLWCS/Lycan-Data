@@ -49,11 +49,13 @@ class TxCourtsCrawler(HttpxCrawler):
                 party_el = cells[1] if len(cells) > 1 else None
                 case_num = case_num_el.get_text(strip=True)
                 if case_num and case_num.lower() != "case number":
-                    cases.append({
-                        "case_number": case_num,
-                        "parties": party_el.get_text(strip=True) if party_el else "",
-                        "case_type": cells[2].get_text(strip=True) if len(cells) > 2 else "",
-                    })
+                    cases.append(
+                        {
+                            "case_number": case_num,
+                            "parties": party_el.get_text(strip=True) if party_el else "",
+                            "case_type": cells[2].get_text(strip=True) if len(cells) > 2 else "",
+                        }
+                    )
 
         # Fallback: any element with class containing 'case-number'
         if not cases:

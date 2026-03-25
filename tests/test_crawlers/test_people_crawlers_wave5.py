@@ -21,7 +21,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -50,6 +49,7 @@ class TestNamusParseCase:
 
     def _parse(self, case: dict):
         from modules.crawlers.people_namus import _parse_case
+
         return _parse_case(case)
 
     def test_fully_populated_case(self):
@@ -158,9 +158,7 @@ class TestNamusParseCase:
     def test_races_non_dict_entries_skipped(self):
         """Non-dict entries in races list are skipped."""
         case = {
-            "subjectIdentification": {
-                "races": [{"name": "Hispanic"}, "Unknown", None]
-            },
+            "subjectIdentification": {"races": [{"name": "Hispanic"}, "Unknown", None]},
             "circumstances": {},
             "sightings": [],
         }
@@ -173,6 +171,7 @@ class TestNamusScrape:
 
     def _make(self):
         from modules.crawlers.people_namus import NamusCrawler
+
         return NamusCrawler()
 
     # Line 84-92: empty identifier branch
@@ -329,6 +328,7 @@ class TestFbiWantedParseItems:
 
     def _parse(self, data: dict):
         from modules.crawlers.people_fbi_wanted import _parse_items
+
         return _parse_items(data)
 
     def test_fully_populated_item(self):
@@ -404,6 +404,7 @@ class TestFbiWantedScrape:
 
     def _make(self):
         from modules.crawlers.people_fbi_wanted import FbiWantedCrawler
+
         return FbiWantedCrawler()
 
     # Lines 86-93: resp is None → CrawlerResult with http_error
@@ -528,6 +529,7 @@ class TestInterpolParseNotice:
 
     def _parse(self, notice: dict):
         from modules.crawlers.people_interpol import _parse_notice
+
         return _parse_notice(notice)
 
     def test_fully_populated_notice(self):
@@ -539,7 +541,9 @@ class TestInterpolParseNotice:
             "date_of_birth": "1975/04/10",
             "nationalities": ["US"],
             "charges": "Murder",
-            "_links": {"self": {"href": "https://ws-public.interpol.int/notices/v1/red/2019-12345"}},
+            "_links": {
+                "self": {"href": "https://ws-public.interpol.int/notices/v1/red/2019-12345"}
+            },
         }
         result = self._parse(notice)
         assert result["entity_id"] == "2019/12345"
@@ -574,6 +578,7 @@ class TestInterpolScrape:
 
     def _make(self):
         from modules.crawlers.people_interpol import PeopleInterpolCrawler
+
         return PeopleInterpolCrawler()
 
     # Lines 73-80: response is None → http_error
@@ -682,9 +687,7 @@ class TestInterpolScrape:
     async def test_scrape_total_fallback(self):
         crawler = self._make()
         json_data = {
-            "_embedded": {
-                "notices": [{"entity_id": "x1"}, {"entity_id": "x2"}]
-            }
+            "_embedded": {"notices": [{"entity_id": "x1"}, {"entity_id": "x2"}]}
             # no "total" key
         }
         resp = _mock_resp(status=200, json_data=json_data)
@@ -705,6 +708,7 @@ class TestImmigrationIsANumber:
 
     def _check(self, s: str) -> bool:
         from modules.crawlers.people_immigration import _is_a_number
+
         return _is_a_number(s)
 
     def test_a_number_with_prefix_9_digits(self):
@@ -745,6 +749,7 @@ class TestImmigrationParseDockets:
 
     def _parse(self, payload: dict):
         from modules.crawlers.people_immigration import _parse_dockets
+
         return _parse_dockets(payload)
 
     def test_fully_populated_docket(self):
@@ -792,6 +797,7 @@ class TestImmigrationScrape:
 
     def _make(self):
         from modules.crawlers.people_immigration import PeopleImmigrationCrawler
+
         return PeopleImmigrationCrawler()
 
     # Lines 83-100: A-number identifier → a_number_requires_portal
@@ -903,6 +909,7 @@ class TestFamilySearchParseEntry:
 
     def _parse(self, entry: dict):
         from modules.crawlers.people_familysearch import _parse_entry
+
         return _parse_entry(entry)
 
     def test_fully_populated_entry(self):
@@ -915,13 +922,7 @@ class TestFamilySearchParseEntry:
                     "persons": [
                         {
                             "id": "person-001",
-                            "names": [
-                                {
-                                    "nameForms": [
-                                        {"fullText": "John William Doe"}
-                                    ]
-                                }
-                            ],
+                            "names": [{"nameForms": [{"fullText": "John William Doe"}]}],
                             "facts": [
                                 {
                                     "type": "http://gedcomx.org/Birth",
@@ -980,13 +981,7 @@ class TestFamilySearchParseEntry:
 
     def test_no_names_or_facts(self):
         """Person with no names or facts returns safe defaults."""
-        entry = {
-            "content": {
-                "gedcomx": {
-                    "persons": [{"id": "pid", "names": [], "facts": []}]
-                }
-            }
-        }
+        entry = {"content": {"gedcomx": {"persons": [{"id": "pid", "names": [], "facts": []}]}}}
         result = self._parse(entry)
         assert result["name"] == ""
         assert result["birth_date"] is None
@@ -1025,6 +1020,7 @@ class TestFamilySearchScrape:
 
     def _make(self):
         from modules.crawlers.people_familysearch import PeopleFamilySearchCrawler
+
         return PeopleFamilySearchCrawler()
 
     # Lines 130-137: response is None → http_error
@@ -1197,6 +1193,7 @@ class TestUSMarshalsNameOverlapScore:
 
     def _score(self, query: str, candidate: str) -> float:
         from modules.crawlers.people_usmarshals import _name_overlap_score
+
         return _name_overlap_score(query, candidate)
 
     def test_empty_query_returns_zero(self):
@@ -1226,6 +1223,7 @@ class TestUSMarshalsParseFugitiveJson:
 
     def _parse(self, item: dict):
         from modules.crawlers.people_usmarshals import _parse_fugitive_json
+
         return _parse_fugitive_json(item)
 
     def test_fully_populated_item(self):
@@ -1274,6 +1272,7 @@ class TestUSMarshalsScrape:
 
     def _make(self):
         from modules.crawlers.people_usmarshals import USMarshalsCrawler
+
         return USMarshalsCrawler()
 
     # Lines 121-130: empty identifier

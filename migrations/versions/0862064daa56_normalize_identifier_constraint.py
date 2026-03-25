@@ -5,6 +5,7 @@ Revises: b2c3d4e5f6a7
 Create Date: 2026-03-25 00:28:26.135742
 
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -12,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '0862064daa56'
-down_revision: Union[str, Sequence[str], None] = 'b2c3d4e5f6a7'
+revision: str = "0862064daa56"
+down_revision: Union[str, Sequence[str], None] = "b2c3d4e5f6a7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -44,9 +45,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_constraint("uq_identifier_type_normalized", "identifiers", type_="unique")
 
-    op.create_unique_constraint(
-        "uq_identifier_type_value", "identifiers", ["type", "value"]
-    )
+    op.create_unique_constraint("uq_identifier_type_value", "identifiers", ["type", "value"])
 
     op.alter_column(
         "identifiers",

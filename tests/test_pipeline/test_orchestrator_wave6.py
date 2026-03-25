@@ -8,6 +8,7 @@ Targets:
     - person found → queries attempted/found/total_enabled → meta updated
     - flush/commit raises → rollback called
 """
+
 from __future__ import annotations
 
 import uuid
@@ -16,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -40,9 +40,9 @@ def _make_session(person=None, attempted=3, found=2, total_enabled=10):
 
     session.execute = AsyncMock(
         side_effect=[
-            _make_scalar(attempted),     # attempted CrawlJob count
-            _make_scalar(found),         # found CrawlJob count
-            _make_scalar(total_enabled), # enabled DataSources count
+            _make_scalar(attempted),  # attempted CrawlJob count
+            _make_scalar(found),  # found CrawlJob count
+            _make_scalar(total_enabled),  # enabled DataSources count
         ]
     )
 

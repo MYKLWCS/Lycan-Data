@@ -16,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -270,7 +269,25 @@ class TestPropertyRedfinCrawler:
 
         async def _fake_get(url, **kwargs):
             if "autocomplete" in url:
-                return _mock_resp(status=200, json_data={"payload": {"sections": [{"rows": [{"name": "123 Main St", "url": "/home/1", "id": "1", "type": "address"}]}]}})
+                return _mock_resp(
+                    status=200,
+                    json_data={
+                        "payload": {
+                            "sections": [
+                                {
+                                    "rows": [
+                                        {
+                                            "name": "123 Main St",
+                                            "url": "/home/1",
+                                            "id": "1",
+                                            "type": "address",
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                )
             return _mock_resp(status=200, text=csv_text)
 
         with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
@@ -318,11 +335,23 @@ class TestPropertyRedfinCrawler:
     # --- _parse_csv_text with JSON body -------------------------------------
 
     def test_parse_csv_text_json_body(self):
-        from modules.crawlers.property_redfin import _parse_csv_text
-
         import json
 
-        payload = {"payload": {"homes": [{"PRICE": "500000", "BEDS": "3", "BATHS": "2", "SQFT": "1500", "ADDRESS": "456 Oak Ave"}]}}
+        from modules.crawlers.property_redfin import _parse_csv_text
+
+        payload = {
+            "payload": {
+                "homes": [
+                    {
+                        "PRICE": "500000",
+                        "BEDS": "3",
+                        "BATHS": "2",
+                        "SQFT": "1500",
+                        "ADDRESS": "456 Oak Ave",
+                    }
+                ]
+            }
+        }
         properties = _parse_csv_text(json.dumps(payload))
         assert len(properties) >= 1
 
@@ -339,7 +368,9 @@ class TestPropertyRedfinCrawler:
     def test_parse_csv_property_na_values(self):
         from modules.crawlers.property_redfin import _parse_csv_property
 
-        prop = _parse_csv_property({"PRICE": "N/A", "BEDS": "", "BATHS": None, "SQFT": "N/A", "ADDRESS": "789 Pine St"})
+        prop = _parse_csv_property(
+            {"PRICE": "N/A", "BEDS": "", "BATHS": None, "SQFT": "N/A", "ADDRESS": "789 Pine St"}
+        )
         assert prop["price"] is None
         assert prop["beds"] is None
         assert prop["baths"] is None
@@ -563,11 +594,23 @@ class TestPropertyZillowCrawler:
     @pytest.mark.asyncio
     async def test_successful_scrape(self):
         crawler = self._make_crawler()
-        suggestions = [{"address": "123 Main St", "city": "Austin", "state": "TX", "zip": "78701", "lat": 30.0, "lng": -97.0, "zpid": "123456"}]
+        suggestions = [
+            {
+                "address": "123 Main St",
+                "city": "Austin",
+                "state": "TX",
+                "zip": "78701",
+                "lat": 30.0,
+                "lng": -97.0,
+                "zpid": "123456",
+            }
+        ]
         page_details = {"zestimate": 450000, "beds": 3, "baths": 2.0, "sqft": 1500}
 
-        with patch.object(crawler, "_fetch_suggestions", new=AsyncMock(return_value=suggestions)), \
-             patch.object(crawler, "_fetch_property_page", new=AsyncMock(return_value=page_details)):
+        with (
+            patch.object(crawler, "_fetch_suggestions", new=AsyncMock(return_value=suggestions)),
+            patch.object(crawler, "_fetch_property_page", new=AsyncMock(return_value=page_details)),
+        ):
             result = await crawler.scrape("123 Main St")
 
         assert result.found is True
@@ -658,7 +701,9 @@ class TestPropertyZillowCrawler:
                 }
             }
         }
-        page_data = {"props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}}
+        page_data = {
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
+        }
         script_content = json.dumps(page_data)
         html = f'<html><script id="__NEXT_DATA__">{script_content}</script></html>'
 
@@ -784,7 +829,7 @@ class TestPlaywrightCrawler:
         mock_pw_cm.__aexit__ = AsyncMock(return_value=False)
 
         with patch("modules.crawlers.playwright_base.async_playwright", return_value=mock_pw_cm):
-            async with crawler.page(url="https://example.com") as page:
+            async with crawler.page(url="https://example.com"):
                 pass
 
         mock_page.goto.assert_called_once_with(

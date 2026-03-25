@@ -19,7 +19,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -209,7 +208,14 @@ class TestTelegramCrawler:
                 blocked[key] = sys.modules.pop(key)
 
         with patch.dict("os.environ", env_patch):
-            with patch("builtins.__import__", side_effect=lambda name, *a, **kw: (_ for _ in ()).throw(ImportError("no module")) if name == "telethon" else __import__(name, *a, **kw)):  # noqa: E501
+            with patch(
+                "builtins.__import__",
+                side_effect=lambda name, *a, **kw: (
+                    (_ for _ in ()).throw(ImportError("no module"))
+                    if name == "telethon"
+                    else __import__(name, *a, **kw)
+                ),
+            ):  # noqa: E501
                 result = await crawler._probe_phone(phone)
 
         # Restore
@@ -226,6 +232,7 @@ class TestTelegramCrawler:
             # Ensure the three vars are absent
             for k in ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION"):
                 import os
+
                 os.environ.pop(k, None)
             result = await crawler._probe_phone("+15559999999")
         assert result.found is False
@@ -329,11 +336,7 @@ class TestTikTokCrawler:
     async def test_scrape_fallback_title_pipe_split(self):
         """Title with no pipe should still be captured without error."""
         crawler = self._make_crawler()
-        html = (
-            "<html><head>"
-            "<title>Just A Title</title>"
-            "</head><body></body></html>"
-        )
+        html = "<html><head><title>Just A Title</title></head><body></body></html>"
         resp = _mock_resp(200, text=html)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             result = await crawler.scrape("user123")
@@ -367,11 +370,9 @@ class TestTikTokCrawler:
     async def test_scrape_strips_at_sign(self):
         """Leading '@' must be stripped from handle."""
         crawler = self._make_crawler()
-        html = (
-            "<html><head><title>User | TikTok</title></head><body></body></html>"
-        )
+        html = "<html><head><title>User | TikTok</title></head><body></body></html>"
         resp = _mock_resp(200, text=html)
-        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)) as mock_get:
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             result = await crawler.scrape("@AtUser")
         # handle stored in data should not have '@'
         assert result.data.get("handle") == "atuser"
@@ -407,9 +408,7 @@ class TestTikTokCrawler:
                 }
             }
         }
-        html = (
-            f'<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">{json.dumps(json_blob)}</script>'
-        )
+        html = f'<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">{json.dumps(json_blob)}</script>'
         data = crawler._parse(html, "coolcreator")
         assert data["display_name"] == "Cool Creator"
         assert data["follower_count"] == 50000
@@ -736,7 +735,9 @@ class TestCourtStateCrawler:
 
         with patch.dict(sys.modules, {"bs4": None}):
             # Force the lazy import inside the function to fail
-            original_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__  # noqa
+            (
+                __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
+            )  # noqa
 
             def _block_bs4(name, *args, **kwargs):
                 if name == "bs4":
@@ -753,11 +754,7 @@ class TestCourtStateCrawler:
         """A table with only a header row (no data rows) must be skipped."""
         from modules.crawlers.court_state import _parse_table_rows
 
-        html = (
-            "<table>"
-            "<tr><th>Case No.</th><th>Party</th><th>Type</th><th>Date</th></tr>"
-            "</table>"
-        )
+        html = "<table><tr><th>Case No.</th><th>Party</th><th>Type</th><th>Date</th></tr></table>"
         result = _parse_table_rows(html, "TX")
         assert result == []
 
@@ -772,12 +769,7 @@ class TestCourtStateCrawler:
         """Table with < 2 header columns must be skipped."""
         from modules.crawlers.court_state import _parse_table_rows
 
-        html = (
-            "<table>"
-            "<tr><th>Only One Column</th></tr>"
-            "<tr><td>data</td></tr>"
-            "</table>"
-        )
+        html = "<table><tr><th>Only One Column</th></tr><tr><td>data</td></tr></table>"
         result = _parse_table_rows(html, "TX")
         assert result == []
 
@@ -802,12 +794,7 @@ class TestCourtStateCrawler:
         """A data row with only empty cells is included (state field is non-empty)."""
         from modules.crawlers.court_state import _parse_table_rows
 
-        html = (
-            "<table>"
-            "<tr><th>Case No.</th><th>Party</th></tr>"
-            "<tr><td></td><td></td></tr>"
-            "</table>"
-        )
+        html = "<table><tr><th>Case No.</th><th>Party</th></tr><tr><td></td><td></td></tr></table>"
         result = _parse_table_rows(html, "TX")
         # The row has empty case cells but the record includes state="TX",
         # so any(record.values()) is True and the record is appended.
@@ -1158,11 +1145,14 @@ class TestCryptoEthereumCrawler:
         """
         crawler = self._make_crawler()
 
-        balance_resp = _mock_resp(200, json_data={
-            "status": "1",
-            "message": "OK",
-            "result": "1000000000000000000",  # 1 ETH in wei
-        })
+        balance_resp = _mock_resp(
+            200,
+            json_data={
+                "status": "1",
+                "message": "OK",
+                "result": "1000000000000000000",  # 1 ETH in wei
+            },
+        )
 
         tx_resp = _mock_resp(200, text="bad-json-here")
         tx_resp.json.side_effect = ValueError("not json")
@@ -1191,11 +1181,14 @@ class TestCryptoEthereumCrawler:
         """None TX response must be handled gracefully — found=True with empty txs."""
         crawler = self._make_crawler()
 
-        balance_resp = _mock_resp(200, json_data={
-            "status": "1",
-            "message": "OK",
-            "result": "500000000000000000",  # 0.5 ETH
-        })
+        balance_resp = _mock_resp(
+            200,
+            json_data={
+                "status": "1",
+                "message": "OK",
+                "result": "500000000000000000",  # 0.5 ETH
+            },
+        )
 
         call_count = 0
 
@@ -1219,17 +1212,23 @@ class TestCryptoEthereumCrawler:
         """TX response with status != '1' should result in empty txlist."""
         crawler = self._make_crawler()
 
-        balance_resp = _mock_resp(200, json_data={
-            "status": "1",
-            "message": "OK",
-            "result": "0",
-        })
+        balance_resp = _mock_resp(
+            200,
+            json_data={
+                "status": "1",
+                "message": "OK",
+                "result": "0",
+            },
+        )
 
-        tx_resp = _mock_resp(200, json_data={
-            "status": "0",
-            "message": "No transactions found",
-            "result": [],
-        })
+        tx_resp = _mock_resp(
+            200,
+            json_data={
+                "status": "0",
+                "message": "No transactions found",
+                "result": [],
+            },
+        )
 
         call_count = 0
 
@@ -1250,25 +1249,31 @@ class TestCryptoEthereumCrawler:
     async def test_scrape_full_happy_path(self):
         crawler = self._make_crawler()
 
-        balance_resp = _mock_resp(200, json_data={
-            "status": "1",
-            "message": "OK",
-            "result": "2000000000000000000",  # 2 ETH
-        })
+        balance_resp = _mock_resp(
+            200,
+            json_data={
+                "status": "1",
+                "message": "OK",
+                "result": "2000000000000000000",  # 2 ETH
+            },
+        )
 
-        tx_resp = _mock_resp(200, json_data={
-            "status": "1",
-            "message": "OK",
-            "result": [
-                {
-                    "hash": "0xabc",
-                    "from": "0x111",
-                    "to": "0x222",
-                    "value": "1000000000000000000",
-                    "timeStamp": "1700000000",
-                }
-            ],
-        })
+        tx_resp = _mock_resp(
+            200,
+            json_data={
+                "status": "1",
+                "message": "OK",
+                "result": [
+                    {
+                        "hash": "0xabc",
+                        "from": "0x111",
+                        "to": "0x222",
+                        "value": "1000000000000000000",
+                        "timeStamp": "1700000000",
+                    }
+                ],
+            },
+        )
 
         call_count = 0
 
@@ -1451,10 +1456,7 @@ class TestCryptoBitcoinCrawler:
         """Only the first `limit` transactions should be returned."""
         from modules.crawlers.crypto_bitcoin import _parse_recent_txs
 
-        txs = [
-            {"hash": f"tx{i}", "time": i, "out": [{"value": i * 1000}]}
-            for i in range(10)
-        ]
+        txs = [{"hash": f"tx{i}", "time": i, "out": [{"value": i * 1000}]} for i in range(10)]
         result = _parse_recent_txs(txs, limit=3)
         assert len(result) == 3
         assert result[0]["hash"] == "tx0"

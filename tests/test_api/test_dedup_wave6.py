@@ -5,10 +5,11 @@ Targets:
   lines 27-34: get_auto_queue_rows — DB query returning DedupReview rows
   lines 96-98: dedup_auto_merge_run — exception path raises HTTPException 500
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,7 +17,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.routes.dedup import router
-
 
 # ---------------------------------------------------------------------------
 # App fixture

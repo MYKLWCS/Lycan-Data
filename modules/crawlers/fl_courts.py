@@ -47,11 +47,13 @@ class FlCourtsCrawler(HttpxCrawler):
             status_el = item.find(class_="status") or item.find(class_="caseStatus")
             case_num = case_num_el.get_text(strip=True) if case_num_el else ""
             if case_num:
-                cases.append({
-                    "case_number": case_num,
-                    "party": party_el.get_text(strip=True) if party_el else "",
-                    "status": status_el.get_text(strip=True) if status_el else "",
-                })
+                cases.append(
+                    {
+                        "case_number": case_num,
+                        "party": party_el.get_text(strip=True) if party_el else "",
+                        "status": status_el.get_text(strip=True) if status_el else "",
+                    }
+                )
 
         if not cases:
             # Generic table row fallback
@@ -60,11 +62,13 @@ class FlCourtsCrawler(HttpxCrawler):
                 if len(cells) >= 2:
                     case_num = cells[0].get_text(strip=True)
                     if case_num and not case_num.lower().startswith("case"):
-                        cases.append({
-                            "case_number": case_num,
-                            "party": cells[1].get_text(strip=True) if len(cells) > 1 else "",
-                            "status": cells[2].get_text(strip=True) if len(cells) > 2 else "",
-                        })
+                        cases.append(
+                            {
+                                "case_number": case_num,
+                                "party": cells[1].get_text(strip=True) if len(cells) > 1 else "",
+                                "status": cells[2].get_text(strip=True) if len(cells) > 2 else "",
+                            }
+                        )
 
         if not cases:
             return self._result(identifier, found=False)

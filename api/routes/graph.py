@@ -150,9 +150,7 @@ async def graph_edges(
 ):
     """Paginated list of relationship edges."""
     try:
-        edges = await _graph_builder.get_edges_paginated(
-            session, limit=limit, offset=offset
-        )
+        edges = await _graph_builder.get_edges_paginated(session, limit=limit, offset=offset)
     except Exception as exc:
         logger.exception("graph_edges failed")
         raise HTTPException(500, "Internal error") from exc

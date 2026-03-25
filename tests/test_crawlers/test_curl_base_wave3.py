@@ -51,7 +51,9 @@ async def test_curl_get_uses_async_session():
 
     crawler = _Crawler()
 
-    with patch.dict("sys.modules", {"curl_cffi": fake_curl_cffi, "curl_cffi.requests": fake_curl_cffi.requests}):
+    with patch.dict(
+        "sys.modules", {"curl_cffi": fake_curl_cffi, "curl_cffi.requests": fake_curl_cffi.requests}
+    ):
         result = await crawler.get("http://example.com")
 
     mock_session.get.assert_awaited_once()
@@ -72,13 +74,14 @@ async def test_curl_get_falls_back_on_import_error():
             "get",
             new_callable=AsyncMock,
             return_value=fallback_resp,
-        ) as mock_super_get,
+        ),
     ):
         # Re-import inside the mock context won't work cleanly, so patch differently
         pass
 
     # Use a simpler approach: patch curl_cffi to raise ImportError at import time
     import sys
+
     original = sys.modules.pop("curl_cffi", None)
     original_req = sys.modules.pop("curl_cffi.requests", None)
     try:
@@ -86,11 +89,14 @@ async def test_curl_get_falls_back_on_import_error():
         # and __import__ raises for it
         from modules.crawlers import httpx_base
 
-        with patch.object(httpx_base.HttpxCrawler, "get", new_callable=AsyncMock, return_value=fallback_resp) as mock_super:
+        with patch.object(
+            httpx_base.HttpxCrawler, "get", new_callable=AsyncMock, return_value=fallback_resp
+        ) as mock_super:
             # Simulate ImportError inside the try block of curl_base.get
             with patch("modules.crawlers.curl_base.CurlCrawler.get", wraps=crawler.get):
                 # Directly test fallback by patching the import inside the method
                 import importlib
+
                 import modules.crawlers.curl_base as cb_mod
 
                 original_get = cb_mod.CurlCrawler.get
@@ -101,7 +107,10 @@ async def test_curl_get_falls_back_on_import_error():
                         raise ImportError("no curl_cffi")
                     except ImportError:
                         import logging
-                        logging.getLogger(__name__).warning("curl_cffi not available, falling back to httpx")
+
+                        logging.getLogger(__name__).warning(
+                            "curl_cffi not available, falling back to httpx"
+                        )
                         return await httpx_base.HttpxCrawler.get(self, url, **kwargs)
 
                 cb_mod.CurlCrawler.get = _patched_get
@@ -156,6 +165,7 @@ async def test_curl_get_with_proxy():
 
         async def _instrumented_get(self, url, **kwargs):
             from curl_cffi.requests import AsyncSession  # type: ignore[import]
+
             proxy = self.get_proxy()
             proxies = {"http": proxy, "https": proxy} if proxy else None
             async with AsyncSession(impersonate=self._IMPERSONATE) as session:
@@ -165,7 +175,7 @@ async def test_curl_get_with_proxy():
 
         cb_mod.CurlCrawler.get = _instrumented_get
         try:
-            result = await crawler.get("http://example.com")
+            await crawler.get("http://example.com")
         finally:
             cb_mod.CurlCrawler.get = original_get
 
@@ -201,7 +211,9 @@ async def test_curl_post_uses_async_session():
 
     crawler = _Crawler()
 
-    with patch.dict("sys.modules", {"curl_cffi": fake_curl_cffi, "curl_cffi.requests": fake_curl_cffi.requests}):
+    with patch.dict(
+        "sys.modules", {"curl_cffi": fake_curl_cffi, "curl_cffi.requests": fake_curl_cffi.requests}
+    ):
         result = await crawler.post("http://example.com", json={"key": "value"})
 
     mock_session.post.assert_awaited_once()
@@ -225,12 +237,15 @@ async def test_curl_post_falls_back_on_import_error():
             raise ImportError("no curl_cffi")
         except ImportError:
             import logging
+
             logging.getLogger(__name__).warning("curl_cffi not available, falling back to httpx")
             return await httpx_base.HttpxCrawler.post(self, url, **kwargs)
 
     cb_mod.CurlCrawler.post = _patched_post
     try:
-        with patch.object(httpx_base.HttpxCrawler, "post", new_callable=AsyncMock, return_value=fallback_resp) as mock_super:
+        with patch.object(
+            httpx_base.HttpxCrawler, "post", new_callable=AsyncMock, return_value=fallback_resp
+        ) as mock_super:
             result = await crawler.post("http://example.com")
     finally:
         cb_mod.CurlCrawler.post = original_post
@@ -257,10 +272,12 @@ async def test_curl_post_with_proxy():
     crawler = _Crawler()
 
     import modules.crawlers.curl_base as cb_mod
+
     original_post = cb_mod.CurlCrawler.post
 
     async def _instrumented_post(self, url, **kwargs):
         from curl_cffi.requests import AsyncSession  # type: ignore[import]
+
         proxy = self.get_proxy()
         proxies = {"http": proxy, "https": proxy} if proxy else None
         async with AsyncSession(impersonate=self._IMPERSONATE) as session:
@@ -274,7 +291,7 @@ async def test_curl_post_with_proxy():
             patch.object(crawler, "get_proxy", return_value="socks5://127.0.0.1:9050"),
             patch.dict("sys.modules", {"curl_cffi.requests": fake_curl_cffi_requests}),
         ):
-            result = await crawler.post("http://example.com")
+            await crawler.post("http://example.com")
     finally:
         cb_mod.CurlCrawler.post = original_post
 
@@ -302,10 +319,12 @@ async def test_curl_get_no_proxy_passes_none():
 
     crawler = _Crawler()
     import modules.crawlers.curl_base as cb_mod
+
     original_get = cb_mod.CurlCrawler.get
 
     async def _instrumented_get(self, url, **kwargs):
         from curl_cffi.requests import AsyncSession  # type: ignore[import]
+
         proxy = self.get_proxy()
         proxies = {"http": proxy, "https": proxy} if proxy else None
         async with AsyncSession(impersonate=self._IMPERSONATE) as session:
@@ -319,7 +338,7 @@ async def test_curl_get_no_proxy_passes_none():
             patch.object(crawler, "get_proxy", return_value=None),
             patch.dict("sys.modules", {"curl_cffi.requests": fake_curl_cffi_requests}),
         ):
-            result = await crawler.get("http://example.com")
+            await crawler.get("http://example.com")
     finally:
         cb_mod.CurlCrawler.get = original_get
 
@@ -355,9 +374,7 @@ def _block_curl_cffi():
 
         # Remove cached modules so the import actually fires
         saved = {
-            k: v
-            for k, v in _sys.modules.items()
-            if k == "curl_cffi" or k.startswith("curl_cffi.")
+            k: v for k, v in _sys.modules.items() if k == "curl_cffi" or k.startswith("curl_cffi.")
         }
         for k in saved:
             del _sys.modules[k]

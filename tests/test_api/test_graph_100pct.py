@@ -7,6 +7,7 @@ Targets:
   - Lines 180-184: except Exception (non-ValueError) in graph_path → HTTP 500
   - Lines 197-201: except Exception in graph_expand → HTTP 500
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch

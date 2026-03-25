@@ -50,11 +50,13 @@ class CountyAssessorFlCrawler(HttpxCrawler):
             value_el = item.find(class_="just-value") or item.find(class_="justValue")
             parcel_id = parcel_id_el.get_text(strip=True) if parcel_id_el else ""
             if parcel_id:
-                parcels.append({
-                    "parcel_id": parcel_id,
-                    "owner": owner_el.get_text(strip=True) if owner_el else "",
-                    "just_value": value_el.get_text(strip=True) if value_el else "",
-                })
+                parcels.append(
+                    {
+                        "parcel_id": parcel_id,
+                        "owner": owner_el.get_text(strip=True) if owner_el else "",
+                        "just_value": value_el.get_text(strip=True) if value_el else "",
+                    }
+                )
 
         if not parcels:
             # Generic table fallback
@@ -63,11 +65,15 @@ class CountyAssessorFlCrawler(HttpxCrawler):
                 if len(cells) >= 2:
                     parcel_id = cells[0].get_text(strip=True)
                     if parcel_id and parcel_id.lower() not in ("parcel id", "parcel #", ""):
-                        parcels.append({
-                            "parcel_id": parcel_id,
-                            "owner": cells[1].get_text(strip=True) if len(cells) > 1 else "",
-                            "just_value": cells[2].get_text(strip=True) if len(cells) > 2 else "",
-                        })
+                        parcels.append(
+                            {
+                                "parcel_id": parcel_id,
+                                "owner": cells[1].get_text(strip=True) if len(cells) > 1 else "",
+                                "just_value": cells[2].get_text(strip=True)
+                                if len(cells) > 2
+                                else "",
+                            }
+                        )
 
         if not parcels:
             return self._result(identifier, found=False)

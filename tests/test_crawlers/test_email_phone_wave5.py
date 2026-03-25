@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -384,6 +383,7 @@ class TestEmailMXValidatorCrawler:
         crawler = self._make()
 
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -430,7 +430,7 @@ class TestPhoneNumLookupCrawler:
             patch.object(crawler, "get", new=capturing_get),
         ):
             mock_settings.numlookup_api_key = "testkey123"
-            result = await crawler.scrape("+12025551234")
+            await crawler.scrape("+12025551234")
 
         assert len(captured_urls) == 1
         assert "testkey123" in captured_urls[0]
@@ -452,7 +452,7 @@ class TestPhoneNumLookupCrawler:
             patch.object(crawler, "get", new=capturing_get),
         ):
             mock_settings.numlookup_api_key = ""
-            result = await crawler.scrape("+12025551234")
+            await crawler.scrape("+12025551234")
 
         assert len(captured_urls) == 1
         assert "apikey" not in captured_urls[0]
@@ -958,7 +958,7 @@ class TestPhoneCarrierScrape:
             )
 
         with patch.object(crawler, "get", new=capturing_get):
-            result = await crawler.scrape("+27821234567")
+            await crawler.scrape("+27821234567")
 
         assert len(captured_urls) == 1
         assert "number=" in captured_urls[0]

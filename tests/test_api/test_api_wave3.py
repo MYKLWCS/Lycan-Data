@@ -15,7 +15,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-
 # ---------------------------------------------------------------------------
 # Minimal app fixture — avoids importing api.main (static files + DB lifespan)
 # ---------------------------------------------------------------------------
@@ -351,7 +350,9 @@ class TestSearchQueryFilters:
         # Verify meili was called with state filter
         call_kwargs = mock_idx.search.call_args
         assert call_kwargs is not None
-        filters = call_kwargs.kwargs.get("filters") or (call_kwargs.args[1] if len(call_kwargs.args) > 1 else None)
+        filters = call_kwargs.kwargs.get("filters") or (
+            call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
+        )
         # filters might be in kwargs
         if filters is None and call_kwargs.kwargs:
             filters = call_kwargs.kwargs.get("filters", "")
@@ -381,7 +382,9 @@ class TestSearchQueryFilters:
     def test_combined_filters(self, client):
         with patch("api.routes.search_query.meili_indexer") as mock_idx:
             mock_idx.search = self._mock_search([{"id": "abc", "full_name": "John Doe"}])
-            resp = client.get("/query/persons?state=TX&country=US&has_sanctions=true&risk_tier=high")
+            resp = client.get(
+                "/query/persons?state=TX&country=US&has_sanctions=true&risk_tier=high"
+            )
 
         assert resp.status_code == 200
 
@@ -482,9 +485,10 @@ class TestSSEEndpointConnected:
         Event bus connected: queue receives a 'done' event which terminates the stream.
         Covers lines 79-97 (queue setup, message forwarding, done-break).
         """
-        from api.routes import ws as ws_module
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
+        from api.routes import ws as ws_module
 
         app = FastAPI()
         app.include_router(ws_module.router)
@@ -515,9 +519,10 @@ class TestSSEEndpointConnected:
         Stream closes (client disconnects) → finally block cancels sub_task (lines 100-105).
         We simulate disconnect by patching request.is_disconnected to True immediately.
         """
-        from api.routes import ws as ws_module
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
+        from api.routes import ws as ws_module
 
         app = FastAPI()
         app.include_router(ws_module.router)
@@ -529,7 +534,9 @@ class TestSSEEndpointConnected:
             mock_bus.is_connected = True
             mock_bus.subscribe = _hang_subscribe
             # Patch Request.is_disconnected to return True so the while loop exits
-            with patch("starlette.requests.Request.is_disconnected", new_callable=AsyncMock) as mock_disc:
+            with patch(
+                "starlette.requests.Request.is_disconnected", new_callable=AsyncMock
+            ) as mock_disc:
                 mock_disc.return_value = True
 
                 with TestClient(app, raise_server_exceptions=False) as c:

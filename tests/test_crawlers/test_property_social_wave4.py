@@ -16,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -110,9 +109,7 @@ class TestMortgageDeedParser:
         """Line 128: fallback loop breaks when 10 records accumulated."""
         from modules.crawlers.mortgage_deed import _parse_publicrecordsnow_html
 
-        addresses = "\n".join(
-            f"<p>{i} Elm St, Houston TX 77001</p>" for i in range(1, 20)
-        )
+        addresses = "\n".join(f"<p>{i} Elm St, Houston TX 77001</p>" for i in range(1, 20))
         html = f"<html>{addresses}</html>"
         records = _parse_publicrecordsnow_html(html)
         assert len(records) <= 10
@@ -128,9 +125,9 @@ class TestPropertyZillowParser:
 
     def test_non_dict_val_in_props_is_skipped(self):
         """Line 105: val is not a dict, continue fires."""
-        from modules.crawlers.property_zillow import _parse_property_page
-
         import json
+
+        from modules.crawlers.property_zillow import _parse_property_page
 
         # Build HTML with a __NEXT_DATA__ block where one entry is a non-dict value.
         page_data = {
@@ -177,6 +174,7 @@ class TestPropertyZillowParser:
             side_effect=Exception("playwright unavailable"),
         ):
             import asyncio
+
             result = asyncio.get_event_loop().run_until_complete(
                 crawler._fetch_suggestions("https://fake.url/suggest")
             )
@@ -193,6 +191,7 @@ class TestPropertyZillowParser:
             side_effect=Exception("network timeout"),
         ):
             import asyncio
+
             result = asyncio.get_event_loop().run_until_complete(
                 crawler._fetch_property_page("123 Main St, Austin TX")
             )
@@ -313,9 +312,21 @@ class TestTelegramDarkCrawler:
         from modules.crawlers.telegram_dark import _filter_mentions
 
         messages = [
-            {"message_text": "Hello world", "message_url": "https://t.me/c/1", "date": "2024-01-01"},
-            {"message_text": "buy bitcoin cheap", "message_url": "https://t.me/c/2", "date": "2024-01-02"},
-            {"message_text": "unrelated content", "message_url": "https://t.me/c/3", "date": "2024-01-03"},
+            {
+                "message_text": "Hello world",
+                "message_url": "https://t.me/c/1",
+                "date": "2024-01-01",
+            },
+            {
+                "message_text": "buy bitcoin cheap",
+                "message_url": "https://t.me/c/2",
+                "date": "2024-01-02",
+            },
+            {
+                "message_text": "unrelated content",
+                "message_url": "https://t.me/c/3",
+                "date": "2024-01-03",
+            },
         ]
         hits = _filter_mentions(messages, "bitcoin", "testchannel")
         assert len(hits) == 1

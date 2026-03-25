@@ -53,11 +53,15 @@ class CountyAssessorTxCrawler(HttpxCrawler):
                 account = account_el.get_text(strip=True)
                 # Skip header rows
                 if account and account.lower() not in ("account", "account number", ""):
-                    parcels.append({
-                        "account": account,
-                        "owner": owner_el.get_text(strip=True) if owner_el else "",
-                        "appraised_value": appraised_el.get_text(strip=True) if appraised_el else "",
-                    })
+                    parcels.append(
+                        {
+                            "account": account,
+                            "owner": owner_el.get_text(strip=True) if owner_el else "",
+                            "appraised_value": appraised_el.get_text(strip=True)
+                            if appraised_el
+                            else "",
+                        }
+                    )
 
         if not parcels:
             # Fallback: any table row with 'account' class

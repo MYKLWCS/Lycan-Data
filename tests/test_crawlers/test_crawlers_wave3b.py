@@ -16,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -792,7 +791,9 @@ class TestYouTubeCrawler:
     def test_parse_consent_page_returns_empty(self):
         """_parse() returns data without display_name when title contains consent marker."""
         crawler = self._make_crawler()
-        html = "<html><head><title>Before you continue to YouTube</title></head><body></body></html>"
+        html = (
+            "<html><head><title>Before you continue to YouTube</title></head><body></body></html>"
+        )
         data = crawler._parse(html, "testhandle")
         assert "display_name" not in data
 
@@ -922,14 +923,18 @@ class TestWhatsAppCrawler:
 
     def test_detect_registered_api_url(self):
         crawler = self._make_crawler()
-        result = crawler._detect_registered("some page content", "https://api.whatsapp.com/send?phone=123")
+        result = crawler._detect_registered(
+            "some page content", "https://api.whatsapp.com/send?phone=123"
+        )
         assert result is True
 
     # --- _detect_registered: open.whatsapp.com in URL → True ----------------
 
     def test_detect_registered_open_url(self):
         crawler = self._make_crawler()
-        result = crawler._detect_registered("some content", "https://open.whatsapp.com/send?phone=123")
+        result = crawler._detect_registered(
+            "some content", "https://open.whatsapp.com/send?phone=123"
+        )
         assert result is True
 
     # --- _detect_registered: unknown page → None -----------------------------
@@ -1076,9 +1081,7 @@ class TestPastePsbdmpCrawler:
         resp = _mock_resp(
             status=200,
             json_data={
-                "data": [
-                    {"id": "xyz789", "time": "1700000000", "text": "some leaked info"}
-                ]
+                "data": [{"id": "xyz789", "time": "1700000000", "text": "some leaked info"}]
             },
         )
 
@@ -1232,9 +1235,9 @@ class TestDarkwebAhmiaCrawler:
         crawler = self._make_crawler()
 
         html_p0 = (
-            '<html><body><ul>'
+            "<html><body><ul>"
             '<li class="result"><h4>T</h4><cite>http://abc.onion</cite><p>D</p></li>'
-            '</ul></body></html>'
+            "</ul></body></html>"
         )
 
         call_count = 0
@@ -1261,9 +1264,9 @@ class TestDarkwebAhmiaCrawler:
         crawler = self._make_crawler()
 
         html_p0 = (
-            '<html><body><ul>'
+            "<html><body><ul>"
             '<li class="result"><h4>T</h4><cite>http://xyz.onion</cite><p>D</p></li>'
-            '</ul></body></html>'
+            "</ul></body></html>"
         )
 
         call_count = 0
@@ -1437,9 +1440,7 @@ class TestDarkwebTorchCrawler:
         crawler = self._make_crawler()
 
         html_p1 = (
-            "<html><body><dl>"
-            '<dt><a href="http://abc.onion">A</a></dt><dd>D</dd>'
-            "</dl></body></html>"
+            '<html><body><dl><dt><a href="http://abc.onion">A</a></dt><dd>D</dd></dl></body></html>'
         )
 
         call_count = 0
@@ -1466,9 +1467,7 @@ class TestDarkwebTorchCrawler:
         crawler = self._make_crawler()
 
         html_p1 = (
-            "<html><body><dl>"
-            '<dt><a href="http://xyz.onion">X</a></dt><dd>D</dd>'
-            "</dl></body></html>"
+            '<html><body><dl><dt><a href="http://xyz.onion">X</a></dt><dd>D</dd></dl></body></html>'
         )
 
         call_count = 0

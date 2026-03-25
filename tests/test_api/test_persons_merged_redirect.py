@@ -12,10 +12,12 @@ from api.main import app
 
 def _make_session():
     session = AsyncMock()
-    session.execute = AsyncMock(return_value=MagicMock(
-        scalar_one_or_none=MagicMock(return_value=None),
-        scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))),
-    ))
+    session.execute = AsyncMock(
+        return_value=MagicMock(
+            scalar_one_or_none=MagicMock(return_value=None),
+            scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))),
+        )
+    )
     session.get = AsyncMock(return_value=None)
     session.commit = AsyncMock()
     return session

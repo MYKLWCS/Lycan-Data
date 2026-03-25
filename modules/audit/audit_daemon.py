@@ -87,24 +87,26 @@ class AuditDaemon:
 
                 crawlers_total = (
                     await session.execute(
-                        select(func.count(DataSource.id)).where(
-                            DataSource.is_enabled.is_(True)
-                        )
+                        select(func.count(DataSource.id)).where(DataSource.is_enabled.is_(True))
                     )
                 ).scalar() or 0
 
                 crawl_rows = (
-                    await session.execute(
-                        text(
-                            "SELECT job_type, "
-                            "SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS found_count, "
-                            "SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS error_count "
-                            "FROM crawl_jobs "
-                            "WHERE created_at >= NOW() - INTERVAL '24 hours' "
-                            "GROUP BY job_type"
+                    (
+                        await session.execute(
+                            text(
+                                "SELECT job_type, "
+                                "SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS found_count, "
+                                "SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS error_count "
+                                "FROM crawl_jobs "
+                                "WHERE created_at >= NOW() - INTERVAL '24 hours' "
+                                "GROUP BY job_type"
+                            )
                         )
                     )
-                ).mappings().all()
+                    .mappings()
+                    .all()
+                )
 
                 crawlers_degraded = []
                 crawlers_healthy = 0
@@ -128,10 +130,7 @@ class AuditDaemon:
 
                 tags_assigned_today = (
                     await session.execute(
-                        text(
-                            "SELECT COUNT(*) FROM marketing_tags "
-                            "WHERE scored_at >= :today"
-                        ),
+                        text("SELECT COUNT(*) FROM marketing_tags WHERE scored_at >= :today"),
                         {"today": today_start},
                     )
                 ).scalar() or 0
@@ -149,10 +148,7 @@ class AuditDaemon:
 
                 persons_ingested_today = (
                     await session.execute(
-                        text(
-                            "SELECT COUNT(*) FROM persons "
-                            "WHERE created_at >= :today"
-                        ),
+                        text("SELECT COUNT(*) FROM persons WHERE created_at >= :today"),
                         {"today": today_start},
                     )
                 ).scalar() or 0

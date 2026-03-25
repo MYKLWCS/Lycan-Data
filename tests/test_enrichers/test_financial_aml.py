@@ -447,21 +447,21 @@ async def test_score_person_wealth_band_low_and_existing_wealth_row_no_band():
         call_count[0] += 1
         # order: watchlist, darkweb, crypto, addresses, identifiers, criminals, wealth, burner
         if c == 0:
-            r.scalars.return_value = _scalars_all([])   # watchlist
+            r.scalars.return_value = _scalars_all([])  # watchlist
         elif c == 1:
-            r.scalars.return_value = _scalars_all([])   # darkweb
+            r.scalars.return_value = _scalars_all([])  # darkweb
         elif c == 2:
-            r.scalars.return_value = _scalars_all([])   # crypto
+            r.scalars.return_value = _scalars_all([])  # crypto
         elif c == 3:
             r.scalars.return_value = _scalars_all([addr])  # addresses
         elif c == 4:
             r.scalars.return_value = _scalars_all([ident])  # identifiers
         elif c == 5:
-            r.scalars.return_value = _scalars_all([])   # criminals
+            r.scalars.return_value = _scalars_all([])  # criminals
         elif c == 6:
             r.scalars.return_value = _scalars_first(wealth_row)  # wealth
         else:
-            r.scalars.return_value = _scalars_all([])   # burner
+            r.scalars.return_value = _scalars_all([])  # burner
         return r
 
     session.execute = fake_execute

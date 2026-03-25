@@ -53,11 +53,13 @@ class FamilyTreeNowCrawler(HttpxCrawler):
             name_el = card.find(class_="name") or card.find("h4") or card.find("h3")
             age_el = card.find(class_="age")
             loc_el = card.find(class_="location") or card.find(class_="address")
-            persons.append({
-                "name": name_el.get_text(strip=True) if name_el else "",
-                "age": age_el.get_text(strip=True) if age_el else "",
-                "location": loc_el.get_text(strip=True) if loc_el else "",
-            })
+            persons.append(
+                {
+                    "name": name_el.get_text(strip=True) if name_el else "",
+                    "age": age_el.get_text(strip=True) if age_el else "",
+                    "location": loc_el.get_text(strip=True) if loc_el else "",
+                }
+            )
 
         return CrawlerResult(
             platform=self.platform,

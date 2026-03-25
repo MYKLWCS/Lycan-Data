@@ -8,7 +8,6 @@ Registered as "radaris".
 from __future__ import annotations
 
 import logging
-from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 

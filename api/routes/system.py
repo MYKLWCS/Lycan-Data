@@ -115,7 +115,6 @@ async def queue_stats(session: AsyncSession = DbDep):
     """Return queue depths + cumulative throughput stats for the pipeline banner."""
     from sqlalchemy import text
 
-
     try:
         queues = {}
         for name in ("high", "normal", "low", "ingest", "index"):

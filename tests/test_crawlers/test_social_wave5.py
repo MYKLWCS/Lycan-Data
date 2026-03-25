@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -415,9 +414,7 @@ class TestFacebookCrawler:
     async def test_login_wall_calls_try_graph(self):
         """When page contains 'log in' + 'password', _try_graph is called."""
         crawler = self._make_crawler()
-        ctx, _ = _playwright_ctx(
-            content="Please log in. Enter your password to continue."
-        )
+        ctx, _ = _playwright_ctx(content="Please log in. Enter your password to continue.")
         mock_graph_result = MagicMock()
         mock_graph_result.found = True
         mock_graph_result.data = {"display_name": "Test Page"}
@@ -456,9 +453,7 @@ class TestFacebookCrawler:
         ctx, _ = _playwright_ctx(content="<html><body>Public profile page here</body></html>")
         extract_data = {"handle": "mypage", "display_name": "My Page", "follower_count": 500}
         with patch.object(crawler, "page", return_value=ctx):
-            with patch.object(
-                crawler, "_extract_mobile", new=AsyncMock(return_value=extract_data)
-            ):
+            with patch.object(crawler, "_extract_mobile", new=AsyncMock(return_value=extract_data)):
                 result = await crawler.scrape("mypage")
         assert result.found is True
         assert result.data["display_name"] == "My Page"

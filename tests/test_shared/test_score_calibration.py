@@ -1,6 +1,7 @@
 """Tests for the sigmoid corroboration score calibration."""
 
 import pytest
+
 from shared.data_quality import corroboration_score_from_count
 
 
@@ -40,5 +41,6 @@ def test_score_never_exceeds_1():
 def test_score_monotonically_increasing():
     scores = [corroboration_score_from_count(n) for n in range(1, 20)]
     for i in range(len(scores) - 1):
-        assert scores[i] <= scores[i + 1], \
-            f"Score decreased at count {i+1}: {scores[i]} -> {scores[i+1]}"
+        assert scores[i] <= scores[i + 1], (
+            f"Score decreased at count {i + 1}: {scores[i]} -> {scores[i + 1]}"
+        )

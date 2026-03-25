@@ -82,8 +82,7 @@ class LinkedInCrawler(PlaywrightCrawler):
 
             # Skills list
             skill_els = await page.query_selector_all(
-                ".skill-categories-section .skill-name, "
-                ".pv-skill-category-entity__name span"
+                ".skill-categories-section .skill-name, .pv-skill-category-entity__name span"
             )
             if skill_els:
                 skills = []
@@ -111,16 +110,12 @@ class LinkedInCrawler(PlaywrightCrawler):
                 data["endorsement_count"] = total_endorsements
 
             # Post count
-            post_count_el = await page.query_selector(
-                ".pv-recent-activity-section__headline-text"
-            )
+            post_count_el = await page.query_selector(".pv-recent-activity-section__headline-text")
             if not post_count_el:
                 post_count_el = await page.query_selector("[data-test-id='post-count']")
             if post_count_el:
                 try:
-                    pc_text = (
-                        (await post_count_el.inner_text()).strip().split()[0].replace(",", "")
-                    )
+                    pc_text = (await post_count_el.inner_text()).strip().split()[0].replace(",", "")
                     data["post_count"] = int(pc_text)
                 except (ValueError, AttributeError):
                     pass
@@ -135,21 +130,17 @@ class LinkedInCrawler(PlaywrightCrawler):
                 school_el = await edu_el.query_selector(
                     ".pv-entity__school-name, h3.pv-entity__school-name"
                 )
-                degree_el = await edu_el.query_selector(
-                    ".pv-entity__degree-name span:nth-child(2)"
+                degree_el = await edu_el.query_selector(".pv-entity__degree-name span:nth-child(2)")
+                field_el = await edu_el.query_selector(".pv-entity__fos span:nth-child(2)")
+                dates_el = await edu_el.query_selector(".pv-entity__dates span:nth-child(2)")
+                education_items.append(
+                    {
+                        "school": (await school_el.inner_text()).strip() if school_el else "",
+                        "degree": (await degree_el.inner_text()).strip() if degree_el else "",
+                        "field": (await field_el.inner_text()).strip() if field_el else "",
+                        "dates": (await dates_el.inner_text()).strip() if dates_el else "",
+                    }
                 )
-                field_el = await edu_el.query_selector(
-                    ".pv-entity__fos span:nth-child(2)"
-                )
-                dates_el = await edu_el.query_selector(
-                    ".pv-entity__dates span:nth-child(2)"
-                )
-                education_items.append({
-                    "school": (await school_el.inner_text()).strip() if school_el else "",
-                    "degree": (await degree_el.inner_text()).strip() if degree_el else "",
-                    "field": (await field_el.inner_text()).strip() if field_el else "",
-                    "dates": (await dates_el.inner_text()).strip() if dates_el else "",
-                })
             if education_items:
                 data["education"] = education_items
 

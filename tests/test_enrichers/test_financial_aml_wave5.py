@@ -20,7 +20,6 @@ from modules.enrichers.financial_aml import (
     FinancialIntelligenceEngine,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -87,7 +86,7 @@ async def test_score_person_derives_low_wealth_band():
 
     # A new WealthAssessment was added with wealth_band="low"
     assert session.add.called
-    added_obj = session.add.call_args_list[-1][0][0]
+    session.add.call_args_list[-1][0][0]
     # WealthAssessment is constructed with wealth_band=derived_wealth_band
     # We can't easily inspect the constructor args, but we verify the flow ran.
     assert profile.credit.score == 400
@@ -148,7 +147,7 @@ async def test_score_person_updates_wealth_band_when_empty():
         with patch("modules.enrichers.financial_aml.event_bus") as mock_bus:
             mock_bus.publish = AsyncMock()
             session = _make_session(wealth_row=wealth_row)
-            profile = await engine.score_person(pid, session)
+            await engine.score_person(pid, session)
 
     # Line 452: wealth_row.wealth_band should now be set to "low"
     assert wealth_row.wealth_band == "low"

@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -43,6 +42,7 @@ class TestDeHashedMakeAuthHeader:
 
     def test_basic_encoding(self):
         import base64
+
         from modules.crawlers.email_dehashed import _make_auth_header
 
         result = _make_auth_header("user@example.com", "mysecret")
@@ -51,6 +51,7 @@ class TestDeHashedMakeAuthHeader:
 
     def test_special_characters_in_key(self):
         import base64
+
         from modules.crawlers.email_dehashed import _make_auth_header
 
         result = _make_auth_header("a@b.com", "k3y!@#$%")
@@ -63,6 +64,7 @@ class TestDeHashedCredentials:
 
     def _make(self):
         from modules.crawlers.email_dehashed import DeHashedCrawler
+
         return DeHashedCrawler()
 
     def test_credentials_both_set(self):
@@ -95,6 +97,7 @@ class TestDeHashedScrape:
 
     def _make(self):
         from modules.crawlers.email_dehashed import DeHashedCrawler
+
         return DeHashedCrawler()
 
     # Line 51-59: missing credentials → found=False, error set
@@ -197,7 +200,9 @@ class TestDeHashedScrape:
         json_data = {"total": 0, "took": 5, "entries": []}
         with (
             patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+            ),
         ):
             result = await crawler.scrape("nobody@example.com")
         assert result.found is False
@@ -236,7 +241,9 @@ class TestDeHashedScrape:
         }
         with (
             patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+            ),
         ):
             result = await crawler.scrape("victim@example.com")
         assert result.found is True
@@ -253,7 +260,9 @@ class TestDeHashedScrape:
         json_data = {"total": 0, "took": 1}
         with (
             patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+            ),
         ):
             result = await crawler.scrape("nobody@example.com")
         assert result.found is False
@@ -266,7 +275,9 @@ class TestDeHashedScrape:
         json_data = {"total": 0, "entries": None}
         with (
             patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+            ),
         ):
             result = await crawler.scrape("nobody@example.com")
         assert result.found is False
@@ -304,6 +315,7 @@ class TestDeHashedScrape:
 class TestSocialscanCrawler:
     def _make(self):
         from modules.crawlers.email_socialscan import SocialscanCrawler
+
         return SocialscanCrawler()
 
     # Lines 34-43: socialscan not installed → ImportError path
@@ -313,6 +325,7 @@ class TestSocialscanCrawler:
         crawler = self._make()
 
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -346,7 +359,9 @@ class TestSocialscanCrawler:
         mock_socialscan.Query = mock_query_class
         mock_socialscan.QueryHandler = mock_handler_class
 
-        with patch.dict("sys.modules", {"socialscan": mock_socialscan, "socialscan.util": mock_socialscan}):
+        with patch.dict(
+            "sys.modules", {"socialscan": mock_socialscan, "socialscan.util": mock_socialscan}
+        ):
             result = await crawler.scrape("test@example.com")
 
         assert result.found is False
@@ -367,8 +382,8 @@ class TestSocialscanCrawler:
             return r
 
         mock_results = [
-            _make_scan_result("twitter", False),   # registered (available=False)
-            _make_scan_result("github", True),     # available (available=True)
+            _make_scan_result("twitter", False),  # registered (available=False)
+            _make_scan_result("github", True),  # available (available=True)
             _make_scan_result("instagram", None),  # unknown
         ]
 
@@ -442,6 +457,7 @@ class TestSocialscanCrawler:
         # str(r.platform) will be a MagicMock repr — but the key test is no AttributeError
         r2 = MagicMock()
         del r2.platform  # remove platform attr
+
         # Easier approach: create an object whose platform has no .value
         class FakePlatform:
             def __str__(self):

@@ -70,15 +70,17 @@ class RedfinPropertyCrawler(HttpxCrawler):
         properties = []
         for h in homes_raw[:10]:
             addr = h.get("address") or {}
-            properties.append({
-                "address": f"{addr.get('streetAddress', '')} {addr.get('city', '')} {addr.get('state', '')} {addr.get('zip', '')}".strip(),
-                "price": h.get("price"),
-                "beds": h.get("beds"),
-                "baths": h.get("baths"),
-                "sqft": h.get("sqFt"),
-                "year_built": h.get("yearBuilt"),
-                "listing_type": h.get("listingType"),
-            })
+            properties.append(
+                {
+                    "address": f"{addr.get('streetAddress', '')} {addr.get('city', '')} {addr.get('state', '')} {addr.get('zip', '')}".strip(),
+                    "price": h.get("price"),
+                    "beds": h.get("beds"),
+                    "baths": h.get("baths"),
+                    "sqft": h.get("sqFt"),
+                    "year_built": h.get("yearBuilt"),
+                    "listing_type": h.get("listingType"),
+                }
+            )
 
         return CrawlerResult(
             platform=self.platform,

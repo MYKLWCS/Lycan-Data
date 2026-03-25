@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -41,6 +40,7 @@ def _mock_resp(status: int = 200, json_data=None, text: str = ""):
 class TestDomainHarvesterCrawler:
     def _make(self):
         from modules.crawlers.domain_theharvester import DomainHarvesterCrawler
+
         return DomainHarvesterCrawler()
 
     # lines 47-50 — json file present path exercised via _run_harvester internals
@@ -67,6 +67,7 @@ class TestDomainHarvesterCrawler:
 
         with patch("asyncio.create_subprocess_exec", side_effect=fake_create):
             from modules.crawlers.domain_theharvester import _run_harvester
+
             result = await _run_harvester("example.com")
 
         assert result.get("emails") == ["a@b.com"]
@@ -187,6 +188,7 @@ class TestDomainHarvesterCrawler:
 class TestPastePastebinCrawler:
     def _make(self):
         from modules.crawlers.paste_pastebin import PastePastebinCrawler
+
         return PastePastebinCrawler()
 
     # line 42 — None response => http_error
@@ -280,6 +282,7 @@ class TestPastePastebinCrawler:
 class TestFoneFinderCrawler:
     def _make(self):
         from modules.crawlers.phone_fonefinder import FoneFinderCrawler
+
         return FoneFinderCrawler()
 
     # line 161 — None response
@@ -318,11 +321,7 @@ class TestFoneFinderCrawler:
     def test_parse_response_carrier_fallback_short_sibling_ignored(self):
         crawler = self._make()
         # sibling text is only 2 chars — should be ignored per the len > 2 guard
-        html = (
-            "<html><body>"
-            "<span>Provider</span><span>OK</span>"
-            "</body></html>"
-        )
+        html = "<html><body><span>Provider</span><span>OK</span></body></html>"
         result = crawler._parse_response(html, "US")
         assert isinstance(result, dict)
         # carrier_name stays empty because sibling is too short
@@ -374,6 +373,7 @@ class TestFoneFinderCrawler:
 class TestDomainWhoisCrawler:
     def _make(self):
         from modules.crawlers.domain_whois import DomainWhoisCrawler
+
         return DomainWhoisCrawler()
 
     # line 44 — _extract_whois_text uses .df-value spans

@@ -432,23 +432,13 @@ class EntityGraphBuilder:
                 nodes.append(_stub_node(f"addr:{a.id}", "address", label))
 
         if "phone" in allowed:
-            stmt = (
-                select(Identifier)
-                .where(Identifier.type == "phone")
-                .limit(limit)
-                .offset(offset)
-            )
+            stmt = select(Identifier).where(Identifier.type == "phone").limit(limit).offset(offset)
             rows = (await session.execute(stmt)).scalars().all()
             for i in rows:
                 nodes.append(_stub_node(f"ident:{i.id}", "phone", i.value))
 
         if "email" in allowed:
-            stmt = (
-                select(Identifier)
-                .where(Identifier.type == "email")
-                .limit(limit)
-                .offset(offset)
-            )
+            stmt = select(Identifier).where(Identifier.type == "email").limit(limit).offset(offset)
             rows = (await session.execute(stmt)).scalars().all()
             for i in rows:
                 nodes.append(_stub_node(f"ident:{i.id}", "email", i.value))
@@ -546,9 +536,7 @@ class EntityGraphBuilder:
                 if neighbour in visited:
                     continue
                 new_path = path + [neighbour]
-                new_edges = path_edges + [
-                    _edge(current, neighbour, rel.rel_type, rel.score or 0.5)
-                ]
+                new_edges = path_edges + [_edge(current, neighbour, rel.rel_type, rel.score or 0.5)]
                 if neighbour == end:
                     return {"path": new_path, "edges": new_edges}
                 visited.add(neighbour)

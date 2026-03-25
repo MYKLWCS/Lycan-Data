@@ -237,7 +237,9 @@ class TestGovEpa:
 
         crawler = EpaCrawler()
         with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, {"Results": {"Results": []}}))
+            crawler,
+            "get",
+            new=AsyncMock(return_value=_mock_resp(200, {"Results": {"Results": []}})),
         ):
             result = await crawler.scrape("Unknown Corp")
 
@@ -329,9 +331,7 @@ class TestGovFda:
         events_resp = _mock_resp(200, self._EVENTS_DATA)
         recalls_resp = _mock_resp(200, self._RECALLS_DATA)
 
-        with patch.object(
-            crawler, "get", new=AsyncMock(side_effect=[events_resp, recalls_resp])
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=[events_resp, recalls_resp])):
             result = await crawler.scrape("aspirin")
 
         assert result.found is True
@@ -520,7 +520,9 @@ class TestGovFdic:
 
         crawler = FdicCrawler()
         with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, {"data": [], "meta": {"total": 0}}))
+            crawler,
+            "get",
+            new=AsyncMock(return_value=_mock_resp(200, {"data": [], "meta": {"total": 0}})),
         ):
             result = await crawler.scrape("Nonexistent Bank")
 
@@ -608,7 +610,9 @@ class TestGovFec:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(return_value=_mock_resp(200, {"results": [], "pagination": {"count": 0}})),
+            new=AsyncMock(
+                return_value=_mock_resp(200, {"results": [], "pagination": {"count": 0}})
+            ),
         ):
             result = await crawler.scrape("Nobody")
 
@@ -794,7 +798,9 @@ class TestGovFinra:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(return_value=_mock_resp(200, {"hits": {"total": {"value": 0}, "hits": []}})),
+            new=AsyncMock(
+                return_value=_mock_resp(200, {"hits": {"total": {"value": 0}, "hits": []}})
+            ),
         ):
             result = await crawler.scrape("Nobody")
 
@@ -980,9 +986,7 @@ class TestGovGleif:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(
-                side_effect=[_mock_resp(503), _mock_resp(200, self._FULLTEXT_DATA)]
-            ),
+            new=AsyncMock(side_effect=[_mock_resp(503), _mock_resp(200, self._FULLTEXT_DATA)]),
         ):
             result = await crawler.scrape("Goldman Sachs")
 
@@ -1033,9 +1037,7 @@ class TestGovGleif:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(
-                side_effect=[_bad_json_resp(), _mock_resp(200, self._FULLTEXT_DATA)]
-            ),
+            new=AsyncMock(side_effect=[_bad_json_resp(), _mock_resp(200, self._FULLTEXT_DATA)]),
         ):
             result = await crawler.scrape("Goldman")
 
@@ -1123,7 +1125,10 @@ class TestGovGrants:
             result = await crawler.scrape("research")
 
         assert result.found is True
-        assert result.data["opportunities"][0]["opportunityTitle"] == "Small Business Innovation Research"
+        assert (
+            result.data["opportunities"][0]["opportunityTitle"]
+            == "Small Business Innovation Research"
+        )
 
     @pytest.mark.asyncio
     async def test_grants_empty_results(self):
@@ -1131,7 +1136,9 @@ class TestGovGrants:
 
         crawler = GrantsCrawler()
         with patch.object(
-            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, {"oppHits": [], "totalRecords": 0}))
+            crawler,
+            "post",
+            new=AsyncMock(return_value=_mock_resp(200, {"oppHits": [], "totalRecords": 0})),
         ):
             result = await crawler.scrape("nothing")
 
@@ -1254,9 +1261,7 @@ class TestGovNmls:
 
         licensee = {**self._LICENSEE, "EntityName": None, "FullName": "John Broker"}
         crawler = NmlsCrawler()
-        with patch.object(
-            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, [licensee]))
-        ):
+        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, [licensee]))):
             result = await crawler.scrape("John")
 
         assert result.data["licensees"][0]["EntityName"] == "John Broker"
@@ -1439,9 +1444,7 @@ class TestGovOsha:
         from modules.crawlers.gov_osha import OshaCrawler
 
         crawler = OshaCrawler()
-        with patch.object(
-            crawler, "get", new=AsyncMock(side_effect=[_mock_resp(200, []), None])
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=[_mock_resp(200, []), None])):
             result = await crawler.scrape("test")
 
         assert result.found is False
@@ -1744,7 +1747,9 @@ class TestGovUsaSpending:
         with patch.object(
             crawler,
             "post",
-            new=AsyncMock(return_value=_mock_resp(200, {"results": [], "page_metadata": {"total": 0}})),
+            new=AsyncMock(
+                return_value=_mock_resp(200, {"results": [], "page_metadata": {"total": 0}})
+            ),
         ):
             result = await crawler.scrape("Nobody")
 
@@ -1843,7 +1848,9 @@ class TestGovUsptoPatents:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(side_effect=[_mock_resp(200, empty), _mock_resp(200, self._ASSIGNEE_LIST)]),
+            new=AsyncMock(
+                side_effect=[_mock_resp(200, empty), _mock_resp(200, self._ASSIGNEE_LIST)]
+            ),
         ):
             result = await crawler.scrape("Acme Corporation")
 
@@ -2189,9 +2196,7 @@ class TestGovWorldBank:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(
-                side_effect=[_mock_resp(200, self._COUNTRY_SEARCH), _bad_json_resp()]
-            ),
+            new=AsyncMock(side_effect=[_mock_resp(200, self._COUNTRY_SEARCH), _bad_json_resp()]),
         ):
             result = await crawler.scrape("South Africa")
 
@@ -2205,9 +2210,7 @@ class TestGovWorldBank:
 
         empty_gdp = [{"page": 1}, []]
         crawler = WorldBankCrawler()
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, empty_gdp))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, empty_gdp))):
             result = await crawler.scrape("ZZ")
 
         assert result.found is True

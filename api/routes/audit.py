@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Serialisers
 # ---------------------------------------------------------------------------
+
 
 def _audit_to_dict(row: SystemAudit) -> dict:
     return {
@@ -53,12 +53,11 @@ def _person_to_slim(p: Person) -> dict:
 # GET /audit/latest
 # ---------------------------------------------------------------------------
 
+
 @router.get("/latest")
 async def audit_latest(session=DbDep):
     """Return the most recent SystemAudit snapshot."""
-    result = await session.execute(
-        select(SystemAudit).order_by(SystemAudit.run_at.desc()).limit(1)
-    )
+    result = await session.execute(select(SystemAudit).order_by(SystemAudit.run_at.desc()).limit(1))
     row = result.scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="No audit runs found")
@@ -69,8 +68,10 @@ async def audit_latest(session=DbDep):
 # POST /audit/run
 # ---------------------------------------------------------------------------
 
+
 async def _trigger_audit() -> None:
     from modules.audit.audit_daemon import AuditDaemon
+
     daemon = AuditDaemon()
     try:
         await daemon._run_audit()
@@ -89,6 +90,7 @@ async def audit_run(background_tasks: BackgroundTasks):
 # GET /audit/history
 # ---------------------------------------------------------------------------
 
+
 @router.get("/history")
 async def audit_history(
     limit: int = Query(default=30, ge=1, le=200),
@@ -105,6 +107,7 @@ async def audit_history(
 # ---------------------------------------------------------------------------
 # GET /audit/crawlers
 # ---------------------------------------------------------------------------
+
 
 @router.get("/crawlers")
 async def audit_crawlers(session=DbDep):
@@ -149,6 +152,7 @@ async def audit_crawlers(session=DbDep):
 # GET /audit/persons/stale
 # ---------------------------------------------------------------------------
 
+
 @router.get("/persons/stale")
 async def audit_persons_stale(
     limit: int = Query(default=50, ge=1, le=500),
@@ -175,6 +179,7 @@ async def audit_persons_stale(
 # GET /audit/persons/low-coverage
 # ---------------------------------------------------------------------------
 
+
 @router.get("/persons/low-coverage")
 async def audit_persons_low_coverage(
     limit: int = Query(default=50, ge=1, le=500),
@@ -186,13 +191,9 @@ async def audit_persons_low_coverage(
         select(Person)
         .where(
             Person.merged_into.is_(None),
-            text(
-                "(persons.meta->'coverage'->>'pct')::numeric < 50"
-            ),
+            text("(persons.meta->'coverage'->>'pct')::numeric < 50"),
         )
-        .order_by(
-            text("(persons.meta->'coverage'->>'pct')::numeric ASC NULLS FIRST")
-        )
+        .order_by(text("(persons.meta->'coverage'->>'pct')::numeric ASC NULLS FIRST"))
         .offset(offset)
         .limit(limit)
     )

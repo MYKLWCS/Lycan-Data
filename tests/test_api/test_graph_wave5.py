@@ -31,7 +31,6 @@ from fastapi.testclient import TestClient
 from api.deps import db_session
 from api.routes.graph import router
 
-
 # ---------------------------------------------------------------------------
 # App factory helpers
 # ---------------------------------------------------------------------------
@@ -94,9 +93,7 @@ class TestGraphEdgesExceptionPath:
     def test_graph_edges_exception_returns_500(self):
         app = _make_app()
         with patch("api.routes.graph._graph_builder") as mock_builder:
-            mock_builder.get_edges_paginated = AsyncMock(
-                side_effect=Exception("timeout")
-            )
+            mock_builder.get_edges_paginated = AsyncMock(side_effect=Exception("timeout"))
             with TestClient(app, raise_server_exceptions=False) as client:
                 r = client.get("/graph/edges")
         assert r.status_code == 500
@@ -121,9 +118,7 @@ class TestGraphPathExceptionPaths:
         """Non-ValueError exception from find_shortest_path → HTTP 500."""
         app = _make_app()
         with patch("api.routes.graph._graph_builder") as mock_builder:
-            mock_builder.find_shortest_path = AsyncMock(
-                side_effect=RuntimeError("bfs exploded")
-            )
+            mock_builder.find_shortest_path = AsyncMock(side_effect=RuntimeError("bfs exploded"))
             with TestClient(app, raise_server_exceptions=False) as client:
                 r = client.get("/graph/path?from=abc&to=xyz")
         assert r.status_code == 500
@@ -157,9 +152,7 @@ class TestGraphExpandExceptionPaths:
         """Non-ValueError exception from expand_entity → HTTP 500."""
         app = _make_app()
         with patch("api.routes.graph._graph_builder") as mock_builder:
-            mock_builder.expand_entity = AsyncMock(
-                side_effect=RuntimeError("neo4j not found")
-            )
+            mock_builder.expand_entity = AsyncMock(side_effect=RuntimeError("neo4j not found"))
             with TestClient(app, raise_server_exceptions=False) as client:
                 r = client.get("/graph/entity/person/some-id/expand")
         assert r.status_code == 500
@@ -168,9 +161,7 @@ class TestGraphExpandExceptionPaths:
         """Happy path: expand_entity returns nodes+edges → 200."""
         app = _make_app()
         with patch("api.routes.graph._graph_builder") as mock_builder:
-            mock_builder.expand_entity = AsyncMock(
-                return_value={"nodes": [], "edges": []}
-            )
+            mock_builder.expand_entity = AsyncMock(return_value={"nodes": [], "edges": []})
             with TestClient(app) as client:
                 r = client.get("/graph/entity/person/some-uuid/expand")
         assert r.status_code == 200
@@ -332,9 +323,7 @@ class TestGetNodesPaginatedBranches:
         phone = _mock_identifier(id_type="phone", value="+15550009999")
 
         # Both branches hit session.execute; alternate return values
-        session.execute = AsyncMock(
-            side_effect=[_mock_db_result([addr]), _mock_db_result([phone])]
-        )
+        session.execute = AsyncMock(side_effect=[_mock_db_result([addr]), _mock_db_result([phone])])
 
         nodes = await builder.get_nodes_paginated(
             session, limit=10, offset=0, entity_types=["address", "phone"]
@@ -400,9 +389,7 @@ class TestFindShortestPathStartEqualsEnd:
         session.execute = AsyncMock(return_value=r)
 
         node_id = "identical-node-id"
-        result = await builder.find_shortest_path(
-            node_id, node_id, session, entity_types=None
-        )
+        result = await builder.find_shortest_path(node_id, node_id, session, entity_types=None)
 
         # The method still executes the adjacency query before the start==end check
         # per the actual code — but result is correct regardless

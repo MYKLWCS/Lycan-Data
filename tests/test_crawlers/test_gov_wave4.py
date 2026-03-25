@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -378,7 +377,9 @@ class TestGovWorldbankLines57_61:
     async def test_worldbank_iso2_path(self):
         """Using a 2-letter ISO code bypasses the country search."""
         crawler = WorldBankCrawler()
-        gdp_resp = _mock_resp(200, json_data=[None, [{"date": "2020", "value": 1e12, "indicator": {"value": "GDP"}}]])
+        gdp_resp = _mock_resp(
+            200, json_data=[None, [{"date": "2020", "value": 1e12, "indicator": {"value": "GDP"}}]]
+        )
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=gdp_resp)):
             result = await crawler.scrape("US")
@@ -425,15 +426,20 @@ class TestGovGleifLines124_126:
         bad_fuzzy = MagicMock()
         bad_fuzzy.status_code = 200
         bad_fuzzy.json = MagicMock(side_effect=ValueError("bad"))
-        fulltext_resp = _mock_resp(200, json_data={"data": [
-            {
-                "id": "LEI123",
-                "attributes": {
-                    "lei": "LEI123",
-                    "entity": {"legalName": {"name": "Goldman Sachs"}},
-                },
-            }
-        ]})
+        fulltext_resp = _mock_resp(
+            200,
+            json_data={
+                "data": [
+                    {
+                        "id": "LEI123",
+                        "attributes": {
+                            "lei": "LEI123",
+                            "entity": {"legalName": {"name": "Goldman Sachs"}},
+                        },
+                    }
+                ]
+            },
+        )
 
         call_count = [0]
 

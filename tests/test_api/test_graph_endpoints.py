@@ -7,7 +7,6 @@ import pytest
 
 from modules.graph.entity_graph import EntityGraphBuilder
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
@@ -141,9 +140,7 @@ async def test_find_shortest_path_direct_connection():
 
     session = _make_session([_scalars_result([rel])])
     builder = EntityGraphBuilder()
-    result = await builder.find_shortest_path(
-        str_a, str_b, session, entity_types=None, max_hops=6
-    )
+    result = await builder.find_shortest_path(str_a, str_b, session, entity_types=None, max_hops=6)
     assert result["path"] is not None
     assert str_a in result["path"]
     assert str_b in result["path"]
@@ -221,14 +218,16 @@ async def test_expand_entity_person_returns_neighbors():
     # 4. employment
     # 5. social profiles
     # 6. relationships
-    session = _make_session([
-        _scalars_result([person]),
-        _scalars_result([addr]),
-        _empty(),
-        _empty(),
-        _empty(),
-        _scalars_result([rel]),
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _scalars_result([addr]),
+            _empty(),
+            _empty(),
+            _empty(),
+            _scalars_result([rel]),
+        ]
+    )
     builder = EntityGraphBuilder()
     result = await builder.expand_entity("person", pid_str, session)
     assert "nodes" in result
@@ -276,15 +275,18 @@ async def test_build_person_graph_includes_address_and_company_nodes():
     ident_email.value = "eve@wolfcorp.com"
     ident_email.confidence = 1.0
 
-    session = _make_session([
-        _scalars_result([person]),
-        _scalars_result([addr]),
-        _scalars_result([ident_email]),
-        _scalars_result([emp]),
-        _empty(),
-        _empty(),
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _scalars_result([addr]),
+            _scalars_result([ident_email]),
+            _scalars_result([emp]),
+            _empty(),
+            _empty(),
+        ]
+    )
     from modules.graph.entity_graph import EntityGraphBuilder
+
     builder = EntityGraphBuilder()
     graph = await builder.build_person_graph(str(person_id), session, depth=1)
 
@@ -304,7 +306,9 @@ async def test_person_network_response_has_node_and_edge_count():
     Verifies api/routes/graph.py person_network handler exposes node_count and edge_count.
     This test calls the handler directly with a mocked graph builder.
     """
-    from unittest.mock import patch, AsyncMock as AM
+    from unittest.mock import AsyncMock as AM
+    from unittest.mock import patch
+
     from api.routes.graph import person_network
 
     fake_graph = {
@@ -331,7 +335,9 @@ async def test_person_network_response_has_node_and_edge_count():
 
 @pytest.mark.asyncio
 async def test_graph_nodes_endpoint_returns_nodes_key():
-    from unittest.mock import patch, AsyncMock as AM
+    from unittest.mock import AsyncMock as AM
+    from unittest.mock import patch
+
     from api.routes.graph import graph_nodes
 
     fake_nodes = [{"id": "p:1", "type": "person", "label": "Alice", "risk_score": 0.2}]
@@ -339,9 +345,7 @@ async def test_graph_nodes_endpoint_returns_nodes_key():
 
     with patch("api.routes.graph._graph_builder") as mb:
         mb.get_nodes_paginated = AM(return_value=fake_nodes)
-        response = await graph_nodes(
-            limit=500, offset=0, entity_types=None, session=fake_session
-        )
+        response = await graph_nodes(limit=500, offset=0, entity_types=None, session=fake_session)
 
     assert "nodes" in response
     assert response["count"] == 1
@@ -350,7 +354,9 @@ async def test_graph_nodes_endpoint_returns_nodes_key():
 
 @pytest.mark.asyncio
 async def test_graph_edges_endpoint_returns_edges_key():
-    from unittest.mock import patch, AsyncMock as AM
+    from unittest.mock import AsyncMock as AM
+    from unittest.mock import patch
+
     from api.routes.graph import graph_edges
 
     fake_edges = [{"source": "a", "target": "b", "type": "associate", "confidence": 0.7}]
@@ -369,7 +375,9 @@ async def test_graph_edges_endpoint_returns_edges_key():
 
 @pytest.mark.asyncio
 async def test_graph_path_endpoint_returns_path():
-    from unittest.mock import patch, AsyncMock as AM
+    from unittest.mock import AsyncMock as AM
+    from unittest.mock import patch
+
     from api.routes.graph import graph_path
 
     fake_result = {"path": ["id-a", "id-b"], "edges": []}
@@ -390,8 +398,10 @@ async def test_graph_path_endpoint_returns_path():
 
 @pytest.mark.asyncio
 async def test_graph_path_endpoint_rejects_max_hops_above_10():
-    from api.routes.graph import graph_path
     from fastapi import HTTPException as HE
+
+    from api.routes.graph import graph_path
+
     fake_session = AsyncMock()
     with pytest.raises(HE) as exc_info:
         await graph_path(
@@ -406,7 +416,9 @@ async def test_graph_path_endpoint_rejects_max_hops_above_10():
 
 @pytest.mark.asyncio
 async def test_graph_expand_endpoint_returns_nodes_and_edges():
-    from unittest.mock import patch, AsyncMock as AM
+    from unittest.mock import AsyncMock as AM
+    from unittest.mock import patch
+
     from api.routes.graph import graph_expand
 
     fake_result = {

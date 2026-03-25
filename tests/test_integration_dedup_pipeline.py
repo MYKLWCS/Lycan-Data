@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import shared.models.address  # noqa: F401
+
 # Import all models upfront so SQLAlchemy can resolve string-based relationships
 import shared.models.criminal  # noqa: F401
 import shared.models.identifier  # noqa: F401
-import shared.models.social_profile  # noqa: F401
-import shared.models.address  # noqa: F401
 import shared.models.identifier_history  # noqa: F401
 import shared.models.identity_document  # noqa: F401
-
+import shared.models.social_profile  # noqa: F401
 from modules.enrichers.auto_dedup import (
     AUTO_MERGE_THRESHOLD,
     REVIEW_THRESHOLD,
@@ -72,10 +72,13 @@ async def test_daemon_routes_correctly():
     added = []
     session.add = MagicMock(side_effect=added.append)
 
-    with patch("modules.enrichers.auto_dedup.score_person_dedup",
-               new=AsyncMock(return_value=[high, medium, low])), \
-         patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec:
-
+    with (
+        patch(
+            "modules.enrichers.auto_dedup.score_person_dedup",
+            new=AsyncMock(return_value=[high, medium, low]),
+        ),
+        patch("modules.enrichers.auto_dedup.AsyncMergeExecutor") as MockExec,
+    ):
         daemon._count_populated_fields = AsyncMock(return_value=10)
         # Make person fetches return dummy objects
         person_mock = MagicMock()
@@ -83,11 +86,13 @@ async def test_daemon_routes_correctly():
         person_mock.id = id_a
         persons_fetch = MagicMock()
         persons_fetch.scalar_one_or_none.return_value = person_mock
-        session.execute = AsyncMock(side_effect=[
-            persons_result,       # initial recent persons query
-            persons_fetch,        # fetch person_a for merge
-            persons_fetch,        # fetch person_b for merge
-        ])
+        session.execute = AsyncMock(
+            side_effect=[
+                persons_result,  # initial recent persons query
+                persons_fetch,  # fetch person_a for merge
+                persons_fetch,  # fetch person_b for merge
+            ]
+        )
 
         mock_exec = AsyncMock()
         mock_exec.execute = AsyncMock(return_value={"merged": True})

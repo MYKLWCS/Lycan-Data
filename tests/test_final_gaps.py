@@ -6,6 +6,7 @@ Files targeted:
   - modules/crawlers/linkedin.py  lines 71, 76  (headline + location in _extract)
   - shared/utils/email.py         line 33       (is_valid_email return value)
 """
+
 from __future__ import annotations
 
 import uuid
@@ -14,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 
 # ===========================================================================
 # shared/utils/email.py  line 33 — is_valid_email return value
@@ -42,8 +42,8 @@ class TestExportPersonCsv:
     """Exercises the two for-loop bodies in export_person_csv."""
 
     def _build_app(self, person, identifiers, socials):
-        from api.routes.export import router
         from api.deps import db_session
+        from api.routes.export import router
 
         app = FastAPI()
         app.include_router(router, prefix="/export")
@@ -56,9 +56,7 @@ class TestExportPersonCsv:
         scalars_result_idents.all.return_value = identifiers
         scalars_result_socials = MagicMock()
         scalars_result_socials.all.return_value = socials
-        mock_db.scalars = AsyncMock(
-            side_effect=[scalars_result_idents, scalars_result_socials]
-        )
+        mock_db.scalars = AsyncMock(side_effect=[scalars_result_idents, scalars_result_socials])
 
         async def override_db():
             yield mock_db

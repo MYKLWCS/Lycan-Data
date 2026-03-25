@@ -6,6 +6,7 @@ Targets specific uncovered lines across:
   stackoverflow_profile, threads_profile, txcourts, vin_decode_enhanced,
   interests_extractor
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,6 +31,7 @@ def _mock_resp(status=200, json_data=None, text=""):
 #    line 48: name_tag found but name_text is falsy or "not found" -> found=False
 #    line 52: name_text contains "not found" -> found=False
 # ---------------------------------------------------------------------------
+
 
 class TestRadarisCrawler:
     @pytest.mark.asyncio
@@ -86,6 +88,7 @@ class TestRadarisCrawler:
 #    lines 63-64: both json.loads and resp.json() fail -> found=False error=parse_error
 # ---------------------------------------------------------------------------
 
+
 class TestRedfinPropertyCrawler:
     @pytest.mark.asyncio
     async def test_http_failure_returns_not_found(self):
@@ -125,14 +128,20 @@ class TestRedfinPropertyCrawler:
     @pytest.mark.asyncio
     async def test_redfin_prefix_stripped_and_parsed(self):
         """Covers the '{}&&' prefix-strip path (line 55-56) and happy path."""
+        import json
+
         from modules.crawlers.redfin_property import RedfinPropertyCrawler
 
-        import json
         payload = {
             "payload": {
                 "homes": [
                     {
-                        "address": {"streetAddress": "123 Main", "city": "Dallas", "state": "TX", "zip": "75001"},
+                        "address": {
+                            "streetAddress": "123 Main",
+                            "city": "Dallas",
+                            "state": "TX",
+                            "zip": "75001",
+                        },
                         "price": 250000,
                         "beds": 3,
                         "baths": 2,
@@ -158,6 +167,7 @@ class TestRedfinPropertyCrawler:
 #    line 48: HTTP failure -> found=False
 #    lines 52-54: JSON parse fails -> found=False error=parse_error
 # ---------------------------------------------------------------------------
+
 
 class TestSecInsiderCrawler:
     @pytest.mark.asyncio
@@ -231,6 +241,7 @@ class TestSecInsiderCrawler:
 #    line 61: first card selector found nothing, second selector (select) also empty
 #    line 63: cards is still empty after both selectors -> found=False
 # ---------------------------------------------------------------------------
+
 
 class TestSpokeoCrawler:
     @pytest.mark.asyncio
@@ -322,6 +333,7 @@ class TestSpokeoCrawler:
 #    lines 44-46: resp.json() raises -> found=False error=parse_error
 # ---------------------------------------------------------------------------
 
+
 class TestSpotifyPublicCrawler:
     @pytest.mark.asyncio
     async def test_http_failure_returns_not_found(self):
@@ -364,7 +376,11 @@ class TestSpotifyPublicCrawler:
         payload = {
             "users": {
                 "items": [
-                    {"display_name": "Some User", "id": "someuser123", "uri": "spotify:user:someuser123"}
+                    {
+                        "display_name": "Some User",
+                        "id": "someuser123",
+                        "uri": "spotify:user:someuser123",
+                    }
                 ]
             }
         }
@@ -381,6 +397,7 @@ class TestSpotifyPublicCrawler:
 #    line 42: HTTP failure -> found=False
 #    lines 46-48: resp.json() raises -> found=False error=parse_error
 # ---------------------------------------------------------------------------
+
 
 class TestStackOverflowProfileCrawler:
     @pytest.mark.asyncio
@@ -448,6 +465,7 @@ class TestStackOverflowProfileCrawler:
 #    lines 40-42: resp.json() raises -> found=False error=parse_error
 #    line 46: user dict is empty -> found=False
 # ---------------------------------------------------------------------------
+
 
 class TestThreadsProfileCrawler:
     @pytest.mark.asyncio
@@ -524,6 +542,7 @@ class TestThreadsProfileCrawler:
 #    line 39: HTTP failure -> found=False
 #    lines 61-63: fallback path — no table rows, but elements with class 'case-number' found
 # ---------------------------------------------------------------------------
+
 
 class TestTxCourtsCrawler:
     @pytest.mark.asyncio
@@ -605,6 +624,7 @@ class TestTxCourtsCrawler:
 #    lines 45-47: resp.json() raises -> found=False error=parse_error
 #    line 51: results list is empty -> found=False
 # ---------------------------------------------------------------------------
+
 
 class TestVinDecodeEnhancedCrawler:
     @pytest.mark.asyncio
@@ -708,6 +728,7 @@ class TestVinDecodeEnhancedCrawler:
 #    line 149: flush+commit success path
 # ---------------------------------------------------------------------------
 
+
 class TestInterestsExtractorCrawler:
     @pytest.mark.asyncio
     async def test_no_session_returns_no_session_error(self):
@@ -732,14 +753,20 @@ class TestInterestsExtractorCrawler:
         crawler = InterestsExtractorCrawler()
 
         # Patch sqlalchemy imports inside scrape
-        with patch.dict("sys.modules", {
-            "sqlalchemy": MagicMock(),
-            "shared.models.crawl": MagicMock(),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "sqlalchemy": MagicMock(),
+                "shared.models.crawl": MagicMock(),
+            },
+        ):
             import sqlalchemy as sa_mock
+
             sa_mock.select = MagicMock(return_value=MagicMock())
-            with patch("modules.crawlers.interests_extractor.InterestsExtractorCrawler.scrape",
-                       wraps=crawler.scrape):
+            with patch(
+                "modules.crawlers.interests_extractor.InterestsExtractorCrawler.scrape",
+                wraps=crawler.scrape,
+            ):
                 # Use a simpler approach: mock the session.execute path
                 pass
 
@@ -749,11 +776,11 @@ class TestInterestsExtractorCrawler:
         mock_crawljob.person_id = MagicMock()
         mock_crawljob.status = "done"
 
-        with patch("sqlalchemy.select", mock_select), \
-             patch("shared.models.crawl.CrawlJob", mock_crawljob):
-            result = await crawler.scrape(
-                "550e8400-e29b-41d4-a716-446655440000", session=session
-            )
+        with (
+            patch("sqlalchemy.select", mock_select),
+            patch("shared.models.crawl.CrawlJob", mock_crawljob),
+        ):
+            result = await crawler.scrape("550e8400-e29b-41d4-a716-446655440000", session=session)
         assert result.found is False
 
     @pytest.mark.asyncio
@@ -778,12 +805,12 @@ class TestInterestsExtractorCrawler:
 
         # Mock _persist_interests to avoid DB operations
         crawler = InterestsExtractorCrawler()
-        with patch.object(crawler, "_persist_interests", new=AsyncMock()), \
-             patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.crawl.CrawlJob", MagicMock()):
-            result = await crawler.scrape(
-                "550e8400-e29b-41d4-a716-446655440000", session=session
-            )
+        with (
+            patch.object(crawler, "_persist_interests", new=AsyncMock()),
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.crawl.CrawlJob", MagicMock()),
+        ):
+            result = await crawler.scrape("550e8400-e29b-41d4-a716-446655440000", session=session)
 
         assert result.found is True
         assert "fitness" in result.data["interests"]
@@ -809,12 +836,12 @@ class TestInterestsExtractorCrawler:
         session.execute = AsyncMock(return_value=execute_result)
 
         crawler = InterestsExtractorCrawler()
-        with patch.object(crawler, "_persist_interests", new=AsyncMock()), \
-             patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.crawl.CrawlJob", MagicMock()):
-            result = await crawler.scrape(
-                "550e8400-e29b-41d4-a716-446655440000", session=session
-            )
+        with (
+            patch.object(crawler, "_persist_interests", new=AsyncMock()),
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.crawl.CrawlJob", MagicMock()),
+        ):
+            result = await crawler.scrape("550e8400-e29b-41d4-a716-446655440000", session=session)
 
         assert result.found is True
         assert "tesla motors" in result.data["interests"]
@@ -840,18 +867,19 @@ class TestInterestsExtractorCrawler:
         session.execute = AsyncMock(return_value=execute_result)
 
         crawler = InterestsExtractorCrawler()
-        with patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.crawl.CrawlJob", MagicMock()):
-            result = await crawler.scrape(
-                "550e8400-e29b-41d4-a716-446655440000", session=session
-            )
+        with (
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.crawl.CrawlJob", MagicMock()),
+        ):
+            result = await crawler.scrape("550e8400-e29b-41d4-a716-446655440000", session=session)
         assert result.found is False
 
     @pytest.mark.asyncio
     async def test_persist_creates_new_profile_when_none(self):
         """Lines 139-140: profile is None -> new BehaviouralProfile created and added."""
-        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
         import uuid
+
+        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
 
         person_id = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
         interests = ["crypto", "fitness"]
@@ -870,8 +898,10 @@ class TestInterestsExtractorCrawler:
         mock_profile_cls.return_value = mock_profile_instance
 
         crawler = InterestsExtractorCrawler()
-        with patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.behavioural.BehaviouralProfile", mock_profile_cls):
+        with (
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.behavioural.BehaviouralProfile", mock_profile_cls),
+        ):
             await crawler._persist_interests(person_id, interests, session)
 
         # Verify a new profile was instantiated and added to session
@@ -881,8 +911,9 @@ class TestInterestsExtractorCrawler:
     @pytest.mark.asyncio
     async def test_persist_merges_existing_profile(self):
         """Line 143-145: existing profile -> interests are merged and deduplicated."""
-        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
         import uuid
+
+        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
 
         person_id = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
         new_interests = ["crypto", "fitness", "travel"]
@@ -898,8 +929,10 @@ class TestInterestsExtractorCrawler:
         session.commit = AsyncMock()
 
         crawler = InterestsExtractorCrawler()
-        with patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.behavioural.BehaviouralProfile", MagicMock()):
+        with (
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.behavioural.BehaviouralProfile", MagicMock()),
+        ):
             await crawler._persist_interests(person_id, new_interests, session)
 
         merged = existing_profile.interests
@@ -912,8 +945,9 @@ class TestInterestsExtractorCrawler:
     @pytest.mark.asyncio
     async def test_persist_flush_commit_called(self):
         """Line 149: flush and commit are called on success."""
-        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
         import uuid
+
+        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
 
         person_id = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
         interests = ["gaming"]
@@ -927,8 +961,10 @@ class TestInterestsExtractorCrawler:
         session.commit = AsyncMock()
 
         crawler = InterestsExtractorCrawler()
-        with patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.behavioural.BehaviouralProfile", MagicMock()):
+        with (
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.behavioural.BehaviouralProfile", MagicMock()),
+        ):
             await crawler._persist_interests(person_id, interests, session)
 
         session.flush.assert_awaited_once()
@@ -937,8 +973,9 @@ class TestInterestsExtractorCrawler:
     @pytest.mark.asyncio
     async def test_persist_rollback_on_flush_exception(self):
         """Lines 150-155: flush raises -> rollback is called."""
-        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
         import uuid
+
+        from modules.crawlers.interests_extractor import InterestsExtractorCrawler
 
         person_id = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
         interests = ["stocks"]
@@ -953,8 +990,10 @@ class TestInterestsExtractorCrawler:
         session.commit = AsyncMock()
 
         crawler = InterestsExtractorCrawler()
-        with patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.behavioural.BehaviouralProfile", MagicMock()):
+        with (
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.behavioural.BehaviouralProfile", MagicMock()),
+        ):
             # Should not raise
             await crawler._persist_interests(person_id, interests, session)
 
@@ -983,12 +1022,12 @@ class TestInterestsExtractorCrawler:
         session.execute = AsyncMock(return_value=execute_result)
 
         crawler = InterestsExtractorCrawler()
-        with patch.object(crawler, "_persist_interests", new=AsyncMock()), \
-             patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.crawl.CrawlJob", MagicMock()):
-            result = await crawler.scrape(
-                "550e8400-e29b-41d4-a716-446655440000", session=session
-            )
+        with (
+            patch.object(crawler, "_persist_interests", new=AsyncMock()),
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.crawl.CrawlJob", MagicMock()),
+        ):
+            result = await crawler.scrape("550e8400-e29b-41d4-a716-446655440000", session=session)
 
         assert result.found is True
         interests = result.data["interests"]
@@ -1014,12 +1053,12 @@ class TestInterestsExtractorCrawler:
         session.execute = AsyncMock(return_value=execute_result)
 
         crawler = InterestsExtractorCrawler()
-        with patch.object(crawler, "_persist_interests", new=AsyncMock()), \
-             patch("sqlalchemy.select", MagicMock()), \
-             patch("shared.models.crawl.CrawlJob", MagicMock()):
-            result = await crawler.scrape(
-                "550e8400-e29b-41d4-a716-446655440000", session=session
-            )
+        with (
+            patch.object(crawler, "_persist_interests", new=AsyncMock()),
+            patch("sqlalchemy.select", MagicMock()),
+            patch("shared.models.crawl.CrawlJob", MagicMock()),
+        ):
+            result = await crawler.scrape("550e8400-e29b-41d4-a716-446655440000", session=session)
 
         assert result.found is True
         interests = result.data["interests"]

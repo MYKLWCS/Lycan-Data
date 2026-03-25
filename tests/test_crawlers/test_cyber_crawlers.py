@@ -37,10 +37,10 @@ from modules.crawlers.cyber_virustotal import VirusTotalCrawler, _vt_url_id
 from modules.crawlers.cyber_wayback import CyberWaybackCrawler, _parse_cdx
 from modules.crawlers.registry import is_registered
 
-
 # ---------------------------------------------------------------------------
 # Helper: build a mock httpx response
 # ---------------------------------------------------------------------------
+
 
 def _mock_resp(status: int = 200, json_data=None, raise_json: bool = False) -> MagicMock:
     """Return a MagicMock that looks like an httpx.Response."""
@@ -57,6 +57,7 @@ def _mock_resp(status: int = 200, json_data=None, raise_json: bool = False) -> M
 # ===========================================================================
 # Registry smoke-tests
 # ===========================================================================
+
 
 def test_abuseipdb_registered():
     assert is_registered("cyber_abuseipdb")
@@ -98,8 +99,8 @@ def test_wayback_registered():
 # CyberAbuseIPDBCrawler
 # ===========================================================================
 
-class TestAbuseIPDB:
 
+class TestAbuseIPDB:
     @pytest.mark.asyncio
     async def test_no_api_key(self):
         crawler = CyberAbuseIPDBCrawler()
@@ -168,9 +169,7 @@ class TestAbuseIPDB:
         payload = {"data": {"ipAddress": "1.2.3.4", "totalReports": 0}}
         with patch("modules.crawlers.cyber_abuseipdb.settings") as mock_settings:
             mock_settings.abuseipdb_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("1.2.3.4")
         # totalReports == 0 → found should be False
         assert result.found is False
@@ -192,9 +191,7 @@ class TestAbuseIPDB:
         }
         with patch("modules.crawlers.cyber_abuseipdb.settings") as mock_settings:
             mock_settings.abuseipdb_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("1.2.3.4")
         assert result.found is True
         assert result.data["totalReports"] == 15
@@ -207,9 +204,7 @@ class TestAbuseIPDB:
         crawler = CyberAbuseIPDBCrawler()
         with patch("modules.crawlers.cyber_abuseipdb.settings") as mock_settings:
             mock_settings.abuseipdb_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, {}))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, {}))):
                 result = await crawler.scrape("1.2.3.4")
         assert result.found is False
 
@@ -218,8 +213,8 @@ class TestAbuseIPDB:
 # CyberAlienVaultCrawler
 # ===========================================================================
 
-class TestAlienVault:
 
+class TestAlienVault:
     # --- _detect_type unit tests ---
     def test_detect_type_ipv4(self):
         assert _detect_type("8.8.8.8") == "IPv4"
@@ -306,9 +301,7 @@ class TestAlienVault:
         """pulse_count == 0 and reputation == 0 → found=False."""
         crawler = CyberAlienVaultCrawler()
         payload = {"pulse_info": {"count": 0, "pulses": []}, "reputation": 0}
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
             result = await crawler.scrape("example.com")
         assert result.found is False
 
@@ -319,9 +312,7 @@ class TestAlienVault:
             "pulse_info": {"count": 3, "pulses": [{"name": "p1"}, {"name": "p2"}, {"name": "p3"}]},
             "reputation": 5,
         }
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
             result = await crawler.scrape("8.8.8.8")
         assert result.found is True
         assert result.data["indicator_type"] == "IPv4"
@@ -331,9 +322,7 @@ class TestAlienVault:
         """Non-zero reputation with zero pulses still counts as found."""
         crawler = CyberAlienVaultCrawler()
         payload = {"pulse_info": {"count": 0, "pulses": []}, "reputation": -3}
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
             result = await crawler.scrape("example.com")
         assert result.found is True
 
@@ -376,14 +365,20 @@ class TestAlienVault:
 # CyberCrtCrawler
 # ===========================================================================
 
-class TestCrt:
 
+class TestCrt:
     # --- _parse_certs unit test ---
     def test_parse_certs_extracts_keep_fields(self):
         entries = [
-            {"id": 1, "issuer_name": "Let's Encrypt", "name_value": "example.com",
-             "not_before": "2024-01-01", "not_after": "2024-04-01", "extra": "ignored",
-             "issuer_ca_id": 42}
+            {
+                "id": 1,
+                "issuer_name": "Let's Encrypt",
+                "name_value": "example.com",
+                "not_before": "2024-01-01",
+                "not_after": "2024-04-01",
+                "extra": "ignored",
+                "issuer_ca_id": 42,
+            }
         ]
         out = _parse_certs(entries)
         assert len(out) == 1
@@ -439,9 +434,7 @@ class TestCrt:
     @pytest.mark.asyncio
     async def test_empty_cert_list(self):
         crawler = CyberCrtCrawler()
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, []))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, []))):
             result = await crawler.scrape("example.com")
         assert result.found is False
         assert result.data["count"] == 0
@@ -459,9 +452,7 @@ class TestCrt:
                 "not_after": "2024-04-01T00:00:00",
             }
         ]
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
             result = await crawler.scrape("Example.COM")
         assert result.found is True
         assert result.data["count"] == 1
@@ -474,13 +465,17 @@ class TestCrt:
         """Result payload is capped at 50 certificates."""
         crawler = CyberCrtCrawler()
         payload = [
-            {"id": i, "issuer_ca_id": i, "issuer_name": "CA", "name_value": f"sub{i}.example.com",
-             "not_before": "2024-01-01", "not_after": "2025-01-01"}
+            {
+                "id": i,
+                "issuer_ca_id": i,
+                "issuer_name": "CA",
+                "name_value": f"sub{i}.example.com",
+                "not_before": "2024-01-01",
+                "not_after": "2025-01-01",
+            }
             for i in range(100)
         ]
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
             result = await crawler.scrape("example.com")
         assert len(result.data["certificates"]) == 50
         assert result.data["count"] == 100
@@ -490,8 +485,8 @@ class TestCrt:
 # DnsCrawler
 # ===========================================================================
 
-class TestDnsCrawler:
 
+class TestDnsCrawler:
     # --- _spf_subdomain_hints unit tests ---
     def test_spf_hints_extracts_includes(self):
         records = ["v=spf1 include:sendgrid.net include:mailgun.org ~all"]
@@ -599,7 +594,7 @@ class TestDnsCrawler:
         get_mock = AsyncMock(return_value=_mock_resp(200, {"Answer": []}))
 
         with patch.object(crawler, "get", new=get_mock):
-            with patch.object(crawler, "_resolve_a", return_value=[]) as mock_a:
+            with patch.object(crawler, "_resolve_a", return_value=[]):
                 with patch.object(crawler, "_resolve_aaaa", return_value=[]):
                     with patch.object(crawler, "_reverse_dns") as mock_rev:
                         result = await crawler.scrape("example.com")
@@ -628,8 +623,8 @@ class TestDnsCrawler:
 # GreyNoiseCrawler
 # ===========================================================================
 
-class TestGreyNoise:
 
+class TestGreyNoise:
     # --- Community path (no api key) ---
     # All community and full-path errors use self._result() → error in result.data["error"]
     @pytest.mark.asyncio
@@ -699,9 +694,7 @@ class TestGreyNoise:
         }
         with patch("modules.crawlers.cyber_greynoise.settings") as ms:
             ms.greynoise_api_key = ""
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("1.2.3.4")
         assert result.found is True
         assert result.data["api"] == "community"
@@ -713,9 +706,7 @@ class TestGreyNoise:
         payload = {"ip": "1.2.3.4", "noise": False, "riot": False}
         with patch("modules.crawlers.cyber_greynoise.settings") as ms:
             ms.greynoise_api_key = ""
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("1.2.3.4")
         assert result.found is False
 
@@ -735,9 +726,7 @@ class TestGreyNoise:
         }
         with patch("modules.crawlers.cyber_greynoise.settings") as ms:
             ms.greynoise_api_key = "validkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("1.2.3.4")
         assert result.found is True
         assert result.data["api"] == "full"
@@ -835,8 +824,8 @@ class TestGreyNoise:
 # ShodanCrawler
 # ===========================================================================
 
-class TestShodan:
 
+class TestShodan:
     # All Shodan errors use self._result() → error stored in result.data["error"]
     @pytest.mark.asyncio
     async def test_no_api_key(self):
@@ -914,9 +903,7 @@ class TestShodan:
         }
         with patch("modules.crawlers.cyber_shodan.settings") as ms:
             ms.shodan_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("8.8.8.8")
         assert result.found is True
         assert result.data["mode"] == "host"
@@ -927,13 +914,18 @@ class TestShodan:
     async def test_host_vulns_as_list(self):
         """When vulns is already a list (not dict), it should pass through unchanged."""
         crawler = ShodanCrawler()
-        payload = {"ports": [22], "vulns": ["CVE-2021-44228"], "org": "", "country_name": "",
-                   "isp": "", "hostnames": [], "last_update": ""}
+        payload = {
+            "ports": [22],
+            "vulns": ["CVE-2021-44228"],
+            "org": "",
+            "country_name": "",
+            "isp": "",
+            "hostnames": [],
+            "last_update": "",
+        }
         with patch("modules.crawlers.cyber_shodan.settings") as ms:
             ms.shodan_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("1.2.3.4")
         assert result.found is True
         assert result.data["vulns"] == ["CVE-2021-44228"]
@@ -987,7 +979,9 @@ class TestShodan:
         with patch("modules.crawlers.cyber_shodan.settings") as ms:
             ms.shodan_api_key = "testkey"
             with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, {"total": 0, "matches": []}))
+                crawler,
+                "get",
+                new=AsyncMock(return_value=_mock_resp(200, {"total": 0, "matches": []})),
             ):
                 result = await crawler.scrape("example.com")
         assert result.found is False
@@ -1015,9 +1009,7 @@ class TestShodan:
         }
         with patch("modules.crawlers.cyber_shodan.settings") as ms:
             ms.shodan_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("example.com")
         assert result.found is True
         assert result.data["mode"] == "search"
@@ -1030,8 +1022,8 @@ class TestShodan:
 # CyberURLScanCrawler
 # ===========================================================================
 
-class TestURLScan:
 
+class TestURLScan:
     @pytest.mark.asyncio
     async def test_network_error(self):
         crawler = CyberURLScanCrawler()
@@ -1101,9 +1093,7 @@ class TestURLScan:
                 }
             ],
         }
-        with patch.object(
-            crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
             result = await crawler.scrape("example.com")
         assert result.found is True
         assert len(result.data["results"]) == 1
@@ -1146,8 +1136,8 @@ class TestURLScan:
 # VirusTotalCrawler
 # ===========================================================================
 
-class TestVirusTotal:
 
+class TestVirusTotal:
     # --- Helper utilities ---
     def test_vt_url_id_no_padding(self):
         """URL id must have no '=' padding."""
@@ -1244,9 +1234,7 @@ class TestVirusTotal:
         }
         with patch("modules.crawlers.cyber_virustotal.settings") as ms:
             ms.virustotal_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("1.2.3.4")
         assert result.found is True
         assert result.data["malicious"] == 5
@@ -1268,9 +1256,7 @@ class TestVirusTotal:
         }
         with patch("modules.crawlers.cyber_virustotal.settings") as ms:
             ms.virustotal_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("8.8.8.8")
         assert result.found is False
 
@@ -1290,9 +1276,7 @@ class TestVirusTotal:
         }
         with patch("modules.crawlers.cyber_virustotal.settings") as ms:
             ms.virustotal_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("malicious-domain.example")
         assert result.found is True
         assert result.data["endpoint"] == "domain"
@@ -1313,9 +1297,7 @@ class TestVirusTotal:
         }
         with patch("modules.crawlers.cyber_virustotal.settings") as ms:
             ms.virustotal_api_key = "testkey"
-            with patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))
-            ):
+            with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, payload))):
                 result = await crawler.scrape("https://malicious.example.com/phish")
         assert result.found is True
         assert result.data["endpoint"] == "url"
@@ -1337,8 +1319,8 @@ class TestVirusTotal:
 # CyberWaybackCrawler
 # ===========================================================================
 
-class TestWayback:
 
+class TestWayback:
     # --- _parse_cdx unit tests ---
     def test_parse_cdx_normal(self):
         raw = [

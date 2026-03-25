@@ -1,21 +1,22 @@
 """Contact card API tests — new /report fields and OCEAN persistence."""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Task 1: OCEAN persistence
 # ---------------------------------------------------------------------------
+
 
 class TestOceanPersistence:
     """BehaviouralProfile.meta receives OCEAN keys when crawler_data carries them."""
 
     @pytest.mark.asyncio
     async def test_ocean_written_to_meta_on_new_profile(self):
-        from modules.pipeline.aggregator import _handle_behavioural
         from modules.crawlers.result import CrawlerResult
+        from modules.pipeline.aggregator import _handle_behavioural
 
         session = AsyncMock()
         # No existing profile — scalar_one_or_none returns None
@@ -53,8 +54,8 @@ class TestOceanPersistence:
 
     @pytest.mark.asyncio
     async def test_ocean_written_to_meta_on_existing_profile(self):
-        from modules.pipeline.aggregator import _handle_behavioural
         from modules.crawlers.result import CrawlerResult
+        from modules.pipeline.aggregator import _handle_behavioural
         from shared.models.behavioural import BehaviouralProfile
 
         existing = BehaviouralProfile(
@@ -88,8 +89,8 @@ class TestOceanPersistence:
 
     @pytest.mark.asyncio
     async def test_ocean_absent_leaves_meta_unchanged(self):
-        from modules.pipeline.aggregator import _handle_behavioural
         from modules.crawlers.result import CrawlerResult
+        from modules.pipeline.aggregator import _handle_behavioural
         from shared.models.behavioural import BehaviouralProfile
 
         existing = BehaviouralProfile(
@@ -126,11 +127,13 @@ class TestOceanPersistence:
 # Task 2: /report includes commercial_tags
 # ---------------------------------------------------------------------------
 
+
 class TestReportCommercialTags:
     """GET /persons/{id}/report returns commercial_tags list."""
 
     def _make_person(self, pid):
         from shared.models.person import Person
+
         p = MagicMock(spec=Person)
         p.id = pid
         p.full_name = "Jane Test"
@@ -160,8 +163,9 @@ class TestReportCommercialTags:
 
     def test_report_includes_commercial_tags_key(self):
         from starlette.testclient import TestClient
-        from api.main import app
+
         from api.deps import db_session
+        from api.main import app
 
         pid = uuid.uuid4()
         person = self._make_person(pid)
@@ -170,14 +174,16 @@ class TestReportCommercialTags:
         session.get = AsyncMock(return_value=person)
 
         # All _fetch calls return empty list; commercial_tags query returns one tag row
-        from shared.models.marketing import MarketingTag
         import datetime as _dt
+
+        from shared.models.marketing import MarketingTag
+
         tag_row = MagicMock()
         tag_row.tag = "title_loan_candidate"
         tag_row.tag_category = "lending"
         tag_row.confidence = 0.78
         tag_row.reasoning = ["Vehicle record found", "Financial distress 62%"]
-        tag_row.scored_at = _dt.datetime(2026, 3, 24, 10, 0, 0, tzinfo=_dt.timezone.utc)
+        tag_row.scored_at = _dt.datetime(2026, 3, 24, 10, 0, 0, tzinfo=_dt.UTC)
 
         empty_exec = MagicMock()
         empty_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
@@ -186,7 +192,9 @@ class TestReportCommercialTags:
 
         # sources_enabled_count uses .scalar_one()
         sources_count_exec = MagicMock()
-        sources_count_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+        sources_count_exec.scalars = MagicMock(
+            return_value=MagicMock(all=MagicMock(return_value=[]))
+        )
         sources_count_exec.scalar_one = MagicMock(return_value=0)
 
         call_count = {"n": 0}
@@ -222,16 +230,18 @@ class TestReportCommercialTags:
 # Task 3: /report includes connections
 # ---------------------------------------------------------------------------
 
+
 class TestReportConnections:
     """GET /persons/{id}/report returns connections.persons and connections.entities."""
 
     def test_report_connections_structure(self):
         """connections key present with persons and entities sub-keys."""
         from starlette.testclient import TestClient
-        from api.main import app
+
         from api.deps import db_session
-        from shared.models.relationship import Relationship
+        from api.main import app
         from shared.models.person import Person as PersonModel
+        from shared.models.relationship import Relationship
 
         pid = uuid.uuid4()
         related_pid = uuid.uuid4()
@@ -240,13 +250,30 @@ class TestReportConnections:
 
         p = MagicMock()
         p.id = pid
-        p.__table__ = MagicMock(); p.__table__.columns = []
+        p.__table__ = MagicMock()
+        p.__table__.columns = []
         p.full_name = "Test Person"
         p.date_of_birth = None
-        for attr in ("gender","nationality","primary_language","bio","profile_image_url",
-                     "relationship_score","behavioural_risk","darkweb_exposure","default_risk_score",
-                     "source_reliability","freshness_score","corroboration_count","composite_quality",
-                     "verification_status","conflict_flag","created_at","updated_at","meta"):
+        for attr in (
+            "gender",
+            "nationality",
+            "primary_language",
+            "bio",
+            "profile_image_url",
+            "relationship_score",
+            "behavioural_risk",
+            "darkweb_exposure",
+            "default_risk_score",
+            "source_reliability",
+            "freshness_score",
+            "corroboration_count",
+            "composite_quality",
+            "verification_status",
+            "conflict_flag",
+            "created_at",
+            "updated_at",
+            "meta",
+        ):
             setattr(p, attr, None if attr not in ("conflict_flag",) else False)
         session.get = AsyncMock(return_value=p)
 
@@ -267,10 +294,14 @@ class TestReportConnections:
         rel_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[rel])))
 
         related_exec = MagicMock()
-        related_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[related_person])))
+        related_exec.scalars = MagicMock(
+            return_value=MagicMock(all=MagicMock(return_value=[related_person]))
+        )
 
         sources_count_exec = MagicMock()
-        sources_count_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+        sources_count_exec.scalars = MagicMock(
+            return_value=MagicMock(all=MagicMock(return_value=[]))
+        )
         sources_count_exec.scalar_one = MagicMock(return_value=0)
 
         call_count = {"n": 0}
@@ -279,11 +310,11 @@ class TestReportConnections:
             call_count["n"] += 1
             # Query order: 1-16 standard fetches, 17=MarketingTag, 18=Relationship,
             # 19=related Person (only when rels found), 20=CrawlJob, 21=DataSource count
-            if call_count["n"] == 18:   # Relationship query
+            if call_count["n"] == 18:  # Relationship query
                 return rel_exec
-            if call_count["n"] == 19:   # related Person lookup
+            if call_count["n"] == 19:  # related Person lookup
                 return related_exec
-            if call_count["n"] == 21:   # DataSource count
+            if call_count["n"] == 21:  # DataSource count
                 return sources_count_exec
             return empty_exec
 
@@ -313,13 +344,15 @@ class TestReportConnections:
 # Task 4: /report includes coverage
 # ---------------------------------------------------------------------------
 
+
 class TestReportCoverage:
     """GET /persons/{id}/report returns coverage block with live source count."""
 
     def test_report_coverage_structure(self):
         from starlette.testclient import TestClient
-        from api.main import app
+
         from api.deps import db_session
+        from api.main import app
         from shared.models.crawl import CrawlJob, DataSource
 
         pid = uuid.uuid4()
@@ -328,21 +361,39 @@ class TestReportCoverage:
 
         p = MagicMock()
         p.id = pid
-        p.__table__ = MagicMock(); p.__table__.columns = []
+        p.__table__ = MagicMock()
+        p.__table__.columns = []
         p.full_name = "Test"
         p.date_of_birth = None
-        for attr in ("gender","nationality","primary_language","bio","profile_image_url",
-                     "relationship_score","behavioural_risk","darkweb_exposure","default_risk_score",
-                     "source_reliability","freshness_score","corroboration_count","composite_quality",
-                     "verification_status","conflict_flag","created_at","updated_at","meta"):
+        for attr in (
+            "gender",
+            "nationality",
+            "primary_language",
+            "bio",
+            "profile_image_url",
+            "relationship_score",
+            "behavioural_risk",
+            "darkweb_exposure",
+            "default_risk_score",
+            "source_reliability",
+            "freshness_score",
+            "corroboration_count",
+            "composite_quality",
+            "verification_status",
+            "conflict_flag",
+            "created_at",
+            "updated_at",
+            "meta",
+        ):
             setattr(p, attr, None if attr != "conflict_flag" else False)
         session.get = AsyncMock(return_value=p)
 
         # CrawlJob for this person
         import datetime as _dt
+
         job = MagicMock(spec=CrawlJob)
         job.meta = {"platform": "twitter"}
-        job.completed_at = _dt.datetime(2026, 3, 20, 8, 0, 0, tzinfo=_dt.timezone.utc)
+        job.completed_at = _dt.datetime(2026, 3, 20, 8, 0, 0, tzinfo=_dt.UTC)
         job.status = "done"
         job.source_id = None
         job.result_count = 1
@@ -363,9 +414,9 @@ class TestReportCoverage:
             call_count["n"] += 1
             # Query order: 1-16 standard _fetch calls, 17=MarketingTag, 18=Relationship,
             # 19=CrawlJob (no related person lookup when rels empty), 20=DataSource count
-            if call_count["n"] == 19:   # CrawlJob query
+            if call_count["n"] == 19:  # CrawlJob query
                 return crawl_exec
-            if call_count["n"] == 20:   # COUNT data_sources enabled
+            if call_count["n"] == 20:  # COUNT data_sources enabled
                 return sources_enabled_exec
             return empty_exec
 

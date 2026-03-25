@@ -14,15 +14,17 @@ Groups:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # ── Task 1: Social Interest Crawlers ────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_threads_profile_found():
     from modules.crawlers.threads_profile import ThreadsProfileCrawler
+
     crawler = ThreadsProfileCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -45,6 +47,7 @@ async def test_threads_profile_found():
 @pytest.mark.asyncio
 async def test_threads_profile_not_found():
     from modules.crawlers.threads_profile import ThreadsProfileCrawler
+
     crawler = ThreadsProfileCrawler()
     with patch.object(crawler, "get", return_value=None):
         result = await crawler.scrape("nobody_exists_xyzq")
@@ -54,6 +57,7 @@ async def test_threads_profile_not_found():
 @pytest.mark.asyncio
 async def test_bluesky_profile_found():
     from modules.crawlers.bluesky_profile import BlueskyProfileCrawler
+
     crawler = BlueskyProfileCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -73,6 +77,7 @@ async def test_bluesky_profile_found():
 @pytest.mark.asyncio
 async def test_bluesky_profile_not_found():
     from modules.crawlers.bluesky_profile import BlueskyProfileCrawler
+
     crawler = BlueskyProfileCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 400
@@ -84,6 +89,7 @@ async def test_bluesky_profile_not_found():
 @pytest.mark.asyncio
 async def test_spotify_public_found():
     from modules.crawlers.spotify_public import SpotifyPublicCrawler
+
     crawler = SpotifyPublicCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -103,6 +109,7 @@ async def test_spotify_public_found():
 @pytest.mark.asyncio
 async def test_spotify_public_not_found():
     from modules.crawlers.spotify_public import SpotifyPublicCrawler
+
     crawler = SpotifyPublicCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -114,9 +121,11 @@ async def test_spotify_public_not_found():
 
 # ── Task 2: People Search Crawlers ──────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_spokeo_found():
     from modules.crawlers.spokeo import SpokeoCrawler
+
     crawler = SpokeoCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -134,6 +143,7 @@ async def test_spokeo_found():
 @pytest.mark.asyncio
 async def test_spokeo_not_found():
     from modules.crawlers.spokeo import SpokeoCrawler
+
     crawler = SpokeoCrawler()
     with patch.object(crawler, "post", return_value=None):
         result = await crawler.scrape("John Doe")
@@ -143,6 +153,7 @@ async def test_spokeo_not_found():
 @pytest.mark.asyncio
 async def test_familytreenow_found():
     from modules.crawlers.familytreenow import FamilyTreeNowCrawler
+
     crawler = FamilyTreeNowCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -156,6 +167,7 @@ async def test_familytreenow_found():
 @pytest.mark.asyncio
 async def test_familytreenow_not_found():
     from modules.crawlers.familytreenow import FamilyTreeNowCrawler
+
     crawler = FamilyTreeNowCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -168,10 +180,13 @@ async def test_familytreenow_not_found():
 @pytest.mark.asyncio
 async def test_radaris_found():
     from modules.crawlers.radaris import RadarisCrawler
+
     crawler = RadarisCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.text = "<html><h1 class='profile-name'>John Doe</h1><div class='address'>Dallas, TX</div></html>"
+    mock_resp.text = (
+        "<html><h1 class='profile-name'>John Doe</h1><div class='address'>Dallas, TX</div></html>"
+    )
     with patch.object(crawler, "get", return_value=mock_resp):
         result = await crawler.scrape("John Doe")
     assert result.found is True
@@ -180,6 +195,7 @@ async def test_radaris_found():
 @pytest.mark.asyncio
 async def test_radaris_not_found():
     from modules.crawlers.radaris import RadarisCrawler
+
     crawler = RadarisCrawler()
     with patch.object(crawler, "get", return_value=None):
         result = await crawler.scrape("Zzznobody Fakename")
@@ -189,10 +205,13 @@ async def test_radaris_not_found():
 @pytest.mark.asyncio
 async def test_clustrmaps_found():
     from modules.crawlers.clustrmaps import ClustrMapsCrawler
+
     crawler = ClustrMapsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.text = "<html><h1>John Doe</h1><div class='address-item'>123 Main St, Dallas TX 75201</div></html>"
+    mock_resp.text = (
+        "<html><h1>John Doe</h1><div class='address-item'>123 Main St, Dallas TX 75201</div></html>"
+    )
     with patch.object(crawler, "get", return_value=mock_resp):
         result = await crawler.scrape("John Doe")
     assert result.found is True
@@ -202,6 +221,7 @@ async def test_clustrmaps_found():
 @pytest.mark.asyncio
 async def test_clustrmaps_not_found():
     from modules.crawlers.clustrmaps import ClustrMapsCrawler
+
     crawler = ClustrMapsCrawler()
     with patch.object(crawler, "get", return_value=None):
         result = await crawler.scrape("Zzznobody Fakename")
@@ -210,9 +230,11 @@ async def test_clustrmaps_not_found():
 
 # ── Task 3: State Court Crawlers ────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_txcourts_found():
     from modules.crawlers.txcourts import TxCourtsCrawler
+
     crawler = TxCourtsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -227,6 +249,7 @@ async def test_txcourts_found():
 @pytest.mark.asyncio
 async def test_txcourts_not_found():
     from modules.crawlers.txcourts import TxCourtsCrawler
+
     crawler = TxCourtsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -239,6 +262,7 @@ async def test_txcourts_not_found():
 @pytest.mark.asyncio
 async def test_fl_courts_found():
     from modules.crawlers.fl_courts import FlCourtsCrawler
+
     crawler = FlCourtsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -252,6 +276,7 @@ async def test_fl_courts_found():
 @pytest.mark.asyncio
 async def test_fl_courts_not_found():
     from modules.crawlers.fl_courts import FlCourtsCrawler
+
     crawler = FlCourtsCrawler()
     with patch.object(crawler, "get", return_value=None):
         result = await crawler.scrape("Zzznobody Fakename")
@@ -261,6 +286,7 @@ async def test_fl_courts_not_found():
 @pytest.mark.asyncio
 async def test_ca_courts_found():
     from modules.crawlers.ca_courts import CaCourtsCrawler
+
     crawler = CaCourtsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -274,6 +300,7 @@ async def test_ca_courts_found():
 @pytest.mark.asyncio
 async def test_ca_courts_not_found():
     from modules.crawlers.ca_courts import CaCourtsCrawler
+
     crawler = CaCourtsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -285,9 +312,11 @@ async def test_ca_courts_not_found():
 
 # ── Task 4: News & Mentions Crawlers ────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_google_news_rss_found():
     from modules.crawlers.google_news_rss import GoogleNewsRssCrawler
+
     crawler = GoogleNewsRssCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -306,6 +335,7 @@ async def test_google_news_rss_found():
 @pytest.mark.asyncio
 async def test_google_news_rss_not_found():
     from modules.crawlers.google_news_rss import GoogleNewsRssCrawler
+
     crawler = GoogleNewsRssCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -318,13 +348,24 @@ async def test_google_news_rss_not_found():
 @pytest.mark.asyncio
 async def test_gdelt_mentions_found():
     from modules.crawlers.gdelt_mentions import GdeltMentionsCrawler
+
     crawler = GdeltMentionsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
         "articles": [
-            {"title": "John Doe in the News", "url": "https://example.com/1", "seendate": "20240101T000000Z", "domain": "example.com"},
-            {"title": "Doe Foundation Donates", "url": "https://example.com/2", "seendate": "20240102T000000Z", "domain": "charity.org"},
+            {
+                "title": "John Doe in the News",
+                "url": "https://example.com/1",
+                "seendate": "20240101T000000Z",
+                "domain": "example.com",
+            },
+            {
+                "title": "Doe Foundation Donates",
+                "url": "https://example.com/2",
+                "seendate": "20240102T000000Z",
+                "domain": "charity.org",
+            },
         ]
     }
     with patch.object(crawler, "get", return_value=mock_resp):
@@ -336,6 +377,7 @@ async def test_gdelt_mentions_found():
 @pytest.mark.asyncio
 async def test_gdelt_mentions_not_found():
     from modules.crawlers.gdelt_mentions import GdeltMentionsCrawler
+
     crawler = GdeltMentionsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -348,6 +390,7 @@ async def test_gdelt_mentions_not_found():
 @pytest.mark.asyncio
 async def test_bing_news_found():
     from modules.crawlers.bing_news import BingNewsCrawler
+
     crawler = BingNewsCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -364,6 +407,7 @@ async def test_bing_news_found():
 @pytest.mark.asyncio
 async def test_bing_news_not_found():
     from modules.crawlers.bing_news import BingNewsCrawler
+
     crawler = BingNewsCrawler()
     with patch.object(crawler, "get", return_value=None):
         result = await crawler.scrape("Zzznobody Fakename")
@@ -372,9 +416,11 @@ async def test_bing_news_not_found():
 
 # ── Task 5: Property & Vehicle Crawlers ─────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_redfin_property_found():
     from modules.crawlers.redfin_property import RedfinPropertyCrawler
+
     crawler = RedfinPropertyCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -382,7 +428,12 @@ async def test_redfin_property_found():
         "payload": {
             "homes": [
                 {
-                    "address": {"streetAddress": "123 Main St", "city": "Dallas", "state": "TX", "zip": "75201"},
+                    "address": {
+                        "streetAddress": "123 Main St",
+                        "city": "Dallas",
+                        "state": "TX",
+                        "zip": "75201",
+                    },
                     "price": 350000,
                     "beds": 3,
                     "baths": 2,
@@ -399,6 +450,7 @@ async def test_redfin_property_found():
 @pytest.mark.asyncio
 async def test_redfin_property_not_found():
     from modules.crawlers.redfin_property import RedfinPropertyCrawler
+
     crawler = RedfinPropertyCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -411,6 +463,7 @@ async def test_redfin_property_not_found():
 @pytest.mark.asyncio
 async def test_county_assessor_tx_found():
     from modules.crawlers.county_assessor_tx import CountyAssessorTxCrawler
+
     crawler = CountyAssessorTxCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -424,6 +477,7 @@ async def test_county_assessor_tx_found():
 @pytest.mark.asyncio
 async def test_county_assessor_tx_not_found():
     from modules.crawlers.county_assessor_tx import CountyAssessorTxCrawler
+
     crawler = CountyAssessorTxCrawler()
     with patch.object(crawler, "get", return_value=None):
         result = await crawler.scrape("999 Nowhere St")
@@ -433,6 +487,7 @@ async def test_county_assessor_tx_not_found():
 @pytest.mark.asyncio
 async def test_county_assessor_fl_found():
     from modules.crawlers.county_assessor_fl import CountyAssessorFlCrawler
+
     crawler = CountyAssessorFlCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -446,6 +501,7 @@ async def test_county_assessor_fl_found():
 @pytest.mark.asyncio
 async def test_county_assessor_fl_not_found():
     from modules.crawlers.county_assessor_fl import CountyAssessorFlCrawler
+
     crawler = CountyAssessorFlCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -458,6 +514,7 @@ async def test_county_assessor_fl_not_found():
 @pytest.mark.asyncio
 async def test_vin_decode_enhanced_found():
     from modules.crawlers.vin_decode_enhanced import VinDecodeEnhancedCrawler
+
     crawler = VinDecodeEnhancedCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -487,6 +544,7 @@ async def test_vin_decode_enhanced_found():
 @pytest.mark.asyncio
 async def test_vin_decode_enhanced_not_found():
     from modules.crawlers.vin_decode_enhanced import VinDecodeEnhancedCrawler
+
     crawler = VinDecodeEnhancedCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -500,9 +558,11 @@ async def test_vin_decode_enhanced_not_found():
 
 # ── Task 6: Professional & Financial Crawlers ────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_github_profile_found():
     from modules.crawlers.github_profile import GitHubProfileCrawler
+
     crawler = GitHubProfileCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -528,6 +588,7 @@ async def test_github_profile_found():
 @pytest.mark.asyncio
 async def test_github_profile_not_found():
     from modules.crawlers.github_profile import GitHubProfileCrawler
+
     crawler = GitHubProfileCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -540,6 +601,7 @@ async def test_github_profile_not_found():
 @pytest.mark.asyncio
 async def test_stackoverflow_profile_found():
     from modules.crawlers.stackoverflow_profile import StackOverflowProfileCrawler
+
     crawler = StackOverflowProfileCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -563,6 +625,7 @@ async def test_stackoverflow_profile_found():
 @pytest.mark.asyncio
 async def test_stackoverflow_profile_not_found():
     from modules.crawlers.stackoverflow_profile import StackOverflowProfileCrawler
+
     crawler = StackOverflowProfileCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -575,6 +638,7 @@ async def test_stackoverflow_profile_not_found():
 @pytest.mark.asyncio
 async def test_sec_insider_found():
     from modules.crawlers.sec_insider import SecInsiderCrawler
+
     crawler = SecInsiderCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -602,6 +666,7 @@ async def test_sec_insider_found():
 @pytest.mark.asyncio
 async def test_sec_insider_not_found():
     from modules.crawlers.sec_insider import SecInsiderCrawler
+
     crawler = SecInsiderCrawler()
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -613,9 +678,11 @@ async def test_sec_insider_not_found():
 
 # ── Task 7: Interests Extractor Meta-Crawler ─────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_interests_extractor_extracts_subreddits():
     from modules.crawlers.interests_extractor import InterestsExtractorCrawler
+
     crawler = InterestsExtractorCrawler()
     mock_session = MagicMock()
 
@@ -655,6 +722,7 @@ async def test_interests_extractor_extracts_subreddits():
 @pytest.mark.asyncio
 async def test_interests_extractor_no_jobs():
     from modules.crawlers.interests_extractor import InterestsExtractorCrawler
+
     crawler = InterestsExtractorCrawler()
     mock_session = MagicMock()
     mock_session.execute = AsyncMock(
@@ -668,9 +736,11 @@ async def test_interests_extractor_no_jobs():
 
 # ── Task 8: LinkedIn Enhancement + Coverage Tracking ─────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_linkedin_extract_skills():
     from modules.crawlers.linkedin import LinkedInCrawler
+
     crawler = LinkedInCrawler()
 
     mock_page = AsyncMock()
@@ -697,8 +767,9 @@ async def test_linkedin_extract_skills():
 
 @pytest.mark.asyncio
 async def test_coverage_tracking_updates_person_meta():
-    from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
     import uuid
+
+    from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
 
     orchestrator = EnrichmentOrchestrator()
     person_id = str(uuid.uuid4())
@@ -709,12 +780,14 @@ async def test_coverage_tracking_updates_person_meta():
     mock_person.meta = {}
     mock_session.get = AsyncMock(return_value=mock_person)
 
-    with patch.object(orchestrator, "_run_financial_aml", return_value=None), \
-         patch.object(orchestrator, "_run_marketing_tags", return_value=None), \
-         patch.object(orchestrator, "_run_deduplication", return_value=None), \
-         patch.object(orchestrator, "_run_burner", return_value=None), \
-         patch.object(orchestrator, "_run_relationship_score", return_value=None), \
-         patch.object(orchestrator, "_update_coverage", return_value=None) as mock_coverage:
+    with (
+        patch.object(orchestrator, "_run_financial_aml", return_value=None),
+        patch.object(orchestrator, "_run_marketing_tags", return_value=None),
+        patch.object(orchestrator, "_run_deduplication", return_value=None),
+        patch.object(orchestrator, "_run_burner", return_value=None),
+        patch.object(orchestrator, "_run_relationship_score", return_value=None),
+        patch.object(orchestrator, "_update_coverage", return_value=None) as mock_coverage,
+    ):
         report = await orchestrator.enrich_person(person_id, mock_session)
 
     mock_coverage.assert_called_once_with(person_id, mock_session)

@@ -45,8 +45,11 @@ CURL_CRAWLERS = [
 def test_flaresolverr_tier(mod_path):
     mod = importlib.import_module(mod_path)
     crawler_cls = [
-        v for v in vars(mod).values()
-        if isinstance(v, type) and issubclass(v, FlareSolverrCrawler) and v is not FlareSolverrCrawler
+        v
+        for v in vars(mod).values()
+        if isinstance(v, type)
+        and issubclass(v, FlareSolverrCrawler)
+        and v is not FlareSolverrCrawler
     ]
     assert crawler_cls, f"{mod_path} has no FlareSolverrCrawler subclass"
 
@@ -55,8 +58,11 @@ def test_flaresolverr_tier(mod_path):
 def test_curl_tier(mod_path):
     mod = importlib.import_module(mod_path)
     crawler_cls = [
-        v for v in vars(mod).values()
-        if isinstance(v, type) and issubclass(v, CurlCrawler) and v is not CurlCrawler
+        v
+        for v in vars(mod).values()
+        if isinstance(v, type)
+        and issubclass(v, CurlCrawler)
+        and v is not CurlCrawler
         and not issubclass(v, FlareSolverrCrawler)
     ]
     assert crawler_cls, f"{mod_path} has no CurlCrawler subclass"

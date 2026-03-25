@@ -52,15 +52,24 @@ class CaCourtsCrawler(HttpxCrawler):
                 parties = cells[1].get_text(strip=True) if len(cells) > 1 else ""
                 case_type = cells[2].get_text(strip=True) if len(cells) > 2 else ""
                 if case_num and case_num.lower() not in ("case number", "case #", ""):
-                    cases.append({
-                        "case_number": case_num,
-                        "parties": parties,
-                        "case_type": case_type,
-                    })
+                    cases.append(
+                        {
+                            "case_number": case_num,
+                            "parties": parties,
+                            "case_type": case_type,
+                        }
+                    )
 
         if not cases:
             # Generic fallback: any element with class containing 'case-row'
-            for el in soup.find_all(attrs={"class": lambda c: c and "case-row" in (c.lower() if isinstance(c, str) else " ".join(c).lower())}):
+            for el in soup.find_all(
+                attrs={
+                    "class": lambda c: (
+                        c
+                        and "case-row" in (c.lower() if isinstance(c, str) else " ".join(c).lower())
+                    )
+                }
+            ):
                 text = el.get_text(strip=True)
                 if text:
                     cases.append({"case_number": text, "parties": "", "case_type": ""})

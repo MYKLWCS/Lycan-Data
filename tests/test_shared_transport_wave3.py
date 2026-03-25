@@ -23,7 +23,6 @@ import pytest
 
 from shared.transport_registry import TransportRegistry
 
-
 # ===========================================================================
 # shared/transport_registry.py
 # ===========================================================================
@@ -57,6 +56,7 @@ class TestTransportRegistryRedis:
             sys.modules.pop("redis.asyncio", None)
             try:
                 import redis as real_redis
+
                 sys.modules["redis"] = real_redis
                 sys.modules["redis.asyncio"] = real_redis.asyncio
             except ImportError:
@@ -341,10 +341,10 @@ class TestCheckBypassLayers:
     @pytest.mark.asyncio
     async def test_check_dragonfly_returns_true(self):
         """_check_dragonfly: ping succeeds → True (lines 44-45)."""
-        from shared.health import _check_dragonfly
-
         import sys
         import types
+
+        from shared.health import _check_dragonfly
 
         mock_redis_instance = AsyncMock()
         mock_redis_instance.ping = AsyncMock(return_value=True)
@@ -365,6 +365,7 @@ class TestCheckBypassLayers:
             sys.modules.pop("redis.asyncio", None)
             try:
                 import redis as real_redis
+
                 sys.modules["redis"] = real_redis
                 sys.modules["redis.asyncio"] = real_redis.asyncio
             except ImportError:
@@ -375,10 +376,10 @@ class TestCheckBypassLayers:
     @pytest.mark.asyncio
     async def test_check_dragonfly_exception_returns_false(self):
         """_check_dragonfly: ping raises → False."""
-        from shared.health import _check_dragonfly
-
         import sys
         import types
+
+        from shared.health import _check_dragonfly
 
         mock_redis_instance = AsyncMock()
         mock_redis_instance.ping = AsyncMock(side_effect=OSError("connection refused"))
@@ -398,6 +399,7 @@ class TestCheckBypassLayers:
             sys.modules.pop("redis.asyncio", None)
             try:
                 import redis as real_redis
+
                 sys.modules["redis"] = real_redis
                 sys.modules["redis.asyncio"] = real_redis.asyncio
             except ImportError:
@@ -418,6 +420,13 @@ class TestCheckBypassLayers:
         ):
             result = await check_bypass_layers()
 
-        assert set(result.keys()) == {"flaresolverr", "tor_1", "tor_2", "tor_3", "dragonfly", "postgres"}
+        assert set(result.keys()) == {
+            "flaresolverr",
+            "tor_1",
+            "tor_2",
+            "tor_3",
+            "dragonfly",
+            "postgres",
+        }
         assert result["flaresolverr"] is True
         assert result["dragonfly"] is True

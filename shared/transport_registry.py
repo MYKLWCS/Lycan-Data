@@ -8,6 +8,7 @@ Dragonfly is unavailable.
 Transport tiers (in order of capability):
   httpx → curl (Chrome TLS) → flaresolverr (Cloudflare bypass)
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,6 +33,7 @@ class TransportRegistry:
             return self._redis
         try:
             import redis.asyncio as aioredis
+
             self._redis = aioredis.from_url("redis://localhost:6379")
             await self._redis.ping()
         except Exception:
@@ -85,7 +87,10 @@ class TransportRegistry:
                 self._blocks[domain] = 0
                 logger.info(
                     "Domain %s promoted from %s to %s after %d blocks",
-                    domain, current, new_transport, count,
+                    domain,
+                    current,
+                    new_transport,
+                    count,
                 )
 
 

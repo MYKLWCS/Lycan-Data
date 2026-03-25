@@ -1,7 +1,7 @@
 """Tests for SystemAudit model — Task 1 of Phase 6."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 
@@ -13,7 +13,7 @@ def test_system_audit_instantiation():
     from shared.models.audit import SystemAudit
 
     sa = SystemAudit(
-        run_at=datetime.now(timezone.utc),
+        run_at=datetime.now(UTC),
         persons_total=100,
         persons_low_coverage=10,
         persons_stale=5,
@@ -40,7 +40,7 @@ def test_system_audit_has_id():
     from shared.models.audit import SystemAudit
 
     sa = SystemAudit(
-        run_at=datetime.now(timezone.utc),
+        run_at=datetime.now(UTC),
         persons_total=0,
         persons_low_coverage=0,
         persons_stale=0,
@@ -61,7 +61,7 @@ def test_system_audit_meta_defaults_to_dict():
     from shared.models.audit import SystemAudit
 
     sa = SystemAudit(
-        run_at=datetime.now(timezone.utc),
+        run_at=datetime.now(UTC),
         persons_total=5,
         persons_low_coverage=1,
         persons_stale=0,
@@ -84,7 +84,7 @@ def test_system_audit_degraded_list():
         {"name": "crawler_b", "success_rate": 0.1},
     ]
     sa = SystemAudit(
-        run_at=datetime.now(timezone.utc),
+        run_at=datetime.now(UTC),
         persons_total=50,
         persons_low_coverage=5,
         persons_stale=2,

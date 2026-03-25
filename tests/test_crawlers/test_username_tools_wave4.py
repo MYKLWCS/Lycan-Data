@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ===========================================================================
 # username_maigret.py
 # ===========================================================================
@@ -317,9 +316,7 @@ class TestPhoneInfogaCrawler:
             patch("shutil.which", return_value="/usr/bin/phoneinfoga"),
             patch(
                 "asyncio.to_thread",
-                new=AsyncMock(
-                    side_effect=subprocess.TimeoutExpired("phoneinfoga", 120)
-                ),
+                new=AsyncMock(side_effect=subprocess.TimeoutExpired("phoneinfoga", 120)),
             ),
         ):
             result = await crawler.scrape("+15550001111")

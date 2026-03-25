@@ -14,9 +14,11 @@ Targets specific uncovered lines in 11 crawlers:
   github_profile   lines 45, 49-51
   google_news_rss  lines 40, 44-46
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 
@@ -36,6 +38,7 @@ def _mock_resp(status=200, json_data=None, text=""):
 #    line 44-46: ET.ParseError branch → found=False, error="parse_error"
 #    line 64:    articles list is empty → found=False
 # ---------------------------------------------------------------------------
+
 
 class TestBingNews:
     @pytest.mark.asyncio
@@ -80,6 +83,7 @@ class TestBingNews:
 #    line 49:     payload has neither displayName nor handle → found=False
 # ---------------------------------------------------------------------------
 
+
 class TestBlueskyProfile:
     @pytest.mark.asyncio
     async def test_json_parse_error_returns_not_found(self):
@@ -110,7 +114,9 @@ class TestBlueskyProfile:
         from modules.crawlers.bluesky_profile import BlueskyProfileCrawler
 
         crawler = BlueskyProfileCrawler()
-        resp = _mock_resp(status=200, json_data={"handle": "user.bsky.social", "followersCount": 100})
+        resp = _mock_resp(
+            status=200, json_data={"handle": "user.bsky.social", "followersCount": 100}
+        )
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             result = await crawler.scrape("user.bsky.social")
         assert result.found is True
@@ -121,6 +127,7 @@ class TestBlueskyProfile:
 #    line 42:    HTTP non-200 → found=False
 #    lines 64-66: generic fallback "case-row" elements picked up
 # ---------------------------------------------------------------------------
+
 
 class TestCaCourts:
     @pytest.mark.asyncio
@@ -142,11 +149,7 @@ class TestCaCourts:
         crawler = CaCourtsCrawler()
         # Real HTML: no #caselist table → primary select returns nothing.
         # A <div class="case-row"> triggers the fallback find_all branch.
-        html = (
-            "<html><body>"
-            '<div class="case-row">21STCV12345 - Smith v State</div>'
-            "</body></html>"
-        )
+        html = '<html><body><div class="case-row">21STCV12345 - Smith v State</div></body></html>'
         resp = _mock_resp(status=200, text=html)
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
@@ -172,6 +175,7 @@ class TestCaCourts:
 #    line 47:    soup has no h1 → found=False
 #    lines 56-59: no address-item class elements but "address" divs exist
 # ---------------------------------------------------------------------------
+
 
 class TestClustrMaps:
     @pytest.mark.asyncio
@@ -219,6 +223,7 @@ class TestClustrMaps:
 #    line 42:    HTTP non-200 → found=False
 #    lines 62-66: no parcel-result elements, falls back to generic table rows
 # ---------------------------------------------------------------------------
+
 
 class TestCountyAssessorFl:
     @pytest.mark.asyncio
@@ -279,6 +284,7 @@ class TestCountyAssessorFl:
 #    line 70:    fallback also empty → found=False
 # ---------------------------------------------------------------------------
 
+
 class TestCountyAssessorTx:
     @pytest.mark.asyncio
     async def test_account_class_fallback_found(self):
@@ -331,6 +337,7 @@ class TestCountyAssessorTx:
 #    line 49:   cards is empty and "no results" text absent → found=False (second branch)
 # ---------------------------------------------------------------------------
 
+
 class TestFamilyTreeNow:
     @pytest.mark.asyncio
     async def test_http_failure_returns_not_found(self):
@@ -374,6 +381,7 @@ class TestFamilyTreeNow:
 #    lines 58-63: no .case-result divs, generic table-row fallback executes
 #    line 70:    fallback also empty → found=False
 # ---------------------------------------------------------------------------
+
 
 class TestFlCourts:
     @pytest.mark.asyncio
@@ -434,6 +442,7 @@ class TestFlCourts:
 #    lines 46-48: JSON decode failure → parse_error
 # ---------------------------------------------------------------------------
 
+
 class TestGdeltMentions:
     @pytest.mark.asyncio
     async def test_http_failure_returns_not_found(self):
@@ -476,6 +485,7 @@ class TestGdeltMentions:
 #     lines 49-51: JSON decode failure → parse_error
 # ---------------------------------------------------------------------------
 
+
 class TestGitHubProfile:
     @pytest.mark.asyncio
     async def test_http_failure_returns_not_found(self):
@@ -517,6 +527,7 @@ class TestGitHubProfile:
 #     line 40:   HTTP non-200 → found=False
 #     lines 44-46: ET.ParseError → parse_error
 # ---------------------------------------------------------------------------
+
 
 class TestGoogleNewsRss:
     @pytest.mark.asyncio

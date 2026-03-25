@@ -5,21 +5,20 @@ Tests verify routing, response shape, and status codes.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from starlette.testclient import TestClient
 
 import shared.models  # noqa: F401 — force full mapper resolution
-
 from api.deps import db_session
 from api.main import app
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_session():
     session = AsyncMock()
@@ -31,23 +30,23 @@ def _make_session():
 
 def _make_audit_row(**kwargs):
     """Build a minimal SystemAudit-like dict for endpoint response checks."""
-    defaults = dict(
-        id=uuid.uuid4(),
-        run_at=datetime.now(timezone.utc),
-        persons_total=100,
-        persons_low_coverage=10,
-        persons_stale=5,
-        persons_conflict=2,
-        crawlers_total=8,
-        crawlers_healthy=7,
-        crawlers_degraded=[{"name": "twitter", "success_rate": 0.0}],
-        tags_assigned_today=50,
-        merges_today=3,
-        persons_ingested_today=20,
-        meta={},
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-    )
+    defaults = {
+        "id": uuid.uuid4(),
+        "run_at": datetime.now(UTC),
+        "persons_total": 100,
+        "persons_low_coverage": 10,
+        "persons_stale": 5,
+        "persons_conflict": 2,
+        "crawlers_total": 8,
+        "crawlers_healthy": 7,
+        "crawlers_degraded": [{"name": "twitter", "success_rate": 0.0}],
+        "tags_assigned_today": 50,
+        "merges_today": 3,
+        "persons_ingested_today": 20,
+        "meta": {},
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC),
+    }
     defaults.update(kwargs)
     row = MagicMock()
     for k, v in defaults.items():
@@ -58,6 +57,7 @@ def _make_audit_row(**kwargs):
 # ---------------------------------------------------------------------------
 # Client fixture
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def client():
@@ -72,6 +72,7 @@ def mock_session():
 # ---------------------------------------------------------------------------
 # GET /audit/latest
 # ---------------------------------------------------------------------------
+
 
 def test_audit_latest_returns_snapshot(client, mock_session):
     row = _make_audit_row()
@@ -114,6 +115,7 @@ def test_audit_latest_returns_404_when_no_data(client, mock_session):
 # POST /audit/run
 # ---------------------------------------------------------------------------
 
+
 def test_audit_run_triggers_background_task(client):
     with patch("modules.audit.audit_daemon.AuditDaemon") as MockDaemon:
         mock_instance = MagicMock()
@@ -129,6 +131,7 @@ def test_audit_run_triggers_background_task(client):
 # ---------------------------------------------------------------------------
 # GET /audit/history
 # ---------------------------------------------------------------------------
+
 
 def test_audit_history_returns_list(client, mock_session):
     rows = [_make_audit_row(), _make_audit_row()]
@@ -176,6 +179,7 @@ def test_audit_history_default_limit(client, mock_session):
 # GET /audit/crawlers
 # ---------------------------------------------------------------------------
 
+
 def test_audit_crawlers_returns_health(client, mock_session):
     crawl_rows = [
         {"job_type": "twitter", "found_count": 0, "error_count": 5, "total_jobs": 5},
@@ -205,11 +209,12 @@ def test_audit_crawlers_returns_health(client, mock_session):
 # GET /audit/persons/stale
 # ---------------------------------------------------------------------------
 
+
 def test_audit_persons_stale_returns_list(client, mock_session):
     p = MagicMock()
     p.id = uuid.uuid4()
     p.full_name = "John Doe"
-    p.last_scraped_at = datetime.now(timezone.utc)
+    p.last_scraped_at = datetime.now(UTC)
     p.meta = {}
 
     scalars_result = MagicMock()
@@ -235,6 +240,7 @@ def test_audit_persons_stale_returns_list(client, mock_session):
 # ---------------------------------------------------------------------------
 # GET /audit/persons/low-coverage
 # ---------------------------------------------------------------------------
+
 
 def test_audit_persons_low_coverage_returns_list(client, mock_session):
     p = MagicMock()

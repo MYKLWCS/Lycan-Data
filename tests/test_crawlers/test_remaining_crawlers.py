@@ -489,7 +489,10 @@ class TestSanctionsFATF:
 class TestSanctionsUK:
     def _make_uk_csv(self, rows: list[list[str]]) -> str:
         """Build a UK OFSI-style CSV with 2 header rows."""
-        lines = ["OFSI UK Consolidated Sanctions List", "GroupID,LastUpdated,Name6,Name1,Name2,Name3,Name4,Name5,DOB,TownOfBirth,CountryOfBirth,Nationality,PassportNumber,Position,Regime"]
+        lines = [
+            "OFSI UK Consolidated Sanctions List",
+            "GroupID,LastUpdated,Name6,Name1,Name2,Name3,Name4,Name5,DOB,TownOfBirth,CountryOfBirth,Nationality,PassportNumber,Position,Regime",
+        ]
         for row in rows:
             lines.append(",".join(row))
         return "\n".join(lines)
@@ -499,9 +502,27 @@ class TestSanctionsUK:
         from modules.crawlers.sanctions_uk import UKSanctionsCrawler
 
         crawler = UKSanctionsCrawler()
-        csv = self._make_uk_csv([
-            ["G001", "2024-01-01", "", "Sechin", "Igor", "", "", "", "1960-09-07", "", "", "Russian", "", "CEO", "Russia"]
-        ])
+        csv = self._make_uk_csv(
+            [
+                [
+                    "G001",
+                    "2024-01-01",
+                    "",
+                    "Sechin",
+                    "Igor",
+                    "",
+                    "",
+                    "",
+                    "1960-09-07",
+                    "",
+                    "",
+                    "Russian",
+                    "",
+                    "CEO",
+                    "Russia",
+                ]
+            ]
+        )
         resp = MagicMock()
         resp.status_code = 200
         resp.content = csv.encode("latin-1", errors="replace")
@@ -516,9 +537,27 @@ class TestSanctionsUK:
         from modules.crawlers.sanctions_uk import UKSanctionsCrawler
 
         crawler = UKSanctionsCrawler()
-        csv = self._make_uk_csv([
-            ["G001", "2024-01-01", "", "Doe", "John", "", "", "", "", "", "", "", "", "", "Russia"]
-        ])
+        csv = self._make_uk_csv(
+            [
+                [
+                    "G001",
+                    "2024-01-01",
+                    "",
+                    "Doe",
+                    "John",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "Russia",
+                ]
+            ]
+        )
         resp = MagicMock()
         resp.status_code = 200
         resp.content = csv.encode("latin-1")
@@ -556,9 +595,9 @@ class TestSanctionsUK:
         from modules.crawlers.sanctions_uk import UKSanctionsCrawler
 
         crawler = UKSanctionsCrawler()
-        csv = self._make_uk_csv([
-            ["G001", "2024-01-01", "", "Smith", "John", "", "", "", "", "", "", "", "", "", ""]
-        ])
+        csv = self._make_uk_csv(
+            [["G001", "2024-01-01", "", "Smith", "John", "", "", "", "", "", "", "", "", "", ""]]
+        )
         cache_file = tmp_path / "uk.csv"
         cache_file.write_text(csv, encoding="latin-1")
         with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=True):
@@ -572,9 +611,7 @@ class TestSanctionsUK:
 
         crawler = UKSanctionsCrawler()
         header = "header row\nGroupID,LastUpdated,Name6,Name1,Name2,Name3,Name4,Name5,DOB,TownOfBirth,CountryOfBirth,Nationality,PassportNumber,Position,Regime\n"
-        rows = "\n".join(
-            f"G{i:03d},2024-01-01,,Smith,John,,,,,,,,,," for i in range(60)
-        )
+        rows = "\n".join(f"G{i:03d},2024-01-01,,Smith,John,,,,,,,,,," for i in range(60))
         resp = MagicMock()
         resp.status_code = 200
         resp.content = (header + rows).encode("latin-1")
@@ -612,7 +649,12 @@ class TestSanctionsUK:
 
         crawler = UKSanctionsCrawler()
         row = "G001,2024-01-01,,Smith,John,,,,,,,,,,"
-        csv = "header\nGroupID,LastUpdated,Name6,Name1,Name2,Name3,Name4,Name5,DOB,TownOfBirth,CountryOfBirth,Nationality,PassportNumber,Position,Regime\n" + row + "\n" + row
+        csv = (
+            "header\nGroupID,LastUpdated,Name6,Name1,Name2,Name3,Name4,Name5,DOB,TownOfBirth,CountryOfBirth,Nationality,PassportNumber,Position,Regime\n"
+            + row
+            + "\n"
+            + row
+        )
         resp = MagicMock()
         resp.status_code = 200
         resp.content = csv.encode("latin-1")
@@ -631,10 +673,21 @@ class TestSanctionsUK:
 class TestSanctionsWorldBankDebarment:
     @pytest.mark.asyncio
     async def test_success_list_payload(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
-        payload = [{"firmName": "Acme Corp", "country": "US", "fromDate": "2020-01-01", "toDate": "", "grounds": "Fraud", "ineligibilityPeriod": "5 years"}]
+        payload = [
+            {
+                "firmName": "Acme Corp",
+                "country": "US",
+                "fromDate": "2020-01-01",
+                "toDate": "",
+                "grounds": "Fraud",
+                "ineligibilityPeriod": "5 years",
+            }
+        ]
         resp = _mock_json_resp(200, payload)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             result = await crawler.scrape("Acme Corp")
@@ -643,10 +696,23 @@ class TestSanctionsWorldBankDebarment:
 
     @pytest.mark.asyncio
     async def test_success_nested_debarredfirms(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
-        payload = {"debarredFirms": [{"firmName": "Acme Corp", "country": "US", "fromDate": "", "toDate": "", "grounds": "", "ineligibilityPeriod": ""}]}
+        payload = {
+            "debarredFirms": [
+                {
+                    "firmName": "Acme Corp",
+                    "country": "US",
+                    "fromDate": "",
+                    "toDate": "",
+                    "grounds": "",
+                    "ineligibilityPeriod": "",
+                }
+            ]
+        }
         resp = _mock_json_resp(200, payload)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             result = await crawler.scrape("Acme Corp")
@@ -654,10 +720,21 @@ class TestSanctionsWorldBankDebarment:
 
     @pytest.mark.asyncio
     async def test_success_nested_debarredfirm_singular(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
-        payload = {"debarredFirm": {"firmName": "Acme Corp", "country": "US", "fromDate": "", "toDate": "", "grounds": "", "ineligibilityPeriod": ""}}
+        payload = {
+            "debarredFirm": {
+                "firmName": "Acme Corp",
+                "country": "US",
+                "fromDate": "",
+                "toDate": "",
+                "grounds": "",
+                "ineligibilityPeriod": "",
+            }
+        }
         resp = _mock_json_resp(200, payload)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             result = await crawler.scrape("Acme Corp")
@@ -665,7 +742,9 @@ class TestSanctionsWorldBankDebarment:
 
     @pytest.mark.asyncio
     async def test_404_means_no_results(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
         resp = _mock_json_resp(404)
@@ -676,7 +755,9 @@ class TestSanctionsWorldBankDebarment:
 
     @pytest.mark.asyncio
     async def test_network_error(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
@@ -686,7 +767,9 @@ class TestSanctionsWorldBankDebarment:
 
     @pytest.mark.asyncio
     async def test_non_200_non_404(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
         resp = _mock_json_resp(500)
@@ -697,7 +780,9 @@ class TestSanctionsWorldBankDebarment:
 
     @pytest.mark.asyncio
     async def test_json_parse_error(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
         resp = MagicMock()
@@ -710,7 +795,9 @@ class TestSanctionsWorldBankDebarment:
 
     @pytest.mark.asyncio
     async def test_low_overlap_filtered(self):
-        from modules.crawlers.sanctions_worldbank_debarment import SanctionsWorldBankDebarmentCrawler
+        from modules.crawlers.sanctions_worldbank_debarment import (
+            SanctionsWorldBankDebarmentCrawler,
+        )
 
         crawler = SanctionsWorldBankDebarmentCrawler()
         # firmName has zero overlap with query
@@ -723,7 +810,18 @@ class TestSanctionsWorldBankDebarment:
     def test_parse_debarred_other_key_names(self):
         from modules.crawlers.sanctions_worldbank_debarment import _parse_debarred
 
-        payload = {"data": [{"firmName": "Acme Corp", "countryName": "USA", "debarmentFromDate": "2020", "debarmentToDate": "2025", "sanctionType": "Fraud", "ineligibilityPeriod": "5yr"}]}
+        payload = {
+            "data": [
+                {
+                    "firmName": "Acme Corp",
+                    "countryName": "USA",
+                    "debarmentFromDate": "2020",
+                    "debarmentToDate": "2025",
+                    "sanctionType": "Fraud",
+                    "ineligibilityPeriod": "5yr",
+                }
+            ]
+        }
         result = _parse_debarred(payload, "Acme Corp")
         assert len(result) == 1
         assert result[0]["country"] == "USA"
@@ -990,7 +1088,21 @@ class TestSocialMastodon:
         from modules.crawlers.social_mastodon import MastodonCrawler
 
         crawler = MastodonCrawler()
-        account = {"id": "1", "username": "user", "acct": "user", "display_name": "User", "url": "", "followers_count": 5, "following_count": 2, "statuses_count": 10, "created_at": "", "note": "", "bot": False, "locked": False, "fields": []}
+        account = {
+            "id": "1",
+            "username": "user",
+            "acct": "user",
+            "display_name": "User",
+            "url": "",
+            "followers_count": 5,
+            "following_count": 2,
+            "statuses_count": 10,
+            "created_at": "",
+            "note": "",
+            "bot": False,
+            "locked": False,
+            "fields": [],
+        }
         payload = {"accounts": [account]}
         resp = _mock_json_resp(200, payload)
         call_count = 0
@@ -1001,7 +1113,7 @@ class TestSocialMastodon:
             return resp
 
         with patch.object(crawler, "get", new=mock_get):
-            result = await crawler.scrape("user")
+            await crawler.scrape("user")
         # Should stop after first instance that returned results
         assert call_count == 1
 
@@ -1069,7 +1181,17 @@ class TestSocialSpotify:
             "type": "user",
             "uri": "spotify:user:spotify",
         }
-        pl_data = {"items": [{"id": "pl1", "name": "Top Hits", "public": True, "tracks": {"total": 50}, "external_urls": {"spotify": "https://open.spotify.com/playlist/pl1"}}]}
+        pl_data = {
+            "items": [
+                {
+                    "id": "pl1",
+                    "name": "Top Hits",
+                    "public": True,
+                    "tracks": {"total": 50},
+                    "external_urls": {"spotify": "https://open.spotify.com/playlist/pl1"},
+                }
+            ]
+        }
         with patch("modules.crawlers.social_spotify.settings") as mock_settings:
             mock_settings.spotify_client_id = "id"
             mock_settings.spotify_client_secret = "secret"
@@ -1109,7 +1231,9 @@ class TestSocialSpotify:
             with patch.object(crawler, "_get_access_token", new=AsyncMock(return_value="tok123")):
                 user_resp = _mock_json_resp(404)
                 search_resp = _mock_json_resp(200, artist_search)
-                with patch.object(crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])):
+                with patch.object(
+                    crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])
+                ):
                     result = await crawler.scrape("Eminem")
         assert result.found is True
         assert result.data["result_type"] == "artist"
@@ -1125,7 +1249,9 @@ class TestSocialSpotify:
             with patch.object(crawler, "_get_access_token", new=AsyncMock(return_value="tok123")):
                 user_resp = _mock_json_resp(404)
                 search_resp = _mock_json_resp(200, {"artists": {"items": []}})
-                with patch.object(crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])):
+                with patch.object(
+                    crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])
+                ):
                     result = await crawler.scrape("UnknownArtistXYZ")
         assert result.found is False
 
@@ -1140,7 +1266,9 @@ class TestSocialSpotify:
             with patch.object(crawler, "_get_access_token", new=AsyncMock(return_value="tok123")):
                 user_resp = _mock_json_resp(404)
                 search_resp = _mock_json_resp(500)
-                with patch.object(crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])):
+                with patch.object(
+                    crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])
+                ):
                     result = await crawler.scrape("test")
         assert result.found is False
 
@@ -1157,7 +1285,9 @@ class TestSocialSpotify:
                 search_resp = MagicMock()
                 search_resp.status_code = 200
                 search_resp.json.side_effect = ValueError("bad json")
-                with patch.object(crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])):
+                with patch.object(
+                    crawler, "get", new=AsyncMock(side_effect=[user_resp, search_resp])
+                ):
                     result = await crawler.scrape("test")
         assert result.found is False
         assert result.data.get("error") == "parse_error"
@@ -1184,14 +1314,31 @@ class TestSocialSpotify:
     def test_parse_user_no_images(self):
         from modules.crawlers.social_spotify import _parse_user
 
-        data = {"id": "u1", "display_name": "User", "followers": {"total": 0}, "images": [], "external_urls": {}, "type": "user", "uri": ""}
+        data = {
+            "id": "u1",
+            "display_name": "User",
+            "followers": {"total": 0},
+            "images": [],
+            "external_urls": {},
+            "type": "user",
+            "uri": "",
+        }
         parsed = _parse_user(data)
         assert parsed["avatar_url"] is None
 
     def test_parse_artist_no_images(self):
         from modules.crawlers.social_spotify import _parse_artist
 
-        data = {"id": "a1", "name": "Artist", "genres": [], "popularity": 50, "followers": {"total": 0}, "external_urls": {}, "images": [], "uri": ""}
+        data = {
+            "id": "a1",
+            "name": "Artist",
+            "genres": [],
+            "popularity": 50,
+            "followers": {"total": 0},
+            "external_urls": {},
+            "images": [],
+            "uri": "",
+        }
         parsed = _parse_artist(data)
         assert parsed["avatar_url"] is None
         assert parsed["type"] == "artist"
@@ -1333,7 +1480,7 @@ class TestSocialSteam:
 <mostPlayedGames>
 <game><gameName>Team Fortress 2</gameName><hoursLast2Weeks>5.0</hoursLast2Weeks><hoursOnRecord>100</hoursOnRecord></game>
 </mostPlayedGames>
-</profile>"""
+</profile>""",
         ).replace("</profile>", "")
         resp = _mock_resp(200, text=xml)
         with patch("modules.crawlers.social_steam.settings") as mock_settings:
@@ -1406,36 +1553,42 @@ class TestSocialTwitch:
 
         crawler = TwitchCrawler()
         user_data = {
-            "data": [{
-                "id": "71092938",
-                "login": "xqc",
-                "display_name": "xQc",
-                "type": "",
-                "broadcaster_type": "partner",
-                "description": "Main Variety Streamer",
-                "profile_image_url": "https://example.com/img.jpg",
-                "view_count": 300000000,
-                "created_at": "2014-12-14T20:32:28Z",
-            }]
+            "data": [
+                {
+                    "id": "71092938",
+                    "login": "xqc",
+                    "display_name": "xQc",
+                    "type": "",
+                    "broadcaster_type": "partner",
+                    "description": "Main Variety Streamer",
+                    "profile_image_url": "https://example.com/img.jpg",
+                    "view_count": 300000000,
+                    "created_at": "2014-12-14T20:32:28Z",
+                }
+            ]
         }
         stream_data = {
-            "data": [{
-                "title": "Gaming",
-                "game_name": "Minecraft",
-                "viewer_count": 50000,
-                "started_at": "2024-01-01T00:00:00Z",
-                "language": "en",
-                "is_mature": False,
-            }]
+            "data": [
+                {
+                    "title": "Gaming",
+                    "game_name": "Minecraft",
+                    "viewer_count": 50000,
+                    "started_at": "2024-01-01T00:00:00Z",
+                    "language": "en",
+                    "is_mature": False,
+                }
+            ]
         }
         channel_data = {
-            "data": [{
-                "broadcaster_language": "en",
-                "game_name": "Minecraft",
-                "title": "Gaming",
-                "delay": 0,
-                "tags": ["English"],
-            }]
+            "data": [
+                {
+                    "broadcaster_language": "en",
+                    "game_name": "Minecraft",
+                    "title": "Gaming",
+                    "delay": 0,
+                    "tags": ["English"],
+                }
+            ]
         }
         with patch("modules.crawlers.social_twitch.settings") as mock_settings:
             mock_settings.twitch_client_id = "cid"
@@ -1444,7 +1597,11 @@ class TestSocialTwitch:
                 user_resp = _mock_json_resp(200, user_data)
                 stream_resp = _mock_json_resp(200, stream_data)
                 channel_resp = _mock_json_resp(200, channel_data)
-                with patch.object(crawler, "get", new=AsyncMock(side_effect=[user_resp, stream_resp, channel_resp])):
+                with patch.object(
+                    crawler,
+                    "get",
+                    new=AsyncMock(side_effect=[user_resp, stream_resp, channel_resp]),
+                ):
                     result = await crawler.scrape("xqc")
         assert result.found is True
         assert result.data["is_live"] is True
@@ -1462,7 +1619,9 @@ class TestSocialTwitch:
             with patch.object(crawler, "_get_app_token", new=AsyncMock(return_value="apptoken")):
                 user_resp = _mock_json_resp(200, {"data": []})
                 stream_resp = _mock_json_resp(200, {"data": []})
-                with patch.object(crawler, "get", new=AsyncMock(side_effect=[user_resp, stream_resp])):
+                with patch.object(
+                    crawler, "get", new=AsyncMock(side_effect=[user_resp, stream_resp])
+                ):
                     result = await crawler.scrape("nonexistentuser")
         assert result.found is False
 
@@ -1502,7 +1661,21 @@ class TestSocialTwitch:
         from modules.crawlers.social_twitch import TwitchCrawler
 
         crawler = TwitchCrawler()
-        user_data = {"data": [{"id": "123", "login": "streamer", "display_name": "Streamer", "type": "", "broadcaster_type": "", "description": "", "profile_image_url": "", "view_count": 0, "created_at": ""}]}
+        user_data = {
+            "data": [
+                {
+                    "id": "123",
+                    "login": "streamer",
+                    "display_name": "Streamer",
+                    "type": "",
+                    "broadcaster_type": "",
+                    "description": "",
+                    "profile_image_url": "",
+                    "view_count": 0,
+                    "created_at": "",
+                }
+            ]
+        }
         with patch("modules.crawlers.social_twitch.settings") as mock_settings:
             mock_settings.twitch_client_id = "cid"
             mock_settings.twitch_client_secret = "csecret"
@@ -1510,7 +1683,11 @@ class TestSocialTwitch:
                 user_resp = _mock_json_resp(200, user_data)
                 stream_resp = _mock_json_resp(200, {"data": []})  # offline
                 channel_resp = _mock_json_resp(200, {"data": []})
-                with patch.object(crawler, "get", new=AsyncMock(side_effect=[user_resp, stream_resp, channel_resp])):
+                with patch.object(
+                    crawler,
+                    "get",
+                    new=AsyncMock(side_effect=[user_resp, stream_resp, channel_resp]),
+                ):
                     result = await crawler.scrape("streamer")
         assert result.found is True
         assert result.data["is_live"] is False
@@ -2190,7 +2367,9 @@ class TestFinancialWorldBank:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(side_effect=[country_resp, indicator_resp, indicator_resp, indicator_resp]),
+            new=AsyncMock(
+                side_effect=[country_resp, indicator_resp, indicator_resp, indicator_resp]
+            ),
         ):
             result = await crawler.scrape("United States")
         assert result.found is True
@@ -2209,7 +2388,9 @@ class TestFinancialWorldBank:
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(side_effect=[country_resp, indicator_resp, indicator_resp, indicator_resp]),
+            new=AsyncMock(
+                side_effect=[country_resp, indicator_resp, indicator_resp, indicator_resp]
+            ),
         ):
             result = await crawler.scrape("US")
         assert result.found is True

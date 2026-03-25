@@ -20,7 +20,6 @@ from fastapi.testclient import TestClient
 from api.deps import db_session
 from api.routes.persons import router
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -61,9 +60,18 @@ def _make_mock_person(person_id: uuid.UUID) -> MagicMock:
 
     # __table__.columns is needed by _model_to_dict
     col_names = [
-        "id", "full_name", "date_of_birth", "gender", "nationality",
-        "primary_language", "bio", "profile_image_url", "meta",
-        "relationship_score", "behavioural_risk", "darkweb_exposure",
+        "id",
+        "full_name",
+        "date_of_birth",
+        "gender",
+        "nationality",
+        "primary_language",
+        "bio",
+        "profile_image_url",
+        "meta",
+        "relationship_score",
+        "behavioural_risk",
+        "darkweb_exposure",
         "default_risk_score",
     ]
     cols = []

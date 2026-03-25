@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -335,9 +334,7 @@ class TestExtractLegacyCard:
         """Card with age string sets the age field."""
         from modules.crawlers.obituary_search import _extract_legacy_card
 
-        card = self._make_card(
-            "<div><h3>Jane Smith</h3><span>age 72</span></div>"
-        )
+        card = self._make_card("<div><h3>Jane Smith</h3><span>age 72</span></div>")
         result = _extract_legacy_card(card)
         assert result is not None
         assert result["age"] == 72
@@ -383,9 +380,7 @@ class TestExtractFindAGraveCard:
         """Card with two years in text — birth_year and death_year fields are set."""
         from modules.crawlers.obituary_search import _extract_findagrave_card
 
-        card = self._make_card(
-            "<div><h3>Robert Clark</h3><span>Born 1945, died 2015</span></div>"
-        )
+        card = self._make_card("<div><h3>Robert Clark</h3><span>Born 1945, died 2015</span></div>")
         result = _extract_findagrave_card(card)
         assert result is not None
         # The regex r"\b(18|19|20)\d{2}\b" captures only the prefix group

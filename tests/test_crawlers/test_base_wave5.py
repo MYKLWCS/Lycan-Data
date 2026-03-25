@@ -16,7 +16,6 @@ from modules.crawlers.base import BaseCrawler
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
 
-
 # ---------------------------------------------------------------------------
 # Concrete subclass for testing (BaseCrawler is abstract)
 # ---------------------------------------------------------------------------

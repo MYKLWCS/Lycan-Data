@@ -98,7 +98,6 @@ from modules.enrichers.marketing_tags import (
     _score_insurance_life,
 )
 
-
 # ── _score_insurance_auto ────────────────────────────────────────────────────
 
 
@@ -159,7 +158,6 @@ from modules.enrichers.marketing_tags import (
     _score_banking_premium,
     _score_high_net_worth,
 )
-
 
 # ── _score_banking_basic ─────────────────────────────────────────────────────
 
@@ -253,7 +251,6 @@ from modules.enrichers.marketing_tags import (
     _score_refinance_candidate,
 )
 
-
 # ── _score_auto_loan_candidate ───────────────────────────────────────────────
 
 
@@ -308,17 +305,13 @@ def test_personal_loan_unemployed_no_distress():
 
 
 def test_mortgage_candidate_property_record():
-    score, reasons = _score_mortgage_candidate(
-        has_property=True, income_estimate=80_000.0
-    )
+    score, reasons = _score_mortgage_candidate(has_property=True, income_estimate=80_000.0)
     assert score >= 0.70
     assert any("property" in r.lower() for r in reasons)
 
 
 def test_mortgage_candidate_high_income_no_property():
-    score, reasons = _score_mortgage_candidate(
-        has_property=False, income_estimate=120_000.0
-    )
+    score, reasons = _score_mortgage_candidate(has_property=False, income_estimate=120_000.0)
     assert score >= 0.70
     assert any("income" in r.lower() for r in reasons)
 
@@ -332,9 +325,7 @@ def test_mortgage_candidate_no_signals():
 
 
 def test_refinance_candidate_property_and_distress():
-    score, reasons = _score_refinance_candidate(
-        has_property=True, financial_distress_score=0.6
-    )
+    score, reasons = _score_refinance_candidate(has_property=True, financial_distress_score=0.6)
     assert score >= 0.65
     assert any("distress" in r.lower() for r in reasons)
 
@@ -369,11 +360,13 @@ from modules.enrichers.commercial_tagger import PersonSignals
 
 def test_person_signals_is_dataclass():
     import dataclasses
+
     assert dataclasses.is_dataclass(PersonSignals)
 
 
 def test_person_signals_fields():
     import uuid
+
     s = PersonSignals(
         person_id=uuid.uuid4(),
         has_vehicle=True,
@@ -395,24 +388,25 @@ def test_person_signals_fields():
 # ── Task 7: CommercialTagsEngine ──────────────────────────────────────────────
 
 import uuid
+
 from modules.enrichers.commercial_tagger import CommercialTagsEngine
-from modules.enrichers.marketing_tags import InsuranceTag, BankingTag, WealthTag, LendingTag
+from modules.enrichers.marketing_tags import BankingTag, InsuranceTag, LendingTag, WealthTag
 
 
 def _make_signals(**overrides) -> PersonSignals:
-    defaults = dict(
-        person_id=uuid.uuid4(),
-        has_vehicle=False,
-        has_property=False,
-        financial_distress_score=0.0,
-        gambling_score=0.0,
-        income_estimate=None,
-        net_worth_estimate=None,
-        is_employed=False,
-        age=None,
-        criminal_count=0,
-        has_investment_signals=False,
-    )
+    defaults = {
+        "person_id": uuid.uuid4(),
+        "has_vehicle": False,
+        "has_property": False,
+        "financial_distress_score": 0.0,
+        "gambling_score": 0.0,
+        "income_estimate": None,
+        "net_worth_estimate": None,
+        "is_employed": False,
+        "age": None,
+        "criminal_count": 0,
+        "has_investment_signals": False,
+    }
     defaults.update(overrides)
     return PersonSignals(**defaults)
 
@@ -503,6 +497,7 @@ async def test_daemon_run_batch_calls_engine(monkeypatch):
 
 
 import uuid as _uuid_mod
+
 import pytest
 
 
@@ -524,7 +519,7 @@ async def test_assemble_person_signals_all_none():
 
     async def fake_execute(stmt):
         r = MagicMock()
-        c = call_count[0]
+        call_count[0]
         call_count[0] += 1
         r.scalars.return_value = _empty_scalars()
         r.scalar.return_value = 0
@@ -542,9 +537,10 @@ async def test_assemble_person_signals_all_none():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_new_row():
     """_upsert_commercial_tags inserts a new MarketingTag when no existing row (line 346-356)."""
+    from datetime import UTC, datetime
+
     from modules.enrichers.commercial_tagger import _upsert_commercial_tags
     from modules.enrichers.marketing_tags import TagResult
-    from datetime import datetime, UTC
 
     pid = _uuid_mod.uuid4()
     tag_result = TagResult(
@@ -571,9 +567,10 @@ async def test_upsert_commercial_tags_new_row():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_existing_row():
     """_upsert_commercial_tags updates confidence on existing MarketingTag (line 341-345)."""
+    from datetime import UTC, datetime
+
     from modules.enrichers.commercial_tagger import _upsert_commercial_tags
     from modules.enrichers.marketing_tags import TagResult
-    from datetime import datetime, UTC
 
     pid = _uuid_mod.uuid4()
     tag_result = TagResult(
@@ -625,15 +622,16 @@ async def test_daemon_run_batch_with_persons_exception_caught():
         call_count[0] += 1
         return outer_ctx if c == 0 else inner_ctx
 
-    with patch("modules.enrichers.commercial_tagger.AsyncSessionLocal",
-               side_effect=session_factory):
+    with patch(
+        "modules.enrichers.commercial_tagger.AsyncSessionLocal", side_effect=session_factory
+    ):
         await daemon._run_batch()  # should not raise
 
 
 @pytest.mark.asyncio
 async def test_daemon_run_batch_with_persons_happy_path():
     """Daemon processes persons; happy path runs assemble → tag → upsert → commit (lines 309-312)."""
-    from modules.enrichers.commercial_tagger import PersonSignals, CommercialTaggerDaemon
+    from modules.enrichers.commercial_tagger import CommercialTaggerDaemon, PersonSignals
 
     daemon = CommercialTaggerDaemon()
 
@@ -652,6 +650,7 @@ async def test_daemon_run_batch_with_persons_happy_path():
 
     # Inner per-person session succeeds
     inner_session = AsyncMock()
+
     # assemble_person_signals will call execute multiple times
     def _empty_r():
         r = MagicMock()
@@ -675,8 +674,9 @@ async def test_daemon_run_batch_with_persons_happy_path():
         call_count[0] += 1
         return outer_ctx if c == 0 else inner_ctx
 
-    with patch("modules.enrichers.commercial_tagger.AsyncSessionLocal",
-               side_effect=session_factory):
+    with patch(
+        "modules.enrichers.commercial_tagger.AsyncSessionLocal", side_effect=session_factory
+    ):
         await daemon._run_batch()  # should complete without error
 
     assert inner_session.commit.called

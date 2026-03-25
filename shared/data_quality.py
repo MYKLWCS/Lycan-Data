@@ -17,9 +17,8 @@ Weights:
 
 from __future__ import annotations
 
-import math
-from math import exp
 from datetime import datetime
+from math import exp
 from typing import TYPE_CHECKING, Any
 
 from shared.constants import SOURCE_RELIABILITY

@@ -18,7 +18,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # _parse_identifier — line 48: pipe without comma
 # ---------------------------------------------------------------------------

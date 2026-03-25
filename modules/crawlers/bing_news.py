@@ -53,12 +53,14 @@ class BingNewsCrawler(HttpxCrawler):
             desc_el = item.find("description")
             title = title_el.text if title_el is not None else ""
             if title:
-                articles.append({
-                    "title": title,
-                    "url": link_el.text if link_el is not None else "",
-                    "published": pub_el.text if pub_el is not None else "",
-                    "description": (desc_el.text or "")[:300] if desc_el is not None else "",
-                })
+                articles.append(
+                    {
+                        "title": title,
+                        "url": link_el.text if link_el is not None else "",
+                        "published": pub_el.text if pub_el is not None else "",
+                        "description": (desc_el.text or "")[:300] if desc_el is not None else "",
+                    }
+                )
 
         if not articles:
             return self._result(identifier, found=False)

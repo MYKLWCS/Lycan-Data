@@ -22,7 +22,6 @@ from modules.enrichers.deduplication import (
     normalize_name,
 )
 
-
 # ---------------------------------------------------------------------------
 # Line 180: tokens_a or tokens_b is empty after normalize_name
 # ---------------------------------------------------------------------------
@@ -40,13 +39,14 @@ def test_name_similarity_honorific_only_name_returns_zero():
     # "Dr Mr" → tokens ['dr', 'mr'] — both stripped if they're in HONORIFICS.
     # Test with a name that normalizes to empty string, making split() return ['']
     # vs a valid name.
-    norm = normalize_name("Mr")
+    normalize_name("Mr")
     # If norm is empty string, split returns [''] which has one element '' (falsy but len 1)
     # The check is `if not tokens_a or not tokens_b` — empty set check
     # Let's verify what we get and test accordingly.
 
     # The safest way: patch normalize_name to return '' for one side
     from unittest.mock import patch
+
     with patch("modules.enrichers.deduplication.normalize_name") as mock_norm:
         # norm_a → empty string, norm_b → "john"
         mock_norm.side_effect = ["", "john smith"]

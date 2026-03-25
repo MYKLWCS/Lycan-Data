@@ -116,10 +116,12 @@ async def test_camoufox_get_page_happy_path():
 
         async def _patched_get_page(self, url):
             from camoufox.async_api import AsyncCamoufox  # type: ignore[import]
+
             await self._human_delay()
             proxy = self.get_proxy()
             proxy_dict = {"server": proxy} if proxy else None
             import random
+
             async with AsyncCamoufox(
                 headless=True,
                 proxy=proxy_dict,
@@ -137,7 +139,9 @@ async def test_camoufox_get_page_happy_path():
             cm.CamoufoxCrawler.get_page = original_get_page
 
     assert result == "<html>hello</html>"
-    mock_page.goto.assert_awaited_once_with("http://example.com", wait_until="domcontentloaded", timeout=30000)
+    mock_page.goto.assert_awaited_once_with(
+        "http://example.com", wait_until="domcontentloaded", timeout=30000
+    )
 
 
 @pytest.mark.asyncio
@@ -171,6 +175,7 @@ async def test_camoufox_get_page_with_proxy():
         proxy = self.get_proxy()
         proxy_dict = {"server": proxy} if proxy else None
         import random
+
         async with AsyncCamoufox(
             headless=True,
             proxy=proxy_dict,
@@ -190,9 +195,11 @@ async def test_camoufox_get_page_with_proxy():
         with (
             patch.object(crawler, "_human_delay", new_callable=AsyncMock),
             patch.object(crawler, "get_proxy", return_value="socks5://127.0.0.1:9050"),
-            patch.dict("sys.modules", {"camoufox": MagicMock(), "camoufox.async_api": fake_async_api}),
+            patch.dict(
+                "sys.modules", {"camoufox": MagicMock(), "camoufox.async_api": fake_async_api}
+            ),
         ):
-            result = await crawler.get_page("http://example.com")
+            await crawler.get_page("http://example.com")
     finally:
         cm.CamoufoxCrawler.get_page = original_get_page
 
@@ -208,6 +215,7 @@ async def test_camoufox_get_page_with_proxy():
 async def test_camoufox_browser_exception_returns_empty(caplog):
     """Exception during browsing → logs warning, returns '' (lines 52-54)."""
     import logging
+
     import modules.crawlers.camoufox_base as cm
 
     original_get_page = cm.CamoufoxCrawler.get_page
@@ -222,6 +230,7 @@ async def test_camoufox_browser_exception_returns_empty(caplog):
             raise RuntimeError("browser crashed")
         except Exception as exc:
             import logging as _log
+
             _log.getLogger("modules.crawlers.camoufox_base").warning(
                 "CamoufoxCrawler.get_page failed for %s: %s", url, exc
             )
@@ -235,7 +244,9 @@ async def test_camoufox_browser_exception_returns_empty(caplog):
     try:
         with (
             patch.object(crawler, "_human_delay", new_callable=AsyncMock),
-            patch.dict("sys.modules", {"camoufox": MagicMock(), "camoufox.async_api": fake_async_api}),
+            patch.dict(
+                "sys.modules", {"camoufox": MagicMock(), "camoufox.async_api": fake_async_api}
+            ),
             caplog.at_level(logging.WARNING, logger="modules.crawlers.camoufox_base"),
         ):
             result = await crawler.get_page("http://example.com")
@@ -274,6 +285,7 @@ async def test_camoufox_no_proxy_passes_none():
         proxy = self.get_proxy()
         proxy_dict = {"server": proxy} if proxy else None
         import random
+
         async with AsyncCamoufox(
             headless=True,
             proxy=proxy_dict,
@@ -293,7 +305,9 @@ async def test_camoufox_no_proxy_passes_none():
         with (
             patch.object(crawler, "_human_delay", new_callable=AsyncMock),
             patch.object(crawler, "get_proxy", return_value=None),
-            patch.dict("sys.modules", {"camoufox": MagicMock(), "camoufox.async_api": fake_async_api}),
+            patch.dict(
+                "sys.modules", {"camoufox": MagicMock(), "camoufox.async_api": fake_async_api}
+            ),
         ):
             await crawler.get_page("http://example.com")
     finally:

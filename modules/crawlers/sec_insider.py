@@ -17,8 +17,7 @@ from modules.crawlers.result import CrawlerResult
 logger = logging.getLogger(__name__)
 
 _SEC_EFTS_URL = (
-    "https://efts.sec.gov/LATEST/search-index"
-    "?q={query}&forms=4&dateRange=custom&startdt=2020-01-01"
+    "https://efts.sec.gov/LATEST/search-index?q={query}&forms=4&dateRange=custom&startdt=2020-01-01"
 )
 
 
@@ -60,13 +59,15 @@ class SecInsiderCrawler(HttpxCrawler):
         filings = []
         for h in hits[:20]:
             src = h.get("_source") or {}
-            filings.append({
-                "entity_name": src.get("entity_name", ""),
-                "form_type": src.get("form_type", "4"),
-                "file_date": src.get("file_date", ""),
-                "period_of_report": src.get("period_of_report", ""),
-                "file_num": src.get("file_num", ""),
-            })
+            filings.append(
+                {
+                    "entity_name": src.get("entity_name", ""),
+                    "form_type": src.get("form_type", "4"),
+                    "file_date": src.get("file_date", ""),
+                    "period_of_report": src.get("period_of_report", ""),
+                    "file_num": src.get("file_num", ""),
+                }
+            )
 
         total = ((payload.get("hits") or {}).get("total") or {}).get("value", len(filings))
         return CrawlerResult(

@@ -17,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -56,7 +55,9 @@ class TestTelegramLines113_115:
         with patch.dict("os.environ", {}, clear=False):
             # Ensure all three keys are absent
             for k in ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION"):
-                import os; os.environ.pop(k, None)
+                import os
+
+                os.environ.pop(k, None)
             result = await crawler.scrape("+15005550001")
         assert _get_error(result) == "telethon_not_configured"
 
@@ -106,6 +107,7 @@ class TestTelegramLines113_115:
         mock_resolve_phone_cls = MagicMock(return_value="req_obj")
 
         import sys
+
         fake_telethon = MagicMock()
         fake_telethon.TelegramClient = mock_telegram_client_cls
         fake_telethon.sessions = MagicMock()
@@ -117,17 +119,27 @@ class TestTelegramLines113_115:
         fake_telethon.tl.functions.contacts = MagicMock()
         fake_telethon.tl.functions.contacts.ResolvePhoneRequest = mock_resolve_phone_cls
 
-        with patch.dict(
-            "os.environ",
-            {"TELEGRAM_API_ID": "12345", "TELEGRAM_API_HASH": "abc", "TELEGRAM_SESSION": "sess"},
-        ), patch.dict("sys.modules", {
-            "telethon": fake_telethon,
-            "telethon.sessions": fake_telethon.sessions,
-            "telethon.errors": fake_telethon.errors,
-            "telethon.tl": fake_telethon.tl,
-            "telethon.tl.functions": fake_telethon.tl.functions,
-            "telethon.tl.functions.contacts": fake_telethon.tl.functions.contacts,
-        }):
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abc",
+                    "TELEGRAM_SESSION": "sess",
+                },
+            ),
+            patch.dict(
+                "sys.modules",
+                {
+                    "telethon": fake_telethon,
+                    "telethon.sessions": fake_telethon.sessions,
+                    "telethon.errors": fake_telethon.errors,
+                    "telethon.tl": fake_telethon.tl,
+                    "telethon.tl.functions": fake_telethon.tl.functions,
+                    "telethon.tl.functions.contacts": fake_telethon.tl.functions.contacts,
+                },
+            ),
+        ):
             result = await crawler.scrape("+15005550001")
 
         # Should have found the user or returned a valid result
@@ -382,9 +394,11 @@ class TestNewsSearchLines128_244:
         bing_article = dict(article)
         bing_article["source"] = "bing_news"
 
-        with patch.object(crawler, "_scrape_ddg", new=AsyncMock(return_value=[article])), \
-             patch.object(crawler, "_scrape_google_news_rss", new=AsyncMock(return_value=[])), \
-             patch.object(crawler, "_scrape_bing_rss", new=AsyncMock(return_value=[bing_article])):
+        with (
+            patch.object(crawler, "_scrape_ddg", new=AsyncMock(return_value=[article])),
+            patch.object(crawler, "_scrape_google_news_rss", new=AsyncMock(return_value=[])),
+            patch.object(crawler, "_scrape_bing_rss", new=AsyncMock(return_value=[bing_article])),
+        ):
             result = await crawler.scrape("test query")
         # Bing article has same URL → deduped → only 1 article
         assert result.data["article_count"] == 1
@@ -695,6 +709,7 @@ class TestRegistry:
     def test_get_crawler_returns_class_for_known_platform(self):
         """Registered platforms return their crawler class."""
         import modules.crawlers.gov_epa  # ensure registration
+
         cls = get_crawler("gov_epa")
         assert cls is not None
 

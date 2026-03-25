@@ -17,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -83,7 +82,11 @@ class TestLinkedInCrawlerScrape:
             title="John Doe | LinkedIn",
         )
 
-        with patch.object(crawler, "_extract", new=AsyncMock(return_value={"display_name": "John Doe", "handle": "johndoe"})):
+        with patch.object(
+            crawler,
+            "_extract",
+            new=AsyncMock(return_value={"display_name": "John Doe", "handle": "johndoe"}),
+        ):
             with patch.object(crawler, "page", page_cm):
                 result = await crawler.scrape("johndoe")
 
@@ -106,7 +109,11 @@ class TestLinkedInCrawlerScrape:
             title="Jane Smith | LinkedIn",
         )
 
-        with patch.object(crawler, "_extract", new=AsyncMock(return_value={"display_name": "Jane Smith", "handle": "jane-smith"})):
+        with patch.object(
+            crawler,
+            "_extract",
+            new=AsyncMock(return_value={"display_name": "Jane Smith", "handle": "jane-smith"}),
+        ):
             with patch.object(crawler, "page", page_cm):
                 result = await crawler.scrape("https://www.linkedin.com/in/jane-smith/")
 
@@ -129,7 +136,16 @@ class TestLinkedInCrawlerScrape:
             title="Acme Corp | LinkedIn",
         )
 
-        with patch.object(crawler, "_extract", new=AsyncMock(return_value={"display_name": "Acme Corp", "handle": "https://www.linkedin.com/company/acme/"})):
+        with patch.object(
+            crawler,
+            "_extract",
+            new=AsyncMock(
+                return_value={
+                    "display_name": "Acme Corp",
+                    "handle": "https://www.linkedin.com/company/acme/",
+                }
+            ),
+        ):
             with patch.object(crawler, "page", page_cm):
                 result = await crawler.scrape("https://www.linkedin.com/company/acme/")
 
@@ -151,7 +167,9 @@ class TestLinkedInCrawlerScrape:
         public_result = MagicMock()
         public_result.found = False
 
-        with patch.object(crawler, "_try_public_view", new=AsyncMock(return_value=public_result)) as mock_tpv:
+        with patch.object(
+            crawler, "_try_public_view", new=AsyncMock(return_value=public_result)
+        ) as mock_tpv:
             with patch.object(crawler, "page", page_cm):
                 result = await crawler.scrape("johndoe")
 
@@ -174,9 +192,11 @@ class TestLinkedInCrawlerScrape:
         public_result = MagicMock()
         public_result.found = False
 
-        with patch.object(crawler, "_try_public_view", new=AsyncMock(return_value=public_result)) as mock_tpv:
+        with patch.object(
+            crawler, "_try_public_view", new=AsyncMock(return_value=public_result)
+        ) as mock_tpv:
             with patch.object(crawler, "page", page_cm):
-                result = await crawler.scrape("johndoe")
+                await crawler.scrape("johndoe")
 
         mock_tpv.assert_called_once_with("johndoe")
 
@@ -520,12 +540,12 @@ class TestFindAGraveParseMemorialHtml:
         from modules.crawlers.people_findagrave import _parse_memorial_html
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<script type="application/ld+json">'
             '{"@type": "Person", "name": "John Doe", "birthDate": "1900", "deathDate": "1985", '
             '"url": "https://www.findagrave.com/memorial/12345"}'
-            '</script>'
-            '</body></html>'
+            "</script>"
+            "</body></html>"
         )
 
         results = _parse_memorial_html(html)
@@ -546,9 +566,9 @@ class TestFindAGraveParseMemorialHtml:
             {"@type": "Person", "name": "Bob Smith", "birthDate": "1922"},
         ]
         html = (
-            '<html><body>'
+            "<html><body>"
             f'<script type="application/ld+json">{json.dumps(data)}</script>'
-            '</body></html>'
+            "</body></html>"
         )
 
         results = _parse_memorial_html(html)
@@ -563,11 +583,11 @@ class TestFindAGraveParseMemorialHtml:
         from modules.crawlers.people_findagrave import _parse_memorial_html
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<script type="application/ld+json">'
             '{"@type": "WebPage", "name": "Search Results"}'
-            '</script>'
-            '</body></html>'
+            "</script>"
+            "</body></html>"
         )
 
         results = _parse_memorial_html(html)
@@ -579,9 +599,9 @@ class TestFindAGraveParseMemorialHtml:
         from modules.crawlers.people_findagrave import _parse_memorial_html
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<script type="application/ld+json">NOT VALID JSON {{{</script>'
-            '</body></html>'
+            "</body></html>"
         )
 
         results = _parse_memorial_html(html)
@@ -593,12 +613,12 @@ class TestFindAGraveParseMemorialHtml:
         from modules.crawlers.people_findagrave import _parse_memorial_html
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<script type="application/ld+json">GARBAGE</script>'
             '<script type="application/ld+json">'
             '{"@type": "Person", "name": "Mary Jones"}'
-            '</script>'
-            '</body></html>'
+            "</script>"
+            "</body></html>"
         )
 
         results = _parse_memorial_html(html)
@@ -611,11 +631,11 @@ class TestFindAGraveParseMemorialHtml:
         from modules.crawlers.people_findagrave import _parse_memorial_html
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<script type="application/ld+json">'
             '{"@type": "Person", "name": "Unnamed Person"}'
-            '</script>'
-            '</body></html>'
+            "</script>"
+            "</body></html>"
         )
 
         results = _parse_memorial_html(html)
@@ -631,14 +651,14 @@ class TestFindAGraveParseMemorialHtml:
         from modules.crawlers.people_findagrave import _parse_memorial_html
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<div class="memorial-item">'
             '<a href="/memorial/99999/john-doe">John Doe</a>'
-            '</div>'
+            "</div>"
             '<script type="application/ld+json">'
             '{"@type": "Person", "name": "Should Not Appear"}'
-            '</script>'
-            '</body></html>'
+            "</script>"
+            "</body></html>"
         )
 
         results = _parse_memorial_html(html)
@@ -725,11 +745,11 @@ class TestFindAGraveScrape:
         crawler = self._make_crawler()
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<script type="application/ld+json">'
             '{"@type": "Person", "name": "Jane Doe", "birthDate": "1945", "deathDate": "2010"}'
-            '</script>'
-            '</body></html>'
+            "</script>"
+            "</body></html>"
         )
         resp = _mock_resp(status=200, text=html)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
@@ -746,11 +766,11 @@ class TestFindAGraveScrape:
         crawler = self._make_crawler()
 
         html = (
-            '<html><body>'
+            "<html><body>"
             '<script type="application/ld+json">'
             '{"@type": "Person", "name": "Elvis"}'
-            '</script>'
-            '</body></html>'
+            "</script>"
+            "</body></html>"
         )
         resp = _mock_resp(status=200, text=html)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):

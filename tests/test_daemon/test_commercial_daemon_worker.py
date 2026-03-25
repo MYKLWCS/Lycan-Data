@@ -1,12 +1,14 @@
 """Verify CommercialTaggerDaemon can be imported and integrated."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 def test_commercial_tagger_daemon_importable():
     from modules.enrichers.commercial_tagger import CommercialTaggerDaemon
+
     daemon = CommercialTaggerDaemon()
     assert hasattr(daemon, "start")
     assert hasattr(daemon, "stop")
@@ -34,7 +36,9 @@ async def test_daemon_start_stops_cleanly():
 
 def test_worker_has_no_commercial_flag():
     """worker.py argparse must accept --no-commercial flag."""
-    import subprocess, sys
+    import subprocess
+    import sys
+
     result = subprocess.run(
         [sys.executable, "worker.py", "--help"],
         capture_output=True,

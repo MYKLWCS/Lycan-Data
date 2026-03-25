@@ -36,11 +36,12 @@ logger = logging.getLogger("lycan.worker")
 def _import_all_crawlers():
     import modules.crawlers as pkg
 
-    for finder, name, ispkg in pkgutil.iter_modules(pkg.__path__):
+    for _finder, name, ispkg in pkgutil.iter_modules(pkg.__path__):
         try:
             mod = importlib.import_module(f"modules.crawlers.{name}")
             if ispkg:
                 import pkgutil as _pkgutil
+
                 for _, subname, _ in _pkgutil.iter_modules(mod.__path__):
                     try:
                         importlib.import_module(f"modules.crawlers.{name}.{subname}")
@@ -50,7 +51,14 @@ def _import_all_crawlers():
             pass
 
 
-async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable_commercial: bool = True, enable_audit: bool = True, enable_genealogy: bool = True):
+async def main(
+    workers: int,
+    enable_growth: bool,
+    enable_freshness: bool,
+    enable_commercial: bool = True,
+    enable_audit: bool = True,
+    enable_genealogy: bool = True,
+):
     # Setup
     _import_all_crawlers()
     from modules.dispatcher.dispatcher import CrawlDispatcher
@@ -104,14 +112,13 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable
 
     # Auto-dedup daemon
     dedup_daemon = AutoDedupDaemon()
-    tasks.append(
-        asyncio.create_task(dedup_daemon.start(), name="auto-dedup-daemon")
-    )
+    tasks.append(asyncio.create_task(dedup_daemon.start(), name="auto-dedup-daemon"))
     logger.info("Started auto-dedup daemon")
 
     # Commercial tagger daemon
     if enable_commercial:
         from modules.enrichers.commercial_tagger import CommercialTaggerDaemon
+
         ct = CommercialTaggerDaemon()
         tasks.append(asyncio.create_task(ct.start(), name="commercial-tagger"))
         logger.info("Started commercial tagger daemon")
@@ -119,6 +126,7 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable
     # Audit daemon (hourly platform health snapshots)
     if enable_audit:
         from modules.audit.audit_daemon import AuditDaemon
+
         ad = AuditDaemon()
         tasks.append(asyncio.create_task(ad.start(), name="audit-daemon"))
         logger.info("Started audit daemon")
@@ -126,6 +134,7 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable
     # Genealogy enricher daemon
     if enable_genealogy:
         from modules.enrichers.genealogy_enricher import GenealogyEnricher
+
         ge = GenealogyEnricher()
         tasks.append(asyncio.create_task(ge.start(), name="genealogy-enricher"))
         logger.info("Started genealogy enricher daemon")
@@ -165,8 +174,12 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type=int, default=4, help="Number of dispatcher workers")
     parser.add_argument("--no-growth", action="store_true", help="Disable growth daemon")
     parser.add_argument("--no-freshness", action="store_true", help="Disable freshness scheduler")
-    parser.add_argument("--no-commercial", action="store_true", help="Disable commercial tagger daemon")
-    parser.add_argument("--no-genealogy", action="store_true", help="Disable genealogy enricher daemon")
+    parser.add_argument(
+        "--no-commercial", action="store_true", help="Disable commercial tagger daemon"
+    )
+    parser.add_argument(
+        "--no-genealogy", action="store_true", help="Disable genealogy enricher daemon"
+    )
     parser.add_argument("--no-audit", action="store_true", help="Disable audit daemon")
     args = parser.parse_args()
 

@@ -22,13 +22,35 @@ logger = logging.getLogger(__name__)
 
 # Keywords to extract interest signals from bio text
 _BIO_INTEREST_KEYWORDS = [
-    "crypto", "defi", "nft", "bitcoin", "ethereum",
-    "fitness", "gym", "crossfit", "running", "cycling",
-    "gaming", "esports", "twitch", "streaming",
-    "music", "photography", "travel", "cooking", "coding",
-    "investing", "stocks", "options", "trading",
-    "real estate", "entrepreneur", "startup",
-    "politics", "activism", "sustainability",
+    "crypto",
+    "defi",
+    "nft",
+    "bitcoin",
+    "ethereum",
+    "fitness",
+    "gym",
+    "crossfit",
+    "running",
+    "cycling",
+    "gaming",
+    "esports",
+    "twitch",
+    "streaming",
+    "music",
+    "photography",
+    "travel",
+    "cooking",
+    "coding",
+    "investing",
+    "stocks",
+    "options",
+    "trading",
+    "real estate",
+    "entrepreneur",
+    "startup",
+    "politics",
+    "activism",
+    "sustainability",
 ]
 
 
@@ -62,6 +84,7 @@ class InterestsExtractorCrawler(BaseCrawler):
             person_id = identifier
 
         from sqlalchemy import select
+
         from shared.models.crawl import CrawlJob
 
         result = await session.execute(
@@ -84,7 +107,7 @@ class InterestsExtractorCrawler(BaseCrawler):
 
             # Reddit: extract subreddit memberships from recent posts
             if platform == "reddit":
-                for post in (job_result.get("recent_posts") or []):
+                for post in job_result.get("recent_posts") or []:
                     sub = post.get("subreddit")
                     if sub and sub not in interests:
                         interests.append(sub.lower())
@@ -98,13 +121,13 @@ class InterestsExtractorCrawler(BaseCrawler):
                         interests.append(keyword)
 
             # Threads/Instagram: followed topics if available
-            for topic in (job_result.get("followed_topics") or []):
+            for topic in job_result.get("followed_topics") or []:
                 t = topic.lower().strip()
                 if t and t not in interests:
                     interests.append(t)
 
             # Liked pages signals (Facebook etc.)
-            for page in (job_result.get("liked_pages") or []):
+            for page in job_result.get("liked_pages") or []:
                 p = page.lower().strip() if isinstance(page, str) else ""
                 if p and p not in interests:
                     interests.append(p)
@@ -128,6 +151,7 @@ class InterestsExtractorCrawler(BaseCrawler):
     ) -> None:
         """Upsert interests into BehaviouralProfile.interests ARRAY."""
         from sqlalchemy import select
+
         from shared.models.behavioural import BehaviouralProfile
 
         result = await session.execute(

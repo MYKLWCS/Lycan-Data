@@ -53,12 +53,14 @@ class GoogleNewsRssCrawler(HttpxCrawler):
             source_el = item.find("source")
             title = title_el.text if title_el is not None else ""
             if title:
-                articles.append({
-                    "title": title,
-                    "url": link_el.text if link_el is not None else "",
-                    "published": pub_el.text if pub_el is not None else "",
-                    "source": source_el.text if source_el is not None else "",
-                })
+                articles.append(
+                    {
+                        "title": title,
+                        "url": link_el.text if link_el is not None else "",
+                        "published": pub_el.text if pub_el is not None else "",
+                        "source": source_el.text if source_el is not None else "",
+                    }
+                )
 
         if not articles:
             return self._result(identifier, found=False)

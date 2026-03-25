@@ -23,7 +23,6 @@ from fastapi.testclient import TestClient
 from api.deps import db_session
 from api.routes.graph import router
 
-
 # ── App fixture ───────────────────────────────────────────────────────────────
 
 
@@ -116,9 +115,7 @@ def test_person_network_value_error_returns_400():
     app = _make_app(session)
 
     with patch("api.routes.graph._graph_builder") as mock_builder:
-        mock_builder.build_person_graph = AsyncMock(
-            side_effect=ValueError("invalid person_id")
-        )
+        mock_builder.build_person_graph = AsyncMock(side_effect=ValueError("invalid person_id"))
         with TestClient(app, raise_server_exceptions=False) as client:
             r = client.get("/graph/person/bad-uuid/network")
 
@@ -132,9 +129,7 @@ def test_person_network_generic_exception_returns_500():
     app = _make_app(session)
 
     with patch("api.routes.graph._graph_builder") as mock_builder:
-        mock_builder.build_person_graph = AsyncMock(
-            side_effect=RuntimeError("db exploded")
-        )
+        mock_builder.build_person_graph = AsyncMock(side_effect=RuntimeError("db exploded"))
         with TestClient(app, raise_server_exceptions=False) as client:
             r = client.get("/graph/person/some-id/network")
 
@@ -150,9 +145,7 @@ def test_person_companies_value_error_returns_400():
     app = _make_app(session)
 
     with patch("api.routes.graph._company_engine") as mock_engine:
-        mock_engine.get_person_companies = AsyncMock(
-            side_effect=ValueError("bad person id")
-        )
+        mock_engine.get_person_companies = AsyncMock(side_effect=ValueError("bad person id"))
         with TestClient(app, raise_server_exceptions=False) as client:
             r = client.get("/graph/person/bad-id/companies")
 
@@ -166,9 +159,7 @@ def test_person_companies_generic_exception_returns_500():
     app = _make_app(session)
 
     with patch("api.routes.graph._company_engine") as mock_engine:
-        mock_engine.get_person_companies = AsyncMock(
-            side_effect=RuntimeError("db crash")
-        )
+        mock_engine.get_person_companies = AsyncMock(side_effect=RuntimeError("db crash"))
         with TestClient(app, raise_server_exceptions=False) as client:
             r = client.get("/graph/person/some-id/companies")
 
@@ -202,9 +193,7 @@ def test_detect_fraud_rings_exception_returns_500():
     app = _make_app(session)
 
     with patch("api.routes.graph._graph_builder") as mock_builder:
-        mock_builder.detect_fraud_rings = AsyncMock(
-            side_effect=RuntimeError("cluster failed")
-        )
+        mock_builder.detect_fraud_rings = AsyncMock(side_effect=RuntimeError("cluster failed"))
         with TestClient(app, raise_server_exceptions=False) as client:
             r = client.post("/graph/fraud-rings", json={"min_connections": 3})
 
@@ -244,9 +233,7 @@ def test_graph_path_value_error_returns_400():
     app = _make_app(session)
 
     with patch("api.routes.graph._graph_builder") as mock_builder:
-        mock_builder.find_shortest_path = AsyncMock(
-            side_effect=ValueError("node not found")
-        )
+        mock_builder.find_shortest_path = AsyncMock(side_effect=ValueError("node not found"))
         with TestClient(app, raise_server_exceptions=False) as client:
             r = client.get("/graph/path?from=id-a&to=id-b")
 
@@ -297,9 +284,7 @@ def test_shared_connections_fewer_than_2_ids_returns_400():
     app = _make_app(session)
 
     with TestClient(app, raise_server_exceptions=False) as client:
-        r = client.post(
-            "/graph/shared-connections", json={"person_ids": ["only-one"]}
-        )
+        r = client.post("/graph/shared-connections", json={"person_ids": ["only-one"]})
 
     assert r.status_code == 400
     assert "2 person_ids" in r.json()["detail"]
@@ -311,9 +296,7 @@ def test_shared_connections_exception_returns_500():
     app = _make_app(session)
 
     with patch("api.routes.graph._graph_builder") as mock_builder:
-        mock_builder.find_shared_connections = AsyncMock(
-            side_effect=RuntimeError("db error")
-        )
+        mock_builder.find_shared_connections = AsyncMock(side_effect=RuntimeError("db error"))
         with TestClient(app, raise_server_exceptions=False) as client:
             r = client.post(
                 "/graph/shared-connections",

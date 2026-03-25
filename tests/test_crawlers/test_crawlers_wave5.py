@@ -2,9 +2,12 @@
 test_crawlers_wave5.py — Final coverage gap tests (wave 5).
 Targets specific uncovered lines in 32 crawlers.
 """
+
 from __future__ import annotations
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 
@@ -24,6 +27,7 @@ def _mock_resp(status=200, json_data=None, text=""):
 #    _scrape_portal raises an exception → returns []
 # ---------------------------------------------------------------------------
 
+
 class TestCourtStateWave5:
     @pytest.mark.asyncio
     async def test_scrape_portal_exception_returns_empty(self):
@@ -40,6 +44,7 @@ class TestCourtStateWave5:
 # 2. crypto_blockchair.py  line 53
 #    _parse_blockchair_response: addr_data is still None after fallback → return None
 # ---------------------------------------------------------------------------
+
 
 class TestCryptoBlockchairWave5:
     @pytest.mark.asyncio
@@ -68,9 +73,11 @@ class TestCryptoBlockchairWave5:
 #    _resolve_a, _resolve_aaaa, _reverse_dns — success branches returning values
 # ---------------------------------------------------------------------------
 
+
 class TestCyberDnsWave5:
     def test_resolve_a_returns_sorted_ips(self):
         import socket
+
         from modules.crawlers.cyber_dns import DnsCrawler
 
         crawler = DnsCrawler()
@@ -85,6 +92,7 @@ class TestCyberDnsWave5:
 
     def test_resolve_aaaa_returns_sorted_ips(self):
         import socket
+
         from modules.crawlers.cyber_dns import DnsCrawler
 
         crawler = DnsCrawler()
@@ -99,7 +107,10 @@ class TestCyberDnsWave5:
         from modules.crawlers.cyber_dns import DnsCrawler
 
         crawler = DnsCrawler()
-        with patch("modules.crawlers.cyber_dns.socket.gethostbyaddr", return_value=("one.one.one.one", [], ["1.1.1.1"])):
+        with patch(
+            "modules.crawlers.cyber_dns.socket.gethostbyaddr",
+            return_value=("one.one.one.one", [], ["1.1.1.1"]),
+        ):
             hostname = crawler._reverse_dns("1.1.1.1")
         assert hostname == "one.one.one.one"
 
@@ -108,6 +119,7 @@ class TestCyberDnsWave5:
 # 4. domain_theharvester.py  line 66
 #    _check_harvester_installed: proc.returncode == 0 → returns True
 # ---------------------------------------------------------------------------
+
 
 class TestDomainHarvesterWave5:
     @pytest.mark.asyncio
@@ -118,10 +130,14 @@ class TestDomainHarvesterWave5:
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
 
-        with patch("modules.crawlers.domain_theharvester.asyncio.create_subprocess_exec",
-                   new=AsyncMock(return_value=mock_proc)):
-            with patch("modules.crawlers.domain_theharvester.asyncio.wait_for",
-                       new=AsyncMock(return_value=(b"", b""))):
+        with patch(
+            "modules.crawlers.domain_theharvester.asyncio.create_subprocess_exec",
+            new=AsyncMock(return_value=mock_proc),
+        ):
+            with patch(
+                "modules.crawlers.domain_theharvester.asyncio.wait_for",
+                new=AsyncMock(return_value=(b"", b"")),
+            ):
                 result = await _check_harvester_installed()
         assert result is True
 
@@ -130,6 +146,7 @@ class TestDomainHarvesterWave5:
 # 5. email_holehe.py  line 50
 #    _check_holehe_installed: proc.returncode == 0 → returns True
 # ---------------------------------------------------------------------------
+
 
 class TestEmailHolehesWave5:
     @pytest.mark.asyncio
@@ -140,10 +157,14 @@ class TestEmailHolehesWave5:
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
 
-        with patch("modules.crawlers.email_holehe.asyncio.create_subprocess_exec",
-                   new=AsyncMock(return_value=mock_proc)):
-            with patch("modules.crawlers.email_holehe.asyncio.wait_for",
-                       new=AsyncMock(return_value=(b"", b""))):
+        with patch(
+            "modules.crawlers.email_holehe.asyncio.create_subprocess_exec",
+            new=AsyncMock(return_value=mock_proc),
+        ):
+            with patch(
+                "modules.crawlers.email_holehe.asyncio.wait_for",
+                new=AsyncMock(return_value=(b"", b"")),
+            ):
                 result = await _check_holehe_installed()
         assert result is True
 
@@ -153,12 +174,12 @@ class TestEmailHolehesWave5:
 #    _is_latlon: regex matches but float() raises ValueError → returns None
 # ---------------------------------------------------------------------------
 
+
 class TestGeoOpenStreetMapWave5:
     def test_is_latlon_float_conversion_error_returns_none(self):
         from modules.crawlers.geo_openstreetmap import _is_latlon
 
         # Patch float to raise ValueError for a valid-looking lat/lon string
-        original_float = float
 
         def bad_float(x):
             raise ValueError("forced")
@@ -183,6 +204,7 @@ class TestGeoOpenStreetMapWave5:
 # 7. gov_epa.py  line 44
 #    _parse_facilities: non-dict item in items → continue (line 44)
 # ---------------------------------------------------------------------------
+
 
 class TestGovEpaWave5:
     def test_parse_facilities_skips_non_dict_items(self):
@@ -209,6 +231,7 @@ class TestGovEpaWave5:
 # 8. gov_fda.py  lines 121-122
 #    recalls_resp JSON parse raises exception → warning logged, recalls stays []
 # ---------------------------------------------------------------------------
+
 
 class TestGovFdaWave5:
     @pytest.mark.asyncio
@@ -246,6 +269,7 @@ class TestGovFdaWave5:
 #    _parse_brokers: non-dict hit item → continue (line 43)
 # ---------------------------------------------------------------------------
 
+
 class TestGovFinraWave5:
     def test_parse_brokers_skips_non_dict_hits(self):
         from modules.crawlers.gov_finra import _parse_brokers
@@ -268,6 +292,7 @@ class TestGovFinraWave5:
 #     _parse_series: non-dict item in seriess → continue (line 35)
 # ---------------------------------------------------------------------------
 
+
 class TestGovFredWave5:
     def test_parse_series_skips_non_dict_items(self):
         from modules.crawlers.gov_fred import _parse_series
@@ -281,6 +306,7 @@ class TestGovFredWave5:
 # 11. gov_grants.py  line 36
 #     _parse_opportunities: non-dict hit item → continue (line 36)
 # ---------------------------------------------------------------------------
+
 
 class TestGovGrantsWave5:
     def test_parse_opportunities_skips_non_dict_hits(self):
@@ -304,6 +330,7 @@ class TestGovGrantsWave5:
 #     _parse_licensees: data is dict with IndividualList key (break after match)
 # ---------------------------------------------------------------------------
 
+
 class TestGovNmlsWave5:
     def test_parse_licensees_dict_with_individual_list(self):
         from modules.crawlers.gov_nmls import _parse_licensees
@@ -326,6 +353,7 @@ class TestGovNmlsWave5:
 #     _parse_dol_inspections: line 41 (data is non-empty dict, no matching key →
 #     rows=[data]), line 46 (non-dict row → continue)
 # ---------------------------------------------------------------------------
+
 
 class TestGovOshaWave5:
     def test_parse_dol_inspections_dict_no_matching_key(self):
@@ -363,6 +391,7 @@ class TestGovOshaWave5:
 #     _parse_entities: non-dict item in entityData → continue (line 37)
 # ---------------------------------------------------------------------------
 
+
 class TestGovSamWave5:
     def test_parse_entities_skips_non_dict_items(self):
         from modules.crawlers.gov_sam import _parse_entities
@@ -386,6 +415,7 @@ class TestGovSamWave5:
 # 15. gov_uspto_patents.py  lines 118-119
 #     assignee JSON parse error → warning logged
 # ---------------------------------------------------------------------------
+
 
 class TestGovUsptoPatentsWave5:
     @pytest.mark.asyncio
@@ -425,6 +455,7 @@ class TestGovUsptoPatentsWave5:
 #     line 61: _parse_gdp — obs item is not a dict → continue
 # ---------------------------------------------------------------------------
 
+
 class TestGovWorldBankWave5:
     def test_parse_gdp_short_data_returns_empty(self):
         """line 57: len(data) < 2 → return []"""
@@ -447,7 +478,10 @@ class TestGovWorldBankWave5:
         from modules.crawlers.gov_worldbank import WorldBankCrawler
 
         crawler = WorldBankCrawler()
-        gdp_resp = _mock_resp(status=200, json_data=[{}, [{"date": "2022", "value": 1e12, "indicator": {"value": "GDP"}}]])
+        gdp_resp = _mock_resp(
+            status=200,
+            json_data=[{}, [{"date": "2022", "value": 1e12, "indicator": {"value": "GDP"}}]],
+        )
 
         with patch.object(crawler, "get", new=AsyncMock(return_value=gdp_resp)):
             result = await crawler.scrape("ZA")
@@ -458,6 +492,7 @@ class TestGovWorldBankWave5:
 # 17. mortgage_deed.py  lines 130-131
 #     _parse_publicrecordsnow_html: exception in parse → debug log, return records
 # ---------------------------------------------------------------------------
+
 
 class TestMortgageDeedWave5:
     def test_parse_html_exception_returns_empty_records(self):
@@ -480,6 +515,7 @@ class TestMortgageDeedWave5:
 # 18. mortgage_hmda.py  line 168
 #     scrape: zip_code branch → uses HMDA_ZIP_URL
 # ---------------------------------------------------------------------------
+
 
 class TestMortgageHmdaWave5:
     @pytest.mark.asyncio
@@ -510,6 +546,7 @@ class TestMortgageHmdaWave5:
 #     line 244: RSS feed root has no <channel> → items = root.findall("item")
 # ---------------------------------------------------------------------------
 
+
 class TestNewsSearchWave5:
     @pytest.mark.asyncio
     async def test_bing_articles_deduplication_new_url_added(self):
@@ -523,8 +560,12 @@ class TestNewsSearchWave5:
         bing_articles = [{"url": "https://bing.com/news/1", "title": "Bing story"}]
 
         with patch.object(crawler, "_scrape_ddg", new=AsyncMock(return_value=ddg_articles)):
-            with patch.object(crawler, "_scrape_google_news_rss", new=AsyncMock(return_value=gnews_articles)):
-                with patch.object(crawler, "_scrape_bing_rss", new=AsyncMock(return_value=bing_articles)):
+            with patch.object(
+                crawler, "_scrape_google_news_rss", new=AsyncMock(return_value=gnews_articles)
+            ):
+                with patch.object(
+                    crawler, "_scrape_bing_rss", new=AsyncMock(return_value=bing_articles)
+                ):
                     result = await crawler.scrape("test query")
         assert any(a["url"] == "https://bing.com/news/1" for a in result.data["articles"])
 
@@ -534,13 +575,13 @@ class TestNewsSearchWave5:
 
         xml = (
             '<?xml version="1.0"?>'
-            '<rss>'
-            '<item>'
-            '<title>Test Article</title>'
-            '<link>https://example.com/1</link>'
-            '<description>A snippet</description>'
-            '</item>'
-            '</rss>'
+            "<rss>"
+            "<item>"
+            "<title>Test Article</title>"
+            "<link>https://example.com/1</link>"
+            "<description>A snippet</description>"
+            "</item>"
+            "</rss>"
         )
         results = _parse_rss(xml, source="test")
         assert len(results) >= 1
@@ -551,6 +592,7 @@ class TestNewsSearchWave5:
 # 20. paste_pastebin.py  line 42
 #     _parse_pastebin_html: div has no <a> → continue (line 42)
 # ---------------------------------------------------------------------------
+
 
 class TestPastePastebinWave5:
     def test_parse_pastebin_html_div_without_anchor_skipped(self):
@@ -567,8 +609,8 @@ class TestPastePastebinWave5:
             '<div class="search-result">'
             '<a href="/abc123">My Paste</a>'
             '<span class="date">2024-01-01</span>'
-            '<p>Some preview</p>'
-            '</div>'
+            "<p>Some preview</p>"
+            "</div>"
         )
         result = _parse_pastebin_html(html)
         assert len(result) == 1
@@ -579,6 +621,7 @@ class TestPastePastebinWave5:
 # 21. people_thatsthem.py  lines 124-125
 #     _parse_persons: exception during HTML parsing → warning logged
 # ---------------------------------------------------------------------------
+
 
 class TestPeopleThatsThemWave5:
     def test_parse_persons_exception_logs_warning(self):
@@ -595,7 +638,7 @@ class TestPeopleThatsThemWave5:
             '<div class="card">'
             '<span class="name">John Smith</span>'
             '<span class="address">123 Main St</span>'
-            '</div>'
+            "</div>"
         )
         result = _parse_persons(html)
         # May return empty depending on selector; test just that it doesn't raise
@@ -606,6 +649,7 @@ class TestPeopleThatsThemWave5:
 # 22. people_usmarshals.py  line 84
 #     _parse_html_page: name too short (< 3) → continue (line 84)
 # ---------------------------------------------------------------------------
+
 
 class TestPeopleUSMarshalsWave5:
     def test_parse_html_page_short_name_skipped(self):
@@ -632,6 +676,7 @@ class TestPeopleUSMarshalsWave5:
 #     _parse_persons: phone element has no text → use href.replace("tel:", ...)
 # ---------------------------------------------------------------------------
 
+
 class TestPeopleZabaSearchWave5:
     def test_parse_persons_phone_from_href(self):
         from modules.crawlers.people_zabasearch import _parse_persons
@@ -640,7 +685,7 @@ class TestPeopleZabaSearchWave5:
             '<div class="person-search-result">'
             '<span class="name">Jane Doe</span>'
             '<a href="tel:5551234567" class="phone"></a>'
-            '</div>'
+            "</div>"
         )
         result = _parse_persons(html)
         if result:
@@ -660,6 +705,7 @@ class TestPeopleZabaSearchWave5:
 #     _parse_response: line 161 (row with < 2 cells → continue)
 #                      line 166 (cell value is empty → continue)
 # ---------------------------------------------------------------------------
+
 
 class TestPhoneFoneFinderWave5:
     def test_parse_response_row_fewer_than_2_cells_skipped(self):
@@ -696,18 +742,20 @@ class TestPhoneFoneFinderWave5:
 #     _parse_meta: follower_count int() conversion raises ValueError → pass
 # ---------------------------------------------------------------------------
 
+
 class TestPinterestWave5:
     def test_parse_meta_follower_count_int_conversion_error_ignored(self):
-        from modules.crawlers.pinterest import PinterestCrawler
         from bs4 import BeautifulSoup
+
+        from modules.crawlers.pinterest import PinterestCrawler
 
         crawler = PinterestCrawler()
         # "1,2,3" → replace(",","") → "123" → int("123") is fine; force a real bad value
         html = (
-            '<html><head>'
+            "<html><head>"
             '<meta property="og:title" content="Test User"/>'
             '<meta property="og:description" content="1abc,000 followers"/>'
-            '</head></html>'
+            "</head></html>"
         )
         soup = BeautifulSoup(html, "html.parser")
         data = crawler._parse_meta(soup, "testuser")
@@ -716,15 +764,16 @@ class TestPinterestWave5:
 
     def test_parse_meta_with_valid_follower_count(self):
         """Covers lines 75 (success path) for completeness."""
-        from modules.crawlers.pinterest import PinterestCrawler
         from bs4 import BeautifulSoup
+
+        from modules.crawlers.pinterest import PinterestCrawler
 
         crawler = PinterestCrawler()
         html = (
-            '<html><head>'
+            "<html><head>"
             '<meta property="og:title" content="Test User"/>'
             '<meta property="og:description" content="1,234 followers on Pinterest"/>'
-            '</head></html>'
+            "</head></html>"
         )
         soup = BeautifulSoup(html, "html.parser")
         data = crawler._parse_meta(soup, "testuser")
@@ -736,6 +785,7 @@ class TestPinterestWave5:
 #     _scrape_propertyshark: page.wait_for_load_state or page.content raises →
 #     exception handler returns blank dict
 # ---------------------------------------------------------------------------
+
 
 class TestPropertyCountyWave5:
     @pytest.mark.asyncio
@@ -754,6 +804,7 @@ class TestPropertyCountyWave5:
 #     line 215: _fetch_suggestions returns parsed result (success path inside try)
 #     lines 225-227: _fetch_property_page raises → returns {}
 # ---------------------------------------------------------------------------
+
 
 class TestPropertyZillowWave5:
     @pytest.mark.asyncio
@@ -800,6 +851,7 @@ class TestPropertyZillowWave5:
 #     specifically response is None → log error, return None)
 # ---------------------------------------------------------------------------
 
+
 class TestSanctionsEuWave5:
     @pytest.mark.asyncio
     async def test_get_csv_http_none_returns_none(self):
@@ -827,6 +879,7 @@ class TestSanctionsEuWave5:
 # 29. telegram.py  lines 113-115
 #     _probe_phone: Telethon is available and result.users[0] exists → return found=True
 # ---------------------------------------------------------------------------
+
 
 class TestTelegramWave5:
     @pytest.mark.asyncio
@@ -857,6 +910,7 @@ class TestTelegramWave5:
         mock_PhoneNumberInvalidError = Exception
 
         import sys
+
         # Inject fake telethon modules
         telethon_mod = MagicMock()
         telethon_mod.TelegramClient = mock_TelegramClient
@@ -867,19 +921,25 @@ class TestTelegramWave5:
         telethon_tl_functions_contacts = MagicMock()
         telethon_tl_functions_contacts.ResolvePhoneRequest = mock_ResolvePhoneRequest
 
-        with patch.dict(sys.modules, {
-            "telethon": telethon_mod,
-            "telethon.errors": telethon_errors,
-            "telethon.sessions": telethon_sessions,
-            "telethon.tl": MagicMock(),
-            "telethon.tl.functions": MagicMock(),
-            "telethon.tl.functions.contacts": telethon_tl_functions_contacts,
-        }):
-            with patch.dict("os.environ", {
-                "TELEGRAM_API_ID": "12345",
-                "TELEGRAM_API_HASH": "deadbeef",
-                "TELEGRAM_SESSION": "fakesession",
-            }):
+        with patch.dict(
+            sys.modules,
+            {
+                "telethon": telethon_mod,
+                "telethon.errors": telethon_errors,
+                "telethon.sessions": telethon_sessions,
+                "telethon.tl": MagicMock(),
+                "telethon.tl.functions": MagicMock(),
+                "telethon.tl.functions.contacts": telethon_tl_functions_contacts,
+            },
+        ):
+            with patch.dict(
+                "os.environ",
+                {
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "deadbeef",
+                    "TELEGRAM_SESSION": "fakesession",
+                },
+            ):
                 # client(ResolvePhoneRequest) must be awaitable returning mock_resolve_result
                 async def fake_client_call(*args, **kwargs):
                     return mock_resolve_result
@@ -909,11 +969,15 @@ class TestTelegramWave5:
     async def test_probe_phone_no_env_returns_not_configured(self):
         """Fallback when TELEGRAM_API_ID is not set."""
         import os
+
         from modules.crawlers.telegram import TelegramCrawler
 
         crawler = TelegramCrawler()
-        env_copy = {k: v for k, v in os.environ.items()
-                    if k not in ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION")}
+        env_copy = {
+            k: v
+            for k, v in os.environ.items()
+            if k not in ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION")
+        }
         with patch.dict("os.environ", env_copy, clear=True):
             result = await crawler._probe_phone("+15551234567")
         assert result.error == "telethon_not_configured"
@@ -924,16 +988,13 @@ class TestTelegramWave5:
 #     _parse_channel_messages: wrap div found but text_div is None → continue
 # ---------------------------------------------------------------------------
 
+
 class TestTelegramDarkWave5:
     def test_parse_channel_messages_no_text_div_skipped(self):
         from modules.crawlers.telegram_dark import _parse_channel_messages
 
         # A tgme_widget_message wrapper div WITHOUT the inner text div
-        html = (
-            '<div class="tgme_widget_message">'
-            '<span>Some other content</span>'
-            '</div>'
-        )
+        html = '<div class="tgme_widget_message"><span>Some other content</span></div>'
         result = _parse_channel_messages(html)
         assert result == []
 
@@ -945,8 +1006,8 @@ class TestTelegramDarkWave5:
             '<div class="tgme_widget_message_text">Hello World</div>'
             '<a class="tgme_widget_message_date" href="https://t.me/chan/1">'
             '<time datetime="2024-01-01T00:00:00Z">Jan 1</time>'
-            '</a>'
-            '</div>'
+            "</a>"
+            "</div>"
         )
         result = _parse_channel_messages(html)
         assert len(result) == 1
@@ -972,6 +1033,7 @@ class TestTelegramDarkWave5:
 # 31. vehicle_ownership.py  line 251
 #     _scrape_beenverified: vehicles_section.click succeeds → await page.wait_for_timeout
 # ---------------------------------------------------------------------------
+
 
 class TestVehicleOwnershipWave5:
     @pytest.mark.asyncio
@@ -1024,16 +1086,14 @@ class TestVehicleOwnershipWave5:
 #     _extract_whitepages_card: no location element → city="" state="" (lines 149-150)
 # ---------------------------------------------------------------------------
 
+
 class TestWhitepagesWave5:
     def test_extract_whitepages_card_no_location_element(self):
-        from modules.crawlers.whitepages import _extract_whitepages_card
         from bs4 import BeautifulSoup
 
-        html = (
-            '<div data-testid="person-card">'
-            '<h2 class="name">Jane Doe</h2>'
-            '</div>'
-        )
+        from modules.crawlers.whitepages import _extract_whitepages_card
+
+        html = '<div data-testid="person-card"><h2 class="name">Jane Doe</h2></div>'
         soup = BeautifulSoup(html, "html.parser")
         card = soup.find("div")
         result = _extract_whitepages_card(card)
@@ -1043,14 +1103,15 @@ class TestWhitepagesWave5:
 
     def test_extract_whitepages_card_location_without_comma(self):
         """Location element exists but no comma → city=loc_text, state=''."""
-        from modules.crawlers.whitepages import _extract_whitepages_card
         from bs4 import BeautifulSoup
+
+        from modules.crawlers.whitepages import _extract_whitepages_card
 
         html = (
             '<div data-testid="person-card">'
             '<h2 class="name">Jane Doe</h2>'
             '<span class="location">Austin</span>'
-            '</div>'
+            "</div>"
         )
         soup = BeautifulSoup(html, "html.parser")
         card = soup.find("div")
@@ -1061,14 +1122,15 @@ class TestWhitepagesWave5:
 
     def test_extract_whitepages_card_location_with_comma(self):
         """Location has comma → city and state split."""
-        from modules.crawlers.whitepages import _extract_whitepages_card
         from bs4 import BeautifulSoup
+
+        from modules.crawlers.whitepages import _extract_whitepages_card
 
         html = (
             '<div data-testid="person-card">'
             '<h2 class="name">Jane Doe</h2>'
             '<span class="location">Austin, TX</span>'
-            '</div>'
+            "</div>"
         )
         soup = BeautifulSoup(html, "html.parser")
         card = soup.find("div")

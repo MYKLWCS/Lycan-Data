@@ -67,11 +67,7 @@ def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
     found: list[tuple[str, str]] = []
 
     # Email
-    email = (
-        data.get("email")
-        or data.get("email_address")
-        or data.get("contact_email")
-    )
+    email = data.get("email") or data.get("email_address") or data.get("contact_email")
     if not email and isinstance(data.get("emails"), list) and data.get("emails"):
         email = data.get("emails")[0]
 

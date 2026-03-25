@@ -17,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -145,6 +144,7 @@ class TestHttpxCrawlerPost:
         # HttpxCrawler is abstract; create a minimal concrete subclass
         class _TestCrawler(HttpxCrawler):
             platform = "test"
+
             async def scrape(self, identifier):
                 pass
 
@@ -323,7 +323,9 @@ class TestCyberDnsHelpers:
         from modules.crawlers.cyber_dns import DnsCrawler
 
         crawler = DnsCrawler()
-        with patch("modules.crawlers.cyber_dns.socket.getaddrinfo", side_effect=socket.gaierror("NXDOMAIN")):
+        with patch(
+            "modules.crawlers.cyber_dns.socket.getaddrinfo", side_effect=socket.gaierror("NXDOMAIN")
+        ):
             result = crawler._resolve_a("nonexistent.invalid")
 
         assert result == []
@@ -333,7 +335,9 @@ class TestCyberDnsHelpers:
         from modules.crawlers.cyber_dns import DnsCrawler
 
         crawler = DnsCrawler()
-        with patch("modules.crawlers.cyber_dns.socket.getaddrinfo", side_effect=socket.gaierror("no AAAA")):
+        with patch(
+            "modules.crawlers.cyber_dns.socket.getaddrinfo", side_effect=socket.gaierror("no AAAA")
+        ):
             result = crawler._resolve_aaaa("nonexistent.invalid")
 
         assert result == []
@@ -343,7 +347,10 @@ class TestCyberDnsHelpers:
         from modules.crawlers.cyber_dns import DnsCrawler
 
         crawler = DnsCrawler()
-        with patch("modules.crawlers.cyber_dns.socket.gethostbyaddr", side_effect=socket.herror("host not found")):
+        with patch(
+            "modules.crawlers.cyber_dns.socket.gethostbyaddr",
+            side_effect=socket.herror("host not found"),
+        ):
             result = crawler._reverse_dns("1.2.3.4")
 
         assert result == ""

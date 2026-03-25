@@ -4,6 +4,7 @@ test_marketing_wave6.py — Coverage for api/routes/marketing.py
 Targets:
   lines 196-198: trigger_batch_tagging — exception path raises HTTPException 500
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -13,7 +14,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.routes.marketing import router
-
 
 # ---------------------------------------------------------------------------
 # App fixture

@@ -24,7 +24,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-
 # ---------------------------------------------------------------------------
 # Minimal app — avoids importing api.main (static files + DB lifespan)
 # ---------------------------------------------------------------------------

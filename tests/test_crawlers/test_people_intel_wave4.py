@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -43,6 +42,7 @@ class TestIntelXApiKey:
 
     def _make(self):
         from modules.crawlers.people_intelx import IntelXCrawler
+
         return IntelXCrawler()
 
     def test_api_key_present(self):
@@ -61,6 +61,7 @@ class TestIntelXScrape:
 
     def _make(self):
         from modules.crawlers.people_intelx import IntelXCrawler
+
         return IntelXCrawler()
 
     # Lines 41-49: no API key → found=False
@@ -139,7 +140,9 @@ class TestIntelXScrape:
         search_data = {"status": "ok"}  # no 'id' key
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
         ):
             result = await crawler.scrape("target@example.com")
         assert result.found is False
@@ -152,7 +155,9 @@ class TestIntelXScrape:
         search_data = {"id": ""}
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
         ):
             result = await crawler.scrape("target@example.com")
         assert result.found is False
@@ -165,7 +170,9 @@ class TestIntelXScrape:
         search_data = {"id": "abc-search-id-123"}
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
             patch.object(crawler, "get", new=AsyncMock(side_effect=TimeoutError("timeout"))),
         ):
             result = await crawler.scrape("target@example.com")
@@ -179,7 +186,9 @@ class TestIntelXScrape:
         search_data = {"id": "abc-search-id-123"}
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
             patch.object(crawler, "get", new=AsyncMock(return_value=None)),
         ):
             result = await crawler.scrape("target@example.com")
@@ -193,7 +202,9 @@ class TestIntelXScrape:
         search_data = {"id": "abc-search-id-123"}
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(503))),
         ):
             result = await crawler.scrape("target@example.com")
@@ -207,7 +218,9 @@ class TestIntelXScrape:
         search_data = {"id": "abc-search-id-123"}
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200))),
         ):
             result = await crawler.scrape("target@example.com")
@@ -222,8 +235,12 @@ class TestIntelXScrape:
         results_data = {"records": [], "total": 0}
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))
+            ),
         ):
             result = await crawler.scrape("nobody@example.com")
         assert result.found is False
@@ -254,8 +271,12 @@ class TestIntelXScrape:
         }
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))
+            ),
         ):
             result = await crawler.scrape("john.doe@example.com")
         assert result.found is True
@@ -273,8 +294,12 @@ class TestIntelXScrape:
         results_data = {"total": 0}  # no 'records' key
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=search_data))
+            ),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))
+            ),
         ):
             result = await crawler.scrape("nobody@example.com")
         assert result.found is False
@@ -288,8 +313,12 @@ class TestIntelXScrape:
         results_data = {"records": [], "total": 0}
         with (
             patch.dict("os.environ", {"INTELX_API_KEY": "k"}),
-            patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(201, json_data=search_data))),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))),
+            patch.object(
+                crawler, "post", new=AsyncMock(return_value=_mock_resp(201, json_data=search_data))
+            ),
+            patch.object(
+                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=results_data))
+            ),
         ):
             result = await crawler.scrape("target@example.com")
         # 201 is valid — should proceed past the status check
@@ -306,13 +335,16 @@ class TestIntelXScrape:
 class TestPhonebookScrape:
     def _make(self):
         from modules.crawlers.people_phonebook import PhonebookCrawler
+
         return PhonebookCrawler()
 
     # Lines 50-59: self.post() raises an exception
     @pytest.mark.asyncio
     async def test_scrape_post_raises(self):
         crawler = self._make()
-        with patch.object(crawler, "post", new=AsyncMock(side_effect=RuntimeError("connection refused"))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(side_effect=RuntimeError("connection refused"))
+        ):
             result = await crawler.scrape("John Smith")
         assert result.found is False
         assert result.error == "connection refused"
@@ -358,7 +390,9 @@ class TestPhonebookScrape:
     async def test_scrape_empty_hits(self):
         crawler = self._make()
         json_data = {"hits": []}
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("nobody@example.com")
         assert result.found is False
         assert result.data["emails"] == []
@@ -377,7 +411,9 @@ class TestPhonebookScrape:
                 {"value": "UPPER@Example.COM"},  # should be lowercased
             ]
         }
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("john smith")
         assert result.found is True
         assert "john.smith@example.com" in result.data["emails"]
@@ -396,7 +432,9 @@ class TestPhonebookScrape:
                 {"value": "http://sub.example.com"},
             ]
         }
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("example.com")
         assert result.found is True
         assert "https://example.com/page" in result.data["urls"]
@@ -414,7 +452,9 @@ class TestPhonebookScrape:
                 {"value": "vpn.example.com"},
             ]
         }
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("example.com")
         assert result.found is True
         assert "mail.example.com" in result.data["subdomains"]
@@ -433,7 +473,9 @@ class TestPhonebookScrape:
                 {"value": "api.example.com"},
             ]
         }
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("example.com")
         assert result.found is True
         assert len(result.data["emails"]) == 1
@@ -451,7 +493,9 @@ class TestPhonebookScrape:
                 "https://example.com",
             ]
         }
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("example.com")
         assert result.found is True
         # string items without "@" and "https" → subdomains or urls
@@ -462,7 +506,9 @@ class TestPhonebookScrape:
     async def test_scrape_response_is_list_not_dict(self):
         crawler = self._make()
         json_data = ["item1", "item2"]  # a list, not a dict
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("example.com")
         assert result.found is False
         assert result.data["emails"] == []
@@ -494,7 +540,9 @@ class TestPhonebookScrape:
                 {"value": "notavalidemail@"},
             ]
         }
-        with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))):
+        with patch.object(
+            crawler, "post", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
+        ):
             result = await crawler.scrape("example.com")
         # "notavalidemail@" has @ but fails email_re.match → goes to subdomains
         assert result.found is True

@@ -17,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ===========================================================================
 # ExactMatchDeduplicator — dragonfly branch
 # ===========================================================================
@@ -192,15 +191,21 @@ class TestScorePersonDedupImportError:
 
         # Patch the import inside the function
         import builtins
+
         real_import = builtins.__import__
 
         def _bad_import(name, *args, **kwargs):
-            if name in ("shared.models.address", "shared.models.identifier", "shared.models.person"):
+            if name in (
+                "shared.models.address",
+                "shared.models.identifier",
+                "shared.models.person",
+            ):
                 raise ImportError(f"mocked missing: {name}")
             return real_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=_bad_import):
             from modules.enrichers.deduplication import score_person_dedup
+
             result = await score_person_dedup(person_id, session)
 
         assert result == []
@@ -275,7 +280,7 @@ class TestScorePersonDedupBlocking:
         person = MagicMock()
         person.id = person_id
         person.full_name = "Jane Doe"
-        setattr(person, "dob", "1985-06-15")  # triggers birth-year blocking
+        person.dob = "1985-06-15"  # triggers birth-year blocking
 
         session = AsyncMock()
         call_count = [0]
@@ -318,7 +323,7 @@ class TestScorePersonDedupBlocking:
         person = MagicMock()
         person.id = person_id
         person.full_name = "John Doe"
-        setattr(person, "dob", None)
+        person.dob = None
 
         phone_ident = MagicMock()
         phone_ident.type = "phone"
@@ -443,13 +448,13 @@ class TestScorePersonDedupOrchestration:
         target = MagicMock()
         target.id = person_id
         target.full_name = "Jane Doe"
-        setattr(target, "dob", None)
+        target.dob = None
 
         # Candidate person
         candidate = MagicMock()
         candidate.id = candidate_id
         candidate.full_name = "Jane Doe"
-        setattr(candidate, "dob", None)
+        candidate.dob = None
 
         call_count = [0]
 
@@ -514,12 +519,12 @@ class TestScorePersonDedupOrchestration:
         target = MagicMock()
         target.id = person_id
         target.full_name = "Bob Builder"
-        setattr(target, "dob", None)
+        target.dob = None
 
         candidate = MagicMock()
         candidate.id = candidate_id
         candidate.full_name = "Bob Builder"
-        setattr(candidate, "dob", None)
+        candidate.dob = None
 
         # Build identifier mocks covering phone, email, and other types
         def _mk_ident(pid, itype, val):
@@ -591,12 +596,12 @@ class TestScorePersonDedupOrchestration:
         target = MagicMock()
         target.id = person_id
         target.full_name = "Carol City"
-        setattr(target, "dob", None)
+        target.dob = None
 
         candidate = MagicMock()
         candidate.id = candidate_id
         candidate.full_name = "Carol City"
-        setattr(candidate, "dob", None)
+        candidate.dob = None
 
         addr = MagicMock()
         addr.person_id = candidate_id

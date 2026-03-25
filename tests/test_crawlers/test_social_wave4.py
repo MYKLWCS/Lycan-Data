@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -257,9 +256,7 @@ class TestTwitchCrawler:
         with patch("modules.crawlers.social_twitch.settings") as mock_settings:
             mock_settings.twitch_client_id = "cid"
             mock_settings.twitch_client_secret = "csec"
-            with patch.object(
-                crawler, "post", new=AsyncMock(return_value=_mock_resp(500))
-            ):
+            with patch.object(crawler, "post", new=AsyncMock(return_value=_mock_resp(500))):
                 result = await crawler.scrape("testuser")
 
         assert result.data.get("error") == "auth_failed"
@@ -387,9 +384,7 @@ class TestRedditCrawler:
         posts_resp = _mock_resp(200)
         posts_resp.json.side_effect = ValueError("bad posts json")
 
-        with patch.object(
-            crawler, "get", new=AsyncMock(side_effect=[about_resp, posts_resp])
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=[about_resp, posts_resp])):
             result = await crawler.scrape("someuser")
 
         assert result.found is True
@@ -433,6 +428,7 @@ class TestInstagramParseCount:
         """Line 85: phone_match branch — ensures phone extracted from og_desc."""
         # This is a unit test on _extract_profile behaviour via mock page
         import asyncio
+
         from modules.crawlers.instagram import InstagramCrawler
 
         crawler = InstagramCrawler.__new__(InstagramCrawler)
@@ -457,6 +453,7 @@ class TestInstagramParseCount:
     def test_parse_count_email_in_bio(self):
         """Line 82 region: email extraction from og_desc."""
         import asyncio
+
         from modules.crawlers.instagram import InstagramCrawler
 
         crawler = InstagramCrawler.__new__(InstagramCrawler)
@@ -473,14 +470,13 @@ class TestInstagramParseCount:
         page.title = AsyncMock(return_value="Jane (@jane) • Instagram photos and videos")
         page.content = AsyncMock(return_value="<html></html>")
 
-        result = asyncio.get_event_loop().run_until_complete(
-            crawler._extract_profile(page, "jane")
-        )
+        result = asyncio.get_event_loop().run_until_complete(crawler._extract_profile(page, "jane"))
         assert result.get("email") == "hello@example.com"
 
     def test_extract_profile_exception_returns_partial(self):
         """Lines 90-91: exception in _extract_profile is caught, returns partial data."""
         import asyncio
+
         from modules.crawlers.instagram import InstagramCrawler
 
         crawler = InstagramCrawler.__new__(InstagramCrawler)
@@ -514,6 +510,7 @@ class TestPinterestCrawler:
     def test_parse_meta_follower_count_invalid(self):
         """Lines 76-77: follower count int() raises ValueError — silently ignored."""
         from bs4 import BeautifulSoup
+
         from modules.crawlers.pinterest import PinterestCrawler
 
         crawler = PinterestCrawler.__new__(PinterestCrawler)
@@ -542,6 +539,7 @@ class TestPinterestCrawler:
     def test_parse_meta_follower_count_valid(self):
         """Lines 71-75: valid follower count is parsed correctly."""
         from bs4 import BeautifulSoup
+
         from modules.crawlers.pinterest import PinterestCrawler
 
         crawler = PinterestCrawler.__new__(PinterestCrawler)
@@ -564,6 +562,7 @@ class TestFacebookExtractMobile:
     def test_extract_mobile_exception_caught(self):
         """Lines 71-72: exception in _extract_mobile is caught, returns partial data."""
         import asyncio
+
         from modules.crawlers.facebook import FacebookCrawler
 
         crawler = FacebookCrawler.__new__(FacebookCrawler)
@@ -582,6 +581,7 @@ class TestFacebookExtractMobile:
     def test_extract_mobile_location_parsed(self):
         """Line 68-69: location extracted from JSON-like content."""
         import asyncio
+
         from modules.crawlers.facebook import FacebookCrawler
 
         crawler = FacebookCrawler.__new__(FacebookCrawler)
@@ -661,6 +661,7 @@ class TestSnapchatCrawler:
     def test_parse_meta_avatar_and_bio(self):
         """Lines 76-83: avatar and bio are populated from OG tags."""
         from bs4 import BeautifulSoup
+
         from modules.crawlers.snapchat import SnapchatCrawler
 
         crawler = SnapchatCrawler.__new__(SnapchatCrawler)
@@ -685,6 +686,7 @@ class TestLinkedInCrawler:
     def test_extract_exception_caught(self):
         """Lines 83-84: exception in _extract is caught, returns partial data."""
         import asyncio
+
         from modules.crawlers.linkedin import LinkedInCrawler
 
         crawler = LinkedInCrawler.__new__(LinkedInCrawler)
@@ -696,15 +698,14 @@ class TestLinkedInCrawler:
         page.query_selector = AsyncMock(return_value=None)
         page.url = "https://www.linkedin.com/in/testuser/"
 
-        result = asyncio.get_event_loop().run_until_complete(
-            crawler._extract(page, "testuser")
-        )
+        result = asyncio.get_event_loop().run_until_complete(crawler._extract(page, "testuser"))
         assert result["handle"] == "testuser"
 
     # --- lines 78-81: connection count parsed from .top-card__connections-count ---
     def test_extract_connections_count(self):
         """Lines 79-81: connections count extracted if element exists."""
         import asyncio
+
         from modules.crawlers.linkedin import LinkedInCrawler
 
         crawler = LinkedInCrawler.__new__(LinkedInCrawler)
@@ -721,9 +722,7 @@ class TestLinkedInCrawler:
         )
         page.url = "https://www.linkedin.com/in/johndoe/"
 
-        result = asyncio.get_event_loop().run_until_complete(
-            crawler._extract(page, "johndoe")
-        )
+        result = asyncio.get_event_loop().run_until_complete(crawler._extract(page, "johndoe"))
         assert result.get("connections") == "500+ connections"
 
 
@@ -749,6 +748,7 @@ class TestTwitterCrawler:
     def test_parse_profile_location_and_join_date(self):
         """Lines 93-99: location and joined date populated from soup."""
         from bs4 import BeautifulSoup
+
         from modules.crawlers.twitter import TwitterCrawler
 
         crawler = TwitterCrawler.__new__(TwitterCrawler)

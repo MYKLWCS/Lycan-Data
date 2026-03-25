@@ -1,17 +1,19 @@
 """Tests for DedupReview model and Person.merged_into field."""
 
 import uuid
+
 import pytest
+
+import shared.models.address  # noqa: F401
 
 # Import all models so SQLAlchemy can resolve string-based relationships
 import shared.models.criminal  # noqa: F401
 import shared.models.identifier  # noqa: F401
-import shared.models.social_profile  # noqa: F401
-import shared.models.address  # noqa: F401
 import shared.models.identifier_history  # noqa: F401
 import shared.models.identity_document  # noqa: F401
-from shared.models.person import Person
+import shared.models.social_profile  # noqa: F401
 from shared.models.dedup_review import DedupReview
+from shared.models.person import Person
 
 
 def test_person_has_merged_into_field():

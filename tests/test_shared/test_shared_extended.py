@@ -30,13 +30,12 @@ import pytest
 # ---------------------------------------------------------------------------
 # shared/events.py
 # ---------------------------------------------------------------------------
-
 from shared.events import (
     EventBus,
     _call,
+    _deserialize,
     _json_default,
     _serialize,
-    _deserialize,
     get_event_bus,
 )
 
@@ -367,8 +366,8 @@ async def test_get_db_rolls_back_on_exception():
 # shared/tor.py — uncovered lines
 # ---------------------------------------------------------------------------
 
-from shared.tor import TorEndpoint, TorInstance, TorManager
 from shared.config import settings as tor_settings
+from shared.tor import TorEndpoint, TorInstance, TorManager
 
 
 # Lines 112-115 — _connect: successful controller connection sets is_connected=True
@@ -580,13 +579,13 @@ async def test_connect_falls_back_to_socks_when_control_fails():
 # shared/utils/phone.py — uncovered lines
 # ---------------------------------------------------------------------------
 
+from shared.constants import LineType
 from shared.utils.phone import (
     get_country_code,
     get_line_type,
-    normalize_phone,
     is_valid_phone,
+    normalize_phone,
 )
-from shared.constants import LineType
 
 
 # Line 20 — normalize_phone: valid number that fails is_valid_number returns None
@@ -638,7 +637,7 @@ def test_get_country_code_parseable_invalid_returns_none():
 # shared/utils/scoring.py — uncovered lines
 # ---------------------------------------------------------------------------
 
-from shared.utils.scoring import clamp, weighted_sum, log_scale, tier_from_score
+from shared.utils.scoring import clamp, log_scale, tier_from_score, weighted_sum
 
 
 # Lines 18-22 — weighted_sum: zero total_weight returns 0.0
@@ -679,7 +678,7 @@ def test_tier_from_score_below_all_thresholds():
 # shared/utils/email.py — uncovered lines
 # ---------------------------------------------------------------------------
 
-from shared.utils.email import normalize_email, extract_domain, is_valid_email
+from shared.utils.email import extract_domain, is_valid_email, normalize_email
 
 
 # Line 16 — normalize_email: empty string returns None
@@ -743,9 +742,7 @@ def make_cb_with_redis(**kwargs):
 # Lines 121-123 — is_open: HALF_OPEN still within timeout returns False (probe allowed)
 @pytest.mark.asyncio
 async def test_half_open_within_timeout_allows_probe():
-    cb, redis = make_cb_with_redis(
-        failure_threshold=1, open_duration_s=1, half_open_timeout_s=60
-    )
+    cb, redis = make_cb_with_redis(failure_threshold=1, open_duration_s=1, half_open_timeout_s=60)
     key = "svc.probe_allowed"
 
     # Force HALF_OPEN state with a recent half_opened_at
@@ -776,9 +773,7 @@ async def test_get_returns_empty_dict_on_redis_error():
 @pytest.mark.asyncio
 async def test_get_decodes_bytes_keys_and_values():
     mock_redis = AsyncMock()
-    mock_redis.hgetall = AsyncMock(
-        return_value={b"state": b"OPEN", b"failures": b"3"}
-    )
+    mock_redis.hgetall = AsyncMock(return_value={b"state": b"OPEN", b"failures": b"3"})
     cb = CircuitBreaker(mock_redis)
 
     result = await cb._get("some.key")
@@ -834,7 +829,13 @@ def test_get_circuit_breaker_lazy_init():
 # shared/rate_limiter.py — uncovered lines
 # ---------------------------------------------------------------------------
 
-from shared.rate_limiter import RateLimiter, RateLimitSpec, _spec_for, get_rate_limiter, init_rate_limiter
+from shared.rate_limiter import (
+    RateLimiter,
+    RateLimitSpec,
+    _spec_for,
+    get_rate_limiter,
+    init_rate_limiter,
+)
 
 
 class FakeRLRedis:
@@ -959,7 +960,7 @@ def test_get_rate_limiter_lazy_init():
 # shared/freshness.py — uncovered lines
 # ---------------------------------------------------------------------------
 
-from shared.freshness import compute_freshness, is_stale, hours_until_stale, get_half_life
+from shared.freshness import compute_freshness, get_half_life, hours_until_stale, is_stale
 
 
 # Line 37 — compute_freshness: naive datetime (no tzinfo) is treated as UTC

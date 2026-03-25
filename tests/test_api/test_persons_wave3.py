@@ -18,7 +18,7 @@ Targets:
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,7 +26,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.deps import db_session
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -113,7 +112,7 @@ class TestModelToDict:
         """Line 36: objects with .isoformat() are called."""
         from api.routes.persons import _model_to_dict
 
-        dt = datetime(2020, 1, 15, tzinfo=timezone.utc)
+        dt = datetime(2020, 1, 15, tzinfo=UTC)
         obj = self._make_mock_obj({"created_at": dt})
         result = _model_to_dict(obj)
         assert result["created_at"] == dt.isoformat()
@@ -228,11 +227,23 @@ class TestGetReportBurnerPath:
         person.full_name = "Test User"
         person.date_of_birth = None
         for attr in (
-            "gender", "nationality", "primary_language", "bio", "profile_image_url",
-            "relationship_score", "behavioural_risk", "darkweb_exposure",
-            "default_risk_score", "source_reliability", "freshness_score",
-            "corroboration_count", "composite_quality", "verification_status",
-            "conflict_flag", "created_at", "updated_at",
+            "gender",
+            "nationality",
+            "primary_language",
+            "bio",
+            "profile_image_url",
+            "relationship_score",
+            "behavioural_risk",
+            "darkweb_exposure",
+            "default_risk_score",
+            "source_reliability",
+            "freshness_score",
+            "corroboration_count",
+            "composite_quality",
+            "verification_status",
+            "conflict_flag",
+            "created_at",
+            "updated_at",
         ):
             setattr(person, attr, None)
 
@@ -549,9 +560,7 @@ class TestMergePersonsEventBusFailure:
                     "shared.models.darkweb": MagicMock(DarkwebMention=MagicMock()),
                     "shared.models.employment": MagicMock(EmploymentHistory=MagicMock()),
                     "shared.models.watchlist": MagicMock(WatchlistMatch=MagicMock()),
-                    "shared.events": MagicMock(
-                        event_bus=MagicMock(enqueue=failing_enqueue)
-                    ),
+                    "shared.events": MagicMock(event_bus=MagicMock(enqueue=failing_enqueue)),
                 },
             ),
         ):
@@ -592,10 +601,10 @@ class TestGrowRegionMissingLocation:
                 "sys.modules",
                 {
                     "modules.crawlers.registry": MagicMock(CRAWLER_REGISTRY={}),
-                    "modules.dispatcher.dispatcher": MagicMock(
-                        dispatch_job=AsyncMock()
+                    "modules.dispatcher.dispatcher": MagicMock(dispatch_job=AsyncMock()),
+                    "shared.constants": MagicMock(
+                        CrawlStatus=MagicMock(PENDING=MagicMock(value="pending"))
                     ),
-                    "shared.constants": MagicMock(CrawlStatus=MagicMock(PENDING=MagicMock(value="pending"))),
                     "shared.models.crawl": MagicMock(CrawlJob=MagicMock()),
                 },
             ),
@@ -621,6 +630,7 @@ class TestGetReportOrderByBranch:
         model so that select() doesn't reject it.  Ensures line 356 is hit.
         """
         from sqlalchemy import select
+
         from shared.models.identifier import Identifier
 
         uid = uuid.uuid4()
@@ -697,7 +707,7 @@ class TestMergePersonsDirect:
     @pytest.mark.asyncio
     async def test_reassign_exception_swallowed_direct(self):
         """Lines 604-606: exception during reassign loop is silently caught."""
-        from api.routes.persons import merge_persons, MergeRequest
+        from api.routes.persons import MergeRequest, merge_persons
 
         can_id, dup_id, canonical, duplicate = self._make_person_pair()
         # calls 2, 5, 8 will raise — exercising the except: pass on lines 604-606
@@ -713,7 +723,7 @@ class TestMergePersonsDirect:
     @pytest.mark.asyncio
     async def test_event_bus_failure_swallowed_direct(self):
         """Lines 624-625: event_bus.enqueue raising is silently caught."""
-        from api.routes.persons import merge_persons, MergeRequest
+        from api.routes.persons import MergeRequest, merge_persons
 
         can_id, dup_id, canonical, duplicate = self._make_person_pair()
         session = self._make_session(canonical, duplicate)
@@ -735,7 +745,8 @@ class TestGrowRegionDirect:
     async def test_no_location_raises_400_direct(self):
         """Directly call grow_region with no location — HTTPException 400."""
         from fastapi import HTTPException
-        from api.routes.persons import grow_region, RegionGrowRequest
+
+        from api.routes.persons import RegionGrowRequest, grow_region
 
         session = AsyncMock()
         req = RegionGrowRequest()  # city=None, state=None, country=None
@@ -748,7 +759,7 @@ class TestGrowRegionDirect:
     @pytest.mark.asyncio
     async def test_state_only_does_not_raise_400_direct(self):
         """Providing state alone passes the 400 guard (line 668 not reached)."""
-        from api.routes.persons import grow_region, RegionGrowRequest
+        from api.routes.persons import RegionGrowRequest, grow_region
         from modules.crawlers.registry import CRAWLER_REGISTRY
         from shared.constants import CrawlStatus
         from shared.models.crawl import CrawlJob
@@ -802,11 +813,23 @@ class TestGetReportBurnerAndPhoneMetaDirect:
         person.full_name = "Direct Test"
         person.date_of_birth = None
         for attr in (
-            "gender", "nationality", "primary_language", "bio",
-            "profile_image_url", "relationship_score", "behavioural_risk",
-            "darkweb_exposure", "default_risk_score", "source_reliability",
-            "freshness_score", "corroboration_count", "composite_quality",
-            "verification_status", "conflict_flag", "created_at", "updated_at",
+            "gender",
+            "nationality",
+            "primary_language",
+            "bio",
+            "profile_image_url",
+            "relationship_score",
+            "behavioural_risk",
+            "darkweb_exposure",
+            "default_risk_score",
+            "source_reliability",
+            "freshness_score",
+            "corroboration_count",
+            "composite_quality",
+            "verification_status",
+            "conflict_flag",
+            "created_at",
+            "updated_at",
         ):
             setattr(person, attr, None)
 
@@ -897,11 +920,23 @@ class TestGetReportNoBurnerBranch:
         person.full_name = "No Idents"
         person.date_of_birth = None
         for attr in (
-            "gender", "nationality", "primary_language", "bio",
-            "profile_image_url", "relationship_score", "behavioural_risk",
-            "darkweb_exposure", "default_risk_score", "source_reliability",
-            "freshness_score", "corroboration_count", "composite_quality",
-            "verification_status", "conflict_flag", "created_at", "updated_at",
+            "gender",
+            "nationality",
+            "primary_language",
+            "bio",
+            "profile_image_url",
+            "relationship_score",
+            "behavioural_risk",
+            "darkweb_exposure",
+            "default_risk_score",
+            "source_reliability",
+            "freshness_score",
+            "corroboration_count",
+            "composite_quality",
+            "verification_status",
+            "conflict_flag",
+            "created_at",
+            "updated_at",
         ):
             setattr(person, attr, None)
 
@@ -941,6 +976,7 @@ class TestGetReportOrderByBranchInClosure:
         using a real SQLAlchemy model to confirm line 356's code pattern works.
         """
         from sqlalchemy import select
+
         from shared.models.address import Address
 
         uid = uuid.uuid4()

@@ -16,10 +16,7 @@ from modules.crawlers.result import CrawlerResult
 
 logger = logging.getLogger(__name__)
 
-_GDELT_URL = (
-    "https://api.gdeltproject.org/api/v2/doc/doc"
-    "?query={query}&mode=artlist&format=json"
-)
+_GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc?query={query}&mode=artlist&format=json"
 
 
 @register("gdelt_mentions")

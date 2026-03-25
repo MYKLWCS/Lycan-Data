@@ -21,7 +21,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -176,9 +175,7 @@ class TestLifespanExceptionPaths:
 
             meili_mod = MagicMock()
             meili_mod.meili_indexer = MagicMock()
-            meili_mod.meili_indexer.setup_index = AsyncMock(
-                side_effect=Exception("meili down")
-            )
+            meili_mod.meili_indexer.setup_index = AsyncMock(side_effect=Exception("meili down"))
 
             cb_mod = MagicMock()
             rl_mod = MagicMock()

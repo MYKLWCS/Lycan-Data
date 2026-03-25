@@ -66,10 +66,12 @@ class SpokeoCrawler(HttpxCrawler):
         for card in cards[:10]:
             name_tag = card.find(class_="name") or card.find("h3") or card.find("h4")
             addr_tag = card.find(class_="address") or card.find(class_="location")
-            results.append({
-                "name": name_tag.get_text(strip=True) if name_tag else "",
-                "address": addr_tag.get_text(strip=True) if addr_tag else "",
-            })
+            results.append(
+                {
+                    "name": name_tag.get_text(strip=True) if name_tag else "",
+                    "address": addr_tag.get_text(strip=True) if addr_tag else "",
+                }
+            )
 
         return CrawlerResult(
             platform=self.platform,

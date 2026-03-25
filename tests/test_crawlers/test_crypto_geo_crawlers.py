@@ -44,13 +44,17 @@ import modules.crawlers.obituary_search  # noqa: F401
 import modules.crawlers.reddit  # noqa: F401
 from modules.crawlers.crypto_bscscan import (
     CryptoBscscanCrawler,
-    _parse_transactions as bsc_parse_txs,
     _wei_to_bnb,
+)
+from modules.crawlers.crypto_bscscan import (
+    _parse_transactions as bsc_parse_txs,
 )
 from modules.crawlers.crypto_polygonscan import (
     CryptoPolygonscanCrawler,
-    _parse_transactions as poly_parse_txs,
     _wei_to_matic,
+)
+from modules.crawlers.crypto_polygonscan import (
+    _parse_transactions as poly_parse_txs,
 )
 from modules.crawlers.db_writer import upsert_social_profile
 from modules.crawlers.email_hibp import EmailHIBPCrawler, _parse_breaches
@@ -91,7 +95,6 @@ from modules.crawlers.reddit import RedditCrawler
 from modules.crawlers.registry import is_registered
 from modules.crawlers.result import CrawlerResult
 from shared.tor import TorInstance
-
 
 # ===========================================================================
 # Shared mock helper
@@ -288,6 +291,7 @@ async def test_httpx_rate_limiter_failure_does_not_block():
 # db_writer — upsert_social_profile
 # ===========================================================================
 
+
 def _make_db_writer_mocks(existing_profile=None):
     """
     Return (mock_session, mock_select, mock_SocialProfile, mock_profile) with
@@ -297,7 +301,7 @@ def _make_db_writer_mocks(existing_profile=None):
     mock_profile.platform = "reddit"
 
     mock_select_result = MagicMock()  # result of select(...)
-    mock_where_result = MagicMock()   # result of .where(...)
+    mock_where_result = MagicMock()  # result of .where(...)
     mock_select_result.where.return_value = mock_where_result
 
     mock_execute_result = MagicMock()
@@ -334,7 +338,7 @@ async def test_upsert_social_profile_insert_new():
         patch("modules.crawlers.db_writer.SocialProfile", return_value=mock_profile),
         patch("modules.crawlers.db_writer.apply_quality_to_model", return_value=None),
     ):
-        profile = await upsert_social_profile(mock_session, result)
+        await upsert_social_profile(mock_session, result)
 
     mock_session.add.assert_called_once()
     mock_session.flush.assert_called_once()
@@ -444,7 +448,10 @@ def test_bsc_parse_transactions_fields():
 
 
 def test_bsc_parse_transactions_limits_to_10():
-    big_list = [{"hash": f"0x{i}", "from": "", "to": "", "value": 0, "timeStamp": "", "isError": "0"} for i in range(20)]
+    big_list = [
+        {"hash": f"0x{i}", "from": "", "to": "", "value": 0, "timeStamp": "", "isError": "0"}
+        for i in range(20)
+    ]
     result = bsc_parse_txs(big_list)
     assert len(result) == 10
 
@@ -724,9 +731,7 @@ async def test_news_archive_scrape_found():
 
         return _get
 
-    with patch.object(
-        crawler, "get", new=make_get(_CLOSEST_JSON, _CDX_ROWS, _CDX_COUNT_INT)
-    ):
+    with patch.object(crawler, "get", new=make_get(_CLOSEST_JSON, _CDX_ROWS, _CDX_COUNT_INT)):
         result = await crawler.scrape("example.com")
 
     assert result.found is True
@@ -1187,7 +1192,7 @@ def test_extract_names_from_segment_basic():
 
 
 def test_extract_names_from_segment_limits_to_10():
-    segment = ", ".join([f"Person{chr(65+i)} Smith" for i in range(15)])
+    segment = ", ".join([f"Person{chr(65 + i)} Smith" for i in range(15)])
     names = _extract_names_from_segment(segment)
     assert len(names) <= 10
 
@@ -1282,8 +1287,18 @@ def test_obituary_search_uses_tor():
 # ===========================================================================
 
 _HIBP_BREACHES = [
-    {"Name": "Adobe", "Domain": "adobe.com", "BreachDate": "2013-10-04", "DataClasses": ["Email", "Password"]},
-    {"Name": "LinkedIn", "Domain": "linkedin.com", "BreachDate": "2012-05-05", "DataClasses": ["Email", "Password", "Username"]},
+    {
+        "Name": "Adobe",
+        "Domain": "adobe.com",
+        "BreachDate": "2013-10-04",
+        "DataClasses": ["Email", "Password"],
+    },
+    {
+        "Name": "LinkedIn",
+        "Domain": "linkedin.com",
+        "BreachDate": "2012-05-05",
+        "DataClasses": ["Email", "Password", "Username"],
+    },
 ]
 
 
@@ -1390,9 +1405,8 @@ def test_hibp_lowercases_email():
         return _mock_resp(404)
 
     import asyncio as _asyncio
-    _asyncio.get_event_loop().run_until_complete(
-        _run_with_patch(crawler, _get, "TEST@EXAMPLE.COM")
-    )
+
+    _asyncio.get_event_loop().run_until_complete(_run_with_patch(crawler, _get, "TEST@EXAMPLE.COM"))
     assert "test@example.com" in captured_urls[0]
 
 
@@ -1668,7 +1682,9 @@ def test_github_registered():
 @pytest.mark.asyncio
 async def test_github_scrape_success():
     crawler = GitHubCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, _GITHUB_USER_JSON))):
+    with patch.object(
+        crawler, "get", new=AsyncMock(return_value=_mock_resp(200, _GITHUB_USER_JSON))
+    ):
         result = await crawler.scrape("janedev")
 
     assert result.found is True

@@ -15,7 +15,6 @@ import pytest
 
 from modules.crawlers.registry import CRAWLER_REGISTRY
 
-
 # ---------------------------------------------------------------------------
 # _auto_detect_type — unit tests (pure function, no I/O)
 # ---------------------------------------------------------------------------

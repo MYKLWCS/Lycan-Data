@@ -11,6 +11,7 @@ Targets lines not yet exercised:
   149: flush+commit path
   153-155: flush raises → rollback
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -124,7 +125,9 @@ class TestPersistNewProfile:
     @pytest.mark.asyncio
     async def test_persist_creates_new_profile(self):
         """No existing profile → new BehaviouralProfile added (lines 138-140)."""
-        job = _make_job(platform="reddit", result_data={"recent_posts": [{"subreddit": "investing"}]})
+        job = _make_job(
+            platform="reddit", result_data={"recent_posts": [{"subreddit": "investing"}]}
+        )
         session = _make_session(jobs=[job], profile=None)  # profile=None → new row
 
         crawler = InterestsExtractorCrawler()

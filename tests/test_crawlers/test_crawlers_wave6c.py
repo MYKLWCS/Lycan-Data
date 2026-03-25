@@ -4,6 +4,7 @@ test_crawlers_wave6c.py — Correct-path coverage for lines missed by wave5 test
 Each section targets the HAPPY PATH (success branch) that wave5 incorrectly
 covered with only the failure/exception branch.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +13,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -20,6 +20,7 @@ import pytest
 
 def _make_async_context(page_mock):
     """Return an async context manager that yields page_mock."""
+
     @asynccontextmanager
     async def _ctx(*args, **kwargs):
         yield page_mock
@@ -45,10 +46,7 @@ class TestCourtStateHappyPath:
         mock_page = AsyncMock()
         mock_page.wait_for_load_state = AsyncMock()
         mock_page.content = AsyncMock(
-            return_value=(
-                "<table><tr><th>Case</th></tr>"
-                "<tr><td>2024-TX-001</td></tr></table>"
-            )
+            return_value=("<table><tr><th>Case</th></tr><tr><td>2024-TX-001</td></tr></table>")
         )
 
         with patch.object(crawler, "page", new=_make_async_context(mock_page)):
@@ -109,9 +107,7 @@ class TestPropertyCountyHappyPath:
 
         mock_page = AsyncMock()
         mock_page.wait_for_load_state = AsyncMock()
-        mock_page.content = AsyncMock(
-            return_value="<html><body>Owner: John Doe</body></html>"
-        )
+        mock_page.content = AsyncMock(return_value="<html><body>Owner: John Doe</body></html>")
 
         with patch.object(crawler, "page", new=_make_async_context(mock_page)):
             result = await crawler._scrape_propertyshark("https://www.propertyshark.com/foo")
@@ -164,12 +160,17 @@ class TestSanctionsEuCacheHit:
         csv_content = "entity_name,country\nEvil Corp,RU\n"
 
         with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=True):
-            with patch("builtins.open", MagicMock(
-                return_value=MagicMock(
-                    __enter__=MagicMock(return_value=MagicMock(read=MagicMock(return_value=csv_content))),
-                    __exit__=MagicMock(return_value=False),
-                )
-            )):
+            with patch(
+                "builtins.open",
+                MagicMock(
+                    return_value=MagicMock(
+                        __enter__=MagicMock(
+                            return_value=MagicMock(read=MagicMock(return_value=csv_content))
+                        ),
+                        __exit__=MagicMock(return_value=False),
+                    )
+                ),
+            ):
                 result = await crawler._get_csv()
 
         assert result == csv_content
@@ -193,7 +194,7 @@ class TestTelegramProbePhoneFoundPath:
 
         from modules.crawlers.telegram import TelegramCrawler
 
-        crawler = TelegramCrawler()
+        TelegramCrawler()
 
         # Build minimal user mock
         mock_user = MagicMock()

@@ -22,7 +22,6 @@ import pytest
 
 from modules.graph.entity_graph import EntityGraphBuilder
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -69,15 +68,17 @@ async def test_build_person_graph_depth2_empty_frontier_early_break():
 
     # depth=2 means 2 iterations. First iteration: no relationships → frontier empty.
     # Second iteration starts but frontier=empty → hits line 77 (break).
-    session = _make_session([
-        _scalars_result([person]),  # persons at hop 1
-        _empty(),  # addresses
-        _empty(),  # identifiers
-        _empty(),  # employment
-        _empty(),  # social profiles
-        _empty(),  # relationships — no neighbours, frontier will be empty
-        # hop 2 never fires because frontier is empty — line 77 breaks the loop
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),  # persons at hop 1
+            _empty(),  # addresses
+            _empty(),  # identifiers
+            _empty(),  # employment
+            _empty(),  # social profiles
+            _empty(),  # relationships — no neighbours, frontier will be empty
+            # hop 2 never fires because frontier is empty — line 77 breaks the loop
+        ]
+    )
 
     graph = await builder.build_person_graph(str(person_id), session, depth=2)
     assert any(n["id"] == str(person_id) for n in graph["nodes"])
@@ -99,18 +100,20 @@ async def test_build_person_graph_social_profile_no_handle_uses_platform_user_id
     sp.id = uuid.uuid4()
     sp.person_id = person_id
     sp.platform = "twitter"
-    sp.handle = None          # falsy — triggers the or branch
+    sp.handle = None  # falsy — triggers the or branch
     sp.platform_user_id = "uid_12345"
 
     builder = EntityGraphBuilder()
-    session = _make_session([
-        _scalars_result([person]),
-        _empty(),               # addresses
-        _empty(),               # identifiers
-        _empty(),               # employment
-        _scalars_result([sp]),  # social profiles
-        _empty(),               # relationships
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _empty(),  # addresses
+            _empty(),  # identifiers
+            _empty(),  # employment
+            _scalars_result([sp]),  # social profiles
+            _empty(),  # relationships
+        ]
+    )
 
     graph = await builder.build_person_graph(str(person_id), session, depth=1)
     social_nodes = [n for n in graph["nodes"] if n["type"] == "social_profile"]
@@ -148,14 +151,16 @@ async def test_build_person_graph_skips_unknown_identifier_types():
     ident_phone.confidence = 1.0
 
     builder = EntityGraphBuilder()
-    session = _make_session([
-        _scalars_result([person]),
-        _empty(),                                        # addresses
-        _scalars_result([ident_bad, ident_phone]),       # identifiers
-        _empty(),                                        # employment
-        _empty(),                                        # social profiles
-        _empty(),                                        # relationships
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _empty(),  # addresses
+            _scalars_result([ident_bad, ident_phone]),  # identifiers
+            _empty(),  # employment
+            _empty(),  # social profiles
+            _empty(),  # relationships
+        ]
+    )
 
     graph = await builder.build_person_graph(str(person_id), session, depth=1)
 
@@ -186,14 +191,16 @@ async def test_build_person_graph_social_profile_with_handle():
     sp.platform_user_id = "li_999"
 
     builder = EntityGraphBuilder()
-    session = _make_session([
-        _scalars_result([person]),
-        _empty(),
-        _empty(),
-        _empty(),
-        _scalars_result([sp]),
-        _empty(),
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _empty(),
+            _empty(),
+            _empty(),
+            _scalars_result([sp]),
+            _empty(),
+        ]
+    )
 
     graph = await builder.build_person_graph(str(person_id), session, depth=1)
 
@@ -232,21 +239,22 @@ async def test_build_person_graph_deduplicates_duplicate_relationships():
     # This happens naturally when person_a_id == pid and person_b_id == pid for the same rel
     # We simulate it by putting the relationship twice in the list
     builder = EntityGraphBuilder()
-    session = _make_session([
-        _scalars_result([person]),
-        _empty(),
-        _empty(),
-        _empty(),
-        _empty(),
-        _scalars_result([rel, rel]),   # duplicate relationship row
-    ])
+    session = _make_session(
+        [
+            _scalars_result([person]),
+            _empty(),
+            _empty(),
+            _empty(),
+            _empty(),
+            _scalars_result([rel, rel]),  # duplicate relationship row
+        ]
+    )
 
     graph = await builder.build_person_graph(str(person_id), session, depth=1)
 
     # Despite duplicate rows, the edge should appear only once
     edges_to_other = [
-        e for e in graph["edges"]
-        if e["source"] == str(person_id) and e["target"] == str(other_id)
+        e for e in graph["edges"] if e["source"] == str(person_id) and e["target"] == str(other_id)
     ]
     assert len(edges_to_other) == 1
 
@@ -273,11 +281,13 @@ async def test_find_shared_connections_detects_shared_employer():
     emp_a = _emp(pid_a_uuid)
     emp_b = _emp(pid_b_uuid)
 
-    session = _make_session([
-        _empty(),                          # identifiers
-        _empty(),                          # addresses
-        _scalars_result([emp_a, emp_b]),   # employment
-    ])
+    session = _make_session(
+        [
+            _empty(),  # identifiers
+            _empty(),  # addresses
+            _scalars_result([emp_a, emp_b]),  # employment
+        ]
+    )
 
     builder = EntityGraphBuilder()
     shared = await builder.find_shared_connections([pid_a, pid_b], session)
@@ -306,11 +316,13 @@ async def test_find_shared_connections_skips_single_employer_match():
     emp_b.person_id = pid_b_uuid
     emp_b.employer_name = "Other Corp"
 
-    session = _make_session([
-        _empty(),
-        _empty(),
-        _scalars_result([emp_a, emp_b]),
-    ])
+    session = _make_session(
+        [
+            _empty(),
+            _empty(),
+            _scalars_result([emp_a, emp_b]),
+        ]
+    )
 
     builder = EntityGraphBuilder()
     shared = await builder.find_shared_connections([pid_a, pid_b], session)
@@ -339,10 +351,12 @@ async def test_detect_fraud_rings_detects_phone_cluster():
 
     phone_rows = [_phone_row(p) for p in pids]
 
-    session = _make_session([
-        _empty(),                         # addresses
-        _scalars_result(phone_rows),      # phones
-    ])
+    session = _make_session(
+        [
+            _empty(),  # addresses
+            _scalars_result(phone_rows),  # phones
+        ]
+    )
 
     builder = EntityGraphBuilder()
     rings = await builder.detect_fraud_rings(session, min_connections=3)
@@ -364,14 +378,15 @@ async def test_detect_fraud_rings_phone_risk_score_scales_with_size():
     shared_phone = "+15551112222"
 
     phone_rows = [
-        MagicMock(person_id=p, normalized_value=shared_phone, value=shared_phone)
-        for p in pids
+        MagicMock(person_id=p, normalized_value=shared_phone, value=shared_phone) for p in pids
     ]
 
-    session = _make_session([
-        _empty(),
-        _scalars_result(phone_rows),
-    ])
+    session = _make_session(
+        [
+            _empty(),
+            _scalars_result(phone_rows),
+        ]
+    )
 
     builder = EntityGraphBuilder()
     rings = await builder.detect_fraud_rings(session, min_connections=3)
@@ -391,14 +406,15 @@ async def test_detect_fraud_rings_phone_cluster_below_min_connections_not_includ
     shared_phone = "+15550000001"
 
     phone_rows = [
-        MagicMock(person_id=p, normalized_value=shared_phone, value=shared_phone)
-        for p in pids
+        MagicMock(person_id=p, normalized_value=shared_phone, value=shared_phone) for p in pids
     ]
 
-    session = _make_session([
-        _empty(),
-        _scalars_result(phone_rows),
-    ])
+    session = _make_session(
+        [
+            _empty(),
+            _scalars_result(phone_rows),
+        ]
+    )
 
     builder = EntityGraphBuilder()
     rings = await builder.detect_fraud_rings(session, min_connections=3)
@@ -415,15 +431,14 @@ async def test_detect_fraud_rings_phone_only_normalized_value_is_none_falls_back
     pids = [uuid.uuid4() for _ in range(3)]
     raw_phone = "+15554443333"
 
-    phone_rows = [
-        MagicMock(person_id=p, normalized_value=None, value=raw_phone)
-        for p in pids
-    ]
+    phone_rows = [MagicMock(person_id=p, normalized_value=None, value=raw_phone) for p in pids]
 
-    session = _make_session([
-        _empty(),
-        _scalars_result(phone_rows),
-    ])
+    session = _make_session(
+        [
+            _empty(),
+            _scalars_result(phone_rows),
+        ]
+    )
 
     builder = EntityGraphBuilder()
     rings = await builder.detect_fraud_rings(session, min_connections=3)

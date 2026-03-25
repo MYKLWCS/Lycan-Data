@@ -472,7 +472,9 @@ class TestVehicleNicb:
         """_parse_html_response extracts message from <p class='result'>."""
         from modules.crawlers.vehicle_nicb import _parse_html_response
 
-        html = '<html><body><p class="result">VIN check complete. No theft records.</p></body></html>'
+        html = (
+            '<html><body><p class="result">VIN check complete. No theft records.</p></body></html>'
+        )
         result = _parse_html_response(html)
         assert "VIN check complete" in result["message"]
 
@@ -482,7 +484,12 @@ class TestVehicleNicb:
         from modules.crawlers.vehicle_nicb import VehicleNicbCrawler
 
         crawler = VehicleNicbCrawler()
-        json_data = {"isStolen": False, "isSalvage": False, "isTotalLoss": False, "message": "Clean"}
+        json_data = {
+            "isStolen": False,
+            "isSalvage": False,
+            "isTotalLoss": False,
+            "message": "Clean",
+        }
         resp = _mock_resp(200, json_data=json_data)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
             result = await crawler.scrape("1HGBH41JXMN109186")
@@ -553,9 +560,7 @@ class TestVehicleNicb:
         crawler = VehicleNicbCrawler()
         html_resp = _mock_resp(200, text="<html>Clean record.</html>")
         # First get (API) → None, post → None, second get (fallback) → html_resp
-        with patch.object(
-            crawler, "get", new=AsyncMock(side_effect=[None, html_resp])
-        ):
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=[None, html_resp])):
             with patch.object(crawler, "post", new=AsyncMock(return_value=None)):
                 result = await crawler.scrape("1HGBH41JXMN109186")
         assert result.found is False
@@ -906,7 +911,9 @@ class TestVehiclePlate:
         vh_html = '{"year": "2017", "make": "Nissan", "model": "Altima"}'
         vh_resp = _mock_resp(200, text=vh_html)
 
-        with patch.object(crawler, "get", new=AsyncMock(side_effect=[empty_resp, empty_resp, vh_resp])):
+        with patch.object(
+            crawler, "get", new=AsyncMock(side_effect=[empty_resp, empty_resp, vh_resp])
+        ):
             result = await crawler.scrape("ZZZ999|CA")
         assert result.data.get("source") == "vehiclehistory"
         assert result.found is True
@@ -1233,7 +1240,10 @@ class TestEmailHolehe:
         from modules.crawlers.email_holehe import EmailHoleheCrawler
 
         crawler = EmailHoleheCrawler()
-        with patch("modules.crawlers.email_holehe._check_holehe_installed", new=AsyncMock(return_value=False)):
+        with patch(
+            "modules.crawlers.email_holehe._check_holehe_installed",
+            new=AsyncMock(return_value=False),
+        ):
             result = await crawler.scrape("test@example.com")
         assert result.found is False
         assert result.error == "holehe_not_installed"
@@ -1244,8 +1254,14 @@ class TestEmailHolehe:
         from modules.crawlers.email_holehe import EmailHoleheCrawler
 
         crawler = EmailHoleheCrawler()
-        with patch("modules.crawlers.email_holehe._check_holehe_installed", new=AsyncMock(return_value=True)):
-            with patch("modules.crawlers.email_holehe._run_holehe", new=AsyncMock(side_effect=TimeoutError())):
+        with patch(
+            "modules.crawlers.email_holehe._check_holehe_installed",
+            new=AsyncMock(return_value=True),
+        ):
+            with patch(
+                "modules.crawlers.email_holehe._run_holehe",
+                new=AsyncMock(side_effect=TimeoutError()),
+            ):
                 result = await crawler.scrape("test@example.com")
         assert result.found is False
         assert result.error == "holehe_timeout"
@@ -1256,7 +1272,10 @@ class TestEmailHolehe:
         from modules.crawlers.email_holehe import EmailHoleheCrawler
 
         crawler = EmailHoleheCrawler()
-        with patch("modules.crawlers.email_holehe._check_holehe_installed", new=AsyncMock(return_value=True)):
+        with patch(
+            "modules.crawlers.email_holehe._check_holehe_installed",
+            new=AsyncMock(return_value=True),
+        ):
             with patch(
                 "modules.crawlers.email_holehe._run_holehe",
                 new=AsyncMock(side_effect=FileNotFoundError("holehe not found")),
@@ -1271,7 +1290,10 @@ class TestEmailHolehe:
         from modules.crawlers.email_holehe import EmailHoleheCrawler
 
         crawler = EmailHoleheCrawler()
-        with patch("modules.crawlers.email_holehe._check_holehe_installed", new=AsyncMock(return_value=True)):
+        with patch(
+            "modules.crawlers.email_holehe._check_holehe_installed",
+            new=AsyncMock(return_value=True),
+        ):
             with patch(
                 "modules.crawlers.email_holehe._run_holehe",
                 new=AsyncMock(return_value=(["twitter", "github"], 50)),
@@ -1296,7 +1318,9 @@ class TestEmailHolehe:
         """_check_holehe_installed returns False when binary missing."""
         from modules.crawlers.email_holehe import _check_holehe_installed
 
-        with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=FileNotFoundError())):
+        with patch(
+            "asyncio.create_subprocess_exec", new=AsyncMock(side_effect=FileNotFoundError())
+        ):
             result = await _check_holehe_installed()
         assert result is False
 
@@ -1455,7 +1479,9 @@ class TestDomainHarvester:
     async def test_check_harvester_installed_file_not_found(self):
         from modules.crawlers.domain_theharvester import _check_harvester_installed
 
-        with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=FileNotFoundError())):
+        with patch(
+            "asyncio.create_subprocess_exec", new=AsyncMock(side_effect=FileNotFoundError())
+        ):
             result = await _check_harvester_installed()
         assert result is False
 
@@ -1701,8 +1727,9 @@ class TestSanctionsUN:
         assert _text(None) == ""
 
     def test_text_helper_empty_text(self):
-        from modules.crawlers.sanctions_un import _text
         from xml.etree import ElementTree as ET
+
+        from modules.crawlers.sanctions_un import _text
 
         el = ET.fromstring("<TAG></TAG>")
         assert _text(el) == ""
@@ -1779,11 +1806,16 @@ class TestSanctionsUN:
 
         crawler = SanctionsUNCrawler()
         with patch("modules.crawlers.sanctions_un._cache_valid", return_value=True):
-            with patch("builtins.open", MagicMock(return_value=MagicMock(
-                __enter__=lambda s: s,
-                __exit__=MagicMock(return_value=False),
-                read=lambda: self.SAMPLE_XML,
-            ))):
+            with patch(
+                "builtins.open",
+                MagicMock(
+                    return_value=MagicMock(
+                        __enter__=lambda s: s,
+                        __exit__=MagicMock(return_value=False),
+                        read=lambda: self.SAMPLE_XML,
+                    )
+                ),
+            ):
                 result = await crawler.scrape("Vladimir Putin")
         assert result.found is True
 
@@ -1896,7 +1928,25 @@ class TestSanctionsUK:
 
         crawler = UKSanctionsCrawler()
         # Name6=Igor Sechin group name, data row
-        csv_data = self._make_csv(["G001", "2024-01-01", "Igor Sechin", "Sechin", "Igor", "", "", "", "", "", "", "", "", "", "Russia"])
+        csv_data = self._make_csv(
+            [
+                "G001",
+                "2024-01-01",
+                "Igor Sechin",
+                "Sechin",
+                "Igor",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "Russia",
+            ]
+        )
         resp = MagicMock()
         resp.status_code = 200
         resp.content = csv_data.encode("latin-1")
@@ -1914,7 +1964,25 @@ class TestSanctionsUK:
         from modules.crawlers.sanctions_uk import UKSanctionsCrawler
 
         crawler = UKSanctionsCrawler()
-        csv_data = self._make_csv(["G002", "2024-01-01", "Roman Abramovich", "Abramovich", "Roman", "", "", "", "", "", "", "", "", "", "Russia"])
+        csv_data = self._make_csv(
+            [
+                "G002",
+                "2024-01-01",
+                "Roman Abramovich",
+                "Abramovich",
+                "Roman",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "Russia",
+            ]
+        )
         resp = MagicMock()
         resp.status_code = 200
         resp.content = csv_data.encode("latin-1")
@@ -1932,7 +2000,25 @@ class TestSanctionsUK:
         from modules.crawlers.sanctions_uk import UKSanctionsCrawler
 
         crawler = UKSanctionsCrawler()
-        csv_data = self._make_csv(["G003", "2024-01-01", "Test Person", "Person", "Test", "", "", "", "", "", "", "", "", "", "UK"])
+        csv_data = self._make_csv(
+            [
+                "G003",
+                "2024-01-01",
+                "Test Person",
+                "Person",
+                "Test",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "UK",
+            ]
+        )
         resp = MagicMock()
         resp.status_code = 200
         resp.content = MagicMock()
@@ -2031,7 +2117,9 @@ class TestSocialPostsAnalyzer:
         from modules.crawlers.social_posts_analyzer import SocialPostsAnalyzerCrawler
 
         crawler = SocialPostsAnalyzerCrawler()
-        result = await crawler.scrape("text:I gamble every weekend and I am very stressed about money")
+        result = await crawler.scrape(
+            "text:I gamble every weekend and I am very stressed about money"
+        )
         assert result.found is True
         assert "ocean_conscientiousness" in result.data
         assert "ocean_extraversion" in result.data

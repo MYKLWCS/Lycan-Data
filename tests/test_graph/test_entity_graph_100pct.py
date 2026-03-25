@@ -9,6 +9,7 @@ Targets:
   - Line 534: from_id == to_id early return in find_shortest_path
   - Line 580: non-person entity type in expand_entity
 """
+
 from __future__ import annotations
 
 import uuid

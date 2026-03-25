@@ -6,6 +6,7 @@ Targets:
   lines 304-317:  CommercialTaggerDaemon._run_batch — full batch path
   lines 325-347:  _upsert_commercial_tags — insert new + update existing rows
 """
+
 from __future__ import annotations
 
 import uuid
@@ -20,7 +21,6 @@ from modules.enrichers.commercial_tagger import (
     _upsert_commercial_tags,
     assemble_person_signals,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -103,11 +103,11 @@ async def test_assemble_person_signals_with_full_data():
     session = _make_session()
     session.execute = AsyncMock(
         side_effect=[
-            _make_scalars_result(mock_person),      # Person query
-            _make_scalars_all_result([mock_emp]),   # EmploymentHistory query
-            _make_scalar_result(0),                 # CriminalRecord count
-            _make_scalars_result(mock_wealth),      # WealthAssessment
-            _make_scalars_result(mock_behav),       # BehaviouralProfile
+            _make_scalars_result(mock_person),  # Person query
+            _make_scalars_all_result([mock_emp]),  # EmploymentHistory query
+            _make_scalar_result(0),  # CriminalRecord count
+            _make_scalars_result(mock_wealth),  # WealthAssessment
+            _make_scalars_result(mock_behav),  # BehaviouralProfile
         ]
     )
 
@@ -149,11 +149,11 @@ async def test_assemble_person_signals_no_wealth_no_behav():
     session = _make_session()
     session.execute = AsyncMock(
         side_effect=[
-            _make_scalars_result(mock_person),    # Person
-            _make_scalars_all_result([]),         # no employment
-            _make_scalar_result(0),              # criminal count
-            _make_scalars_result(None),          # no wealth
-            _make_scalars_result(None),          # no behavioural
+            _make_scalars_result(mock_person),  # Person
+            _make_scalars_all_result([]),  # no employment
+            _make_scalar_result(0),  # criminal count
+            _make_scalars_result(None),  # no wealth
+            _make_scalars_result(None),  # no behavioural
         ]
     )
 
@@ -295,7 +295,7 @@ async def test_run_batch_processes_persons_and_upserts():
         with patch(
             "modules.enrichers.commercial_tagger._upsert_commercial_tags",
             new=AsyncMock(),
-        ) as mock_upsert:
+        ):
             # Patch AsyncSessionLocal to return our outer_session for the persons query
             # and inner_session for per-person processing
             call_count = [0]
@@ -334,7 +334,7 @@ def _fake_person_obj():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_inserts_new_tag():
     """Lines 341-356: no existing tag → session.add called."""
-    from modules.enrichers.marketing_tags import TagResult, LendingTag
+    from modules.enrichers.marketing_tags import LendingTag, TagResult
 
     person_id = _fake_uuid()
     tag_result = TagResult(
@@ -359,7 +359,7 @@ async def test_upsert_commercial_tags_inserts_new_tag():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_updates_existing_tag():
     """Lines 341-345: existing tag found → attributes updated (no add call)."""
-    from modules.enrichers.marketing_tags import TagResult, LendingTag
+    from modules.enrichers.marketing_tags import LendingTag, TagResult
 
     person_id = _fake_uuid()
     tag_result = TagResult(

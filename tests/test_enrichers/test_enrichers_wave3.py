@@ -32,7 +32,6 @@ import shared.models.social_profile  # noqa: F401
 import shared.models.watchlist  # noqa: F401
 import shared.models.wealth  # noqa: F401
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -131,6 +130,7 @@ class TestFinancialIntelligenceEngine:
         with patch("modules.enrichers.financial_aml.event_bus") as mock_bus:
             mock_bus.publish = AsyncMock()
             from modules.enrichers.financial_aml import FinancialProfile
+
             profile = await engine.score_person(person_id, session)
 
         assert isinstance(profile, FinancialProfile)
@@ -195,7 +195,7 @@ class TestFinancialIntelligenceEngine:
 
         with patch("modules.enrichers.financial_aml.event_bus") as mock_bus:
             mock_bus.publish = AsyncMock()
-            profile = await engine.score_person(person_id, session)
+            await engine.score_person(person_id, session)
 
         # Existing wealth row should have been mutated
         assert wealth_row.income_estimate_usd is not None
@@ -209,7 +209,7 @@ class TestFinancialIntelligenceEngine:
 
         with patch("modules.enrichers.financial_aml.event_bus") as mock_bus:
             mock_bus.publish = AsyncMock()
-            profile = await engine.score_person(person_id, session)
+            await engine.score_person(person_id, session)
 
         # session.add should be called at least twice (CreditRiskAssessment + WealthAssessment)
         assert session.add.call_count >= 2
@@ -379,6 +379,7 @@ class TestMarketingTagsEngine:
         """Person with date_of_birth triggers age-dependent scoring paths."""
         engine = self._make_engine()
         from datetime import date
+
         person = MagicMock()
         person.date_of_birth = date(1960, 1, 1)  # ~65, RETIRING_SOON candidate
 

@@ -16,7 +16,6 @@ import pytest
 
 from shared.circuit_breaker import CircuitBreaker, CircuitState
 
-
 # ---------------------------------------------------------------------------
 # Fake Redis (mirrors pattern in test_circuit_breaker.py)
 # ---------------------------------------------------------------------------

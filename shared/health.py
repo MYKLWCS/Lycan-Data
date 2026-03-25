@@ -3,6 +3,7 @@ Startup health check for all bypass layers.
 Call check_bypass_layers() at application startup to log availability.
 Individual crawlers handle their own unavailability — this is informational only.
 """
+
 from __future__ import annotations
 
 import asyncio

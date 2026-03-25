@@ -12,7 +12,6 @@ import pytest
 
 from modules.patterns.anomaly import AnomalyResult, StatisticalAnomalyDetector
 
-
 # ===========================================================================
 # StatisticalAnomalyDetector — lines 57-58
 # ===========================================================================
@@ -28,12 +27,7 @@ class TestStatisticalAnomalyDetectorStdevFallback:
 
         detector = StatisticalAnomalyDetector(z_threshold=3.0, iqr_multiplier=1.5)
 
-        entities = [
-            {"id": str(i), "score": float(i)}
-            for i in range(5)
-        ]
-
-        original_stdev = statistics.stdev
+        entities = [{"id": str(i), "score": float(i)} for i in range(5)]
 
         def raise_statistics_error(values, *args, **kwargs):
             raise statistics.StatisticsError("not enough data points")
@@ -95,10 +89,7 @@ class TestStatisticalAnomalyDetectorStdevFallback:
     def test_detect_multi_field_runs_per_field(self):
         """detect_multi_field returns a dict keyed by field name."""
         detector = StatisticalAnomalyDetector()
-        entities = [
-            {"id": str(i), "a": float(i), "b": float(i * 2)}
-            for i in range(6)
-        ]
+        entities = [{"id": str(i), "a": float(i), "b": float(i * 2)} for i in range(6)]
         results = detector.detect_multi_field(entities, ["a", "b"])
         assert "a" in results
         assert "b" in results

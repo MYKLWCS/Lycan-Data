@@ -25,7 +25,6 @@ import pytest
 
 from modules.pipeline.pivot_enricher import _extract_pivots, pivot_from_result
 
-
 # ---------------------------------------------------------------------------
 # _extract_pivots — lines 139-156
 # ---------------------------------------------------------------------------
@@ -209,9 +208,7 @@ def _sys_modules_patch(registry_dict, dispatch_mock):
 @pytest.mark.asyncio
 async def test_pivot_no_pivots_returns_zero():
     """Lines 173-175: no pivots → returns 0 immediately (no DB hit)."""
-    count = await pivot_from_result(
-        "00000000-0000-0000-0000-000000000001", "instagram", {}
-    )
+    count = await pivot_from_result("00000000-0000-0000-0000-000000000001", "instagram", {})
     assert count == 0
 
 

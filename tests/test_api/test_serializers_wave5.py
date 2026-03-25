@@ -16,7 +16,6 @@ import pytest
 
 from api.serializers import _model_to_dict
 
-
 # ---------------------------------------------------------------------------
 # Minimal SQLAlchemy-like model fake that provides __table__.columns
 # ---------------------------------------------------------------------------
@@ -94,12 +93,14 @@ def test_model_to_dict_mixed_columns():
     """Combined: None col + datetime col + UUID col + plain string col."""
     uid = uuid.uuid4()
     dt = datetime(2025, 1, 1, tzinfo=UTC)
-    obj = _make_model({
-        "id": uid,
-        "created_at": dt,
-        "full_name": None,
-        "score": 0.9,
-    })
+    obj = _make_model(
+        {
+            "id": uid,
+            "created_at": dt,
+            "full_name": None,
+            "score": 0.9,
+        }
+    )
     result = _model_to_dict(obj)
     assert result["id"] == str(uid)
     assert isinstance(result["created_at"], str)
