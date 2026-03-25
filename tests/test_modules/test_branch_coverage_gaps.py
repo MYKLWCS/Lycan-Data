@@ -652,31 +652,30 @@ async def test_branch_ubo_person_node_already_in_nodes():
 def test_branch_merge_officers_lower_reliability_no_update():
     """
     Line 437: `if reliability > seen[norm_key].confidence:` is False.
-    companies_house (0.90) wins first; opencorporates (0.85) loses → entry unchanged.
+    companies_house (0.90) adds "Bob Builder" first; sec (0.88) encounters same name
+    and 0.88 > 0.90 is False → the existing entry is kept unchanged (437→430 branch).
     """
     engine = UBODiscoveryEngine()
 
-    # companies_house has higher reliability (0.90)
     from unittest.mock import MagicMock as MM
 
+    # ch_result → companies_house, reliability=0.90 (processed second in source_map)
     ch = MM()
     ch.found = True
     ch.error = None
     ch.data = {"officers": [{"name": "Bob Builder", "position": "director"}]}
 
-    oc = MM()
-    oc.found = True
-    oc.error = None
-    oc.data = {"officers": [{"name": "Bob Builder", "position": "officer"}]}
+    # sec_result → sec, reliability=0.88 (processed third) — LOWER than ch's 0.90
+    sec = MM()
+    sec.found = True
+    sec.error = None
+    sec.data = {"officers": [{"name": "Bob Builder", "position": "officer"}]}
 
-    # Pass oc as first arg (reliability=0.85), ch as second (reliability=0.90)
-    # When ch is processed second, it has higher reliability → should update
-    # Then pass ch first and oc second (lower reliability second) → no update
-    officers, _, _ = engine._merge_officers(ch, oc, None, None, "ConstructCo")
-    # companies_house (0.90) was first; opencorporates (0.85) loses update battle
+    # oc_result=None → skipped; ch adds "Bob Builder" at 0.90; sec sees it at 0.88<0.90 → False branch
+    officers, _, _ = engine._merge_officers(None, ch, sec, None, "ConstructCo")
     matched = [o for o in officers if o.name == "Bob Builder"]
     assert len(matched) == 1
-    # Source should be companies_house since it had higher reliability
+    # Source should remain companies_house since it had higher reliability
     assert matched[0].source == "companies_house"
 
 

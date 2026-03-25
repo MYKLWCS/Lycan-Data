@@ -200,9 +200,31 @@ class TestPersistFlushFailure:
 
 class TestInterestsDuplicateAndEmptyBranches:
     @pytest.mark.asyncio
+    async def test_reddit_subreddit_duplicate_in_same_job_skipped(self):
+        """Arc 112->110: two Reddit posts share the same subreddit — second occurrence has
+        `sub not in interests` as False so the if-condition is False → loops back to 110."""
+        job = _make_job(
+            platform="reddit",
+            result_data={
+                "recent_posts": [
+                    {"subreddit": "investing"},
+                    {"subreddit": "investing"},  # duplicate — already in interests
+                    {"subreddit": "crypto"},
+                ],
+            },
+        )
+        session = _make_session(jobs=[job])
+        crawler = InterestsExtractorCrawler()
+        result = await crawler.scrape("00000000-0000-0000-0000-000000000002", session=session)
+        assert result.found is True
+        # 'investing' appears exactly once despite two posts
+        assert result.data["interests"].count("investing") == 1
+        assert "crypto" in result.data["interests"]
+
+    @pytest.mark.asyncio
     async def test_bio_keyword_already_in_interests_skipped(self):
-        """Arc 112->110: a bio keyword already present in interests list is not appended again.
-        The if-condition `keyword not in interests` is False — loops back to 110."""
+        """Arc 120->119 (bio keyword duplicate): bio keyword already in interests from
+        subreddit — `keyword not in interests` is False, loop continues to next keyword."""
         from modules.crawlers.interests_extractor import _BIO_INTEREST_KEYWORDS
 
         # First add a keyword via subreddit, then the bio also mentions it
@@ -216,7 +238,7 @@ class TestInterestsDuplicateAndEmptyBranches:
         )
         session = _make_session(jobs=[job])
         crawler = InterestsExtractorCrawler()
-        result = await crawler.scrape("00000000-0000-0000-0000-000000000002", session=session)
+        result = await crawler.scrape("00000000-0000-0000-0000-000000000002b", session=session)
         assert result.found is True
         # Keyword appears exactly once despite being added via two paths
         assert result.data["interests"].count(first_keyword) == 1
