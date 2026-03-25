@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -90,6 +90,10 @@ class Person(Base, TimestampMixin, DataQualityMixin):
 
     # Denormalised marketing tag list for fast filtering
     marketing_tags_list: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
+
+    # Enrichment quality
+    enrichment_score: Mapped[float | None] = mapped_column(Float, nullable=True, default=0.0)
+    is_pep: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False)
 
     # Data completeness
     data_completeness_pct: Mapped[float] = mapped_column(default=0.0, nullable=False)
