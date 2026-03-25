@@ -20,10 +20,11 @@ import hashlib
 import json
 import logging
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +42,7 @@ from shared.models.social_profile import SocialProfile
 logger = logging.getLogger(__name__)
 
 
-class CrawlPhase(str, Enum):
+class CrawlPhase(Enum):
     COLLECTING = "collecting"
     ENRICHING = "enriching"
     COMPLETE = "complete"
