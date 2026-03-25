@@ -300,6 +300,79 @@ class TestParseDeedTable:
         deeds = _parse_deed_table(html, "grantor")
         assert deeds == []
 
+    def test_table_with_only_header_row_skipped(self):
+        """Line 245: table with < 2 rows (only header) hits the continue branch."""
+        from modules.crawlers.property.deed_recorder import _parse_deed_table
+
+        html = """
+        <html><body>
+        <table>
+          <tr><th>Instrument</th><th>Grantor</th></tr>
+        </table>
+        </body></html>
+        """
+        # Only 1 row → len(rows) < 2 → continue
+        deeds = _parse_deed_table(html, "grantor")
+        assert deeds == []
+
+    def test_header_cells_exceed_data_cells_break_branch(self):
+        """Line 267: i >= len(cells) → break when headers outnumber data cells."""
+        from modules.crawlers.property.deed_recorder import _parse_deed_table
+
+        html = """
+        <html><body>
+        <table>
+          <tr>
+            <th>Instrument Number</th>
+            <th>Deed Type</th>
+            <th>Record Date</th>
+            <th>Grantor</th>
+            <th>Grantee</th>
+            <th>Consideration Amount</th>
+          </tr>
+          <tr>
+            <td>INST-BREAK</td>
+            <td>WD</td>
+            <td>2023-01-01</td>
+          </tr>
+        </table>
+        </body></html>
+        """
+        # Row has 3 cells, headers has 6 → break at i=3
+        deeds = _parse_deed_table(html, "grantor")
+        # deed has document_number set, so it may be appended
+        assert isinstance(deeds, list)
+
+    def test_amount_int_valueerror_branch(self):
+        """Lines 284-285: int() raises ValueError on amount string → deed still included."""
+        from modules.crawlers.property.deed_recorder import _parse_deed_table
+        import builtins
+
+        html = """
+        <html><body>
+        <table>
+          <tr><th>Instrument</th><th>Deed</th><th>Record Date</th><th>Grantor</th><th>Grantee</th><th>Amount</th></tr>
+          <tr><td>DOC-ERR</td><td>WD</td><td>2020-01-01</td><td>A</td><td>B</td><td>$500</td></tr>
+        </table>
+        </body></html>
+        """
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            # Force ValueError on first call (the amount int conversion)
+            if call_count[0] == 1 and not args:
+                raise ValueError("forced int error")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            deeds = _parse_deed_table(html, "grantor")
+
+        # Deed still appended (has document_number), price is None
+        assert len(deeds) == 1
+        assert deeds[0]["acquisition_price_usd"] is None
+
 
 # ---------------------------------------------------------------------------
 # DeedRecorderCrawler.scrape

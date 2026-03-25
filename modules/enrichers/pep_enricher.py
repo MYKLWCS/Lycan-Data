@@ -19,6 +19,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import DateTime, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.enrichers.timeline_builder import TimelineBuilder
 from shared.db import AsyncSessionLocal
 from shared.models.compliance_ext import PepClassification
 from shared.models.person import Person
@@ -208,7 +209,6 @@ class PepEnricher:
         Deferred import avoids circular dependency with timeline_builder.
         """
         try:
-            from modules.enrichers.timeline_builder import TimelineBuilder
             builder = TimelineBuilder()
             for match in pep_matches:
                 start_date = match.get("start_date")

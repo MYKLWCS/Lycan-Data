@@ -433,6 +433,52 @@ class TestParseNextDataFallbackRegex:
         details = _parse_next_data_fallback_regex(html)
         assert "bathrooms_full" not in details
 
+    def test_int_conversion_valueerror_branch(self):
+        """Lines 269-270: int(val) raises ValueError → val stored as-is."""
+        import modules.crawlers.property.zillow_deep as mod
+
+        # Patch int to raise ValueError on the first call (for bedrooms conversion)
+        original_int = __builtins__["int"] if isinstance(__builtins__, dict) else int
+        html = '"bedrooms": 3'
+
+        # Force ValueError by patching the built-in int inside the module
+        import builtins
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise ValueError("forced")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            details = mod._parse_next_data_fallback_regex(html)
+
+        # After ValueError, val ("3") stored directly
+        assert details.get("bedrooms") == "3"
+
+    def test_float_conversion_valueerror_branch(self):
+        """Lines 274-275: float(val) raises ValueError → val stored as-is."""
+        import modules.crawlers.property.zillow_deep as mod
+        import builtins
+
+        html = '"bathrooms": 2.5'
+        real_float = builtins.float
+        call_count = [0]
+
+        def patched_float(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise ValueError("forced float error")
+            return real_float(val, *args, **kwargs)
+
+        with patch.object(builtins, "float", side_effect=patched_float):
+            details = mod._parse_next_data_fallback_regex(html)
+
+        # After ValueError, val ("2.5") stored directly
+        assert details.get("bathrooms_full") == "2.5"
+
 
 # ---------------------------------------------------------------------------
 # ZillowDeepCrawler.scrape

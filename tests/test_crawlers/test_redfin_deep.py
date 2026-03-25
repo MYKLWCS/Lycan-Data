@@ -470,6 +470,15 @@ class TestParseTaxHistory:
         data = {"payload": {"publicRecordsInfo": {}}}
         assert _parse_tax_history(data) == []
 
+    def test_exception_in_tax_history_returns_empty(self):
+        """Lines 258-259: exception during parsing returns empty list."""
+        from modules.crawlers.property.redfin_deep import _parse_tax_history
+
+        # Passing non-iterable taxHistories to force an exception
+        data = {"payload": {"publicRecordsInfo": {"taxHistories": "not-a-list"}}}
+        result = _parse_tax_history(data)
+        assert result == []
+
 
 # ---------------------------------------------------------------------------
 # RedfinDeepCrawler.scrape
