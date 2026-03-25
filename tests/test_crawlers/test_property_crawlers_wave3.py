@@ -563,8 +563,8 @@ class TestPlaywrightCrawler:
         crawler = self._make_crawler()
 
         mock_page = AsyncMock()
+        mock_page.add_init_script = AsyncMock()
         mock_context = AsyncMock()
-        mock_context.add_init_script = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
         mock_browser = AsyncMock()
         mock_browser.new_context = AsyncMock(return_value=mock_context)
@@ -589,8 +589,8 @@ class TestPlaywrightCrawler:
 
         mock_page = AsyncMock()
         mock_page.goto = AsyncMock()
+        mock_page.add_init_script = AsyncMock()
         mock_context = AsyncMock()
-        mock_context.add_init_script = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
         mock_browser = AsyncMock()
         mock_browser.new_context = AsyncMock(return_value=mock_context)
