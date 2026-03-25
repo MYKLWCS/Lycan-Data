@@ -184,3 +184,34 @@ class TestEnrichBackgroundException:
 
         assert resp.status_code == 500
         assert "Failed to queue enrichment" in resp.json()["detail"]
+
+
+# ===========================================================================
+# enrichment.py — _background_enrich success path (line 55 = session.commit)
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_background_enrich_commit_called_on_success():
+    """Line 55: session.commit() is called when enrich_person succeeds."""
+    from api.routes.enrichment import _background_enrich
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+    pid = str(uuid.uuid4())
+
+    with (
+        patch("api.routes.enrichment._orchestrator") as mock_orch,
+        patch("shared.db.AsyncSessionLocal", return_value=mock_cm),
+    ):
+        mock_orch.enrich_person = AsyncMock(return_value=None)
+        await _background_enrich(pid)
+
+    mock_session.commit.assert_called_once()
+    mock_session.rollback.assert_not_called()
