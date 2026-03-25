@@ -428,17 +428,20 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
     )
     crawl_jobs = crawl_jobs_res.scalars().all()
 
-    sources_enabled_count = (
-        await session.execute(
-            select(func.count()).select_from(DataSource).where(DataSource.is_enabled.is_(True))
-        )
-    ).scalar_one()
+    sources_enabled_count = int(
+        (
+            await session.execute(
+                select(func.count()).select_from(DataSource).where(DataSource.is_enabled.is_(True))
+            )
+        ).scalar_one()
+        or 0
+    )
 
     sources_attempted = len({(j.meta or {}).get("platform", str(j.id)) for j in crawl_jobs})
     sources_found = sum(
         1 for j in crawl_jobs
-        if j.status in ("done", "complete", "success", "found")
-        or (j.result_count or 0) > 0
+        if (j.status or "") in ("done", "complete", "success", "found")
+        or int(j.result_count or 0) > 0
     )
     coverage_pct = (
         round(sources_found / sources_enabled_count * 100)
