@@ -233,6 +233,86 @@ class TestParseGenericAssessorHtml:
         result = _parse_generic_assessor_html(html, "query")
         assert result["current_assessed_value_usd"] is None
 
+    def test_assessed_value_int_valueerror_branch(self):
+        """Lines 216-217: int() raises ValueError for assessed value → field stays None."""
+        import builtins
+        import modules.crawlers.property.netronline_public as mod
+
+        html = "<html><body>Assessed: $320,000 data here</body></html>"
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1 and not args:
+                raise ValueError("forced")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            result = mod._parse_generic_assessor_html(html, "query")
+
+        assert result["current_assessed_value_usd"] is None
+
+    def test_market_value_int_valueerror_branch(self):
+        """Lines 224-225: int() raises ValueError for market value → field stays None."""
+        import builtins
+        import modules.crawlers.property.netronline_public as mod
+
+        html = "<html><body>Market Value $450,000</body></html>"
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1 and not args:
+                raise ValueError("forced")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            result = mod._parse_generic_assessor_html(html, "query")
+
+        assert result["current_market_value_usd"] is None
+
+    def test_tax_int_valueerror_branch(self):
+        """Lines 232-233: int() raises ValueError for tax → field stays None."""
+        import builtins
+        import modules.crawlers.property.netronline_public as mod
+
+        html = "<html><body>Taxes: $4,800</body></html>"
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1 and not args:
+                raise ValueError("forced")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            result = mod._parse_generic_assessor_html(html, "query")
+
+        assert result["current_tax_annual_usd"] is None
+
+    def test_sq_ft_int_valueerror_branch(self):
+        """Lines 245-246: int() raises ValueError for sq ft → field stays None."""
+        import builtins
+        import modules.crawlers.property.netronline_public as mod
+
+        html = "<html><body>Sq. Ft: 1,850</body></html>"
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1 and not args:
+                raise ValueError("forced")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            result = mod._parse_generic_assessor_html(html, "query")
+
+        assert result["sq_ft_living"] is None
+
 
 # ---------------------------------------------------------------------------
 # NetronlinePublicCrawler.scrape

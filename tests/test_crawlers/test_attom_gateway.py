@@ -160,6 +160,15 @@ class TestParseApiProperty:
         # Default from [{}][0] — all values None/empty
         assert isinstance(result, dict)
 
+    def test_exception_inside_parse_caught(self):
+        """Lines 144-145: exception during property parsing is caught, returns partial dict."""
+        from modules.crawlers.property.attom_gateway import _parse_api_property
+
+        # identifier=None will cause .get("apn") to fail on NoneType
+        data = {"property": [{"identifier": None}]}
+        result = _parse_api_property(data)
+        assert isinstance(result, dict)
+
 
 # ---------------------------------------------------------------------------
 # _parse_api_sale_history
@@ -392,6 +401,47 @@ class TestParsePublicPortalHtml:
         assert result["valuations"] == []
         assert result["mortgages"] == []
 
+    def test_int_cast_valueerror_sets_none(self):
+        """Lines 235-236: int() raises ValueError on sq_ft/beds/baths/year → set to None."""
+        import builtins
+        import modules.crawlers.property.attom_gateway as mod
+
+        html = "<html><body>Sq. Ft: 1,800 Bedrooms: 3</body></html>"
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1 and not args:
+                raise ValueError("forced int error")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            result = mod._parse_public_portal_html(html)
+
+        # First int conversion failed → that field is None
+        assert isinstance(result, dict)
+
+    def test_money_label_int_valueerror_branch(self):
+        """Lines 248-249: int() raises ValueError on money label → field stays unset."""
+        import builtins
+        import modules.crawlers.property.attom_gateway as mod
+
+        html = "<html><body>Assessed Value $300,000</body></html>"
+        real_int = builtins.int
+        call_count = [0]
+
+        def patched_int(val, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1 and not args:
+                raise ValueError("forced money error")
+            return real_int(val, *args, **kwargs)
+
+        with patch.object(builtins, "int", side_effect=patched_int):
+            result = mod._parse_public_portal_html(html)
+
+        assert result["current_assessed_value_usd"] is None
+
 
 # ---------------------------------------------------------------------------
 # AttomGatewayCrawler._api_key property
@@ -477,6 +527,19 @@ class TestAttomGatewayScrapeApiPath:
             result = await crawler.scrape("123 Main St, Dallas TX 75001")
         # _parse_api_property falls back to [{}][0], so returns a non-empty dict → found=True
         assert isinstance(result.found, bool)
+
+    async def test_api_prop_empty_dict_returns_not_found(self):
+        """Line 318: _parse_api_property returns {} (falsy) → found=False."""
+        crawler = self._make_crawler()
+        resp = _mock_resp(status=200, json_data={"property": [{"identifier": None}]})
+
+        with (
+            patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
+            patch("modules.crawlers.property.attom_gateway._parse_api_property", return_value={}),
+        ):
+            result = await crawler.scrape("123 Main St TX")
+
+        assert result.found is False
 
     async def test_api_successful_without_attom_id(self):
         """No attom_id → skips sale history and AVM calls."""

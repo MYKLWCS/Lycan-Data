@@ -46,6 +46,7 @@ class ProxyPool:
         self._slow: set[str] = set()
         self._lock = asyncio.Lock()
         self._rr_indices: dict[str, int] = {"residential": 0, "datacenter": 0}
+        self._tor_manager = tor_manager  # capture at construction time
         self._load_from_settings()
 
     # ------------------------------------------------------------------
@@ -92,7 +93,7 @@ class ProxyPool:
             if tier == "datacenter":
                 return self._next_from(self._datacenter, "datacenter")
             if tier == "tor":
-                proxy = tor_manager.get_proxy(TorInstance.TOR2)
+                proxy = self._tor_manager.get_proxy(TorInstance.TOR2)
                 return proxy or None
             # tier == "direct"
             return None
@@ -174,7 +175,7 @@ class ProxyPool:
             ),
             "banned_count": len(self._banned),
             "slow_count": len(self._slow),
-            "tor_available": tor_manager.any_available(),
+            "tor_available": self._tor_manager.any_available(),
         }
 
     # ------------------------------------------------------------------

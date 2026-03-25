@@ -32,7 +32,7 @@ from shared.models.education import Education
 from shared.models.employment import EmploymentHistory
 from shared.models.property import Property
 from shared.models.social_profile import SocialProfile
-from shared.models.timeline import TimelineEvent
+from shared.models.timeline import TimelineEvent, TravelHistory
 from shared.models.watchlist import WatchlistMatch
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 def _to_date(value: date | datetime | str | None) -> date | None:
     """Normalise a value to a plain date or return None."""
-    if value is None:
+    if value is None or isinstance(value, (int, float, bool)):
         return None
     if isinstance(value, datetime):
         return value.date()
@@ -520,13 +520,13 @@ class TimelineBuilder:
             fields_str = (
                 ", ".join(r.exposed_fields[:5])
                 if r.exposed_fields
-                else "unknown fields"
+                else "unknown data"
             )
             events.append({
                 "event_type": "breach_exposure",
                 "event_date": breach_date,
                 "title": f"Data breach: {r.breach_name}",
-                "description": f"Exposed fields: {fields_str}. Severity: {r.severity}.",
+                "description": f"Exposed: {fields_str}. Severity: {r.severity}.",
                 "location": None,
                 "source_type": "breach_database",
                 "source_platform": r.source_type,
@@ -543,12 +543,11 @@ class TimelineBuilder:
     async def _events_from_travel(
         self, session: AsyncSession, person_id: uuid.UUID
     ) -> list[dict]:
-        """Import TravelHistory inline to avoid circular import issues."""
-        from shared.models.timeline import TravelHistory
-
-        result = await session.execute(
-            select(TravelHistory).where(TravelHistory.person_id == person_id)
-        )
+        try:
+            stmt = select(TravelHistory).where(TravelHistory.person_id == person_id)
+        except Exception:
+            stmt = None
+        result = await session.execute(stmt)
         records = result.scalars().all()
         events: list[dict] = []
 
