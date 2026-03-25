@@ -11,6 +11,7 @@ _log = logging.getLogger(__name__)
 
 from api.routes import (
     alerts,
+    audit,
     behavioural,
     compliance,
     crawls,
@@ -118,6 +119,7 @@ async def ui_redirect(path: str):
 
 # ── API Routes ────────────────────────────────────────────────────────────────
 
+app.include_router(audit.router, prefix="/audit", tags=["audit"])
 app.include_router(search.router, prefix="/search", tags=["search"])
 app.include_router(search_query.router, prefix="/query", tags=["query"])
 app.include_router(persons.router, prefix="/persons", tags=["persons"])
