@@ -91,15 +91,14 @@ def test_detect_multi_field_returns_per_field_dict():
 
 def test_anomaly_z_only_no_iqr_reason():
     """[90->93] iqr_outlier is False but z-score exceeds threshold → IQR reason not appended."""
-    # Use a very low z_threshold so a moderate outlier passes z-check but not IQR fences
-    # Values: 48x 1.0, 2x 2.0 — the 2.0 values are z-outliers under a tight threshold
-    # but stay within IQR fences (which are wider relative to the distribution)
-    detector = StatisticalAnomalyDetector(z_threshold=0.5, iqr_multiplier=1.5)
-    normal = [1.0] * 48
-    slight_outliers = [2.0, 2.0]
-    entities = _make_entities(normal + slight_outliers, "score")
+    # Use a spread-out base so IQR fences are wide, then add a value that exceeds z-threshold
+    # but stays inside the IQR fence: base [1..10] gives Q1=3.25, Q3=7.75, IQR=4.5,
+    # upper_fence=14.5. Value 11 is z~1.58 (fires at threshold=1.0) but < 14.5 (not IQR outlier).
+    detector = StatisticalAnomalyDetector(z_threshold=1.0, iqr_multiplier=1.5)
+    base = list(range(1, 11))  # [1, 2, ..., 10]
+    entities = _make_entities(base + [11], "score")
     results = detector.detect(entities, "score")
-    # At least one result flagged by z-score only (iqr_outlier may be False for these)
+    # At least one result flagged by z-score only (iqr_outlier is False)
     assert len(results) >= 1
     # Verify at least one result has no IQR mention in its reason (z-only path)
     z_only = [r for r in results if "IQR" not in r.reason]

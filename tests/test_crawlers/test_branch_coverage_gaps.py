@@ -1138,6 +1138,7 @@ class TestPropertyRadarBranchGapsWave8:
         # __INITIAL_STATE__ present with empty owners list → owner_data is []
         page_data = {"search": {"owners": []}}
         import json as _j
+
         js = f"window.__INITIAL_STATE__ = {_j.dumps(page_data)};"
         # Also include an owner-card so the HTML table path runs
         html = (
@@ -1165,13 +1166,13 @@ class TestPropertyRadarBranchGapsWave8:
 
     # [311,317] _parse_property_detail_html: _parse_property_api returns [] → no early return
     def test_parse_property_detail_html_api_returns_empty_list(self):
-        from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
-
         # property_data is non-empty dict, but _parse_property_api([property_data]) returns []
         # We can achieve this by having a property_data dict that _parse_property_api can't parse
         # into a valid property (no address fields at all)
         import json as _j
         from unittest.mock import patch
+
+        from modules.crawlers.property.propertyradar_scraper import _parse_property_detail_html
 
         property_data = {"someKey": "someValue"}
         state_data = _j.dumps({"property": property_data})
@@ -1280,10 +1281,10 @@ class TestVehiclePlateBranchGapsWave8:
 
         # Two spans: first matches year (4 digits), second is text with no VIN match
         html = (
-            '<html><body>'
+            "<html><body>"
             '<span class="vehicle-result">2019 Toyota Camry</span>'
             '<span class="vehicle-result">Not A VIN</span>'
-            '</body></html>'
+            "</body></html>"
         )
         result = _parse_vehiclehistory_html(html)
         # First span: "2019..." → re.match(r"\d{4}", ...) is True → year set
@@ -1362,7 +1363,12 @@ class TestZillowDeepBranchGapsWave8:
         from modules.crawlers.property.zillow_deep import _parse_next_data
 
         home = {
-            "address": {"streetAddress": "2 Elm", "city": "Dallas", "state": "TX", "zipcode": "75201"},
+            "address": {
+                "streetAddress": "2 Elm",
+                "city": "Dallas",
+                "state": "TX",
+                "zipcode": "75201",
+            },
             "priceHistory": [
                 {"event": "Listed for sale", "price": 400000, "date": "2022-01-01"},
                 {"event": "Price reduced", "price": 380000, "date": "2022-03-01"},
@@ -1428,11 +1434,7 @@ class TestVehicleOwnershipBranchGapsWave8:
         from modules.crawlers.vehicle_ownership import _parse_vehicle_cards_html
 
         # Element with class "vehicle-card" but text has none of the patterns
-        html = (
-            '<html><body>'
-            '<div class="vehicle-card">hello world foobar</div>'
-            '</body></html>'
-        )
+        html = '<html><body><div class="vehicle-card">hello world foobar</div></body></html>'
         result = _parse_vehicle_cards_html(html)
         # v stays {} → if v: is False → not appended → vehicles = []
         # Then regex fallback also finds nothing → returns []
@@ -1473,7 +1475,7 @@ class TestSanctionsEUBranchGapsWave8:
         # CSV format: id,entity_id,lang,first,middle,last,whole,x,subject_type
         header = "id,entity_id,lang,first,middle,last,whole,x,subject_type"
         # Empty entity_id but matching whole name
-        row = '1,,en,John,Paul,Smith,John Paul Smith,x,Person'
+        row = "1,,en,John,Paul,Smith,John Paul Smith,x,Person"
         csv_text = header + "\n" + row + "\n"
 
         crawler = EUSanctionsCrawler()
@@ -1488,7 +1490,7 @@ class TestSanctionsEUBranchGapsWave8:
 
         header = "id,entity_id,lang,first,middle,last,whole,x,subject_type"
         # Empty entity_id, whole name = "John Smith" for easy matching
-        row = '1,,en,,,, John Smith,x,Person'
+        row = "1,,en,,,, John Smith,x,Person"
         csv_text = header + "\n" + row + "\n"
 
         crawler = EUSanctionsCrawler()
@@ -1599,12 +1601,13 @@ class TestUBODiscoveryBranchGapsWave8:
     # [185,195] company_node_id already in company_nodes → if ... not in ... is False
     @pytest.mark.asyncio
     async def test_discover_revisited_company_skips_node_creation(self):
+        from unittest.mock import patch
+
         from modules.graph.ubo_discovery import (
             CrawledCompanyData,
             PersonRef,
             UBODiscoveryEngine,
         )
-        from unittest.mock import patch
 
         engine = UBODiscoveryEngine()
 
@@ -1722,7 +1725,9 @@ class TestRedfinDeepBranchGapsWave8:
 class TestNetronlinePublicBranchGapsWave8:
     # [204,198] Link has href starting with "/" → returns _NETRONLINE_BASE + href
     def test_extract_assessor_url_relative_href(self):
-        from modules.crawlers.property.netronline_public import _extract_assessor_url_from_netronline
+        from modules.crawlers.property.netronline_public import (
+            _extract_assessor_url_from_netronline,
+        )
 
         # Link with "property" in text and relative href
         html = '<html><body><a href="/county/harris/assessor">Property Assessor</a></body></html>'
