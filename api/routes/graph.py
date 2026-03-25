@@ -75,11 +75,15 @@ async def person_network(
         logger.exception("Graph build failed person_id=%s", person_id)
         raise HTTPException(500, "Internal error") from exc
 
+    nodes = graph.get("nodes", [])
+    edges = graph.get("edges", [])
     return {
         "person_id": person_id,
         "depth": depth,
-        "nodes": _serialize(graph.get("nodes", [])),
-        "edges": _serialize(graph.get("edges", [])),
+        "nodes": _serialize(nodes),
+        "edges": _serialize(edges),
+        "node_count": len(nodes),
+        "edge_count": len(edges),
     }
 
 
@@ -114,6 +118,92 @@ async def detect_fraud_rings(req: FraudRingsRequest, session: AsyncSession = DbD
     return {
         "rings": _serialize(rings),
         "count": len(rings),
+    }
+
+
+@router.get("/nodes")
+async def graph_nodes(
+    limit: int = Query(500, ge=1, le=500, description="Max nodes per page"),
+    offset: int = Query(0, ge=0),
+    entity_types: str | None = Query(
+        None, description="Comma-separated entity types: person,company,address,phone,email"
+    ),
+    session: AsyncSession = DbDep,
+):
+    """Paginated list of graph nodes, ordered by degree (risk_score desc for persons)."""
+    types = [t.strip() for t in entity_types.split(",")] if entity_types else None
+    try:
+        nodes = await _graph_builder.get_nodes_paginated(
+            session, limit=limit, offset=offset, entity_types=types
+        )
+    except Exception as exc:
+        logger.exception("graph_nodes failed")
+        raise HTTPException(500, "Internal error") from exc
+    return {"nodes": _serialize(nodes), "count": len(nodes), "offset": offset}
+
+
+@router.get("/edges")
+async def graph_edges(
+    limit: int = Query(1000, ge=1, le=2000, description="Max edges per page"),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = DbDep,
+):
+    """Paginated list of relationship edges."""
+    try:
+        edges = await _graph_builder.get_edges_paginated(
+            session, limit=limit, offset=offset
+        )
+    except Exception as exc:
+        logger.exception("graph_edges failed")
+        raise HTTPException(500, "Internal error") from exc
+    return {"edges": _serialize(edges), "count": len(edges), "offset": offset}
+
+
+@router.get("/path")
+async def graph_path(
+    from_id: str = Query(..., alias="from", description="Source node ID"),
+    to_id: str = Query(..., alias="to", description="Target node ID"),
+    entity_types: str | None = Query(
+        None, description="Comma-separated traversal filter: person,company"
+    ),
+    max_hops: int = Query(6, ge=1, description="Maximum hops; hard cap is 10"),
+    session: AsyncSession = DbDep,
+):
+    """BFS shortest path between two nodes with optional entity_type traversal filter."""
+    if max_hops > 10:
+        raise HTTPException(400, "max_hops must be <= 10")
+    types = [t.strip() for t in entity_types.split(",")] if entity_types else None
+    try:
+        result = await _graph_builder.find_shortest_path(
+            from_id, to_id, session, entity_types=types, max_hops=max_hops
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        logger.exception("graph_path failed from=%s to=%s", from_id, to_id)
+        raise HTTPException(500, "Internal error") from exc
+    return result
+
+
+@router.get("/entity/{entity_type}/{entity_id}/expand")
+async def graph_expand(
+    entity_type: str,
+    entity_id: str,
+    session: AsyncSession = DbDep,
+):
+    """Return 1-hop expansion for any entity node."""
+    try:
+        result = await _graph_builder.expand_entity(entity_type, entity_id, session)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        logger.exception("graph_expand failed type=%s id=%s", entity_type, entity_id)
+        raise HTTPException(500, "Internal error") from exc
+    return {
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "nodes": _serialize(result.get("nodes", [])),
+        "edges": _serialize(result.get("edges", [])),
     }
 
 
