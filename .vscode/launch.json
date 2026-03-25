@@ -92,8 +92,15 @@
                 "--ignore=tests/test_integration.py",
                 "-v",
                 "--tb=long",
-                "--no-header",
-                "-rA"
+                "--showlocals",
+                "--full-trace",
+                "-rA",
+                "--strict-markers",
+                "--durations=0",
+                "-W", "default",
+                "--cov=.",
+                "--cov-report=term-missing",
+                "--cov-fail-under=100"
             ],
             "python": "${workspaceFolder}/.venv/bin/python",
             "pythonArgs": ["-Xfrozen_modules=off"],
