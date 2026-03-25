@@ -35,6 +35,8 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "steam",
         # Username sweep
         "username_sherlock",
+        "username_maigret",
+        "email_socialscan",
         # Dark web / paste username lookup
         "darkweb_ahmia",
         "paste_pastebin",
@@ -51,6 +53,8 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         # Messaging confirmation
         "whatsapp",
         "telegram",
+        # Phone OSINT
+        "phone_phoneinfoga",
     ],
     SeedType.EMAIL: [
         # Breach & leak databases
@@ -67,6 +71,9 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "paste_pastebin",
         "paste_ghostbin",
         "paste_psbdmp",
+        # Email OSINT
+        "email_socialscan",
+        "email_dehashed",
     ],
     SeedType.FULL_NAME: [
         # People-search aggregators
@@ -112,6 +119,9 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "darkweb_torch",
         "paste_pastebin",
         "paste_psbdmp",
+        # People OSINT
+        "people_phonebook",
+        "people_intelx",
     ],
     SeedType.DOMAIN: [
         "domain_whois",
@@ -122,6 +132,9 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "cyber_wayback",
         "cyber_virustotal",
         "cyber_alienvault",
+        # Domain OSINT
+        "people_phonebook",
+        "people_intelx",
     ],
     SeedType.CRYPTO_WALLET: [
         "crypto_bitcoin",
@@ -154,11 +167,15 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "gov_fdic",
         "gov_gleif",
     ],
+    # Pivot-only types — dispatched by pivot enricher, never from API input directly
+    SeedType.INSTAGRAM_HANDLE: ["instagram", "username_maigret", "username_sherlock"],
+    SeedType.TWITTER_HANDLE: ["twitter", "username_maigret", "username_sherlock"],
+    SeedType.LINKEDIN_URL: ["linkedin"],
 }
 
 
 def _auto_detect_type(value: str) -> SeedType:
-    value = value.strip()
+    value = value.strip().lower()
 
     if re.match(r"^\+?\d[\d\s\-().]{7,15}$", value):
         return SeedType.PHONE

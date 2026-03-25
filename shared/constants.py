@@ -12,6 +12,9 @@ class SeedType(StrEnum):
     NATIONAL_ID = "national_id"
     PASSPORT = "passport"
     COMPANY_REG = "company_reg"
+    INSTAGRAM_HANDLE = "instagram_handle"
+    TWITTER_HANDLE = "twitter_handle"
+    LINKEDIN_URL = "linkedin_url"
 
 
 class IdentifierType(StrEnum):
