@@ -5,15 +5,44 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select as sa_select
 from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
 from api.serializers import _serialize
+from modules.enrichers.auto_dedup import AutoDedupDaemon
 from modules.enrichers.deduplication import AsyncMergeExecutor, score_person_dedup
+from shared.models.dedup_review import DedupReview
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+# ── Auto-dedup helper — isolated for easier mocking ──────────────────────────
+
+
+async def get_auto_queue_rows(session: AsyncSession) -> list[dict]:
+    """Fetch pending (unreviewed) DedupReview rows."""
+    result = await session.execute(
+        sa_select(DedupReview)
+        .where(DedupReview.reviewed == False)  # noqa: E712
+        .order_by(DedupReview.similarity_score.desc())
+        .limit(200)
+    )
+    rows = result.scalars().all()
+    return [
+        {
+            "id": str(r.id),
+            "person_a_id": str(r.person_a_id),
+            "person_b_id": str(r.person_b_id),
+            "similarity_score": r.similarity_score,
+            "reviewed": r.reviewed,
+            "decision": r.decision,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
 
 
 # ── Request schemas ────────────────────────────────────────────────────────────
@@ -49,6 +78,25 @@ def _candidate_to_dict(c) -> dict:
 
 
 # ── Endpoints — fixed paths MUST be declared before parameterised paths ────────
+
+
+@router.get("/auto-queue")
+async def dedup_auto_queue(session: AsyncSession = DbDep):
+    """Return all pending DedupReview rows ordered by score descending."""
+    rows = await get_auto_queue_rows(session)
+    return {"reviews": rows, "count": len(rows)}
+
+
+@router.post("/auto-merge/run")
+async def dedup_auto_merge_run(session: AsyncSession = DbDep):
+    """Trigger one immediate dedup batch outside the regular schedule."""
+    daemon = AutoDedupDaemon()
+    try:
+        await daemon._run_batch(session)
+    except Exception as exc:
+        logger.exception("Manual dedup batch failed")
+        raise HTTPException(500, "Dedup batch failed") from exc
+    return {"status": "ok", "message": "Dedup batch completed"}
 
 
 @router.post("/merge")
