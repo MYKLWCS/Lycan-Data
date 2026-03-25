@@ -2,7 +2,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            // Run the API with breakpoints — status bar turns orange, debug toolbar appears at top
             "name": "Lycan: Debug",
             "type": "debugpy",
             "request": "launch",
@@ -10,15 +9,15 @@
             "args": [
                 "api.main:app",
                 "--host", "0.0.0.0",
-                "--port", "8000",
-                "--reload"
+                "--port", "8000"
             ],
             "python": "${workspaceFolder}/.venv/bin/python",
             "pythonArgs": ["-Xfrozen_modules=off"],
             "envFile": "${workspaceFolder}/.env",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}",
-                "DEBUG": "true"
+                "DEBUG": "true",
+                "PYDEVD_DISABLE_FILE_VALIDATION": "1"
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
@@ -26,7 +25,6 @@
             "console": "integratedTerminal"
         },
         {
-            // Run whatever file is open in the editor
             "name": "Lycan: Debug File",
             "type": "debugpy",
             "request": "launch",
@@ -35,15 +33,15 @@
             "pythonArgs": ["-Xfrozen_modules=off"],
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}",
+                "PYDEVD_DISABLE_FILE_VALIDATION": "1"
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
             "stopOnEntry": false,
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         },
         {
-            // Debug the open test file — stops on first failure so you can inspect
             "name": "Lycan: Debug Tests",
             "type": "debugpy",
             "request": "launch",
@@ -60,15 +58,15 @@
             "pythonArgs": ["-Xfrozen_modules=off"],
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}",
+                "PYDEVD_DISABLE_FILE_VALIDATION": "1"
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
             "stopOnEntry": false,
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         },
         {
-            // Full suite — stops on first failure
             "name": "Lycan: Debug All Tests",
             "type": "debugpy",
             "request": "launch",
@@ -85,15 +83,15 @@
             "pythonArgs": ["-Xfrozen_modules=off"],
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}",
+                "PYDEVD_DISABLE_FILE_VALIDATION": "1"
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
             "stopOnEntry": false,
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         },
         {
-            // Full suite — never stops, collects every failure, shows coverage and locals
             "name": "Lycan: Debug All Tests MAX",
             "type": "debugpy",
             "request": "launch",
@@ -116,12 +114,13 @@
             "pythonArgs": ["-Xfrozen_modules=off"],
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "PYTHONPATH": "${workspaceFolder}",
+                "PYDEVD_DISABLE_FILE_VALIDATION": "1"
             },
             "cwd": "${workspaceFolder}",
             "justMyCode": false,
             "stopOnEntry": false,
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         }
     ]
 }
