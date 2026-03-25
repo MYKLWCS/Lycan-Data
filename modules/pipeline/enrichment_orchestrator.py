@@ -103,6 +103,15 @@ class EnrichmentOrchestrator:
             )
         )
 
+        # ── Step 6: Update coverage score ─────────────────────────────────────
+        steps.append(
+            await self._run_step(
+                enricher="coverage_update",
+                coro=self._update_coverage(person_id, session),
+                person_id=person_id,
+            )
+        )
+
         finished_at = datetime.now(UTC)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
@@ -235,6 +244,76 @@ class EnrichmentOrchestrator:
             person.relationship_score = score
             await session.flush()
             await session.commit()
+
+    async def _update_coverage(self, person_id: str, session: AsyncSession) -> None:
+        """
+        Compute and store Person.meta['coverage'] based on completed CrawlJob rows.
+        coverage = {
+            "attempted": N,      # total crawl jobs for this person
+            "found": M,          # jobs where result contained data (result_count > 0)
+            "total_enabled": K,  # count of enabled DataSources
+            "pct": float         # round(M/K*100, 1) clamped to 100.0
+        }
+        """
+        import uuid
+
+        from sqlalchemy import func, select
+
+        from shared.models.crawl import CrawlJob, DataSource
+        from shared.models.person import Person
+
+        pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
+        person = await session.get(Person, pid)
+        if not person:
+            return
+
+        # Count attempted and found jobs
+        attempted_result = await session.execute(
+            select(func.count())
+            .select_from(CrawlJob)
+            .where(
+                CrawlJob.person_id == pid,
+                CrawlJob.status.in_(["done", "failed", "blocked", "rate_limited"]),
+            )
+        )
+        attempted: int = attempted_result.scalar() or 0
+
+        found_result = await session.execute(
+            select(func.count())
+            .select_from(CrawlJob)
+            .where(
+                CrawlJob.person_id == pid,
+                CrawlJob.status == "done",
+                CrawlJob.result_count > 0,
+            )
+        )
+        found: int = found_result.scalar() or 0
+
+        # Total enabled data sources
+        enabled_result = await session.execute(
+            select(func.count())
+            .select_from(DataSource)
+            .where(DataSource.is_enabled == True)  # noqa: E712
+        )
+        total_enabled: int = enabled_result.scalar() or 1  # avoid div-by-zero
+
+        pct = round(min(100.0, (found / total_enabled) * 100), 1)
+
+        meta = dict(person.meta or {})
+        meta["coverage"] = {
+            "attempted": attempted,
+            "found": found,
+            "total_enabled": total_enabled,
+            "pct": pct,
+        }
+        person.meta = meta
+
+        try:
+            await session.flush()
+            await session.commit()
+        except Exception as exc:
+            logger.warning("Coverage update failed for person_id=%s: %s", person_id, exc)
+            await session.rollback()
 
     async def _publish_completion(self, person_id: str, report: EnrichmentReport) -> None:
         if not event_bus.is_connected:

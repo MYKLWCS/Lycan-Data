@@ -80,6 +80,79 @@ class LinkedInCrawler(PlaywrightCrawler):
             if conn:
                 data["connections"] = await conn.inner_text()
 
+            # Skills list
+            skill_els = await page.query_selector_all(
+                ".skill-categories-section .skill-name, "
+                ".pv-skill-category-entity__name span"
+            )
+            if skill_els:
+                skills = []
+                for el in skill_els[:30]:
+                    text = (await el.inner_text()).strip()
+                    if text:
+                        skills.append(text)
+                if skills:
+                    data["skills"] = skills
+
+            # Endorsement count (sum across all skills)
+            endorsement_els = await page.query_selector_all(
+                ".pv-skill-category-entity__endorsement-count"
+            )
+            if endorsement_els:
+                total_endorsements = 0
+                for el in endorsement_els:
+                    try:
+                        count_text = (
+                            (await el.inner_text()).strip().replace(",", "").replace("+", "")
+                        )
+                        total_endorsements += int(count_text)
+                    except (ValueError, AttributeError):
+                        pass
+                data["endorsement_count"] = total_endorsements
+
+            # Post count
+            post_count_el = await page.query_selector(
+                ".pv-recent-activity-section__headline-text"
+            )
+            if not post_count_el:
+                post_count_el = await page.query_selector("[data-test-id='post-count']")
+            if post_count_el:
+                try:
+                    pc_text = (
+                        (await post_count_el.inner_text()).strip().split()[0].replace(",", "")
+                    )
+                    data["post_count"] = int(pc_text)
+                except (ValueError, AttributeError):
+                    pass
+
+            # Education — degree, field, school
+            education_items = []
+            edu_els = await page.query_selector_all(
+                ".education-section .pv-education-entity, "
+                ".pv-profile-section__list-item.education-item"
+            )
+            for edu_el in edu_els[:5]:
+                school_el = await edu_el.query_selector(
+                    ".pv-entity__school-name, h3.pv-entity__school-name"
+                )
+                degree_el = await edu_el.query_selector(
+                    ".pv-entity__degree-name span:nth-child(2)"
+                )
+                field_el = await edu_el.query_selector(
+                    ".pv-entity__fos span:nth-child(2)"
+                )
+                dates_el = await edu_el.query_selector(
+                    ".pv-entity__dates span:nth-child(2)"
+                )
+                education_items.append({
+                    "school": (await school_el.inner_text()).strip() if school_el else "",
+                    "degree": (await degree_el.inner_text()).strip() if degree_el else "",
+                    "field": (await field_el.inner_text()).strip() if field_el else "",
+                    "dates": (await dates_el.inner_text()).strip() if dates_el else "",
+                })
+            if education_items:
+                data["education"] = education_items
+
         except Exception as exc:
             logger.debug("LinkedIn extract error: %s", exc)
         return data
