@@ -156,3 +156,29 @@ def test_get_report_execute_called_multiple_times():
     assert response.status_code == 200
     # get_report calls _fetch at least 10+ times
     assert session.execute.await_count >= 5
+
+
+# ---------------------------------------------------------------------------
+# Lines 573-577: flag_person_for_review
+# ---------------------------------------------------------------------------
+
+
+def test_flag_person_for_review():
+    """POST /{person_id}/flag sets conflict_flag=True and commits."""
+    pid = uuid.uuid4()
+    person = _make_mock_person(pid)
+    person.conflict_flag = False
+
+    session = _make_session(person)
+    session.commit = AsyncMock()
+    app = _make_app(session)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.post(f"/persons/{pid}/flag")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "Flagged for review"
+    assert data["person_id"] == str(pid)
+    assert person.conflict_flag is True
+    session.commit.assert_awaited_once()
