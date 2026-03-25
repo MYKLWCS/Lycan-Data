@@ -390,3 +390,73 @@ def test_person_signals_fields():
     assert s.has_vehicle is True
     assert s.age == 34
     assert s.income_estimate == 55_000.0
+
+
+# ── Task 7: CommercialTagsEngine ──────────────────────────────────────────────
+
+import uuid
+from modules.enrichers.commercial_tagger import CommercialTagsEngine
+from modules.enrichers.marketing_tags import InsuranceTag, BankingTag, WealthTag, LendingTag
+
+
+def _make_signals(**overrides) -> PersonSignals:
+    defaults = dict(
+        person_id=uuid.uuid4(),
+        has_vehicle=False,
+        has_property=False,
+        financial_distress_score=0.0,
+        gambling_score=0.0,
+        income_estimate=None,
+        net_worth_estimate=None,
+        is_employed=False,
+        age=None,
+        criminal_count=0,
+        has_investment_signals=False,
+    )
+    defaults.update(overrides)
+    return PersonSignals(**defaults)
+
+
+def test_commercial_engine_insurance_auto_tag():
+    engine = CommercialTagsEngine()
+    signals = _make_signals(has_vehicle=True)
+    results = engine.tag_person(signals)
+    tags = [r.tag for r in results]
+    assert InsuranceTag.INSURANCE_AUTO in tags
+
+
+def test_commercial_engine_banking_basic_tag():
+    engine = CommercialTagsEngine()
+    signals = _make_signals(is_employed=True, age=30)
+    results = engine.tag_person(signals)
+    tags = [r.tag for r in results]
+    assert BankingTag.BANKING_BASIC in tags
+
+
+def test_commercial_engine_high_net_worth_tag():
+    engine = CommercialTagsEngine()
+    signals = _make_signals(
+        net_worth_estimate=1_500_000.0,
+        has_property=True,
+        has_investment_signals=True,
+    )
+    results = engine.tag_person(signals)
+    tags = [r.tag for r in results]
+    assert WealthTag.HIGH_NET_WORTH in tags
+
+
+def test_commercial_engine_returns_tag_results_with_reasoning():
+    engine = CommercialTagsEngine()
+    signals = _make_signals(has_vehicle=True)
+    results = engine.tag_person(signals)
+    for r in results:
+        assert isinstance(r.reasoning, list)
+        assert len(r.reasoning) > 0
+        assert 0.0 <= r.confidence <= 1.0
+
+
+def test_commercial_engine_no_signals_returns_empty():
+    engine = CommercialTagsEngine()
+    signals = _make_signals()  # all defaults — nothing fires
+    results = engine.tag_person(signals)
+    assert results == []
