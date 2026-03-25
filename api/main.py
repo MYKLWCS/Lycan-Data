@@ -9,6 +9,9 @@ from fastapi.staticfiles import StaticFiles
 
 _log = logging.getLogger(__name__)
 
+from fastapi import Depends
+
+from api.deps import verify_api_key
 from api.routes import (
     alerts,
     audit,
@@ -30,6 +33,9 @@ from api.routes import (
     ws,
 )
 from shared.events import event_bus
+
+# Auth dependency applied to all protected routers
+_auth = [Depends(verify_api_key)]
 
 
 def _import_all_crawlers() -> None:
@@ -119,21 +125,21 @@ async def ui_redirect(path: str):
 
 # ── API Routes ────────────────────────────────────────────────────────────────
 
-app.include_router(audit.router, prefix="/audit", tags=["audit"])
-app.include_router(search.router, prefix="/search", tags=["search"])
-app.include_router(search_query.router, prefix="/query", tags=["query"])
-app.include_router(persons.router, prefix="/persons", tags=["persons"])
-app.include_router(crawls.router, prefix="/crawls", tags=["crawls"])
-app.include_router(system.router, prefix="/system", tags=["system"])
+app.include_router(audit.router, prefix="/audit", tags=["audit"], dependencies=_auth)
+app.include_router(search.router, prefix="/search", tags=["search"], dependencies=_auth)
+app.include_router(search_query.router, prefix="/query", tags=["query"], dependencies=_auth)
+app.include_router(persons.router, prefix="/persons", tags=["persons"], dependencies=_auth)
+app.include_router(crawls.router, prefix="/crawls", tags=["crawls"], dependencies=_auth)
+app.include_router(system.router, prefix="/system", tags=["system"])  # health stays open
 app.include_router(ws.router, tags=["websocket"])
-app.include_router(financial.router, prefix="/financial", tags=["financial"])
-app.include_router(marketing.router, prefix="/marketing", tags=["marketing"])
-app.include_router(graph.router, prefix="/graph", tags=["graph"])
-app.include_router(dedup.router, prefix="/dedup", tags=["dedup"])
-app.include_router(enrichment.router, prefix="/enrich", tags=["enrichment"])
-app.include_router(patterns.router, prefix="/patterns", tags=["patterns"])
-app.include_router(behavioural.router, prefix="/behavioural", tags=["behavioural"])
-app.include_router(watchlist.router, prefix="/watchlist", tags=["watchlist"])
-app.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
-app.include_router(compliance.router, prefix="/compliance", tags=["compliance"])
-app.include_router(export.router, prefix="/export", tags=["export"])
+app.include_router(financial.router, prefix="/financial", tags=["financial"], dependencies=_auth)
+app.include_router(marketing.router, prefix="/marketing", tags=["marketing"], dependencies=_auth)
+app.include_router(graph.router, prefix="/graph", tags=["graph"], dependencies=_auth)
+app.include_router(dedup.router, prefix="/dedup", tags=["dedup"], dependencies=_auth)
+app.include_router(enrichment.router, prefix="/enrich", tags=["enrichment"], dependencies=_auth)
+app.include_router(patterns.router, prefix="/patterns", tags=["patterns"], dependencies=_auth)
+app.include_router(behavioural.router, prefix="/behavioural", tags=["behavioural"], dependencies=_auth)
+app.include_router(watchlist.router, prefix="/watchlist", tags=["watchlist"], dependencies=_auth)
+app.include_router(alerts.router, prefix="/alerts", tags=["alerts"], dependencies=_auth)
+app.include_router(compliance.router, prefix="/compliance", tags=["compliance"], dependencies=_auth)
+app.include_router(export.router, prefix="/export", tags=["export"], dependencies=_auth)

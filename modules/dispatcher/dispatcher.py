@@ -1,9 +1,12 @@
 """
 Crawl Job Dispatcher.
 
-Pulls CrawlJob messages from Dragonfly priority queues (high → normal → low),
+Pulls CrawlJob messages from Dragonfly priority queues (high -> normal -> low),
 looks up the registered crawler for the platform, runs it, writes results to DB,
 updates CrawlJob status, and emits completion events.
+
+Each dispatcher worker runs up to CONCURRENCY_PER_WORKER jobs in parallel using
+an asyncio.Semaphore so one slow/failed scraper never blocks the others.
 """
 
 import asyncio
@@ -23,42 +26,75 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 RETRY_DELAYS = [30, 120, 300]  # seconds: 30s, 2min, 5min
+CONCURRENCY_PER_WORKER = 10  # max parallel scrapers per dispatcher worker
 
 
 class CrawlDispatcher:
-    """Single-worker dispatcher. Run multiple instances for parallelism."""
+    """Concurrent dispatcher. Runs up to CONCURRENCY_PER_WORKER jobs in parallel."""
 
-    def __init__(self, worker_id: str = "worker-1"):
+    def __init__(self, worker_id: str = "worker-1", concurrency: int = CONCURRENCY_PER_WORKER):
         self.worker_id = worker_id
         self._running = False
+        self._semaphore = asyncio.Semaphore(concurrency)
+        self._tasks: set[asyncio.Task] = set()
 
     async def start(self) -> None:
-        """Start the dispatch loop."""
+        """Start the concurrent dispatch loop."""
         self._running = True
-        logger.info(f"Dispatcher {self.worker_id} started")
+        logger.info(
+            "Dispatcher %s started (concurrency=%d)",
+            self.worker_id,
+            self._semaphore._value,
+        )
         while self._running:
             try:
-                await self._process_one()
+                # Wait for a concurrency slot before dequeuing
+                await self._semaphore.acquire()
+                raw = await event_bus.dequeue_any(timeout=2)
+                if raw is None:
+                    self._semaphore.release()
+                    continue
+
+                # Spawn concurrent task
+                task = asyncio.create_task(
+                    self._process_one_guarded(raw),
+                    name=f"{self.worker_id}-job",
+                )
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
+
+            except asyncio.CancelledError:
+                break
             except Exception as exc:
-                logger.exception(f"Dispatcher loop error: {exc}")
+                self._semaphore.release()
+                logger.exception("Dispatcher %s loop error: %s", self.worker_id, exc)
                 await asyncio.sleep(1)
+
+        # Drain in-flight tasks on shutdown
+        if self._tasks:
+            await asyncio.gather(*self._tasks, return_exceptions=True)
 
     async def stop(self) -> None:
         self._running = False
 
-    async def _process_one(self) -> None:
-        """Dequeue one job (blocking with timeout), route to crawler, write results."""
-        raw = await event_bus.dequeue_any(timeout=5)
-        if raw is None:
-            return
+    async def _process_one_guarded(self, raw) -> None:
+        """Run a single job inside the semaphore guard, releasing on completion."""
+        try:
+            await self._process_one(raw)
+        except Exception as exc:
+            logger.exception("Dispatcher %s job error: %s", self.worker_id, exc)
+        finally:
+            self._semaphore.release()
 
+    async def _process_one(self, raw) -> None:
+        """Parse and route one job payload."""
         if isinstance(raw, dict):
             job_dict = raw
         else:
             try:
                 job_dict = json.loads(raw)
             except (json.JSONDecodeError, TypeError):
-                logger.warning(f"Invalid job payload: {raw!r}")
+                logger.warning("Invalid job payload: %r", raw)
                 return
 
         job_id = job_dict.get("job_id")
@@ -84,7 +120,7 @@ class CrawlDispatcher:
     ) -> None:
         crawler_cls = get_crawler(platform)
         if crawler_cls is None:
-            logger.warning(f"No crawler for platform: {platform}")
+            logger.warning("No crawler for platform: %s", platform)
             await self._update_job_status(
                 session, job_id, CrawlStatus.FAILED, f"No crawler for: {platform}"
             )
@@ -110,9 +146,8 @@ class CrawlDispatcher:
                     "found": result.found,
                     "error": result.error,
                     "person_id": person_id,
-                    "source_reliability": result.source_reliability,  # preserve for aggregator
+                    "source_reliability": result.source_reliability,
                 }
-                # Fix nested dicts (to_db_dict might leave data intact)
                 if hasattr(result, "data"):
                     ingest_payload["data"] = result.data
 
@@ -143,7 +178,7 @@ class CrawlDispatcher:
                 )
 
         except Exception as exc:
-            logger.exception(f"Job {job_id} failed: {exc}")
+            logger.exception("Job %s failed: %s", job_id, exc)
             if retry_count < MAX_RETRIES:
                 await self._requeue_with_backoff(job_dict, retry_count)
             await self._update_job_status(session, job_id, CrawlStatus.FAILED, str(exc))
@@ -198,7 +233,7 @@ class CrawlDispatcher:
         job_dict["run_after"] = datetime.now(UTC).timestamp() + delay
         priority = "low" if retry_count >= 1 else "normal"
         await event_bus.enqueue(job_dict, priority=priority)
-        logger.info(f"Requeued job with {delay}s backoff (retry {retry_count + 1})")
+        logger.info("Requeued job with %ds backoff (retry %d)", delay, retry_count + 1)
 
 
 async def dispatch_job(

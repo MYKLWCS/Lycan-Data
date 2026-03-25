@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
+    # API Authentication — comma-separated list of valid API keys
+    api_keys: str = ""  # e.g. "key1,key2,key3"
+    api_auth_enabled: bool = True  # set False to disable auth (dev only)
+
     # Freshness thresholds (hours)
     freshness_threshold: float = 0.40
     rescrape_on_staleness: bool = True
