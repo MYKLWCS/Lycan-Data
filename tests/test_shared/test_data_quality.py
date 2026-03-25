@@ -32,8 +32,9 @@ def test_composite_quality_clamped_to_zero():
 
 
 def test_corroboration_score_single_source():
+    # Sigmoid formula: count=1 → 1/(1+exp(0)) = 0.5
     assert corroboration_score_from_count(1) > 0.0
-    assert corroboration_score_from_count(1) < 0.5
+    assert corroboration_score_from_count(1) <= 0.5
 
 
 def test_corroboration_score_increases_with_count():

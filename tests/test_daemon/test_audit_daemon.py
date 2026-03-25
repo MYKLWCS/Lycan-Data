@@ -119,6 +119,7 @@ async def test_run_audit_marks_degraded_crawlers():
     crawl_rows = [
         {"job_type": "twitter", "found_count": 0, "error_count": 5},
         {"job_type": "linkedin", "found_count": 10, "error_count": 1},
+        {"job_type": "empty_crawler", "found_count": 0, "error_count": 0},  # total==0 → skip
     ]
 
     mock_session, added_objects = _make_mock_session([

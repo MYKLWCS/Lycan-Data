@@ -1,48 +1,97 @@
-"""Vitals Records crawler — FamilySearch vital records."""
+"""FamilySearch vitals records crawler (birth, death, marriage certs)."""
 from __future__ import annotations
-from urllib.parse import quote_plus
+
+import logging
+
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
+logger = logging.getLogger(__name__)
+
+_API_BASE = "https://api.familysearch.org/platform/records/search"
+
+_FACT_TYPE_MAP = {
+    "Birth": "birth_cert",
+    "Death": "obituary",
+    "Marriage": "memorial",
+}
+
+
 @register("vitals_records")
 class VitalsRecordsCrawler(HttpxCrawler):
-    """identifier: full name"""
     platform = "vitals_records"
-    source_reliability: float = 0.90
-    requires_tor: bool = False
+    source_reliability = 0.90
+    requires_tor = False
 
     async def scrape(self, identifier: str) -> CrawlerResult:
-        parts = identifier.strip().split(None, 1)
-        if len(parts) < 2:
-            return CrawlerResult(found=False, platform="vitals_records", identifier=identifier, data={})
-        first, last = parts[0], parts[1]
-        url = (f"https://familysearch.org/search/records/results"
-               f"?q.givenName={quote_plus(first)}&q.surname={quote_plus(last)}&q.recordType=Vital")
-        resp = await self.get(url)
-        if not resp:
-            return CrawlerResult(found=False, platform="vitals_records", identifier=identifier, data={})
+        """identifier: "First Last:YYYY" """
+        parts = identifier.split(":")
+        name_part = parts[0].strip()
+        year_part = parts[1].strip() if len(parts) > 1 else ""
+
+        url = f"{_API_BASE}?q.givenName={name_part}&q.birthLikeDate.years={year_part}&collection_id=2285338"
+        response = await self.get(url, headers={"Accept": "application/x-gedcomx-v1+json"})
+
+        if response is None or response.status_code != 200:
+            return CrawlerResult(
+                platform=self.platform,
+                identifier=identifier,
+                found=False,
+                error="non_200" if response is not None else "no_response",
+            )
+
         try:
-            data = resp.json()
+            gedcomx = response.json()
         except Exception:
-            return CrawlerResult(found=False, platform="vitals_records", identifier=identifier, data={})
-        entries = data.get("entries", [])
-        if not entries:
-            return CrawlerResult(found=False, platform="vitals_records", identifier=identifier, data={})
-        relatives = []
-        for entry in entries[:10]:
-            rels = entry.get("content", {}).get("gedcomx", {}).get("relationships", [])
-            names = {p.get("id"): " ".join(n.get("fullText","") for n in p.get("names",[{}]))
-                     for p in entry.get("content",{}).get("gedcomx",{}).get("persons",[])}
-            for rel in rels:
-                rtype = rel.get("type", "")
-                p2_id = rel.get("person2", {}).get("resourceId")
-                p1_id = rel.get("person1", {}).get("resourceId")
-                if "Couple" in rtype: relationship = "spouse_of"
-                elif "ParentChild" in rtype: relationship = "parent_of"
-                else: continue
-                name = names.get(p2_id) or names.get(p1_id) or ""
-                if name:
-                    relatives.append({"full_name": name.strip(), "relationship": relationship, "source_url": url})
-        return CrawlerResult(found=bool(relatives), platform="vitals_records", identifier=identifier,
-                             data={"relatives": relatives, "source_url": url})
+            return CrawlerResult(
+                platform=self.platform,
+                identifier=identifier,
+                found=False,
+                error="invalid_json",
+            )
+
+        records = []
+        for entry in gedcomx.get("entries", []):
+            parsed = self._parse_vitals_entry(entry)
+            if parsed:
+                records.append(parsed)
+
+        return CrawlerResult(
+            platform=self.platform,
+            identifier=identifier,
+            found=bool(records),
+            data={"records": records},
+            source_reliability=self.source_reliability,
+        )
+
+    def _parse_vitals_entry(self, entry: dict) -> dict | None:
+        content = entry.get("content", {})
+        gedcomx = content.get("gedcomx", {})
+        persons = gedcomx.get("persons", [])
+        if not persons:
+            return None
+
+        person = persons[0]
+        names = person.get("names", [])
+        full_name = ""
+        if names:
+            parts = names[0].get("nameForms", [{}])[0].get("parts", [])
+            full_name = " ".join(p.get("value", "") for p in parts).strip()
+
+        record_type = "birth_cert"  # default
+        event_date = ""
+        for fact in person.get("facts", []):
+            ftype = fact.get("type", "")
+            for key, rtype in _FACT_TYPE_MAP.items():
+                if key in ftype:
+                    record_type = rtype
+                    event_date = fact.get("date", {}).get("original", "")
+                    break
+
+        return {
+            "full_name": full_name,
+            "record_type": record_type,
+            "event_date": event_date,
+            "source_id": entry.get("id", ""),
+        }

@@ -112,7 +112,7 @@ def apply_fix_create_test_db():
         [
             "docker",
             "exec",
-            "osnit-postgres-1",
+            "lycan-data-postgres-1",
             "psql",
             "-U",
             "lycan",
@@ -128,7 +128,7 @@ def apply_fix_create_test_db():
 def apply_fix_flush_queues():
     print("  -> Flushing stale Redis/Dragonfly queues...")
     subprocess.run(
-        ["docker", "exec", "osnit-dragonfly-1", "redis-cli", "FLUSHDB"],
+        ["docker", "exec", "lycan-data-dragonfly-1", "redis-cli", "FLUSHDB"],
         cwd=ROOT,
         capture_output=True,
     )

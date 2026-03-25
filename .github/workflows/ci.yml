@@ -13,14 +13,12 @@ concurrency:
 env:
   DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
   REDIS_URL: "redis://localhost:6379/0"
-  MEILI_URL: "http://localhost:7700"
-  MEILI_MASTER_KEY: ""
   SECRET_KEY: "ci-test-secret-key-not-for-production"
   ENVIRONMENT: "test"
   PYTHONPATH: "."
 
 jobs:
-  # ── 1. Lint ──────────────────────────────────────────────────────────────────
+  # ── 1. Lint ───────────────────────────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: [self-hosted, lycan]
@@ -30,17 +28,15 @@ jobs:
       - name: Bootstrap venv
         run: |
           [ -f .venv/bin/python ] || python3 -m venv .venv
-          .venv/bin/python -m pip install --quiet --upgrade pip
+          .venv/bin/python -m pip install --quiet --upgrade pip ruff
 
       - name: Ruff lint
-        run: |
-          .venv/bin/python -m pip install --quiet ruff
-          .venv/bin/python -m ruff check . --output-format=github
+        run: .venv/bin/python -m ruff check . --output-format=github
 
       - name: Ruff format check
         run: .venv/bin/python -m ruff format --check .
 
-  # ── 2. Tests ─────────────────────────────────────────────────────────────────
+  # ── 2. Tests + Coverage ───────────────────────────────────────────────────────
   test:
     name: Tests
     runs-on: [self-hosted, lycan]
@@ -57,27 +53,24 @@ jobs:
           .venv/bin/python -m pip install --quiet -r requirements.txt
           .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
 
-      - name: Pre-flight environment heal
+      - name: Setup test database
         run: |
-          # Ensure lycan user has correct password for TCP connections
           docker exec osnit-postgres-1 psql -U lycan -c "ALTER USER lycan WITH PASSWORD 'lycan';" 2>/dev/null || true
-          # Ensure test DB and extensions exist
           docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
           docker exec osnit-postgres-1 psql -U lycan lycan_test -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
           docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
-          # Run migrations
           .venv/bin/python -m alembic upgrade head 2>/dev/null || true
-          # Flush stale queue items that live workers may have left
           docker exec osnit-dragonfly-1 redis-cli FLUSHDB 2>/dev/null || true
 
       - name: Run tests
         run: |
           .venv/bin/python -m pytest tests/ \
+            --ignore=tests/test_integration.py \
             --cov=. \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=45 \
-            -v --tb=short
+            --cov-fail-under=99 \
+            -q --tb=short
 
       - name: Upload coverage
         if: always()
@@ -87,27 +80,27 @@ jobs:
           path: coverage.xml
           retention-days: 30
 
-  # ── 3. Self-Heal (only on test failure) ──────────────────────────────────────
-  self-heal:
-    name: Self-Heal
+  # ── 3. Security scan ─────────────────────────────────────────────────────────
+  security:
+    name: Security Scan
     runs-on: [self-hosted, lycan]
-    needs: test
-    if: failure()
     steps:
       - uses: actions/checkout@v4
 
       - name: Bootstrap venv
         run: |
           [ -f .venv/bin/python ] || python3 -m venv .venv
-          .venv/bin/python -m pip install --quiet --upgrade pip
+          .venv/bin/python -m pip install --quiet --upgrade pip bandit pip-audit
 
-      - name: Install dependencies
+      - name: Bandit static analysis
         run: |
-          .venv/bin/python -m pip install --quiet -r requirements.txt
-          .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
+          .venv/bin/python -m bandit -r . \
+            --exclude .venv,tests,migrations,scripts \
+            --severity-level medium \
+            --format github 2>&1 || true
 
-      - name: Diagnose and heal
-        run: .venv/bin/python scripts/selfheal.py
+      - name: Dependency vulnerability check
+        run: .venv/bin/python -m pip_audit --requirement requirements.txt --progress-spinner off || true
 
   # ── 4. Import sanity ─────────────────────────────────────────────────────────
   import-check:
@@ -121,7 +114,7 @@ jobs:
           [ -f .venv/bin/python ] || python3 -m venv .venv
           .venv/bin/python -m pip install --quiet --upgrade pip
 
-      - name: Install core deps
+      - name: Install dependencies
         run: .venv/bin/python -m pip install --quiet -r requirements.txt
 
       - name: Check all modules import cleanly

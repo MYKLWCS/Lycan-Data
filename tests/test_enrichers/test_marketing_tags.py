@@ -478,3 +478,12 @@ def test_borrower_scorer_stable_employment_boosts():
     emp = [_make_employment(is_current=True, started_at=date(date.today().year - 8, 1, 1))]
     result = scorer.score([], [], emp, None)
     assert any("stable employment" in s for s in result.signals)
+
+
+def test_borrower_scorer_moderate_address_instability():
+    """4 addresses triggers the elif len(addresses) > 3 branch (lines 468-469)."""
+    scorer = HighInterestBorrowerScorer()
+    addresses = [_make_address() for _ in range(4)]
+    result = scorer.score([], addresses, [], None)
+    assert any("moderate address instability" in s for s in result.signals)
+    assert result.score < 100

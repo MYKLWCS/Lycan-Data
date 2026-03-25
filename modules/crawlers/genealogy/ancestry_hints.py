@@ -1,39 +1,68 @@
-"""Ancestry Hints crawler."""
+"""Ancestry.com hints crawler — scrapes public hint results for a name+birth year."""
 from __future__ import annotations
-from urllib.parse import quote_plus
+
+import logging
+
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
+logger = logging.getLogger(__name__)
+
+_BASE_URL = "https://www.ancestry.com/search/"
+
+
 @register("ancestry_hints")
 class AncestryHintsCrawler(HttpxCrawler):
-    """identifier: full name"""
     platform = "ancestry_hints"
-    source_reliability: float = 0.55
-    requires_tor: bool = False
+    source_reliability = 0.55
+    requires_tor = False
 
     async def scrape(self, identifier: str) -> CrawlerResult:
-        parts = identifier.strip().split(None, 1)
-        if len(parts) < 2:
-            return CrawlerResult(found=False, platform="ancestry_hints", identifier=identifier, data={})
-        first, last = parts[0], parts[1]
-        url = f"https://www.ancestry.com/search/?name={quote_plus(first)}+{quote_plus(last)}"
-        resp = await self.get(url, headers={"Accept": "application/json"})
-        if not resp:
-            return CrawlerResult(found=False, platform="ancestry_hints", identifier=identifier, data={})
+        """
+        identifier: "First Last:YYYY"  e.g. "John Smith:1920"
+        """
+        parts = identifier.split(":")
+        name_part = parts[0].strip()
+        year_part = parts[1].strip() if len(parts) > 1 else ""
+
+        name_tokens = name_part.split()
+        first = name_tokens[0] if name_tokens else name_part
+        last = name_tokens[-1] if len(name_tokens) > 1 else ""
+
+        url = f"{_BASE_URL}?name={first}+{last}&birth={year_part}"
+        response = await self.get(url)
+
+        if response is None or response.status_code != 200:
+            return CrawlerResult(
+                platform=self.platform,
+                identifier=identifier,
+                found=False,
+                error="non_200" if response is not None else "no_response",
+            )
+
         try:
-            data = resp.json()
+            json_data = response.json()
         except Exception:
-            return CrawlerResult(found=False, platform="ancestry_hints", identifier=identifier, data={})
-        results = data.get("results", [])
-        if not results:
-            return CrawlerResult(found=False, platform="ancestry_hints", identifier=identifier, data={})
-        relatives = []
-        for r in results[:10]:
-            name = r.get("name") or r.get("full_name")
-            rel = r.get("relationship")
-            if name and rel:
-                relatives.append({"full_name": name, "relationship": rel,
-                                   "birth_year": r.get("birth_year"), "source_url": r.get("url", url)})
-        return CrawlerResult(found=bool(relatives), platform="ancestry_hints", identifier=identifier,
-                             data={"relatives": relatives, "source_url": url})
+            json_data = {}
+
+        records = self._parse_results(json_data)
+        return CrawlerResult(
+            platform=self.platform,
+            identifier=identifier,
+            found=bool(records),
+            data={"records": records, "name": name_part, "birth_year": year_part},
+            source_reliability=self.source_reliability,
+        )
+
+    def _parse_results(self, json_data: dict) -> list[dict]:
+        results = []
+        for item in json_data.get("hints", []):
+            results.append({
+                "record_id": item.get("id", ""),
+                "title": item.get("title", ""),
+                "record_type": item.get("recordType", "census"),
+                "year": item.get("year", ""),
+                "url": item.get("url", ""),
+            })
+        return results

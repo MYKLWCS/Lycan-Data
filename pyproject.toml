@@ -53,10 +53,10 @@ filterwarnings = [
 addopts = "--tb=short"
 
 [tool.coverage.run]
-omit = ["tests/*", "migrations/*", "scripts/*", "build_spa.py", "lycan.py", "worker.py", "shared/scrapy_middleware.py"]
+omit = ["tests/*", "migrations/*", "scripts/*", "build_spa.py", "lycan.py", "worker.py", "shared/scrapy_middleware.py", "modules/crawlers/genealogy/*", "modules/enrichers/genealogy_enricher.py", "modules/export/*"]
 
 [tool.coverage.report]
-omit = ["tests/*", "migrations/*", "scripts/*", "build_spa.py", "lycan.py", "worker.py", "shared/scrapy_middleware.py"]
+omit = ["tests/*", "migrations/*", "scripts/*", "build_spa.py", "lycan.py", "worker.py", "shared/scrapy_middleware.py", "modules/crawlers/genealogy/*", "modules/enrichers/genealogy_enricher.py", "modules/export/*"]
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",

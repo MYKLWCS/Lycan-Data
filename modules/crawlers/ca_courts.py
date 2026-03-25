@@ -60,7 +60,7 @@ class CaCourtsCrawler(HttpxCrawler):
 
         if not cases:
             # Generic fallback: any element with class containing 'case-row'
-            for el in soup.find_all(attrs={"class": lambda c: c and "case-row" in " ".join(c).lower()}):
+            for el in soup.find_all(attrs={"class": lambda c: c and "case-row" in (c.lower() if isinstance(c, str) else " ".join(c).lower())}):
                 text = el.get_text(strip=True)
                 if text:
                     cases.append({"case_number": text, "parties": "", "case_type": ""})

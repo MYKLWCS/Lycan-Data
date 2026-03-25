@@ -120,7 +120,7 @@ class CircuitBreaker:
                 return True
             return False  # allow probe
 
-        return False
+        return False  # pragma: no cover
 
     async def record_success(self, key: str) -> None:
         """

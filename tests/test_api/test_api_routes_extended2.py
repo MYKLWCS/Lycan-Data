@@ -219,7 +219,8 @@ class TestPersonReport:
         session.get.return_value = _mock_person(pid)
         # Every execute call returns an empty scalars list
         session.execute.return_value = MagicMock(
-            scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+            scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))),
+            scalar_one=MagicMock(return_value=0),
         )
 
         client = _client(session)

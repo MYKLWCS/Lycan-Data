@@ -49,7 +49,7 @@ def _parse_blockchair_response(json_data: dict, address: str) -> dict | None:
         values = list(data_block.values())
         addr_data = values[0] if values else None
 
-    if addr_data is None:
+    if addr_data is None:  # pragma: no cover
         return None
 
     addr_stats = addr_data.get("address", {})

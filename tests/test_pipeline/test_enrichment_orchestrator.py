@@ -48,26 +48,28 @@ async def test_enrich_person_returns_report_with_five_steps():
     orchestrator = EnrichmentOrchestrator()
     session = _mock_session()
 
-    # Patch all five private step methods to be no-ops
+    # Patch all six private step methods to be no-ops
     with (
         patch.object(orchestrator, "_run_financial_aml", new=AsyncMock()),
         patch.object(orchestrator, "_run_marketing_tags", new=AsyncMock()),
         patch.object(orchestrator, "_run_deduplication", new=AsyncMock()),
         patch.object(orchestrator, "_run_burner", new=AsyncMock()),
         patch.object(orchestrator, "_run_relationship_score", new=AsyncMock()),
+        patch.object(orchestrator, "_update_coverage", new=AsyncMock()),
         patch.object(orchestrator, "_publish_completion", new=AsyncMock()),
     ):
         report = await orchestrator.enrich_person("person-123", session)
 
     assert isinstance(report, EnrichmentReport)
     assert report.person_id == "person-123"
-    assert len(report.steps) == 5
+    assert len(report.steps) == 6
     enricher_names = [s.enricher for s in report.steps]
     assert "financial_aml" in enricher_names
     assert "marketing_tags" in enricher_names
     assert "deduplication" in enricher_names
     assert "burner_assessment" in enricher_names
     assert "relationship_score" in enricher_names
+    assert "coverage_update" in enricher_names
 
 
 # ---------------------------------------------------------------------------
@@ -84,11 +86,12 @@ async def test_enrich_person_all_ok():
         patch.object(orchestrator, "_run_deduplication", new=AsyncMock()),
         patch.object(orchestrator, "_run_burner", new=AsyncMock()),
         patch.object(orchestrator, "_run_relationship_score", new=AsyncMock()),
+        patch.object(orchestrator, "_update_coverage", new=AsyncMock()),
         patch.object(orchestrator, "_publish_completion", new=AsyncMock()),
     ):
         report = await orchestrator.enrich_person("abc", session)
 
-    assert report.ok_count == 5
+    assert report.ok_count == 6
     assert report.error_count == 0
 
 
@@ -109,13 +112,14 @@ async def test_failing_enricher_does_not_abort_pipeline():
         patch.object(orchestrator, "_run_deduplication", new=AsyncMock()),
         patch.object(orchestrator, "_run_burner", new=AsyncMock()),
         patch.object(orchestrator, "_run_relationship_score", new=AsyncMock()),
+        patch.object(orchestrator, "_update_coverage", new=AsyncMock()),
         patch.object(orchestrator, "_publish_completion", new=AsyncMock()),
     ):
         report = await orchestrator.enrich_person("xyz", session)
 
-    assert len(report.steps) == 5
+    assert len(report.steps) == 6
     assert report.error_count == 1
-    assert report.ok_count == 4
+    assert report.ok_count == 5
     failed_step = next(s for s in report.steps if s.enricher == "financial_aml")
     assert failed_step.status == "error"
     assert "injected failure" in failed_step.detail

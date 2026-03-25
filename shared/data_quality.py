@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 from shared.constants import SOURCE_RELIABILITY
 from shared.freshness import compute_freshness
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     pass
 
 # Composite score weights

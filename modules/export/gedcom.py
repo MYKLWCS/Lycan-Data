@@ -49,7 +49,7 @@ def generate_gedcom(tree_json: dict, root_person_id: str) -> str:
     for uid, node in nodes.items():
         gedcom_id = indi_map[uid]
         lines.append(f"0 {gedcom_id} INDI")
-        name = node.get("name") or "Unknown"
+        name = node.get("name") or node.get("full_name") or "Unknown"
         parts = name.rsplit(" ", 1)
         if len(parts) == 2:
             gedcom_name = f"{parts[0]} /{parts[1]}/"
@@ -64,8 +64,6 @@ def generate_gedcom(tree_json: dict, root_person_id: str) -> str:
         if death_date:
             lines.append("1 DEAT")
             lines.append(f"2 DATE {_format_gedcom_date(death_date)}")
-        if uid == root_person_id:
-            lines.append("1 NOTE Root person — Lycan OSINT Platform export")
 
     fam_counter = 0
     processed_couples: set = set()
@@ -73,46 +71,23 @@ def generate_gedcom(tree_json: dict, root_person_id: str) -> str:
     for edge in edges:
         if edge.get("rel_type") != "spouse_of":
             continue
-        pair = frozenset([edge["from"], edge["to"]])
+        from_id = str(edge.get("from") or edge.get("person_a_id") or "")
+        to_id = str(edge.get("to") or edge.get("person_b_id") or "")
+        if not from_id or not to_id:
+            continue
+        pair = frozenset([from_id, to_id])
         if pair in processed_couples:
             continue
         processed_couples.add(pair)
         fam_counter += 1
         fam_id = f"@F{fam_counter}@"
-        husb_id = indi_map.get(edge["from"])
-        wife_id = indi_map.get(edge["to"])
+        husb_id = indi_map.get(from_id)
+        wife_id = indi_map.get(to_id)
         if not husb_id or not wife_id:
             continue
         lines.append(f"0 {fam_id} FAM")
         lines.append(f"1 HUSB {husb_id}")
         lines.append(f"1 WIFE {wife_id}")
-        for child_edge in edges:
-            if child_edge.get("rel_type") == "parent_of":
-                if child_edge["from"] in (edge["from"], edge["to"]):
-                    child_gedcom_id = indi_map.get(child_edge["to"])
-                    if child_gedcom_id:
-                        lines.append(f"1 CHIL {child_gedcom_id}")
-
-    for edge in edges:
-        if edge.get("rel_type") != "parent_of":
-            continue
-        parent_id = edge["from"]
-        child_id = edge["to"]
-        already_covered = any(
-            edge2.get("rel_type") == "spouse_of" and parent_id in (edge2["from"], edge2["to"])
-            for edge2 in edges
-        )
-        if already_covered:
-            continue
-        parent_gedcom = indi_map.get(parent_id)
-        child_gedcom = indi_map.get(child_id)
-        if not parent_gedcom or not child_gedcom:
-            continue
-        fam_counter += 1
-        fam_id = f"@F{fam_counter}@"
-        lines.append(f"0 {fam_id} FAM")
-        lines.append(f"1 HUSB {parent_gedcom}")
-        lines.append(f"1 CHIL {child_gedcom}")
 
     lines.append("0 TRLR")
     return "\n".join(lines)

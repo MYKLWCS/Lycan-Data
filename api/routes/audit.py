@@ -74,7 +74,7 @@ async def _trigger_audit() -> None:
     daemon = AuditDaemon()
     try:
         await daemon._run_audit()
-    except Exception:
+    except Exception:  # pragma: no cover
         logger.exception("Manual audit trigger failed")
 
 

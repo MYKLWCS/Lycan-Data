@@ -1,47 +1,71 @@
-"""Newspapers Archive crawler — LOC Chronicling America."""
+"""Newspapers Archive / Chronicling America obituary crawler."""
 from __future__ import annotations
-from urllib.parse import quote_plus
+
+import logging
+
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 
-_LOC_BASE = "https://chroniclingamerica.loc.gov"
+logger = logging.getLogger(__name__)
 
-def _parse_loc_entry(entry: dict, name: str) -> dict | None:
-    title = entry.get("title", "")
-    ocr = (entry.get("ocr_eng") or "").lower()
-    url = entry.get("url", "")
-    if url and not url.startswith("http"):
-        url = _LOC_BASE + url
-    if not title and not url:
-        return None
-    relationship = "memorial" if any(kw in ocr for kw in ("memorial", "tribute", "in memory")) else "obituary"
-    return {"full_name": name, "relationship": relationship, "headline": title, "source_url": url}
+_LOC_SEARCH = "https://chroniclingamerica.loc.gov/search/pages/results/"
+
+_OBIT_KEYWORDS = {"died", "death", "funeral", "obit"}
+
 
 @register("newspapers_archive")
 class NewspapersArchiveCrawler(HttpxCrawler):
-    """identifier: full name"""
     platform = "newspapers_archive"
-    source_reliability: float = 0.70
-    requires_tor: bool = False
+    source_reliability = 0.70
+    requires_tor = False
 
     async def scrape(self, identifier: str) -> CrawlerResult:
-        name = identifier.strip()
-        if not name:
-            return CrawlerResult(found=False, platform="newspapers_archive", identifier=identifier, data={})
-        parts = name.split(None, 1)
-        url = (f"{_LOC_BASE}/search/pages/results/?andtext={quote_plus(parts[0])}"
-               f"+{quote_plus(parts[1] if len(parts)>1 else '')}&format=json&rows=5")
-        resp = await self.get(url)
-        if not resp:
-            return CrawlerResult(found=False, platform="newspapers_archive", identifier=identifier, data={})
+        """identifier: full name"""
+        url = f"{_LOC_SEARCH}?andtext={identifier}&format=json&rows=20"
+        response = await self.get(url)
+
+        if response is None or response.status_code != 200:
+            return CrawlerResult(
+                platform=self.platform,
+                identifier=identifier,
+                found=False,
+                error="non_200" if response is not None else "no_response",
+            )
+
         try:
-            data = resp.json()
+            json_data = response.json()
         except Exception:
-            return CrawlerResult(found=False, platform="newspapers_archive", identifier=identifier, data={})
-        items = data.get("items", [])
-        if not items:
-            return CrawlerResult(found=False, platform="newspapers_archive", identifier=identifier, data={})
-        relatives = [r for r in (_parse_loc_entry(i, name) for i in items[:5]) if r]
-        return CrawlerResult(found=bool(relatives), platform="newspapers_archive", identifier=identifier,
-                             data={"relatives": relatives, "source_url": url})
+            return CrawlerResult(
+                platform=self.platform,
+                identifier=identifier,
+                found=False,
+                error="invalid_json",
+            )
+
+        records = []
+        for item in json_data.get("items", []):
+            parsed = self._parse_loc_entry(item, identifier)
+            records.append(parsed)
+
+        return CrawlerResult(
+            platform=self.platform,
+            identifier=identifier,
+            found=bool(records),
+            data={"records": records},
+            source_reliability=self.source_reliability,
+        )
+
+    def _parse_loc_entry(self, item: dict, name: str) -> dict:
+        ocr_text = (item.get("ocr_eng") or "").lower()
+        has_obit_keyword = any(kw in ocr_text for kw in _OBIT_KEYWORDS)
+        record_type = "obituary" if has_obit_keyword else "memorial"
+
+        return {
+            "title": item.get("title", ""),
+            "date": item.get("date", ""),
+            "url": item.get("url", ""),
+            "name": name,
+            "record_type": record_type,
+            "ocr_snippet": ocr_text[:200],
+        }

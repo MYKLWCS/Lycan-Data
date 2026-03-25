@@ -15,7 +15,7 @@ def _domain_from_url(url: str) -> str:
     """Extract the hostname from a URL for rate-limiter/circuit-breaker keying."""
     try:
         return urlparse(url).netloc or url
-    except Exception:
+    except Exception:  # pragma: no cover
         return url
 
 

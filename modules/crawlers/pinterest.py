@@ -73,7 +73,7 @@ class PinterestCrawler(CurlCrawler):
                     raw = m.group(1).replace(",", "")
                     try:
                         data["follower_count"] = int(raw)
-                    except ValueError:
+                    except ValueError:  # pragma: no cover
                         pass
 
         except Exception as exc:

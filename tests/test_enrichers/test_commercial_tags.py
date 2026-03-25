@@ -500,3 +500,183 @@ async def test_daemon_run_batch_calls_engine(monkeypatch):
         return_value=mock_ctx,
     ):
         await daemon._run_batch()  # must not raise
+
+
+import uuid as _uuid_mod
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_assemble_person_signals_all_none():
+    """assemble_person_signals with no person/wealth/behavioural rows → defaults (lines 70-136)."""
+    from modules.enrichers.commercial_tagger import assemble_person_signals
+
+    session = AsyncMock()
+    pid = _uuid_mod.uuid4()
+
+    call_count = [0]
+
+    def _empty_scalars():
+        s = MagicMock()
+        s.first.return_value = None
+        s.all.return_value = []
+        return s
+
+    async def fake_execute(stmt):
+        r = MagicMock()
+        c = call_count[0]
+        call_count[0] += 1
+        r.scalars.return_value = _empty_scalars()
+        r.scalar.return_value = 0
+        return r
+
+    session.execute = fake_execute
+
+    signals = await assemble_person_signals(pid, session)
+    assert signals.is_employed is False
+    assert signals.criminal_count == 0
+    assert signals.has_vehicle is False
+    assert signals.income_estimate is None
+
+
+@pytest.mark.asyncio
+async def test_upsert_commercial_tags_new_row():
+    """_upsert_commercial_tags inserts a new MarketingTag when no existing row (line 346-356)."""
+    from modules.enrichers.commercial_tagger import _upsert_commercial_tags
+    from modules.enrichers.marketing_tags import TagResult
+    from datetime import datetime, UTC
+
+    pid = _uuid_mod.uuid4()
+    tag_result = TagResult(
+        tag="insurance_auto",
+        confidence=0.9,
+        reasoning=["has vehicle"],
+        scored_at=datetime.now(UTC),
+    )
+
+    session = AsyncMock()
+    added = []
+    session.add = MagicMock(side_effect=lambda obj: added.append(obj))
+
+    # Query returns no existing row
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.first.return_value = None
+    session.execute = AsyncMock(return_value=mock_result)
+
+    await _upsert_commercial_tags(pid, [tag_result], session)
+    assert len(added) == 1
+    assert added[0].tag == "insurance_auto"
+
+
+@pytest.mark.asyncio
+async def test_upsert_commercial_tags_existing_row():
+    """_upsert_commercial_tags updates confidence on existing MarketingTag (line 341-345)."""
+    from modules.enrichers.commercial_tagger import _upsert_commercial_tags
+    from modules.enrichers.marketing_tags import TagResult
+    from datetime import datetime, UTC
+
+    pid = _uuid_mod.uuid4()
+    tag_result = TagResult(
+        tag="insurance_auto",
+        confidence=0.85,
+        reasoning=["has vehicle"],
+        scored_at=datetime.now(UTC),
+    )
+
+    existing_row = MagicMock()
+    existing_row.tag = "insurance_auto"
+
+    session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.first.return_value = existing_row
+    session.execute = AsyncMock(return_value=mock_result)
+
+    await _upsert_commercial_tags(pid, [tag_result], session)
+    assert existing_row.confidence == 0.85
+
+
+@pytest.mark.asyncio
+async def test_daemon_run_batch_with_persons_exception_caught():
+    """Daemon processes persons; per-person exception is caught (lines 304-317)."""
+    daemon = CommercialTaggerDaemon()
+
+    person = MagicMock()
+    person.id = _uuid_mod.uuid4()
+
+    # Outer session query
+    outer_session = AsyncMock()
+    mock_persons_result = MagicMock()
+    mock_persons_result.scalars.return_value.all.return_value = [person]
+    outer_session.execute = AsyncMock(return_value=mock_persons_result)
+
+    outer_ctx = AsyncMock()
+    outer_ctx.__aenter__ = AsyncMock(return_value=outer_session)
+    outer_ctx.__aexit__ = AsyncMock(return_value=False)
+
+    # Inner per-person session raises
+    inner_ctx = AsyncMock()
+    inner_ctx.__aenter__ = AsyncMock(side_effect=RuntimeError("db error"))
+    inner_ctx.__aexit__ = AsyncMock(return_value=False)
+
+    call_count = [0]
+
+    def session_factory():
+        c = call_count[0]
+        call_count[0] += 1
+        return outer_ctx if c == 0 else inner_ctx
+
+    with patch("modules.enrichers.commercial_tagger.AsyncSessionLocal",
+               side_effect=session_factory):
+        await daemon._run_batch()  # should not raise
+
+
+@pytest.mark.asyncio
+async def test_daemon_run_batch_with_persons_happy_path():
+    """Daemon processes persons; happy path runs assemble → tag → upsert → commit (lines 309-312)."""
+    from modules.enrichers.commercial_tagger import PersonSignals, CommercialTaggerDaemon
+
+    daemon = CommercialTaggerDaemon()
+
+    person = MagicMock()
+    person.id = _uuid_mod.uuid4()
+
+    # Outer session returns one person
+    outer_session = AsyncMock()
+    mock_persons_result = MagicMock()
+    mock_persons_result.scalars.return_value.all.return_value = [person]
+    outer_session.execute = AsyncMock(return_value=mock_persons_result)
+
+    outer_ctx = AsyncMock()
+    outer_ctx.__aenter__ = AsyncMock(return_value=outer_session)
+    outer_ctx.__aexit__ = AsyncMock(return_value=False)
+
+    # Inner per-person session succeeds
+    inner_session = AsyncMock()
+    # assemble_person_signals will call execute multiple times
+    def _empty_r():
+        r = MagicMock()
+        r.scalars.return_value.first.return_value = None
+        r.scalars.return_value.all.return_value = []
+        r.scalar.return_value = 0
+        return r
+
+    inner_session.execute = AsyncMock(return_value=_empty_r())
+    inner_session.add = MagicMock()
+    inner_session.commit = AsyncMock()
+
+    inner_ctx = AsyncMock()
+    inner_ctx.__aenter__ = AsyncMock(return_value=inner_session)
+    inner_ctx.__aexit__ = AsyncMock(return_value=False)
+
+    call_count = [0]
+
+    def session_factory():
+        c = call_count[0]
+        call_count[0] += 1
+        return outer_ctx if c == 0 else inner_ctx
+
+    with patch("modules.enrichers.commercial_tagger.AsyncSessionLocal",
+               side_effect=session_factory):
+        await daemon._run_batch()  # should complete without error
+
+    assert inner_session.commit.called

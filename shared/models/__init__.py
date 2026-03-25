@@ -11,7 +11,6 @@ from shared.models.criminal import CriminalRecord
 from shared.models.darkweb import CryptoTransaction, CryptoWallet, DarkwebMention
 from shared.models.education import Education
 from shared.models.employment import EmploymentHistory
-from shared.models.family_tree import FamilyTreeSnapshot
 from shared.models.identifier import Identifier
 from shared.models.identifier_history import IdentifierHistory
 from shared.models.identity_document import CreditProfile, IdentityDocument
@@ -70,5 +69,4 @@ __all__ = [
     "SystemAudit",
     "SearchProgress",
     "OptOut",
-    "FamilyTreeSnapshot",
 ]

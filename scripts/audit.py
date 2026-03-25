@@ -588,7 +588,7 @@ def main():
         spec_excerpt = SPEC_FILE.read_text()[:5000]
 
     # Generate AI analysis
-    print("Generating Claude analysis...")
+    print("Generating Ollama analysis...")
     ai_report = generate_ollama_analysis(audit_data, spec_excerpt)
 
     # Build full report

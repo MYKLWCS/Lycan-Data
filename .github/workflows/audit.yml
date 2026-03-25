@@ -1,17 +1,21 @@
-name: Audit
+name: Weekly Audit
 
 on:
   schedule:
-    - cron: "0 8 * * 1"   # Every Monday 08:00 UTC
-  workflow_dispatch:        # Manual trigger
+    - cron: "0 8 * * 1"  # Every Monday 08:00 UTC
+  workflow_dispatch:       # Manual trigger via GitHub UI
 
 env:
+  DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
+  REDIS_URL: "redis://localhost:6379/0"
+  SECRET_KEY: "audit-health-check-key"
+  ENVIRONMENT: "test"
   PYTHONPATH: "."
 
 jobs:
-  # ── 1. Spec compliance + codebase audit ──────────────────────────────────────
-  audit:
-    name: Codebase Audit
+  # ── 1. Full test suite + coverage report ──────────────────────────────────────
+  coverage-audit:
+    name: Coverage Audit
     runs-on: [self-hosted, lycan]
     permissions:
       contents: read
@@ -27,8 +31,85 @@ jobs:
           [ -f .venv/bin/python ] || python3 -m venv .venv
           .venv/bin/python -m pip install --quiet --upgrade pip
 
-      - name: Install audit dependencies
-        run: .venv/bin/python -m pip install --quiet anthropic PyGithub
+      - name: Install dependencies
+        run: |
+          .venv/bin/python -m pip install --quiet -r requirements.txt
+          .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
+
+      - name: Setup test database
+        run: |
+          docker exec osnit-postgres-1 psql -U lycan -c "ALTER USER lycan WITH PASSWORD 'lycan';" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan lycan_test -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
+          docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
+          .venv/bin/python -m alembic upgrade head 2>/dev/null || true
+          docker exec osnit-dragonfly-1 redis-cli FLUSHDB 2>/dev/null || true
+
+      - name: Run full test suite
+        run: |
+          .venv/bin/python -m pytest tests/ \
+            --ignore=tests/test_integration.py \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -q --tb=short 2>&1 | tee /tmp/test_output.txt
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-coverage-${{ github.run_number }}
+          path: coverage.xml
+          retention-days: 90
+
+  # ── 2. Dependency security audit ─────────────────────────────────────────────
+  dep-audit:
+    name: Dependency Audit
+    runs-on: [self-hosted, lycan]
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap venv
+        run: |
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip pip-audit
+
+      - name: Audit dependencies for known CVEs
+        run: |
+          .venv/bin/python -m pip_audit \
+            --requirement requirements.txt \
+            --progress-spinner off \
+            --format markdown 2>&1 | tee /tmp/dep_audit.txt || true
+
+      - name: Upload dependency audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dep-audit-${{ github.run_number }}
+          path: /tmp/dep_audit.txt
+          retention-days: 90
+
+  # ── 3. Codebase audit via Ollama ──────────────────────────────────────────────
+  codebase-audit:
+    name: Codebase Audit
+    runs-on: [self-hosted, lycan]
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bootstrap venv
+        run: |
+          [ -f .venv/bin/python ] || python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip PyGithub
 
       - name: Run system audit
         env:
@@ -43,45 +124,3 @@ jobs:
           name: audit-report-${{ github.run_number }}
           path: audit_report.md
           retention-days: 90
-
-  # ── 2. Health check + self-heal ───────────────────────────────────────────────
-  health-check:
-    name: Health Check
-    runs-on: [self-hosted, lycan]
-    needs: audit
-    if: always()
-    env:
-      DATABASE_URL: "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan_test"
-      REDIS_URL: "redis://localhost:6379/0"
-      MEILI_URL: "http://localhost:7700"
-      MEILI_MASTER_KEY: ""
-      SECRET_KEY: "audit-health-check-key"
-      ENVIRONMENT: "test"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Bootstrap venv
-        run: |
-          [ -f .venv/bin/python ] || python3 -m venv .venv
-          .venv/bin/python -m pip install --quiet --upgrade pip
-
-      - name: Install test deps
-        run: |
-          .venv/bin/python -m pip install --quiet -r requirements.txt
-          .venv/bin/python -m pip install --quiet pytest pytest-asyncio pytest-cov anyio
-
-      - name: Pre-flight environment heal
-        run: |
-          docker exec osnit-postgres-1 psql -U lycan -c "ALTER USER lycan WITH PASSWORD 'lycan';" 2>/dev/null || true
-          docker exec osnit-postgres-1 psql -U lycan -c "CREATE DATABASE lycan_test;" 2>/dev/null || true
-          docker exec osnit-postgres-1 psql -U lycan lycan_test -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
-          docker exec osnit-postgres-1 psql -U lycan lycan_test -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' 2>/dev/null || true
-          .venv/bin/python -m alembic upgrade head 2>/dev/null || true
-
-      - name: Health report
-        run: .venv/bin/python scripts/selfheal.py --report
-
-      - name: Self-heal on failures
-        if: failure()
-        run: .venv/bin/python scripts/selfheal.py

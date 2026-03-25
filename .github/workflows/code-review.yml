@@ -9,10 +9,12 @@ on:
 jobs:
   ollama-review:
     name: Ollama Code Review
+    # Trigger on PRs, or on comments containing /review on a PR thread
     if: >
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request != null)
+       github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '/review'))
     runs-on: [self-hosted, lycan]
     permissions:
       contents: read
@@ -24,8 +26,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get PR number
+      - name: Resolve PR number
         id: pr
+        # github.event.pull_request.number and github.event.issue.number are
+        # numeric — safe to interpolate into shell commands.
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "num=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
@@ -36,7 +40,7 @@ jobs:
       - name: Fetch PR diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr diff ${{ steps.pr.outputs.num }} > /tmp/pr_diff.txt 2>/dev/null || echo "(no diff)" > /tmp/pr_diff.txt
+        run: gh pr diff "${{ steps.pr.outputs.num }}" > /tmp/pr_diff.txt 2>/dev/null || echo "(no diff)" > /tmp/pr_diff.txt
 
       - name: Run Ollama review
         run: python3 scripts/ollama_review.py /tmp/pr_diff.txt /tmp/review_output.md
@@ -44,9 +48,10 @@ jobs:
       - name: Post review comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ steps.pr.outputs.num }}
         run: |
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           printf '## Automated Code Review\n\n' > /tmp/comment.md
           cat /tmp/review_output.md >> /tmp/comment.md
-          printf '\n\n---\n*Reviewed by Ollama `llama3.1:8b` on `%s`*\n' "$TIMESTAMP" >> /tmp/comment.md
-          gh pr comment ${{ steps.pr.outputs.num }} --body-file /tmp/comment.md
+          printf '\n\n---\n*Reviewed by Ollama `codellama:13b` on `%s`*\n' "$TIMESTAMP" >> /tmp/comment.md
+          gh pr comment "$PR_NUM" --body-file /tmp/comment.md

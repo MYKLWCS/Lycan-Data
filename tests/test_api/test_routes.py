@@ -299,6 +299,7 @@ class TestGetPerson:
         mock_person.conflict_flag = False
         mock_person.created_at = None
         mock_person.updated_at = None
+        mock_person.merged_into = None
 
         session = AsyncMock()
         session.get.return_value = mock_person
