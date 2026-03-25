@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     enable_ubo_discovery: bool = True
     enable_company_intel_crawl: bool = True
 
+    # Third-party API keys (optional — crawlers fall back to scraping without these)
+    attom_api_key: str = ""          # ATTOM property data API
+    opensanctions_api_key: str = ""  # OpenSanctions premium
+    opencorporates_api_key: str = "" # OpenCorporates
+    marinetraffic_api_key: str = ""  # MarineTraffic AIS
+
     # Budget
     daily_api_budget_usd: float = 0.0
 

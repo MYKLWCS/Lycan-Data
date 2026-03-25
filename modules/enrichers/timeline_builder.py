@@ -24,7 +24,6 @@ from datetime import date, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.db import AsyncSessionLocal
 from shared.models.address import Address
 from shared.models.breach import BreachRecord
 from shared.models.compliance_ext import AdverseMedia, PepClassification

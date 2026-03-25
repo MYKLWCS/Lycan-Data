@@ -23,7 +23,6 @@ import pytest
 
 from modules.enrichers.cascade_enricher import CascadeEnricher
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 

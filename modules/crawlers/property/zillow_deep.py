@@ -19,9 +19,7 @@ import json
 import logging
 import re
 from typing import Any
-from urllib.parse import quote, quote_plus, urlencode
-
-from bs4 import BeautifulSoup
+from urllib.parse import quote_plus
 
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register

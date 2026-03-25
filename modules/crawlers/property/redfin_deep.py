@@ -23,8 +23,6 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
-from bs4 import BeautifulSoup
-
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult

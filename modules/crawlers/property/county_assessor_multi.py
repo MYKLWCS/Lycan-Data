@@ -28,10 +28,9 @@ identifier formats:
 
 from __future__ import annotations
 
-import json
 import logging
 import re
-from typing import Any, Callable, Awaitable
+from typing import Any
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup

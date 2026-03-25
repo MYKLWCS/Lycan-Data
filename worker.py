@@ -58,6 +58,9 @@ async def main(
     enable_commercial: bool = True,
     enable_audit: bool = True,
     enable_genealogy: bool = True,
+    enable_property: bool = True,
+    enable_pep: bool = True,
+    enable_adverse_media: bool = True,
 ):
     # Setup
     _import_all_crawlers()
@@ -139,14 +142,41 @@ async def main(
         tasks.append(asyncio.create_task(ge.start(), name="genealogy-enricher"))
         logger.info("Started genealogy enricher daemon")
 
+    # Property enricher (properties, aircraft, vessels, net worth)
+    if enable_property:
+        from modules.enrichers.property_enricher import PropertyEnricher
+
+        pe = PropertyEnricher()
+        tasks.append(asyncio.create_task(pe.start(), name="property-enricher"))
+        logger.info("Started property enricher daemon")
+
+    # PEP classifier daemon
+    if enable_pep:
+        from modules.enrichers.pep_enricher import PepEnricher
+
+        pep = PepEnricher()
+        tasks.append(asyncio.create_task(pep.start(), name="pep-enricher"))
+        logger.info("Started PEP enricher daemon")
+
+    # Adverse media monitor
+    if enable_adverse_media:
+        from modules.enrichers.adverse_media_enricher import AdverseMediaEnricher
+
+        ame = AdverseMediaEnricher()
+        tasks.append(asyncio.create_task(ame.start(), name="adverse-media-enricher"))
+        logger.info("Started adverse media enricher daemon")
+
     logger.info(
         f"Worker running — {workers} dispatcher(s) + "
-        f"{'growth daemon + ' if enable_growth else ''}"
-        f"{'freshness scheduler + ' if enable_freshness else ''}"
-        f"{'commercial tagger + ' if enable_commercial else ''}"
-        f"{'audit daemon + ' if enable_audit else ''}"
-        f"{'genealogy enricher + ' if enable_genealogy else ''}"
-        f"auto-dedup daemon"
+        f"{'growth + ' if enable_growth else ''}"
+        f"{'freshness + ' if enable_freshness else ''}"
+        f"{'commercial + ' if enable_commercial else ''}"
+        f"{'audit + ' if enable_audit else ''}"
+        f"{'genealogy + ' if enable_genealogy else ''}"
+        f"{'property + ' if enable_property else ''}"
+        f"{'pep + ' if enable_pep else ''}"
+        f"{'adverse-media + ' if enable_adverse_media else ''}"
+        f"auto-dedup"
     )
 
     # Graceful shutdown
@@ -181,6 +211,9 @@ if __name__ == "__main__":
         "--no-genealogy", action="store_true", help="Disable genealogy enricher daemon"
     )
     parser.add_argument("--no-audit", action="store_true", help="Disable audit daemon")
+    parser.add_argument("--no-property", action="store_true", help="Disable property enricher daemon")
+    parser.add_argument("--no-pep", action="store_true", help="Disable PEP enricher daemon")
+    parser.add_argument("--no-adverse-media", action="store_true", help="Disable adverse media daemon")
     args = parser.parse_args()
 
     asyncio.run(
@@ -191,5 +224,8 @@ if __name__ == "__main__":
             enable_commercial=not args.no_commercial,
             enable_audit=not args.no_audit,
             enable_genealogy=not args.no_genealogy,
+            enable_property=not args.no_property,
+            enable_pep=not args.no_pep,
+            enable_adverse_media=not args.no_adverse_media,
         )
     )

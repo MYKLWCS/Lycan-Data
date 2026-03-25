@@ -19,7 +19,6 @@ import pytest
 
 from modules.enrichers.location_enricher import LocationEnricher, _resolve_country_code
 
-
 # ── _resolve_country_code tests ───────────────────────────────────────────────
 
 

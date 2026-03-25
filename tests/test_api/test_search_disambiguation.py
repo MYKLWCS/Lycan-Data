@@ -23,7 +23,6 @@ from fastapi.testclient import TestClient
 from api.deps import db_session
 from api.routes.search import router
 
-
 # ── App factory ───────────────────────────────────────────────────────────────
 
 

@@ -5,6 +5,7 @@ from shared.models.base import Base, DataQualityMixin, TimestampMixin
 from shared.models.behavioural import BehaviouralProfile, BehaviouralSignal
 from shared.models.breach import BreachRecord
 from shared.models.burner import BurnerAssessment
+from shared.models.compliance_ext import AdverseMedia, PepClassification, ShellCompanyLink
 from shared.models.crawl import CrawlJob, CrawlLog, DataSource
 from shared.models.credit_risk import CreditRiskAssessment
 from shared.models.criminal import CriminalRecord
@@ -15,24 +16,28 @@ from shared.models.family_tree import FamilyTreeSnapshot
 from shared.models.identifier import Identifier
 from shared.models.identifier_history import IdentifierHistory
 from shared.models.identity_document import CreditProfile, IdentityDocument
+from shared.models.intelligence import EmailIntelligence, IpIntelligence, PhoneIntelligence
+from shared.models.location_visit import LocationVisit
 from shared.models.marketing import ConsumerSegment, MarketingTag, TicketSize
 from shared.models.media import MediaAsset
 from shared.models.opt_out import OptOut
 from shared.models.person import Alias, Person
+from shared.models.professional import CorporateDirectorship, MilitaryRecord, ProfessionalLicense
 from shared.models.progress import SearchProgress
+from shared.models.property import (
+    Property,
+    PropertyMortgage,
+    PropertyOwnershipHistory,
+    PropertyValuation,
+)
 from shared.models.quality import DataQualityLog, FreshnessQueue
 from shared.models.relationship import Relationship, RelationshipScoreHistory
 from shared.models.social_profile import SocialProfile
+from shared.models.timeline import AnalystAssessment, TimelineEvent, TravelHistory
+from shared.models.vehicle import Aircraft, Vehicle, Vessel
 from shared.models.watchlist import WatchlistMatch
-from shared.models.location_visit import LocationVisit
 from shared.models.wealth import WealthAssessment
 from shared.models.web import Web, WebMembership
-from shared.models.property import Property, PropertyOwnershipHistory, PropertyValuation, PropertyMortgage
-from shared.models.vehicle import Vehicle, Aircraft, Vessel
-from shared.models.intelligence import PhoneIntelligence, EmailIntelligence, IpIntelligence
-from shared.models.compliance_ext import PepClassification, AdverseMedia, ShellCompanyLink
-from shared.models.professional import ProfessionalLicense, CorporateDirectorship, MilitaryRecord
-from shared.models.timeline import TimelineEvent, AnalystAssessment, TravelHistory
 
 __all__ = [
     "Base",
