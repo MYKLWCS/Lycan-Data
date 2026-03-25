@@ -325,3 +325,143 @@ async def test_curl_get_no_proxy_passes_none():
 
     call_kwargs = mock_session.get.call_args
     assert call_kwargs.kwargs.get("proxies") is None
+
+
+# ---------------------------------------------------------------------------
+# WAVE-3 ADDITION: Execute the real ImportError fallback (lines 37-39, 52-54)
+#
+# curl_cffi IS installed, so the ImportError branches are unreachable normally.
+# We force ImportError by temporarily removing curl_cffi from sys.modules and
+# inserting a sentinel that raises ImportError on import, then restoring.
+# This executes the real except ImportError: block in the actual source.
+# ---------------------------------------------------------------------------
+
+import builtins
+import sys as _sys
+
+
+def _block_curl_cffi():
+    """Context manager that makes 'from curl_cffi.requests import AsyncSession' raise ImportError."""
+    import contextlib
+
+    @contextlib.contextmanager
+    def _ctx():
+        real_import = builtins.__import__
+
+        def _fake_import(name, *args, **kwargs):
+            if name == "curl_cffi" or name.startswith("curl_cffi."):
+                raise ImportError(f"Blocked for test: {name}")
+            return real_import(name, *args, **kwargs)
+
+        # Remove cached modules so the import actually fires
+        saved = {
+            k: v
+            for k, v in _sys.modules.items()
+            if k == "curl_cffi" or k.startswith("curl_cffi.")
+        }
+        for k in saved:
+            del _sys.modules[k]
+
+        builtins.__import__ = _fake_import
+        try:
+            yield
+        finally:
+            builtins.__import__ = real_import
+            _sys.modules.update(saved)
+
+    return _ctx()
+
+
+@pytest.mark.asyncio
+async def test_real_get_import_error_fallback_lines_37_39():
+    """
+    Lines 37-39: curl_cffi import raises ImportError inside get() → falls back
+    to super().get() (HttpxCrawler.get). The real except ImportError: block runs.
+    """
+    from modules.crawlers import httpx_base
+
+    fallback_resp = MagicMock()
+    fallback_resp.status_code = 200
+    fallback_resp.text = "httpx fallback"
+
+    crawler = _Crawler()
+
+    with patch.object(
+        httpx_base.HttpxCrawler, "get", new_callable=AsyncMock, return_value=fallback_resp
+    ) as mock_super:
+        with _block_curl_cffi():
+            result = await crawler.get("http://example.com/fallback")
+
+    mock_super.assert_awaited_once()
+    assert result is fallback_resp
+
+
+@pytest.mark.asyncio
+async def test_real_post_import_error_fallback_lines_52_54():
+    """
+    Lines 52-54: curl_cffi import raises ImportError inside post() → falls back
+    to super().post() (HttpxCrawler.post). The real except ImportError: block runs.
+    """
+    from modules.crawlers import httpx_base
+
+    fallback_resp = MagicMock()
+    fallback_resp.status_code = 200
+
+    crawler = _Crawler()
+
+    with patch.object(
+        httpx_base.HttpxCrawler, "post", new_callable=AsyncMock, return_value=fallback_resp
+    ) as mock_super:
+        with _block_curl_cffi():
+            result = await crawler.post("http://example.com/fallback", json={"k": "v"})
+
+    mock_super.assert_awaited_once()
+    assert result is fallback_resp
+
+
+@pytest.mark.asyncio
+async def test_real_get_import_error_logs_warning(caplog):
+    """Lines 38: warning is logged when curl_cffi is not available in get()."""
+    import logging
+
+    from modules.crawlers import httpx_base
+
+    fallback_resp = MagicMock()
+    fallback_resp.status_code = 200
+
+    crawler = _Crawler()
+
+    with patch.object(
+        httpx_base.HttpxCrawler, "get", new_callable=AsyncMock, return_value=fallback_resp
+    ):
+        with (
+            _block_curl_cffi(),
+            caplog.at_level(logging.WARNING, logger="modules.crawlers.curl_base"),
+        ):
+            await crawler.get("http://example.com/warn")
+
+    assert any("curl_cffi not available" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_real_post_import_error_logs_warning(caplog):
+    """Lines 53: warning is logged when curl_cffi is not available in post()."""
+    import logging
+
+    from modules.crawlers import httpx_base
+
+    fallback_resp = MagicMock()
+    fallback_resp.status_code = 200
+
+    crawler = _Crawler()
+
+    with patch.object(
+        httpx_base.HttpxCrawler, "post", new_callable=AsyncMock, return_value=fallback_resp
+    ):
+        with (
+            _block_curl_cffi(),
+            caplog.at_level(logging.WARNING, logger="modules.crawlers.curl_base"),
+        ):
+            await crawler.post("http://example.com/warn")
+
+    assert any("curl_cffi not available" in r.message for r in caplog.records)

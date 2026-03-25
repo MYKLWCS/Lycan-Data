@@ -352,6 +352,186 @@ class TestPropertyRedfinCrawler:
         result = _parse_autocomplete({"payload": {}})
         assert result == []
 
+    # WAVE-3 additions -------------------------------------------------------
+
+    # --- _parse_autocomplete: rows present (lines 61-62) --------------------
+
+    def test_parse_autocomplete_with_rows_lines_61_62(self):
+        """Lines 61-62: inner for loop executes and items.append fires."""
+        from modules.crawlers.property_redfin import _parse_autocomplete
+
+        data = {
+            "payload": {
+                "sections": [
+                    {
+                        "rows": [
+                            {
+                                "name": "123 Main St",
+                                "subtext": "Austin, TX",
+                                "url": "/home/1",
+                                "id": "abc",
+                                "type": "address",
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        result = _parse_autocomplete(data)
+        assert len(result) == 1
+        assert result[0]["address"] == "123 Main St"
+        assert result[0]["subtext"] == "Austin, TX"
+        assert result[0]["id"] == "abc"
+
+    def test_parse_autocomplete_multiple_sections_and_rows(self):
+        """Lines 61-62: multiple sections each with rows — all appended."""
+        from modules.crawlers.property_redfin import _parse_autocomplete
+
+        data = {
+            "payload": {
+                "sections": [
+                    {"rows": [{"name": "A"}, {"name": "B"}]},
+                    {"rows": [{"name": "C"}]},
+                ]
+            }
+        }
+        result = _parse_autocomplete(data)
+        assert len(result) == 3
+        addresses = [r["address"] for r in result]
+        assert "A" in addresses
+        assert "C" in addresses
+
+    def test_parse_autocomplete_section_with_no_rows(self):
+        """Lines 61: section has no rows key → loop body never fires."""
+        from modules.crawlers.property_redfin import _parse_autocomplete
+
+        data = {"payload": {"sections": [{}]}}
+        result = _parse_autocomplete(data)
+        assert result == []
+
+    # --- _int except branch (lines 80-81) -----------------------------------
+
+    def test_parse_csv_property_int_type_error_line_80_81(self):
+        """Lines 80-81: _int() receives a value that triggers TypeError → None."""
+        from modules.crawlers.property_redfin import _parse_csv_property
+
+        # A dict object as BEDS — int({"bad": "val"}) raises TypeError
+        prop = _parse_csv_property({"BEDS": {"nested": "object"}})
+        assert prop["beds"] is None
+
+    def test_parse_csv_property_int_value_error_line_80_81(self):
+        """Lines 80-81: _int() receives non-numeric string → ValueError → None."""
+        from modules.crawlers.property_redfin import _parse_csv_property
+
+        prop = _parse_csv_property({"BEDS": "not-a-number", "SQFT": "also-bad"})
+        assert prop["beds"] is None
+        assert prop["sqFt"] is None
+
+    # --- _float except branch (lines 86-87) ---------------------------------
+
+    def test_parse_csv_property_float_type_error_line_86_87(self):
+        """Lines 86-87: _float() receives a value that triggers TypeError → None."""
+        from modules.crawlers.property_redfin import _parse_csv_property
+
+        # Pass an object that makes float() raise TypeError
+        class _Bad:
+            def __str__(self):
+                raise TypeError("no str")
+
+        prop = _parse_csv_property({"PRICE": _Bad()})
+        assert prop["price"] is None
+
+    def test_parse_csv_property_float_value_error_line_86_87(self):
+        """Lines 86-87: _float() receives garbled string → ValueError → None."""
+        from modules.crawlers.property_redfin import _parse_csv_property
+
+        prop = _parse_csv_property({"PRICE": "$$notanumber$$", "BATHS": "xyz"})
+        assert prop["price"] is None
+        assert prop["baths"] is None
+
+    # --- _parse_csv_text exception branch (lines 125-126) -------------------
+
+    def test_parse_csv_text_exception_logs_warning_lines_125_126(self, caplog):
+        """Lines 125-126: exception during CSV parse → warning logged, empty list."""
+        import logging
+
+        from modules.crawlers.property_redfin import _parse_csv_text
+
+        # Inject a CSV string but patch DictReader to raise an exception
+        with (
+            patch("csv.DictReader", side_effect=RuntimeError("csv broken")),
+            caplog.at_level(logging.WARNING, logger="modules.crawlers.property_redfin"),
+        ):
+            result = _parse_csv_text("MLS#,PRICE\n123,500000\n")
+
+        assert result == []
+        assert any("Redfin GIS parse error" in r.message for r in caplog.records)
+
+    # --- scrape: autocomplete success path (line 167) -----------------------
+
+    @pytest.mark.asyncio
+    async def test_scrape_autocomplete_success_path_line_167(self):
+        """Line 167: _parse_autocomplete called after successful JSON parse."""
+        crawler = self._make_crawler()
+
+        autocomplete_payload = {
+            "payload": {
+                "sections": [
+                    {
+                        "rows": [
+                            {
+                                "name": "456 Elm St",
+                                "subtext": "Dallas, TX",
+                                "url": "/home/456",
+                                "id": "xyz",
+                                "type": "address",
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        ac_text = "{}&&" + __import__("json").dumps(autocomplete_payload)
+        csv_text = (
+            "MLS#,PRICE,BEDS,BATHS,SQFT,ADDRESS,YEAR BUILT,"
+            "DAYS ON MARKET,LAST SOLD PRICE,LAST SOLD DATE,STATUS,URL\n"
+            "789,350000,2,1.0,900,456 Elm St,1998,15,300000,2019-06-01,Active,https://redfin.com/home/1\n"
+        )
+
+        async def _fake_get(url, **kwargs):
+            if "autocomplete" in url:
+                return _mock_resp(status=200, text=ac_text)
+            return _mock_resp(status=200, text=csv_text)
+
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
+            result = await crawler.scrape("456 Elm St, Dallas TX")
+
+        assert result.found is True
+        assert result.data.get("autocomplete") is not None
+        assert len(result.data["autocomplete"]) == 1
+        assert result.data["autocomplete"][0]["address"] == "456 Elm St"
+
+    @pytest.mark.asyncio
+    async def test_scrape_gis_206_partial_content(self):
+        """Line 193: status 206 (partial content) is treated as success."""
+        crawler = self._make_crawler()
+        csv_text = (
+            "MLS#,PRICE,BEDS,BATHS,SQFT,ADDRESS,YEAR BUILT,"
+            "DAYS ON MARKET,LAST SOLD PRICE,LAST SOLD DATE,STATUS,URL\n"
+            "555,200000,1,1.0,600,789 Pine St,2010,5,180000,2022-03-01,Active,https://redfin.com/home/2\n"
+        )
+
+        async def _fake_get(url, **kwargs):
+            if "autocomplete" in url:
+                return _mock_resp(status=200, text="{}")
+            return _mock_resp(status=206, text=csv_text)
+
+        with patch.object(crawler, "get", new=AsyncMock(side_effect=_fake_get)):
+            result = await crawler.scrape("789 Pine St")
+
+        assert result.found is True
+        assert len(result.data.get("properties", [])) >= 1
+
 
 # ===========================================================================
 # property_zillow.py

@@ -300,3 +300,168 @@ async def test_camoufox_no_proxy_passes_none():
         cm.CamoufoxCrawler.get_page = original_get_page
 
     assert captured_kwargs.get("proxy") is None
+
+
+# ---------------------------------------------------------------------------
+# WAVE-3 ADDITION: Execute the REAL get_page code (lines 35-54)
+#
+# camoufox IS installed, so lines 35-54 are reachable.
+# We patch 'camoufox.async_api.AsyncCamoufox' at the import level so the
+# real get_page body runs — no method replacement.
+# ---------------------------------------------------------------------------
+
+
+def _make_async_camoufox_cls(html: str = "<html/>", raise_exc=None):
+    """Return a mock AsyncCamoufox class whose instances work as async ctx managers."""
+    mock_page = AsyncMock()
+    mock_page.goto = AsyncMock()
+    mock_page.content = AsyncMock(return_value=html)
+    if raise_exc:
+        mock_page.goto = AsyncMock(side_effect=raise_exc)
+
+    mock_browser = AsyncMock()
+    mock_browser.new_page = AsyncMock(return_value=mock_page)
+    mock_browser.__aenter__ = AsyncMock(return_value=mock_browser)
+    mock_browser.__aexit__ = AsyncMock(return_value=False)
+
+    cls = MagicMock(return_value=mock_browser)
+    return cls
+
+
+@pytest.mark.asyncio
+async def test_real_get_page_happy_path_lines_35_51():
+    """
+    Lines 35-51: _human_delay → proxy → AsyncCamoufox context → page.content().
+    Patches camoufox.async_api so the import inside get_page succeeds and the
+    real method body executes.
+    """
+    import camoufox.async_api as _api_mod
+
+    cls = _make_async_camoufox_cls(html="<html>real</html>")
+    crawler = _Crawler()
+
+    with (
+        patch.object(crawler, "_human_delay", new_callable=AsyncMock),
+        patch.object(_api_mod, "AsyncCamoufox", cls),
+    ):
+        result = await crawler.get_page("http://example.com/real")
+
+    assert result == "<html>real</html>"
+
+
+@pytest.mark.asyncio
+async def test_real_get_page_with_proxy_lines_37_38():
+    """
+    Lines 37-38: proxy returned → proxy_dict = {'server': proxy}.
+    Verifies the real code path builds the proxy dict correctly.
+    """
+    import camoufox.async_api as _api_mod
+
+    captured = {}
+
+    def _cls(**kwargs):
+        captured.update(kwargs)
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_page.content = AsyncMock(return_value="<html/>")
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_browser.__aenter__ = AsyncMock(return_value=mock_browser)
+        mock_browser.__aexit__ = AsyncMock(return_value=False)
+        return mock_browser
+
+    crawler = _Crawler()
+
+    with (
+        patch.object(crawler, "_human_delay", new_callable=AsyncMock),
+        patch.object(crawler, "get_proxy", return_value="socks5://127.0.0.1:9050"),
+        patch.object(_api_mod, "AsyncCamoufox", _cls),
+    ):
+        await crawler.get_page("http://example.com/proxy")
+
+    assert captured.get("proxy") == {"server": "socks5://127.0.0.1:9050"}
+
+
+@pytest.mark.asyncio
+async def test_real_get_page_no_proxy_passes_none_lines_37_38():
+    """
+    Lines 37-38: no proxy → proxy_dict = None passed to AsyncCamoufox.
+    """
+    import camoufox.async_api as _api_mod
+
+    captured = {}
+
+    def _cls(**kwargs):
+        captured.update(kwargs)
+        mock_browser = AsyncMock()
+        mock_page = AsyncMock()
+        mock_page.content = AsyncMock(return_value="<html/>")
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_browser.__aenter__ = AsyncMock(return_value=mock_browser)
+        mock_browser.__aexit__ = AsyncMock(return_value=False)
+        return mock_browser
+
+    crawler = _Crawler()
+
+    with (
+        patch.object(crawler, "_human_delay", new_callable=AsyncMock),
+        patch.object(crawler, "get_proxy", return_value=None),
+        patch.object(_api_mod, "AsyncCamoufox", _cls),
+    ):
+        await crawler.get_page("http://example.com/noproxy")
+
+    assert captured.get("proxy") is None
+
+
+@pytest.mark.asyncio
+async def test_real_get_page_exception_returns_empty_lines_52_54(caplog):
+    """
+    Lines 52-54: exception during browser operations → log warning, return ''.
+    page.goto raises RuntimeError so the except block fires on the real method.
+    """
+    import logging
+
+    import camoufox.async_api as _api_mod
+
+    cls = _make_async_camoufox_cls(raise_exc=RuntimeError("browser_crashed"))
+    crawler = _Crawler()
+
+    with (
+        patch.object(crawler, "_human_delay", new_callable=AsyncMock),
+        patch.object(_api_mod, "AsyncCamoufox", cls),
+        caplog.at_level(logging.WARNING, logger="modules.crawlers.camoufox_base"),
+    ):
+        result = await crawler.get_page("http://example.com/crash")
+
+    assert result == ""
+    assert any("CamoufoxCrawler.get_page failed" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_real_get_page_goto_called_with_correct_args():
+    """
+    Line 50: page.goto(url, wait_until='domcontentloaded', timeout=30000).
+    Verifies the exact call signature used in the real method.
+    """
+    import camoufox.async_api as _api_mod
+
+    mock_page = AsyncMock()
+    mock_page.goto = AsyncMock()
+    mock_page.content = AsyncMock(return_value="<html/>")
+
+    mock_browser = AsyncMock()
+    mock_browser.new_page = AsyncMock(return_value=mock_page)
+    mock_browser.__aenter__ = AsyncMock(return_value=mock_browser)
+    mock_browser.__aexit__ = AsyncMock(return_value=False)
+
+    cls = MagicMock(return_value=mock_browser)
+    crawler = _Crawler()
+
+    with (
+        patch.object(crawler, "_human_delay", new_callable=AsyncMock),
+        patch.object(_api_mod, "AsyncCamoufox", cls),
+    ):
+        await crawler.get_page("http://goto-test.com")
+
+    mock_page.goto.assert_awaited_once_with(
+        "http://goto-test.com", wait_until="domcontentloaded", timeout=30000
+    )
