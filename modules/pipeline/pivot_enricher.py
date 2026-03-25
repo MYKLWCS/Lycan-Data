@@ -23,8 +23,8 @@ from shared.models.identifier import Identifier
 
 logger = logging.getLogger(__name__)
 
-# Max new pivot searches to spawn from a single result (safety cap)
-_MAX_PIVOTS = 3
+# Max crawl jobs to queue from a single pivot_from_result call (applied in caller)
+_MAX_JOBS_PER_CALL = 30
 
 # Platforms to run per pivot type — ordered by signal value
 _PIVOT_PLATFORMS: dict[str, list[str]] = {
@@ -55,6 +55,10 @@ _PIVOT_PLATFORMS: dict[str, list[str]] = {
         "darkweb_ahmia",
         "news_search",
     ],
+    "instagram_handle": ["instagram", "username_maigret", "username_sherlock"],
+    "twitter_handle": ["twitter", "username_maigret", "username_sherlock"],
+    "linkedin_url": ["linkedin"],
+    "domain": ["domain_whois", "domain_harvester", "cyber_crt"],
 }
 
 
@@ -67,10 +71,10 @@ def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
         data.get("email")
         or data.get("email_address")
         or data.get("contact_email")
-        or data.get("emails", [None])[0]
-        if isinstance(data.get("emails"), list)
-        else None
     )
+    if not email and isinstance(data.get("emails"), list) and data.get("emails"):
+        email = data.get("emails")[0]
+
     if email and isinstance(email, str) and "@" in email and len(email) > 5:
         found.append(("email", email.strip().lower()))
 
@@ -131,7 +135,27 @@ def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
         ):
             found.append(("full_name", clean))
 
-    return found[:_MAX_PIVOTS]
+    # Instagram handle
+    ig = data.get("instagram") or data.get("instagram_handle") or data.get("instagram_username")
+    if ig:
+        found.append(("instagram_handle", ig.lstrip("@").lower()))
+
+    # Twitter handle
+    tw = data.get("twitter") or data.get("twitter_handle") or data.get("twitter_username")
+    if tw:
+        found.append(("twitter_handle", tw.lstrip("@").lower()))
+
+    # LinkedIn URL
+    li = data.get("linkedin") or data.get("linkedin_url") or data.get("linkedin_profile")
+    if li:
+        found.append(("linkedin_url", li))
+
+    # Domain
+    domain = data.get("domain") or data.get("website") or data.get("url")
+    if domain and "." in str(domain):
+        found.append(("domain", domain.lower()))
+
+    return found
 
 
 async def pivot_from_result(
@@ -155,6 +179,8 @@ async def pivot_from_result(
 
     async with AsyncSessionLocal() as session:
         for id_type, value in pivots:
+            if jobs_queued >= _MAX_JOBS_PER_CALL:
+                break
             norm = value.lower()
 
             # Skip if person already has this identifier (avoid re-searching)

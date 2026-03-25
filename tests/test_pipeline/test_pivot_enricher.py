@@ -87,20 +87,88 @@ def test_extract_pivots_consent_keyword_in_name_rejected():
     assert names == []
 
 
-def test_extract_pivots_capped_at_three():
-    """Providing email + phone + name should yield exactly 3 (the cap)."""
+def test_extract_pivots_all_returned():
+    """All extracted pivot types are returned — no cap inside _extract_pivots."""
     data = {
         "email": "test@example.com",
         "phone": "+27831234567",
         "full_name": "Alice Wonderland",
     }
     result = _extract_pivots(data)
-    assert len(result) <= 3
+    assert len(result) == 3
 
 
 def test_extract_pivots_empty_data():
     result = _extract_pivots({})
     assert result == []
+
+
+def test_email_extraction_operator_precedence():
+    """emails list should be used when other email fields absent."""
+    data = {"emails": ["test@example.com", "other@example.com"]}
+    pivots = _extract_pivots(data)
+    emails = [p for p in pivots if p[0] == "email"]
+    assert len(emails) >= 1
+    assert emails[0][1] == "test@example.com"
+
+
+def test_email_extraction_direct_field_wins():
+    """data.get('email') should win over emails list."""
+    data = {"email": "direct@example.com", "emails": ["list@example.com"]}
+    pivots = _extract_pivots(data)
+    emails = [p for p in pivots if p[0] == "email"]
+    assert emails[0][1] == "direct@example.com"
+
+
+def test_extract_pivots_returns_all_types_not_capped():
+    """_extract_pivots must not cap results — that's the caller's job."""
+    data = {
+        "email": "a@b.com",
+        "phone": "+15551234567",
+        "username": "johndoe",
+        "full_name": "John Doe",
+    }
+    pivots = _extract_pivots(data)
+    assert len(pivots) == 3  # email + phone + full_name (username field not a pivot type)
+
+
+def test_instagram_handle_pivot():
+    data = {"instagram": "johndoe"}
+    pivots = _extract_pivots(data)
+    handles = [p for p in pivots if p[0] == "instagram_handle"]
+    assert len(handles) == 1
+
+
+def test_twitter_handle_pivot():
+    data = {"twitter": "@janesmith"}
+    pivots = _extract_pivots(data)
+    handles = [p for p in pivots if p[0] == "twitter_handle"]
+    assert len(handles) == 1
+    assert handles[0][1] == "janesmith"  # @ stripped
+
+
+def test_linkedin_url_pivot():
+    data = {"linkedin": "https://linkedin.com/in/johndoe"}
+    pivots = _extract_pivots(data)
+    links = [p for p in pivots if p[0] == "linkedin_url"]
+    assert len(links) == 1
+
+
+def test_domain_pivot():
+    data = {"website": "example.com"}
+    pivots = _extract_pivots(data)
+    domains = [p for p in pivots if p[0] == "domain"]
+    assert len(domains) == 1
+
+
+def test_max_jobs_per_call_cap_applied_in_caller():
+    """The cap must be applied at dispatch level, not in _extract_pivots."""
+    import inspect
+
+    import modules.pipeline.pivot_enricher as m
+
+    src = inspect.getsource(m._extract_pivots)
+    assert "found[:" not in src
 
 
 # ---------------------------------------------------------------------------

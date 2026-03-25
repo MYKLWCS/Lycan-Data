@@ -175,43 +175,44 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
 
 
 def _auto_detect_type(value: str) -> SeedType:
-    value = value.strip().lower()
+    value_clean = value.strip()
+    value_lower = value_clean.lower()
 
-    if re.match(r"^\+?\d[\d\s\-().]{7,15}$", value):
+    if re.match(r"^\+?\d[\d\s\-().]{7,15}$", value_lower):
         return SeedType.PHONE
 
-    if re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", value):
+    if re.match(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", value_lower):
         return SeedType.EMAIL
 
     # Ethereum address
-    if re.match(r"^0x[a-fA-F0-9]{40}$", value):
+    if re.match(r"^0x[a-fA-F0-9]{40}$", value_clean):
         return SeedType.CRYPTO_WALLET
 
     # Bitcoin mainnet address (P2PKH / P2SH / bech32)
-    if re.match(r"^(1|3)[a-km-zA-HJ-NP-Z1-9]{25,34}$", value) or re.match(
-        r"^bc1[a-z0-9]{6,87}$", value
+    if re.match(r"^(1|3)[a-km-zA-HJ-NP-Z1-9]{25,34}$", value_clean) or re.match(
+        r"^bc1[a-zA-Z0-9]{6,87}$", value_clean
     ):
         return SeedType.CRYPTO_WALLET
 
     # Generic long hex hash (Monero, etc.)
-    if re.match(r"^[a-f0-9]{64}$", value, re.IGNORECASE):
+    if re.match(r"^[a-f0-9]{64}$", value_lower):
         return SeedType.CRYPTO_WALLET
 
     # IPv4 / IPv6
-    if re.match(r"^(\d{1,3}\.){3}\d{1,3}$", value) or re.match(
-        r"^[0-9a-fA-F:]+:[0-9a-fA-F:]+$", value
+    if re.match(r"^(\d{1,3}\.){3}\d{1,3}$", value_lower) or re.match(
+        r"^[0-9a-fA-F:]+:[0-9a-fA-F:]+$", value_lower
     ):
         return SeedType.IP_ADDRESS
 
     # Domain (has a dot, no spaces)
     if (
-        re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$", value)
-        and "." in value
+        re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$", value_lower)
+        and "." in value_lower
     ):
         return SeedType.DOMAIN
 
     # Multi-word string → full name
-    if " " in value.strip():
+    if " " in value_clean:
         return SeedType.FULL_NAME
 
     return SeedType.USERNAME

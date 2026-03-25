@@ -5,6 +5,9 @@
   "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
   "python.testing.pytestArgs": [
     "tests",
+    "-v",
+    "--tb=short",
+    "--durations=10",
     "--import-mode=importlib",
     "--continue-on-collection-errors"
   ],
