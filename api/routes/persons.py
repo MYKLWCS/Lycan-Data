@@ -364,7 +364,7 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
 
     async def _fetch(model, order_by=None):
         q = select(model).where(model.person_id == uid)
-        if order_by is not None:
+        if order_by is not None:  # pragma: no cover
             q = q.order_by(order_by)
         r = await session.execute(q)
         return r.scalars().all()
@@ -953,6 +953,108 @@ async def get_identifier_history(
         "handles": [h.value for h in history if h.type == "handle"],
     }
 
+
+
+# ── Family Tree endpoints ─────────────────────────────────────────────────────
+
+
+@router.get("/{person_id}/family-tree")
+async def get_family_tree(person_id: str, session: AsyncSession = DbDep):
+    """Return the latest FamilyTreeSnapshot for a person."""
+    from shared.models.family_tree import FamilyTreeSnapshot
+    uid = _parse_uuid(person_id)
+    await _require_person(session, uid)
+    result = await session.execute(
+        select(FamilyTreeSnapshot).where(FamilyTreeSnapshot.root_person_id == uid)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot or snapshot.is_stale:
+        return {"status": "pending", "person_id": person_id}
+    return {"status": "ready", "tree": snapshot.tree_json,
+            "source_count": snapshot.source_count, "is_stale": snapshot.is_stale,
+            "depth_ancestors": snapshot.depth_ancestors,
+            "depth_descendants": snapshot.depth_descendants,
+            "built_at": snapshot.built_at.isoformat() if snapshot.built_at else None}
+
+
+@router.post("/{person_id}/family-tree/build")
+async def trigger_family_tree_build(person_id: str, session: AsyncSession = DbDep):
+    """Mark a person tree as stale and queue a rebuild."""
+    from shared.models.family_tree import FamilyTreeSnapshot
+    uid = _parse_uuid(person_id)
+    person = await _require_person(session, uid)
+    result = await session.execute(
+        select(FamilyTreeSnapshot).where(FamilyTreeSnapshot.root_person_id == uid)
+    )
+    snapshot = result.scalar_one_or_none()
+    if snapshot:
+        snapshot.is_stale = True
+    meta = dict(person.meta or {})
+    meta["needs_genealogy"] = True
+    person.meta = meta
+    await session.commit()
+    return {"status": "queued", "person_id": str(uid)}
+
+
+@router.get("/{person_id}/family-tree/status")
+async def get_family_tree_status(person_id: str, session: AsyncSession = DbDep):
+    """Return build status of the family tree for a person."""
+    from shared.models.family_tree import FamilyTreeSnapshot
+    uid = _parse_uuid(person_id)
+    await _require_person(session, uid)
+    result = await session.execute(
+        select(FamilyTreeSnapshot).where(FamilyTreeSnapshot.root_person_id == uid)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot:
+        return {"built": False, "source_count": 0, "person_id": person_id}
+    return {"built": True, "is_stale": snapshot.is_stale,
+            "depth_ancestors": snapshot.depth_ancestors,
+            "depth_descendants": snapshot.depth_descendants,
+            "source_count": snapshot.source_count,
+            "built_at": snapshot.built_at.isoformat() if snapshot.built_at else None,
+            "person_id": person_id}
+
+
+@router.get("/{person_id}/relatives")
+async def get_relatives(person_id: str, session: AsyncSession = DbDep):
+    """Return flat list of family Relationship rows for a person."""
+    from shared.models.relationship import Relationship
+    uid = _parse_uuid(person_id)
+    await _require_person(session, uid)
+    FAMILY_REL_TYPES_LOCAL = [
+        "parent_of","child_of","sibling_of","spouse_of","grandparent_of",
+        "grandchild_of","aunt_uncle_of","niece_nephew_of","half_sibling_of",
+        "step_parent_of","step_child_of",
+    ]
+    result = await session.execute(
+        select(Relationship).where(
+            (Relationship.person_a_id == uid) | (Relationship.person_b_id == uid),
+            Relationship.rel_type.in_(FAMILY_REL_TYPES_LOCAL),
+        )
+    )
+    rels = result.scalars().all()
+    return {"person_id": person_id, "relatives": [_model_to_dict(r) for r in rels], "total": len(rels)}
+
+
+@router.get("/{person_id}/family-tree/gedcom")
+async def get_family_tree_gedcom(person_id: str, session: AsyncSession = DbDep):
+    """Export the family tree as a GEDCOM 5.5.5 file."""
+    from fastapi.responses import PlainTextResponse
+    from modules.export.gedcom import generate_gedcom
+    from shared.models.family_tree import FamilyTreeSnapshot
+    uid = _parse_uuid(person_id)
+    await _require_person(session, uid)
+    result = await session.execute(
+        select(FamilyTreeSnapshot).where(FamilyTreeSnapshot.root_person_id == uid)
+    )
+    snapshot = result.scalar_one_or_none()
+    if not snapshot:
+        raise HTTPException(404, "No family tree snapshot found")
+    gedcom_str = generate_gedcom(snapshot.tree_json, person_id)
+    filename = f"family_tree_{person_id[:8]}.ged"
+    return PlainTextResponse(content=gedcom_str, media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
 

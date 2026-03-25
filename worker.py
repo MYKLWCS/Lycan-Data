@@ -36,14 +36,21 @@ logger = logging.getLogger("lycan.worker")
 def _import_all_crawlers():
     import modules.crawlers as pkg
 
-    for _, name, _ in pkgutil.iter_modules(pkg.__path__):
+    for finder, name, ispkg in pkgutil.iter_modules(pkg.__path__):
         try:
-            importlib.import_module(f"modules.crawlers.{name}")
+            mod = importlib.import_module(f"modules.crawlers.{name}")
+            if ispkg:
+                import pkgutil as _pkgutil
+                for _, subname, _ in _pkgutil.iter_modules(mod.__path__):
+                    try:
+                        importlib.import_module(f"modules.crawlers.{name}.{subname}")
+                    except Exception:
+                        pass
         except Exception:
             pass
 
 
-async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable_commercial: bool = True, enable_audit: bool = True):
+async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable_commercial: bool = True, enable_audit: bool = True, enable_genealogy: bool = True):
     # Setup
     _import_all_crawlers()
     from modules.dispatcher.dispatcher import CrawlDispatcher
@@ -116,12 +123,20 @@ async def main(workers: int, enable_growth: bool, enable_freshness: bool, enable
         tasks.append(asyncio.create_task(ad.start(), name="audit-daemon"))
         logger.info("Started audit daemon")
 
+    # Genealogy enricher daemon
+    if enable_genealogy:
+        from modules.enrichers.genealogy_enricher import GenealogyEnricher
+        ge = GenealogyEnricher()
+        tasks.append(asyncio.create_task(ge.start(), name="genealogy-enricher"))
+        logger.info("Started genealogy enricher daemon")
+
     logger.info(
         f"Worker running — {workers} dispatcher(s) + "
         f"{'growth daemon + ' if enable_growth else ''}"
         f"{'freshness scheduler + ' if enable_freshness else ''}"
         f"{'commercial tagger + ' if enable_commercial else ''}"
         f"{'audit daemon + ' if enable_audit else ''}"
+        f"{'genealogy enricher + ' if enable_genealogy else ''}"
         f"auto-dedup daemon"
     )
 
@@ -151,6 +166,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-growth", action="store_true", help="Disable growth daemon")
     parser.add_argument("--no-freshness", action="store_true", help="Disable freshness scheduler")
     parser.add_argument("--no-commercial", action="store_true", help="Disable commercial tagger daemon")
+    parser.add_argument("--no-genealogy", action="store_true", help="Disable genealogy enricher daemon")
     parser.add_argument("--no-audit", action="store_true", help="Disable audit daemon")
     args = parser.parse_args()
 
@@ -161,5 +177,6 @@ if __name__ == "__main__":
             enable_freshness=not args.no_freshness,
             enable_commercial=not args.no_commercial,
             enable_audit=not args.no_audit,
+            enable_genealogy=not args.no_genealogy,
         )
     )

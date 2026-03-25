@@ -3657,6 +3657,323 @@ const App = {
       }
     });
   },
+
+  async renderFamilyTree(personId) {
+    this.root.textContent = '';
+
+    // ── Header ────────────────────────────────────────────────────────────
+    const hdr = div('page-header');
+    const left = div('');
+    left.append(
+      div('page-title', 'Family Tree'),
+      div('page-sub', 'D3 hierarchical genealogy · confidence-weighted · up to 8 ancestor generations')
+    );
+    const hdrRight = div('');
+    hdrRight.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    const gedcomBtn  = el('button', 'btn', 'Export GEDCOM');
+    const graphBtn   = el('button', 'btn', 'Expand to Graph');
+    const rebuildBtn = el('button', 'btn primary', 'Rebuild Tree');
+    hdrRight.append(gedcomBtn, graphBtn, rebuildBtn);
+    hdr.append(left, hdrRight);
+    this.root.appendChild(hdr);
+
+    // ── Controls bar ──────────────────────────────────────────────────────
+    const ctrlBar = div('filter-bar');
+    ctrlBar.style.marginBottom = '12px';
+
+    const depthLbl = span('', 'Ancestor depth: ');
+    depthLbl.style.cssText = 'font-size:12px;color:var(--text-dim);white-space:nowrap;';
+    const depthSlider = el('input', '');
+    depthSlider.type = 'range'; depthSlider.min = '1'; depthSlider.max = '8'; depthSlider.value = '4';
+    depthSlider.style.cssText = 'width:140px;accent-color:var(--accent);';
+    const depthVal = span('', '4');
+    depthVal.style.cssText = 'font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);min-width:14px;';
+
+    const verifiedRow = div('');
+    verifiedRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    const verifiedCb = el('input', ''); verifiedCb.type = 'checkbox'; verifiedCb.id = 'ft_verified';
+    const verifiedLbl = el('label', ''); verifiedLbl.htmlFor = 'ft_verified';
+    verifiedLbl.textContent = 'Verified only (≥ 0.70)';
+    verifiedLbl.style.cssText = 'font-size:12px;cursor:pointer;color:var(--text);';
+    verifiedRow.append(verifiedCb, verifiedLbl);
+
+    ctrlBar.append(depthLbl, depthSlider, depthVal, verifiedRow);
+    this.root.appendChild(ctrlBar);
+
+    // ── Status strip ──────────────────────────────────────────────────────
+    const statusStrip = div('');
+    statusStrip.style.cssText = 'display:flex;gap:20px;margin-bottom:12px;flex-wrap:wrap;';
+    this.root.appendChild(statusStrip);
+
+    // ── SVG container ─────────────────────────────────────────────────────
+    const svgWrap = div('card');
+    svgWrap.style.cssText = 'flex:1;min-height:560px;overflow:hidden;position:relative;';
+    const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgEl.style.cssText = 'width:100%;height:560px;background:var(--bg-card);display:block;';
+    svgWrap.appendChild(svgEl);
+    this.root.appendChild(svgWrap);
+
+    // ── Loading state ─────────────────────────────────────────────────────
+    const loadEl = div('empty-state');
+    loadEl.append(span('spinner'), div('empty-state-title', 'Loading family tree…'));
+    svgWrap.appendChild(loadEl);
+
+    // ── D3 setup ──────────────────────────────────────────────────────────
+    let treeData = null;
+    let currentDepth = 4;
+    let verifiedOnly = false;
+
+    const svg = d3.select(svgEl);
+    const gRoot = svg.append('g').attr('class', 'ft-root');
+    const zoom = d3.zoom()
+      .scaleExtent([0.05, 4])
+      .on('zoom', (evt) => { gRoot.attr('transform', evt.transform); });
+    svg.call(zoom);
+
+    // ── Status strip render ───────────────────────────────────────────────
+    const mkStat = (label, val, color) => {
+      const s = div(''); s.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+      const n = span(''); n.style.cssText = 'font-family:var(--mono);font-size:18px;font-weight:700;color:' + (color || 'var(--text)') + ';';
+      n.textContent = String(val);
+      const l = span(''); l.style.cssText = 'font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;';
+      l.textContent = label;
+      s.append(n, l);
+      return s;
+    };
+
+    const renderStatus = (st) => {
+      statusStrip.textContent = '';
+      if (!st) return;
+      statusStrip.append(
+        mkStat('Nodes',       st.node_count        || 0, 'var(--accent)'),
+        mkStat('Edges',       st.edge_count        || 0, 'var(--text-dim)'),
+        mkStat('Ancestors',   st.depth_ancestors   || 0, 'var(--green)'),
+        mkStat('Descendants', st.depth_descendants || 0, 'var(--yellow)'),
+        mkStat('Sources',     st.source_count      || 0, 'var(--text-dim)')
+      );
+      if (st.is_stale) {
+        const staleTag = span('');
+        staleTag.style.cssText = 'background:var(--yellow-lo);color:var(--yellow);font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px;letter-spacing:.04em;text-transform:uppercase;align-self:center;';
+        staleTag.textContent = 'STALE';
+        statusStrip.appendChild(staleTag);
+      }
+    };
+
+    // ── D3 tree render ────────────────────────────────────────────────────
+    const renderD3 = () => {
+      gRoot.selectAll('*').remove();
+      if (!treeData || !treeData.nodes) return;
+
+      const nodes = treeData.nodes;
+      const edges = treeData.edges || [];
+      const rootId = String(treeData.root_person_id);
+
+      // Filter by depth and confidence
+      const visibleIds = new Set();
+      visibleIds.add(rootId);
+      edges.forEach(e => {
+        const an = nodes[e.person_a_id];
+        const bn = nodes[e.person_b_id];
+        if (!an || !bn) return;
+        const aGen = an.generation != null ? an.generation : 0;
+        const bGen = bn.generation != null ? bn.generation : 0;
+        if (Math.abs(aGen) > currentDepth || Math.abs(bGen) > currentDepth) return;
+        if (verifiedOnly && (e.confidence || 0) < 0.70) return;
+        visibleIds.add(e.person_a_id);
+        visibleIds.add(e.person_b_id);
+      });
+
+      // Build hierarchy for d3 from root down to descendants, separately handle ancestors
+      // Use flat node list with parent references for d3.stratify
+      const nodeArr = Object.values(nodes).filter(n => visibleIds.has(String(n.id)));
+
+      // Create a synthetic parent map from edges
+      const parentOf = {}; // childId -> parentId
+      edges.forEach(e => {
+        if (!visibleIds.has(e.person_a_id) || !visibleIds.has(e.person_b_id)) return;
+        if (verifiedOnly && (e.confidence || 0) < 0.70) return;
+        if (e.rel_type === 'parent_of') parentOf[String(e.person_b_id)] = String(e.person_a_id);
+        else if (e.rel_type === 'child_of') parentOf[String(e.person_a_id)] = String(e.person_b_id);
+      });
+
+      // Build stratify-compatible array
+      const stratData = nodeArr.map(n => ({
+        id:     String(n.id),
+        parent: parentOf[String(n.id)] || null,
+        data:   n,
+      }));
+      // Ensure root has no parent
+      const rootEntry = stratData.find(d => d.id === rootId);
+      if (rootEntry) rootEntry.parent = null;
+
+      // Orphan nodes get attached to root
+      stratData.forEach(d => {
+        if (d.id !== rootId && !d.parent) d.parent = rootId;
+      });
+
+      let hierarchy;
+      try {
+        hierarchy = d3.stratify().id(d => d.id).parentId(d => d.parent)(stratData);
+      } catch (err) {
+        // fallback: just show root node
+        hierarchy = d3.stratify().id(d => d.id).parentId(d => d.parent)(
+          [{ id: rootId, parent: null, data: nodes[rootId] || { id: rootId, full_name: 'Root' } }]
+        );
+      }
+
+      const svgW = svgEl.clientWidth  || 900;
+      const svgH = svgEl.clientHeight || 560;
+      const treeLayout = d3.tree().size([svgW - 120, svgH - 120]);
+      treeLayout(hierarchy);
+
+      // Center on root
+      const rootNode = hierarchy.find(d => d.id === rootId);
+      const tx = rootNode ? (svgW / 2) - rootNode.x : svgW / 2;
+      svg.call(zoom.transform, d3.zoomIdentity.translate(tx + 60, 60));
+
+      // ── Links ──────────────────────────────────────────────────────────
+      const linkGen = d3.linkVertical().x(d => d.x).y(d => d.y);
+      gRoot.selectAll('path.ft-link')
+        .data(hierarchy.links())
+        .enter().append('path')
+        .attr('class', 'ft-link')
+        .attr('d', linkGen)
+        .attr('fill', 'none')
+        .attr('stroke', 'var(--border)')
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0.5);
+
+      // ── Nodes ──────────────────────────────────────────────────────────
+      const nodeG = gRoot.selectAll('g.ft-node')
+        .data(hierarchy.descendants())
+        .enter().append('g')
+        .attr('class', 'ft-node')
+        .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+        .style('cursor', 'pointer')
+        .on('click', (evt, d) => {
+          evt.stopPropagation();
+          window.location.hash = '#/person/' + d.id;
+        });
+
+      // Node circle — opacity driven by confidence
+      nodeG.append('circle')
+        .attr('r', d => d.id === rootId ? 14 : 9)
+        .attr('fill', d => {
+          if (d.id === rootId) return 'var(--accent)';
+          const gen = (d.data.data && d.data.data.generation) || 0;
+          return gen < 0 ? 'var(--green)' : gen > 0 ? 'var(--yellow)' : 'var(--accent)';
+        })
+        .attr('opacity', d => {
+          const conf = (d.data.data && d.data.data.confidence) || 0.5;
+          return 0.35 + (conf * 0.65);
+        })
+        .attr('stroke', 'var(--bg-card)')
+        .attr('stroke-width', 2);
+
+      // Node label
+      nodeG.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', d => d.id === rootId ? '2.4em' : '2em')
+        .attr('font-size', d => d.id === rootId ? '12px' : '11px')
+        .attr('font-family', 'var(--sans, system-ui)')
+        .attr('fill', 'var(--text)')
+        .attr('opacity', 0.85)
+        .text(d => {
+          const name = (d.data.data && d.data.data.full_name) || d.id.substring(0, 8) + '…';
+          return name.length > 22 ? name.substring(0, 20) + '…' : name;
+        });
+
+      // Confidence badge on non-root nodes with low confidence
+      nodeG.filter(d => d.id !== rootId && (d.data.data && (d.data.data.confidence || 0) < 0.50))
+        .append('circle')
+        .attr('cx', 7).attr('cy', -7).attr('r', 4)
+        .attr('fill', 'var(--yellow)')
+        .attr('opacity', 0.9);
+    };
+
+    // ── Depth slider ──────────────────────────────────────────────────────
+    depthSlider.addEventListener('input', () => {
+      currentDepth = parseInt(depthSlider.value, 10);
+      depthVal.textContent = String(currentDepth);
+      renderD3();
+    });
+    verifiedCb.addEventListener('change', () => {
+      verifiedOnly = verifiedCb.checked;
+      renderD3();
+    });
+
+    // ── Rebuild button ────────────────────────────────────────────────────
+    rebuildBtn.addEventListener('click', async () => {
+      rebuildBtn.disabled = true; rebuildBtn.textContent = 'Queuing…';
+      try {
+        await apiPost('/persons/' + personId + '/family-tree/build', {});
+        rebuildBtn.textContent = 'Queued';
+        setTimeout(() => { rebuildBtn.disabled = false; rebuildBtn.textContent = 'Rebuild Tree'; }, 3000);
+      } catch (e) {
+        rebuildBtn.textContent = 'Error'; rebuildBtn.disabled = false;
+      }
+    });
+
+    // ── GEDCOM export ─────────────────────────────────────────────────────
+    gedcomBtn.addEventListener('click', async () => {
+      gedcomBtn.disabled = true; gedcomBtn.textContent = 'Exporting…';
+      try {
+        const resp = await fetch('/api/persons/' + personId + '/family-tree/gedcom');
+        if (!resp.ok) throw new Error(await resp.text());
+        const text = await resp.text();
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'family_tree_' + personId.substring(0, 8) + '.ged';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      } catch (e) {
+        const err = span('red-txt', 'GEDCOM export failed: ' + e.message);
+        this.root.appendChild(err);
+      } finally {
+        gedcomBtn.disabled = false; gedcomBtn.textContent = 'Export GEDCOM';
+      }
+    });
+
+    // ── Expand to Graph ───────────────────────────────────────────────────
+    graphBtn.addEventListener('click', () => {
+      window.location.hash = '#/graph';
+    });
+
+    // ── Load data ─────────────────────────────────────────────────────────
+    try {
+      const [tree, status] = await Promise.all([
+        apiGet('/persons/' + personId + '/family-tree'),
+        apiGet('/persons/' + personId + '/family-tree/status'),
+      ]);
+
+      loadEl.remove();
+
+      if (tree && tree.pending) {
+        // Tree not built yet — show prompt
+        const prompt = div('empty-state');
+        prompt.append(
+          div('empty-state-icon', '🌳'),
+          div('empty-state-title', 'Tree not built yet'),
+          div('empty-state-sub', 'Click Rebuild Tree to generate the family tree for this person.')
+        );
+        svgWrap.appendChild(prompt);
+      } else {
+        treeData = tree;
+        renderStatus({ ...status, node_count: tree.node_count, edge_count: tree.edge_count });
+        renderD3();
+      }
+    } catch (e) {
+      loadEl.remove();
+      const errEl = div('empty-state');
+      errEl.append(
+        div('empty-state-icon', '⚠'),
+        div('empty-state-title', 'Failed to load family tree'),
+        div('empty-state-sub', e.message || 'Unknown error')
+      );
+      svgWrap.appendChild(errEl);
+    }
+  },
 };
 
 App.init();
