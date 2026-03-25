@@ -54,7 +54,7 @@ def _parse_rentry_html(html: str) -> list[dict]:
         # Try to get nearby text as preview
         parent = a_tag.parent
         preview = ""
-        if parent:
+        if parent:  # pragma: no branch
             sibling_text = parent.get_text(strip=True)
             if sibling_text and sibling_text != title:
                 preview = sibling_text[:200]

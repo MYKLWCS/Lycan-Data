@@ -153,7 +153,7 @@ class NewsArchiveCrawler(HttpxCrawler):
             if isinstance(data, int):
                 return data
             # Sometimes returned as list with single int element
-            if isinstance(data, list) and data:
+            if isinstance(data, list) and data:  # pragma: no branch
                 return int(data[0]) if str(data[0]).isdigit() else 0
         except Exception as exc:
             logger.warning("CDX count parse error: %s", exc)

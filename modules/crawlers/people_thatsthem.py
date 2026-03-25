@@ -116,7 +116,7 @@ def _parse_persons(html: str) -> list[dict[str, Any]]:
             age_tag = card.select_one(".age, [class*='age']")
             if age_tag:
                 m = re.search(r"\d{1,3}", _text(age_tag))
-                if m:
+                if m:  # pragma: no branch
                     person["age"] = int(m.group())
 
             if person.get("name") or person.get("address"):

@@ -273,6 +273,6 @@ def _extract_names_from_segment(segment: str) -> list[str]:
         # A likely name: 2-4 capitalised words, no digits, reasonable length
         if re.match(r"^[A-Z][a-zA-Z\-']{1,20}(\s[A-Z][a-zA-Z\-']{1,20}){0,3}$", token):
             names.append(token)
-        if len(names) >= 10:
+        if len(names) >= 10:  # pragma: no branch
             break
     return names

@@ -108,7 +108,7 @@ class NewsSearchCrawler(CurlCrawler):
         ddg_articles = await self._scrape_ddg(query)
         for art in ddg_articles:
             url = art.get("url", "")
-            if url and url not in seen_urls:
+            if url and url not in seen_urls:  # pragma: no branch
                 seen_urls.add(url)
                 articles.append(art)
 

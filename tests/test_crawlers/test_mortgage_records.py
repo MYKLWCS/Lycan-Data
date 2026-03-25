@@ -30,6 +30,7 @@ from modules.crawlers.mortgage_deed import (
 from modules.crawlers.mortgage_hmda import (
     MortgageHmdaCrawler,
     _parse_hmda_aggregations,
+    _summarise_hmda,
 )
 from modules.crawlers.mortgage_hmda import (
     _parse_identifier as _hmda_parse_id,
@@ -395,3 +396,63 @@ async def test_bankruptcy_json_parse_error():
         result = await crawler.scrape("John Smith")
     assert result.found is False
     assert "error" in result.data or result.error is not None
+
+
+# ===========================================================================
+# 10. _summarise_hmda (lines 143-166)
+# ===========================================================================
+
+
+def test_summarise_hmda_basic():
+    """Basic summary with approved and denied rows."""
+    rows = [
+        {"action_taken": "1", "lei": "BANK_A"},
+        {"action_taken": "1", "lei": "BANK_A"},
+        {"action_taken": "3", "lei": "BANK_B"},
+    ]
+    summary = _summarise_hmda(rows)
+    assert summary["total_loans"] == 3
+    assert summary["denial_rate"] == round(1 / 3, 4)
+    assert len(summary["top_lenders"]) == 2
+    assert summary["top_lenders"][0]["lender"] == "BANK_A"
+    assert summary["top_lenders"][0]["loan_count"] == 2
+
+
+def test_summarise_hmda_empty_rows():
+    """Empty list returns zero totals."""
+    summary = _summarise_hmda([])
+    assert summary["total_loans"] == 0
+    assert summary["denial_rate"] is None
+    assert summary["top_lenders"] == []
+
+
+def test_summarise_hmda_no_denial():
+    """All approved — denial_rate = 0."""
+    rows = [
+        {"action_taken": "1", "lei": "BANK_X"},
+        {"action_taken": "1", "lei": "BANK_X"},
+    ]
+    summary = _summarise_hmda(rows)
+    assert summary["denial_rate"] == 0.0
+
+
+def test_summarise_hmda_no_lei():
+    """Rows without lei are not counted in top_lenders."""
+    rows = [
+        {"action_taken": "1"},
+        {"action_taken": "3"},
+    ]
+    summary = _summarise_hmda(rows)
+    assert summary["top_lenders"] == []
+    assert summary["denial_rate"] == 0.5
+
+
+def test_summarise_hmda_institution_name_fallback():
+    """institution_name used when lei is absent."""
+    rows = [
+        {"action_taken": "1", "institution_name": "FIRST_BANK"},
+        {"action_taken": "1", "institution_name": "FIRST_BANK"},
+        {"action_taken": "3", "institution_name": "SECOND_BANK"},
+    ]
+    summary = _summarise_hmda(rows)
+    assert summary["top_lenders"][0]["lender"] == "FIRST_BANK"

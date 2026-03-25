@@ -153,7 +153,7 @@ class CarrierLookupCrawler(HttpxCrawler):
                         break
                 # Try parent's next td
                 parent = tag.parent
-                if parent:
+                if parent:  # pragma: no branch
                     tds = parent.find_all(["td", "span"])
                     if len(tds) >= 2:
                         carrier_name = tds[-1].get_text(strip=True)

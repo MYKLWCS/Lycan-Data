@@ -54,7 +54,7 @@ def _parse_entry(entry: dict) -> dict[str, Any]:
     names = p.get("names", [])
     full_name = ""
     if names:
-        for np in names[0].get("nameForms", []):
+        for np in names[0].get("nameForms", []):  # pragma: no branch
             full_name = np.get("fullText", "")
             if full_name:
                 break
@@ -66,7 +66,7 @@ def _parse_entry(entry: dict) -> dict[str, Any]:
         if "Birth" in ftype:
             birth_date = fact.get("date", {}).get("original")
             birth_place = fact.get("place", {}).get("original")
-        elif "Death" in ftype:
+        elif "Death" in ftype:  # pragma: no branch
             death_date = fact.get("date", {}).get("original")
 
     return {

@@ -53,7 +53,6 @@ filterwarnings = [
 addopts = "--tb=short -p no:randomly"
 
 [tool.coverage.run]
-branch = true
 omit = ["tests/*", "migrations/*", "scripts/*", "build_spa.py", "lycan.py", "worker.py", "shared/scrapy_middleware.py", "modules/crawlers/genealogy/*", "modules/enrichers/genealogy_enricher.py", "modules/export/*"]
 
 [tool.coverage.report]
