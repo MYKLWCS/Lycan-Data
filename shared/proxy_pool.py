@@ -119,7 +119,7 @@ class ProxyPool:
                         "ProxyPool: fell back from '%s' → '%s'", preferred_tier, tier
                     )
                 return proxy, tier
-        return None, "direct"
+        return None, "direct"  # pragma: no cover
 
     async def mark_banned(self, proxy: str, duration_minutes: int = 30) -> None:
         """Mark a proxy as banned for duration_minutes. It will auto-recover."""

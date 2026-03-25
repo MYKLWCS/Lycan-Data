@@ -214,7 +214,7 @@ class OpenPepSearchCrawler(HttpxCrawler):
 
         encoded = quote_plus(query)
         name_parts = query.split()
-        firstname = quote_plus(name_parts[0]) if name_parts else ""
+        firstname = quote_plus(name_parts[0]) if len(name_parts) > 1 else ""
         lastname = quote_plus(" ".join(name_parts[1:])) if len(name_parts) > 1 else encoded
 
         all_matches: list[dict[str, Any]] = []

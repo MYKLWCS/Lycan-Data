@@ -60,7 +60,7 @@ def test_wc_classify_tier_tier1_parliament():
 
 
 def test_wc_classify_tier_tier1_central_bank():
-    assert _classify_tier("Governor central bank") == "tier2"  # "governor" not in wc tier1 set
+    assert _classify_tier("Governor central bank") == "tier2"  # "governor" triggers deputy/governor fast-path → tier2
 
 
 def test_wc_classify_tier_tier1_ambassador():

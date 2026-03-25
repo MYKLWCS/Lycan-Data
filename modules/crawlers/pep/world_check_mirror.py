@@ -59,8 +59,8 @@ _TIER3_KEYWORDS = {
 
 def _classify_tier(position: str) -> str:
     pos = position.lower()
-    # "Deputy X" titles are tier2 even if X matches a tier1 keyword
-    if "deputy" in pos:
+    # "Deputy X" and "Governor X" titles are tier2 even if X matches a tier1 keyword
+    if "deputy" in pos or "governor" in pos:
         return "tier2"
     if any(kw in pos for kw in _TIER1_KEYWORDS):
         return "tier1"

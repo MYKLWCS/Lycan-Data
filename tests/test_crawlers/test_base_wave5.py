@@ -122,16 +122,10 @@ async def test_get_proxy_async_downgrades_tor_tier_when_tor_disabled():
     mock_settings = MagicMock()
     mock_settings.tor_enabled = False
 
-    with (
-        patch("modules.crawlers.base.settings", mock_settings),
-        patch("modules.crawlers.base.proxy_pool", mock_pool, create=True),
-    ):
-        # Import-time binding means we patch at the usage site inside the method
-        with patch("modules.crawlers.base.BaseCrawler.get_proxy_async.__globals__", create=True):
-            pass  # patching via the module import below
+    import shared.proxy_pool as _pp_mod
+    import unittest.mock as _mock
 
-    # Patch via the import inside the method body
-    with patch("shared.proxy_pool.proxy_pool", mock_pool, create=True):
+    with _mock.patch.object(_pp_mod, "proxy_pool", mock_pool):
         with patch("modules.crawlers.base.settings", mock_settings):
             result = await crawler.get_proxy_async()
 

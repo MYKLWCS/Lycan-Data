@@ -500,10 +500,10 @@ async def test_scrape_single_word_name_interpol_handling():
     ):
         await crawler.scrape("Mononym")
 
-    # Called with (firstname, lastname) — firstname should be ""
+    # Called with (firstname, lastname) — single word → firstname="" (empty), lastname=encoded query
     args = mock_ip.call_args[0]
-    assert args[0] == ""  # firstname empty
-    assert args[1] == "Mononym"
+    assert args[0] == ""           # single word → firstname empty
+    assert args[1] == "Mononym"    # encoded query becomes lastname
 
 
 # ---------------------------------------------------------------------------
