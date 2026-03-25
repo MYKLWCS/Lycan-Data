@@ -10,7 +10,7 @@ from shared.models.base import Base, DataQualityMixin, TimestampMixin
 class Identifier(Base, TimestampMixin, DataQualityMixin):
     __tablename__ = "identifiers"
     __table_args__ = (
-        UniqueConstraint("type", "value", name="uq_identifier_type_value"),
+        UniqueConstraint("type", "normalized_value", name="uq_identifier_type_normalized"),
         Index("ix_identifier_value", "value"),
     )
 
@@ -20,7 +20,7 @@ class Identifier(Base, TimestampMixin, DataQualityMixin):
     )
     type: Mapped[str] = mapped_column(String(50), nullable=False)  # IdentifierType enum value
     value: Mapped[str] = mapped_column(String(1024), nullable=False)
-    normalized_value: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    normalized_value: Mapped[str] = mapped_column(String(1024), nullable=False)
     country_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
     is_primary: Mapped[bool] = mapped_column(default=False, nullable=False)

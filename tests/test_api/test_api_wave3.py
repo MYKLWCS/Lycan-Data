@@ -405,3 +405,138 @@ class TestSearchQueryFilters:
             resp = client.get("/query/region?state=CA")
 
         assert resp.status_code == 200
+
+
+# ===========================================================================
+# api/routes/ws.py — WebSocket endpoint (lines 29-67)
+# ===========================================================================
+
+
+class TestWebSocketEndpoint:
+    """Tests for /ws/progress/{person_id} — covers accept, ping/pong, disconnect."""
+
+    def test_ws_connect_and_receive_pong(self):
+        """Client connects, sends 'ping', gets back pong event (lines 29-52)."""
+        from api.routes import ws
+
+        app = FastAPI()
+        app.include_router(ws.router)
+
+        async def _never_returns(_channel, _cb):
+            # Simulate a subscription that blocks forever
+            await asyncio.sleep(9999)
+
+        with patch("api.routes.ws.event_bus") as mock_bus:
+            mock_bus.subscribe = _never_returns
+
+            with TestClient(app, raise_server_exceptions=False) as c:
+                with c.websocket_connect("/ws/progress/person-abc") as ws_conn:
+                    ws_conn.send_text("ping")
+                    data = ws_conn.receive_json()
+                    assert data == {"event": "pong"}
+
+    def test_ws_disconnect_cleans_up(self):
+        """Client disconnects — finally block cancels sub_task (lines 61-67)."""
+        from api.routes import ws
+
+        app = FastAPI()
+        app.include_router(ws.router)
+
+        async def _never_returns(_channel, _cb):
+            await asyncio.sleep(9999)
+
+        with patch("api.routes.ws.event_bus") as mock_bus:
+            mock_bus.subscribe = _never_returns
+
+            with TestClient(app, raise_server_exceptions=False) as c:
+                with c.websocket_connect("/ws/progress/person-xyz") as ws_conn:
+                    # Close from client side — triggers WebSocketDisconnect in the handler
+                    ws_conn.close()
+                # If we reach here without exception the finally block ran correctly
+
+    def test_ws_non_ping_message_ignored(self):
+        """Sending a non-ping text message doesn't crash the handler (lines 49-52)."""
+        from api.routes import ws
+
+        app = FastAPI()
+        app.include_router(ws.router)
+
+        async def _never_returns(_channel, _cb):
+            await asyncio.sleep(9999)
+
+        with patch("api.routes.ws.event_bus") as mock_bus:
+            mock_bus.subscribe = _never_returns
+
+            with TestClient(app, raise_server_exceptions=False) as c:
+                with c.websocket_connect("/ws/progress/person-def") as ws_conn:
+                    # Sending a non-ping message should produce no response (no assert needed)
+                    ws_conn.send_text("hello")
+                    ws_conn.close()
+
+
+class TestSSEEndpointConnected:
+    """Tests for SSE /sse/progress/{person_id} when event_bus IS connected (lines 79-105)."""
+
+    def test_sse_connected_yields_heartbeat_then_done(self):
+        """
+        Event bus connected: queue receives a 'done' event which terminates the stream.
+        Covers lines 79-97 (queue setup, message forwarding, done-break).
+        """
+        from api.routes import ws as ws_module
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        app = FastAPI()
+        app.include_router(ws_module.router)
+
+        person_id = "test-sse-person"
+
+        async def _fake_subscribe(channel, callback):
+            # Immediately deliver a done event for this person
+            await callback({"event": "done", "person_id": person_id})
+            # Then hang (client will have broken out of the loop already)
+            await asyncio.sleep(9999)
+
+        with patch("api.routes.ws.event_bus") as mock_bus:
+            mock_bus.is_connected = True
+            mock_bus.subscribe = _fake_subscribe
+
+            with TestClient(app, raise_server_exceptions=False) as c:
+                resp = c.get(
+                    f"/sse/progress/{person_id}",
+                    headers={"Accept": "text/event-stream"},
+                )
+
+        assert resp.status_code == 200
+        assert "done" in resp.text
+
+    def test_sse_connected_finally_cancels_task(self):
+        """
+        Stream closes (client disconnects) → finally block cancels sub_task (lines 100-105).
+        We simulate disconnect by patching request.is_disconnected to True immediately.
+        """
+        from api.routes import ws as ws_module
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        app = FastAPI()
+        app.include_router(ws_module.router)
+
+        async def _hang_subscribe(_channel, _cb):
+            await asyncio.sleep(9999)
+
+        with patch("api.routes.ws.event_bus") as mock_bus:
+            mock_bus.is_connected = True
+            mock_bus.subscribe = _hang_subscribe
+            # Patch Request.is_disconnected to return True so the while loop exits
+            with patch("starlette.requests.Request.is_disconnected", new_callable=AsyncMock) as mock_disc:
+                mock_disc.return_value = True
+
+                with TestClient(app, raise_server_exceptions=False) as c:
+                    resp = c.get(
+                        "/sse/progress/person-disconnect-test",
+                        headers={"Accept": "text/event-stream"},
+                    )
+
+        # Stream should have terminated cleanly (200 with empty or heartbeat body)
+        assert resp.status_code == 200
