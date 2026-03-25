@@ -2311,9 +2311,7 @@ class TestPeopleFamilySearchBranches:
                     "persons": [
                         {
                             "id": "P2",
-                            "names": [
-                                {"nameForms": [{"fullText": "John A Doe"}]}
-                            ],
+                            "names": [{"nameForms": [{"fullText": "John A Doe"}]}],
                             "facts": [
                                 {
                                     "type": "http://gedcomx.org/Death",
@@ -2558,8 +2556,9 @@ class TestNewsArchiveBranches:
 class TestFastPeopleSearchBranches:
     def test_extract_fps_card_no_name_returns_none(self):
         """fastpeoplesearch line 74: card with no h2/h3/strong → full_name empty → None."""
-        from modules.crawlers.fastpeoplesearch import _extract_fps_card
         from bs4 import BeautifulSoup
+
+        from modules.crawlers.fastpeoplesearch import _extract_fps_card
 
         html = '<div class="card-block"><p>No name here</p></div>'
         card = BeautifulSoup(html, "html.parser").find("div")
@@ -2576,8 +2575,9 @@ class TestFastPeopleSearchBranches:
 class TestTruePeopleSearchBranches:
     def test_extract_tps_card_no_name_returns_none(self):
         """truepeoplesearch line 72: card with no name element → full_name empty → None."""
-        from modules.crawlers.truepeoplesearch import _extract_tps_card
         from bs4 import BeautifulSoup
+
+        from modules.crawlers.truepeoplesearch import _extract_tps_card
 
         html = '<div class="card"><p>Nothing useful</p></div>'
         card = BeautifulSoup(html, "html.parser").find("div")
@@ -2594,8 +2594,9 @@ class TestTruePeopleSearchBranches:
 class TestWhitepagesBranches:
     def test_extract_whitepages_card_no_name_returns_none(self):
         """whitepages line 103: card with no name element → name empty → None."""
-        from modules.crawlers.whitepages import _extract_whitepages_card
         from bs4 import BeautifulSoup
+
+        from modules.crawlers.whitepages import _extract_whitepages_card
 
         html = '<div data-testid="person-card"><p>No name here</p></div>'
         card = BeautifulSoup(html, "html.parser").find("div")

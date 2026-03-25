@@ -98,9 +98,7 @@ async def test_branch_add_edge_dedup_key_already_present():
     associate_edges = [
         e
         for e in graph["edges"]
-        if e["source"] == str(pid)
-        and e["target"] == str(other_id)
-        and e["type"] == "associate"
+        if e["source"] == str(pid) and e["target"] == str(other_id) and e["type"] == "associate"
     ]
     assert len(associate_edges) == 1
 
@@ -216,7 +214,7 @@ async def test_branch_shared_connections_null_person_id():
     pid_a = str(uuid.uuid4())
     pid_b = str(uuid.uuid4())
     pid_a_uuid = uuid.UUID(pid_a)
-    pid_b_uuid = uuid.UUID(pid_b)
+    uuid.UUID(pid_b)
 
     # One row with None person_id — must be skipped
     ident_null = MagicMock()
@@ -353,9 +351,7 @@ async def test_branch_detect_fraud_rings_address_below_min():
     """
     pids = [uuid.uuid4(), uuid.uuid4()]  # only 2 persons
 
-    addr_rows = [
-        MagicMock(street="100 Test St", city="Denver", person_id=p) for p in pids
-    ]
+    addr_rows = [MagicMock(street="100 Test St", city="Denver", person_id=p) for p in pids]
 
     session = _graph_session(
         [
@@ -543,7 +539,7 @@ async def test_branch_ubo_company_node_already_in_nodes():
     )
 
     crawled_root = _make_crawled("Acme Corp", officers=[person_ref])
-    crawled_person_emp = _make_crawled("Jane Doe LLC", officers=[])
+    _make_crawled("Jane Doe LLC", officers=[])
 
     call_count = [0]
 
@@ -600,7 +596,6 @@ async def test_branch_ubo_person_node_already_in_nodes():
     session.add = MagicMock()
     session.flush = AsyncMock()
 
-    call_count = [0]
     pid_obj = MagicMock()
     pid_obj.id = uuid.UUID(shared_pid)
     pid_obj.full_name = shared_person_name
@@ -751,8 +746,8 @@ async def test_branch_location_social_profile_upsert_returns_false():
     existing_visit = MagicMock()
     existing_visit.visit_count = 5
     existing_visit.country_name = "Australia"  # already set → no update
-    existing_visit.city = "Sydney"             # already set → no update
-    existing_visit.region = "NSW"              # already set → no update
+    existing_visit.city = "Sydney"  # already set → no update
+    existing_visit.region = "NSW"  # already set → no update
 
     session = AsyncMock()
     session.flush = AsyncMock()
@@ -811,9 +806,9 @@ async def test_branch_location_upsert_existing_all_fields_set():
     """
     existing = MagicMock()
     existing.visit_count = 3
-    existing.country_name = "Canada"     # already set
-    existing.city = "Toronto"            # already set
-    existing.region = "Ontario"          # already set
+    existing.country_name = "Canada"  # already set
+    existing.city = "Toronto"  # already set
+    existing.region = "Ontario"  # already set
 
     session = AsyncMock()
     session.flush = AsyncMock()
@@ -921,8 +916,22 @@ def test_branch_score_pair_empty_name_skips_jw():
     Line 674: `if name_a and name_b:` is False — one name is empty string.
     """
     dedup = FuzzyDeduplicator()
-    a = {"full_name": "", "phones": [], "emails": [], "dob": None, "identifiers": [], "addresses": []}
-    b = {"full_name": "John Smith", "phones": [], "emails": [], "dob": None, "identifiers": [], "addresses": []}
+    a = {
+        "full_name": "",
+        "phones": [],
+        "emails": [],
+        "dob": None,
+        "identifiers": [],
+        "addresses": [],
+    }
+    b = {
+        "full_name": "John Smith",
+        "phones": [],
+        "emails": [],
+        "dob": None,
+        "identifiers": [],
+        "addresses": [],
+    }
     score, reasons = dedup._score_pair(a, b)
     # No JW reason recorded
     assert not any("name JW" in r for r in reasons)
@@ -967,9 +976,9 @@ async def test_branch_score_person_dedup_no_dob():
     session.execute = AsyncMock(
         side_effect=[
             _scalar_one_or_none(target),  # person lookup
-            _scalars_result([]),           # identifiers (no phones)
-            _fetchall([]),                 # last_name lookup
-            _scalars_result([]),           # candidate persons fetch
+            _scalars_result([]),  # identifiers (no phones)
+            _fetchall([]),  # last_name lookup
+            _scalars_result([]),  # candidate persons fetch
         ]
     )
     session.add = MagicMock()
@@ -1066,9 +1075,9 @@ async def test_branch_score_person_dedup_single_token_name_no_empty_last():
     session.execute = AsyncMock(
         side_effect=[
             _scalar_one_or_none(target),
-            _scalars_result([]),   # identifiers
-            _fetchall([]),         # last_name ilike query
-            _scalars_result([]),   # candidate persons
+            _scalars_result([]),  # identifiers
+            _fetchall([]),  # last_name ilike query
+            _scalars_result([]),  # candidate persons
         ]
     )
     session.add = MagicMock()
@@ -1188,7 +1197,7 @@ def test_branch_borrower_scorer_middle_wealth_band_no_adjustment():
 # 8. certification.py
 # =============================================================================
 
-from modules.enrichers.certification import _improvement_actions, CertificateGrade
+from modules.enrichers.certification import CertificateGrade, _improvement_actions
 
 
 # [117,116] — _improvement_actions: category NOT in action_map → skip
@@ -1307,7 +1316,7 @@ async def test_branch_education_no_start_but_graduated():
     record.institution = "Wharton"
     record.field_of_study = "Business"
     record.tier = "university"
-    record.started_at = None    # no start date → `if started:` False
+    record.started_at = None  # no start date → `if started:` False
     record.ended_at = date(2018, 5, 15)
     record.is_completed = True  # graduated without a recorded start
 

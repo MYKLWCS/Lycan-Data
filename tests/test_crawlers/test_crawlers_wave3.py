@@ -788,16 +788,13 @@ class TestCourtStateCrawler:
         assert result[0]["case_number"] == "2024-TX-001"
 
     def test_parse_table_rows_empty_data_row_skipped(self):
-        """A data row with only empty cells is included (state field is non-empty)."""
+        """A data row with only empty data cells is excluded (state is not counted as data)."""
         from modules.crawlers.court_state import _parse_table_rows
 
         html = "<table><tr><th>Case No.</th><th>Party</th></tr><tr><td></td><td></td></tr></table>"
         result = _parse_table_rows(html, "TX")
-        # The row has empty case cells but the record includes state="TX",
-        # so any(record.values()) is True and the record is appended.
-        assert len(result) == 1
-        assert result[0]["state"] == "TX"
-        assert result[0]["case_number"] == ""
+        # All non-state cells are empty → record is not appended.
+        assert len(result) == 0
 
     # --- _scrape_portal exception branch (lines ~132-139) ---
 

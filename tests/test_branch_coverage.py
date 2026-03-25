@@ -23,13 +23,12 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import date
+from datetime import UTC, date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 
 # ===========================================================================
 # api/routes/ws.py — [33,-32] _forward inner closure: person_id mismatch
@@ -140,7 +139,6 @@ class TestSSEDoneEvent:
         mock_request.is_disconnected = _is_disconnected
 
         # We will inject the 'done' message directly by patching queue.get
-        call_count = [0]
 
         async def _subscribe(channel, callback):
             # Send a matching 'done' message
@@ -332,9 +330,7 @@ class TestFamilyTreeGedcomPersonNotFound:
             return None  # node not found → if p: is False
 
         mock_session.get = _get
-        mock_session.execute = AsyncMock(
-            side_effect=[snapshot_scalars, rels_exec_result]
-        )
+        mock_session.execute = AsyncMock(side_effect=[snapshot_scalars, rels_exec_result])
         mock_session.commit = AsyncMock()
 
         app = FastAPI()
@@ -370,11 +366,12 @@ class TestApplyQualityToModelMissingField:
 
         class MinimalModel:
             """Model with only some quality fields — missing others."""
+
             freshness_score: float = 0.0
             # intentionally omits source_reliability, etc.
 
         model = MinimalModel()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Should not raise even though model is missing many fields
         apply_quality_to_model(
             model,
@@ -585,9 +582,9 @@ class TestIndexDaemonEmptyAddressParts:
 
         mock_session.execute = AsyncMock(
             side_effect=[
-                _make_scalars([]),         # identifiers
+                _make_scalars([]),  # identifiers
                 _make_scalars([empty_addr]),  # addresses — all None fields
-                _make_scalars([]),         # social profiles
+                _make_scalars([]),  # social profiles
             ]
         )
 
@@ -597,9 +594,7 @@ class TestIndexDaemonEmptyAddressParts:
             captured.append(doc)
             return True
 
-        with patch(
-            "modules.search.meili_indexer.meili_indexer.index_person", side_effect=_capture
-        ):
+        with patch("modules.search.meili_indexer.meili_indexer.index_person", side_effect=_capture):
             await d._index_person(mock_session, uid)
 
         assert len(captured) == 1

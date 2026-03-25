@@ -39,7 +39,7 @@ def _split_name(identifier: str) -> tuple[str, str]:
     return "", identifier.strip()
 
 
-def _parse_airmen_html(html: str) -> list[dict[str, Any]]:
+def _parse_faa_html(html: str) -> list[dict[str, Any]]:
     """
     Parse the FAA airmen inquiry HTML result table.
 
@@ -187,7 +187,7 @@ class PublicFAACrawler(HttpxCrawler):
                 query=query,
             )
 
-        pilots = _parse_airmen_html(post_resp.text)
+        pilots = _parse_faa_html(post_resp.text)
 
         return self._result(
             identifier,

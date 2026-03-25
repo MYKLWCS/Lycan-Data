@@ -30,6 +30,7 @@ from modules.crawlers.social_graph import (
     SocialGraphCrawler,
     _build_connections,
     _extract_mentions,
+    _extract_platform_mentions,
 )
 
 # ===========================================================================
@@ -364,3 +365,49 @@ async def test_social_graph_connection_count_matches():
 
     assert result.data["connection_count"] == len(result.data["connections"])
     assert result.data["connection_count"] >= 3
+
+
+# ===========================================================================
+# Branch gap: social_graph arc 108->105
+# _extract_platform_mentions: duplicate platform+username entry is not added twice
+# ===========================================================================
+
+
+def test_extract_platform_mentions_duplicate_platform_skipped():
+    """Arc 108->105: same platform+username pair appears twice in text.
+    The second occurrence finds the platform already in platform_map[username]
+    so the if-branch is False — it loops back to 105 without appending."""
+    text = "twitter:johndoe twitter:johndoe"
+    result = _extract_platform_mentions(text)
+    # 'twitter' should appear only once for 'johndoe', not duplicated
+    assert "johndoe" in result
+    assert result["johndoe"].count("twitter") == 1
+
+
+# ===========================================================================
+# Branch gap: google_maps arc 178->170
+# _parse_kg_panel: element found but get_text() returns empty string
+# ===========================================================================
+
+
+def test_parse_kg_panel_element_found_but_empty_text_loops_to_next_selector():
+    """Arc 178->170: soup.select_one() returns an element but get_text(strip=True)
+    is empty — if text: is False, the loop continues to the next selector."""
+    from modules.crawlers.google_maps import _parse_kg_panel
+
+    # Build HTML where the first selector finds a span with no text content,
+    # but a tel: link provides the phone so the function still returns data
+    html = """
+    <html><body>
+    <span data-attrid='kc:/location/location:address'></span>
+    <a href="tel:+15551234567">Call Us</a>
+    </body></html>
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    result = _parse_kg_panel(soup, "Test Business")
+    # address is None (empty text in first selector, others also fail),
+    # but phone is found via tel: link — result is not None
+    assert result is not None
+    assert result["phone"] == "+15551234567"

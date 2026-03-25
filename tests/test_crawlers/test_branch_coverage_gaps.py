@@ -28,7 +28,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
@@ -112,7 +111,7 @@ class TestVehiclePlateBranchGaps:
             new=AsyncMock(
                 side_effect=[
                     empty_json_resp,  # faxvin → empty
-                    None,             # licenseplatedata → None (skip)
+                    None,  # licenseplatedata → None (skip)
                     _mock_resp(200, text=source3_html),  # vehiclehistory
                 ]
             ),
@@ -135,9 +134,11 @@ class TestVehiclePlateBranchGaps:
             "get",
             new=AsyncMock(
                 side_effect=[
-                    empty_resp,               # faxvin → empty
-                    _mock_resp(404),          # licenseplatedata → skip
-                    _mock_resp(200, text="no recognisable data here"),  # vehiclehistory → empty parse
+                    empty_resp,  # faxvin → empty
+                    _mock_resp(404),  # licenseplatedata → skip
+                    _mock_resp(
+                        200, text="no recognisable data here"
+                    ),  # vehiclehistory → empty parse
                 ]
             ),
         ):
@@ -240,9 +241,7 @@ class TestVehicleOwnershipBranchGaps:
         from modules.crawlers.vehicle_ownership import _parse_vehicle_cards_html
 
         # Generate 12 vehicle text blocks
-        blocks = " ".join(
-            [f"2020 HONDA CivicModel{i}" for i in range(12)]
-        )
+        blocks = " ".join([f"2020 HONDA CivicModel{i}" for i in range(12)])
         html = f"<html><body>{blocks}</body></html>"
         result = _parse_vehicle_cards_html(html)
         assert len(result) <= 10
@@ -420,10 +419,10 @@ class TestPhoneTruecallerBranchGaps:
 class TestPropertyZillowBranchGaps:
     # [101,103] val is not a dict → skip
     def test_parse_property_page_non_dict_val_skipped(self):
-        from modules.crawlers.property_zillow import _parse_property_page
-
         # gdpClientCache has a non-dict value
         import json as _json
+
+        from modules.crawlers.property_zillow import _parse_property_page
 
         gdp_cache = {"key1": "not-a-dict", "key2": 12345}
         page_data = {
@@ -436,9 +435,9 @@ class TestPropertyZillowBranchGaps:
 
     # [107,109] dict value found but no "zestimate" key → skip that assignment
     def test_parse_property_page_no_zestimate_key(self):
-        from modules.crawlers.property_zillow import _parse_property_page
-
         import json as _json
+
+        from modules.crawlers.property_zillow import _parse_property_page
 
         home = {"bedrooms": 3, "bathrooms": 2, "livingArea": 1500}
         gdp_cache = {"key1": home}
@@ -452,9 +451,9 @@ class TestPropertyZillowBranchGaps:
 
     # [109,111] dict has zestimate but no bedrooms → beds stays None
     def test_parse_property_page_no_bedrooms_key(self):
-        from modules.crawlers.property_zillow import _parse_property_page
-
         import json as _json
+
+        from modules.crawlers.property_zillow import _parse_property_page
 
         home = {"zestimate": 450000}
         gdp_cache = {"k": home}
@@ -472,23 +471,6 @@ class TestPropertyZillowBranchGaps:
         from modules.crawlers.property_zillow import PropertyZillowCrawler
 
         crawler = PropertyZillowCrawler()
-
-        suggest_json = {
-            "results": [
-                {
-                    "display": "123 Main St",
-                    "metaData": {
-                        "addressCity": "Austin",
-                        "addressState": "TX",
-                        "addressZip": "78701",
-                        "lat": 30.0,
-                        "lng": -97.0,
-                        "zpid": "999",
-                        # intentionally no "address" top-level key
-                    },
-                }
-            ]
-        }
 
         with patch.object(
             crawler, "_fetch_suggestions", new=AsyncMock(return_value=[{"zpid": "999"}])
@@ -713,7 +695,11 @@ class TestRedfinDeepBranchGaps:
         autocomplete_data = {
             "payload": {
                 "sections": [
-                    {"rows": [{"name": "1 Oak St", "url": "/home/55555", "id": "x", "type": "address"}]}
+                    {
+                        "rows": [
+                            {"name": "1 Oak St", "url": "/home/55555", "id": "x", "type": "address"}
+                        ]
+                    }
                 ]
             }
         }
@@ -793,11 +779,7 @@ class TestZillowDeepBranchGaps:
         # No "property" key → falls to elif "bedrooms" in val → home = val
         gdp_cache = {"k": home}  # no "property" wrapper
         page_data = {
-            "props": {
-                "pageProps": {
-                    "componentProps": {"gdpClientCache": json.dumps(gdp_cache)}
-                }
-            }
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
         }
         html = f'<html><script id="__NEXT_DATA__">{json.dumps(page_data)}</script></html>'
         details = _parse_next_data(html)
@@ -819,11 +801,7 @@ class TestZillowDeepBranchGaps:
         }
         gdp_cache = {"k": {"property": home}}
         page_data = {
-            "props": {
-                "pageProps": {
-                    "componentProps": {"gdpClientCache": json.dumps(gdp_cache)}
-                }
-            }
+            "props": {"pageProps": {"componentProps": {"gdpClientCache": json.dumps(gdp_cache)}}}
         }
         html = f'<html><script id="__NEXT_DATA__">{json.dumps(page_data)}</script></html>'
         details = _parse_next_data(html)
@@ -1016,8 +994,20 @@ class TestMortgageHmdaBranchGaps:
 
         data = {
             "aggregations": [
-                {"count": 1, "action_taken": "1", "loan_amount": 200000, "income": 80000, "lei": "BANK_A"},
-                {"count": 1, "action_taken": "denied", "loan_amount": 150000, "income": 60000, "lei": "BANK_B"},
+                {
+                    "count": 1,
+                    "action_taken": "1",
+                    "loan_amount": 200000,
+                    "income": 80000,
+                    "lei": "BANK_A",
+                },
+                {
+                    "count": 1,
+                    "action_taken": "denied",
+                    "loan_amount": 150000,
+                    "income": 60000,
+                    "lei": "BANK_B",
+                },
             ]
         }
         result = _parse_hmda_aggregations(data)

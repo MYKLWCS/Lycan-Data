@@ -189,3 +189,96 @@ class TestPersistFlushFailure:
         # Should not raise despite double failure
         result = await crawler.scrape("00000000-0000-0000-0000-000000000001", session=session)
         assert result.found is True
+
+
+# ===========================================================================
+# Branch gap: arc 112->110 — bio keyword already in interests (skip duplicate)
+# Arc 126->124 — followed_topic already in interests or empty (False branch)
+# Arc 132->130 — liked_page already in interests or empty (False branch)
+# ===========================================================================
+
+
+class TestInterestsDuplicateAndEmptyBranches:
+    @pytest.mark.asyncio
+    async def test_bio_keyword_already_in_interests_skipped(self):
+        """Arc 112->110: a bio keyword already present in interests list is not appended again.
+        The if-condition `keyword not in interests` is False — loops back to 110."""
+        from modules.crawlers.interests_extractor import _BIO_INTEREST_KEYWORDS
+
+        # First add a keyword via subreddit, then the bio also mentions it
+        first_keyword = _BIO_INTEREST_KEYWORDS[0]
+        job = _make_job(
+            platform="reddit",
+            result_data={
+                "recent_posts": [{"subreddit": first_keyword}],
+                "bio": first_keyword,  # same keyword appears in bio — duplicate
+            },
+        )
+        session = _make_session(jobs=[job])
+        crawler = InterestsExtractorCrawler()
+        result = await crawler.scrape("00000000-0000-0000-0000-000000000002", session=session)
+        assert result.found is True
+        # Keyword appears exactly once despite being added via two paths
+        assert result.data["interests"].count(first_keyword) == 1
+
+    @pytest.mark.asyncio
+    async def test_followed_topic_already_in_interests_not_duplicated(self):
+        """Arc 126->124: a followed_topic already present in interests is skipped.
+        The `if t and t not in interests:` condition is False — loops back to line 124."""
+        _make_job(
+            platform="threads",
+            result_data={
+                "recent_posts": [{"subreddit": "fitness"}],  # adds 'fitness' via reddit path
+                "followed_topics": ["fitness", "gaming"],  # 'fitness' is already in interests
+            },
+        )
+        # Use reddit platform so subreddit is extracted first, then followed_topics deduped
+        job2 = _make_job(
+            platform="reddit",
+            result_data={"recent_posts": [{"subreddit": "fitness"}]},
+        )
+        job3 = _make_job(
+            platform="threads",
+            result_data={"followed_topics": ["fitness", "gaming"]},
+        )
+        session = _make_session(jobs=[job2, job3])
+        crawler = InterestsExtractorCrawler()
+        result = await crawler.scrape("00000000-0000-0000-0000-000000000003", session=session)
+        assert result.found is True
+        # 'fitness' appears exactly once despite being in both reddit posts and followed_topics
+        assert result.data["interests"].count("fitness") == 1
+        assert "gaming" in result.data["interests"]
+
+    @pytest.mark.asyncio
+    async def test_followed_topic_empty_string_skipped(self):
+        """Arc 126->124: empty string topic (t is falsy) — if t: is False, loops back."""
+        job = _make_job(
+            platform="threads",
+            result_data={"followed_topics": ["", "   ", "valid_topic"]},
+        )
+        session = _make_session(jobs=[job])
+        crawler = InterestsExtractorCrawler()
+        result = await crawler.scrape("00000000-0000-0000-0000-000000000004", session=session)
+        assert result.found is True
+        # Empty/whitespace topics are skipped; valid_topic is kept
+        assert "valid_topic" in result.data["interests"]
+        assert "" not in result.data["interests"]
+
+    @pytest.mark.asyncio
+    async def test_liked_page_already_in_interests_not_duplicated(self):
+        """Arc 132->130: a liked_page already present in interests is skipped.
+        The `if p and p not in interests:` condition is False — loops back to line 130."""
+        job_reddit = _make_job(
+            platform="reddit",
+            result_data={"recent_posts": [{"subreddit": "cooking"}]},
+        )
+        job_fb = _make_job(
+            platform="facebook",
+            result_data={"liked_pages": ["cooking", "travel"]},  # 'cooking' already in interests
+        )
+        session = _make_session(jobs=[job_reddit, job_fb])
+        crawler = InterestsExtractorCrawler()
+        result = await crawler.scrape("00000000-0000-0000-0000-000000000005", session=session)
+        assert result.found is True
+        assert result.data["interests"].count("cooking") == 1
+        assert "travel" in result.data["interests"]

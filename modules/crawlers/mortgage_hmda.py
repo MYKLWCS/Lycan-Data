@@ -140,6 +140,32 @@ def _parse_hmda_aggregations(data: dict) -> dict[str, Any]:
     return summary
 
 
+def _summarise_hmda(rows: list[dict]) -> dict:
+    """
+    Summarise a list of HMDA loan rows into denial-rate and top-lender statistics.
+
+    Uses CFPB action_taken codes: 1 = Originated/Approved, 3 = Denied.
+    """
+
+    summary: dict[str, Any] = {
+        "total_loans": len(rows),
+        "denial_rate": None,
+        "top_lenders": [],
+    }
+    approved = sum(1 for r in rows if str(r.get("action_taken", "")) == "1")
+    denied = sum(1 for r in rows if str(r.get("action_taken", "")) == "3")
+    if approved + denied > 0:
+        summary["denial_rate"] = round(denied / (approved + denied), 4)
+    lender_counts: dict[str, int] = {}
+    for r in rows:
+        lei = r.get("lei") or r.get("institution_name", "")
+        if lei:
+            lender_counts[lei] = lender_counts.get(lei, 0) + 1
+    top = sorted(lender_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    summary["top_lenders"] = [{"lender": k, "loan_count": v} for k, v in top]
+    return summary
+
+
 # ---------------------------------------------------------------------------
 # Crawler
 # ---------------------------------------------------------------------------

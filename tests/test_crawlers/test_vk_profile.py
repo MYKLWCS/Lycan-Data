@@ -964,30 +964,39 @@ def test_parse_vk_html_follower_string_parent_none():
         fake_soup.select.return_value = []
         mock_bs.return_value = fake_soup
 
-        result = _parse_vk_html("<html><body><h1>User</h1><span>1000 followers</span></body></html>")
+        result = _parse_vk_html(
+            "<html><body><h1>User</h1><span>1000 followers</span></body></html>"
+        )
 
     # follower_count not set because parent was None
     assert "follower_count" not in result
 
 
 def test_parse_vk_html_follower_string_no_digit_match():
-    """Branch 171→166: parent exists but count_text has no digit sequence — re.search returns None."""
-    html = """
-    <html><body>
-      <h1>Test User</h1>
-      <span>no numbers followers here</span>
-    </body></html>
-    """
-    # The parent.get_text() returns "no numbers followers here"
-    # re.search(r"([\d\s,]+)", ...) won't match "no numbers" portion if we craft it carefully
-    # Actually the regex \d matches digits — "no numbers" has no digits → m is None → 171→166
-    import re
+    """Branch 171→166: parent text has no digits/spaces/commas — re.search returns None."""
+    # We mock the soup to control exactly what get_text returns for a parent with 'follower' text.
+    # The regex ([\d\s,]+) needs a string with zero digits, spaces, or commas to return None.
+    # Using a string like "followers" (no digits) — but get_text() might add the child's space.
+    # Safest: patch the parent's get_text to return a string with only letters, no [\d\s,].
+    from unittest.mock import patch
 
-    count_text = "no numbers followers here"
-    m = re.search(r"([\d\s,]+)", count_text)
-    # Confirm no match in the test data
-    assert m is None
+    class FakeParent:
+        def get_text(self, strip=False):
+            # Return a string that matches \bfollower but has no digits/spaces/commas
+            return "Nofollowers"
 
-    result = _parse_vk_html(html)
-    # follower_count not set — regex didn't match
+    class FakeNavigableString(str):
+        parent = FakeParent()
+
+    with patch("bs4.BeautifulSoup") as mock_bs:
+        fake_soup = MagicMock()
+        fake_soup.select_one.return_value = None
+        fake_soup.find.return_value = None
+        fake_soup.find_all.return_value = [FakeNavigableString("followers")]
+        fake_soup.select.return_value = []
+        mock_bs.return_value = fake_soup
+
+        result = _parse_vk_html("<html><body><h1>User</h1></body></html>")
+
+    # follower_count not set because regex didn't match
     assert "follower_count" not in result
