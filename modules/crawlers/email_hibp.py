@@ -1,8 +1,10 @@
 """
-email_hibp.py — Have I Been Pwned (HIBP) free API crawler.
+email_hibp.py — Have I Been Pwned (HIBP) API crawler.
 
-Uses the HIBP v2 public API to check if an email address appears in known data breaches.
-Registered as "email_hibp".
+DISABLED: HIBP v2 public API now requires a paid API key ($3.50/mo).
+Use email_breach crawler instead (free, checks PSBDMP + GitHub + LeakCheck).
+
+Registered as "email_hibp" but returns disabled error immediately.
 """
 
 from __future__ import annotations
@@ -51,65 +53,12 @@ class EmailHIBPCrawler(CurlCrawler):
     requires_tor = False
 
     async def scrape(self, identifier: str) -> CrawlerResult:
-        email = identifier.strip().lower()
-        url = _HIBP_BASE.format(email=email)
-
-        response = await self.get(url, headers=_HIBP_HEADERS)
-
-        if response is None:
-            return CrawlerResult(
-                platform=self.platform,
-                identifier=identifier,
-                found=False,
-                error="http_error",
-                source_reliability=self.source_reliability,
-            )
-
-        if response.status_code == 404:
-            # 404 means the email was not found in any breach — clean result
-            return self._result(
-                identifier,
-                found=True,
-                email=email,
-                breaches=[],
-                breach_count=0,
-            )
-
-        if response.status_code == 429:
-            return CrawlerResult(
-                platform=self.platform,
-                identifier=identifier,
-                found=False,
-                error="rate_limited",
-                source_reliability=self.source_reliability,
-            )
-
-        if response.status_code != 200:
-            return CrawlerResult(
-                platform=self.platform,
-                identifier=identifier,
-                found=False,
-                error=f"http_{response.status_code}",
-                source_reliability=self.source_reliability,
-            )
-
-        try:
-            json_data = response.json()
-        except Exception:
-            return CrawlerResult(
-                platform=self.platform,
-                identifier=identifier,
-                found=False,
-                error="invalid_json",
-                source_reliability=self.source_reliability,
-            )
-
-        breaches = _parse_breaches(json_data)
-
-        return self._result(
-            identifier,
-            found=True,
-            email=email,
-            breaches=breaches,
-            breach_count=len(breaches),
+        # DISABLED: HIBP v2 API requires paid key ($3.50/mo).
+        # Use email_breach crawler instead (free alternative).
+        return CrawlerResult(
+            platform=self.platform,
+            identifier=identifier,
+            found=False,
+            error="disabled: HIBP API requires paid key. Use email_breach crawler instead.",
+            source_reliability=0.0,
         )

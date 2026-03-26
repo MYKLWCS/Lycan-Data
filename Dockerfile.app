@@ -29,8 +29,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Poetry
-RUN pip install --no-cache-dir poetry==1.8.2
+# Install Poetry + pipx
+RUN pip install --no-cache-dir poetry==1.8.2 pipx \
+    && pipx ensurepath
 
 # Copy dependency files first (Docker cache layer)
 COPY pyproject.toml poetry.lock* ./
@@ -38,6 +39,12 @@ COPY pyproject.toml poetry.lock* ./
 # Install Python dependencies
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
+
+# Install CLI tools in isolated envs (networkx version conflicts with main deps)
+RUN pipx install sherlock-project \
+    && pipx install maigret \
+    && ln -sf /root/.local/bin/sherlock /usr/local/bin/sherlock \
+    && ln -sf /root/.local/bin/maigret /usr/local/bin/maigret
 
 # Install spaCy model and Playwright browsers
 RUN python -m spacy download en_core_web_lg \
