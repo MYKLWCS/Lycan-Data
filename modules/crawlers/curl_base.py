@@ -1,7 +1,7 @@
 """
-CurlCrawler — extends HttpxCrawler with Chrome 130 TLS fingerprint impersonation.
+CurlCrawler — extends HttpxCrawler with Chrome 124 TLS fingerprint impersonation.
 
-Uses curl_cffi.requests.AsyncSession instead of httpx. Impersonates Chrome 130
+Uses curl_cffi.requests.AsyncSession instead of httpx. Impersonates Chrome 124
 at the TLS handshake level, bypassing TLS fingerprinting by Cloudflare, DataDome,
 Akamai, and similar services that reject Python's default TLS signature.
 
@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 class CurlCrawler(HttpxCrawler):
-    """HttpxCrawler variant that impersonates Chrome 130 at the TLS layer."""
+    """HttpxCrawler variant that impersonates Chrome 124 at the TLS layer."""
 
-    _IMPERSONATE = "chrome130"
+    _IMPERSONATE = "chrome124"
 
     async def get(self, url: str, **kwargs):
         """GET via curl_cffi AsyncSession with Chrome 130 TLS fingerprint."""

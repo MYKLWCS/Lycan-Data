@@ -9,7 +9,7 @@ Health cache is CLASS-LEVEL so all instances share the same probe result:
 - _fs_healthy = False → negative result cached for _FS_NEGATIVE_TTL seconds (60s)
   to avoid hammering a down sidecar on every request
 
-Fallback chain: FlareSolverr → CurlCrawler (chrome130) → httpx
+Fallback chain: FlareSolverr → CurlCrawler (chrome124) → httpx
 """
 
 from __future__ import annotations

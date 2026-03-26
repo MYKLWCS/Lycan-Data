@@ -68,7 +68,7 @@ class PropertyEnricher:
                 .where(
                     # property_count key missing → needs enrichment
                     (Person.meta["property_count"].astext.cast(Integer) == 0)
-                    | (Person.meta["property_enriched_at"].astext.cast(DateTime) < stale_cutoff)
+                    | (Person.meta["property_enriched_at"].astext.cast(DateTime(timezone=True)) < stale_cutoff)
                     | (~Person.meta.has_key("property_enriched_at"))
                 )
                 .limit(_BATCH_SIZE)
