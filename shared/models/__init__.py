@@ -4,6 +4,7 @@ from shared.models.audit import AuditLog, SystemAudit
 from shared.models.base import Base, DataQualityMixin, TimestampMixin
 from shared.models.behavioural import BehaviouralProfile, BehaviouralSignal
 from shared.models.breach import BreachRecord
+from shared.models.builder_job import BuilderJob, BuilderJobPerson
 from shared.models.burner import BurnerAssessment
 from shared.models.compliance_ext import AdverseMedia, PepClassification, ShellCompanyLink
 from shared.models.crawl import CrawlJob, CrawlLog, DataSource
@@ -33,6 +34,7 @@ from shared.models.property import (
 )
 from shared.models.quality import DataQualityLog, FreshnessQueue
 from shared.models.relationship import Relationship, RelationshipScoreHistory
+from shared.models.relationship_detail import RelationshipDetail
 from shared.models.social_profile import SocialProfile
 from shared.models.timeline import AnalystAssessment, TimelineEvent, TravelHistory
 from shared.models.vehicle import Aircraft, Vehicle, Vessel
@@ -53,6 +55,7 @@ __all__ = [
     "CriminalRecord",
     "Relationship",
     "RelationshipScoreHistory",
+    "RelationshipDetail",
     "SocialProfile",
     "Web",
     "WebMembership",
@@ -65,6 +68,8 @@ __all__ = [
     "EmploymentHistory",
     "Education",
     "BreachRecord",
+    "BuilderJob",
+    "BuilderJobPerson",
     "MediaAsset",
     "WatchlistMatch",
     "BehaviouralProfile",
