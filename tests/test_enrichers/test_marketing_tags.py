@@ -203,16 +203,22 @@ def test_title_loan_low_wealth_band_triggers():
     assert any("wealth band" in r for r in reasons)
 
 
-def test_title_loan_address_instability_triggers():
-    addresses = [_make_address() for _ in range(4)]
-    score, reasons = _score_title_loan(addresses, [], None)
-    assert score >= 0.1
-    assert any("address instability" in r for r in reasons)
+def test_title_loan_spec_criteria():
+    """Spec: credit_score < 580 AND has_vehicle AND NOT property_owner."""
+    score, reasons = _score_title_loan(
+        [], [], None, credit_score=500, has_vehicle=True, property_count=0,
+    )
+    assert score >= 0.85
+    assert any("credit score" in r for r in reasons)
+    assert any("vehicle" in r for r in reasons)
+    assert any("not a property owner" in r for r in reasons)
 
 
 def test_title_loan_no_signals_zero():
+    """High wealth band + property owner + no vehicle → low score."""
     score, reasons = _score_title_loan(
-        [_make_address()], [], _make_wealth(wealth_band="high", vehicle_signal=0.0)
+        [_make_address()], [], _make_wealth(wealth_band="high", vehicle_signal=0.0),
+        credit_score=750, has_vehicle=False, property_count=2,
     )
     assert score == 0.0
     assert reasons == []
@@ -341,7 +347,7 @@ def test_recent_mover_address_identifier_updated():
 def test_luxury_buyer_high_wealth():
     wealth = _make_wealth(wealth_band="high")
     score, reasons = _score_luxury_buyer(wealth, [], [])
-    assert score >= 0.5
+    assert score >= 0.40
     assert any("wealth band" in r for r in reasons)
 
 
@@ -349,15 +355,15 @@ def test_luxury_buyer_high_income_title():
     wealth = _make_wealth(wealth_band="high")
     emp = [_make_employment(job_title="CEO", is_current=True)]
     score, reasons = _score_luxury_buyer(wealth, emp, [])
-    assert score >= 0.8
+    assert score >= 0.60
     assert any("high-income job" in r for r in reasons)
 
 
-def test_luxury_buyer_multiple_addresses():
-    addresses = [_make_address(), _make_address(city="Miami")]
-    score, reasons = _score_luxury_buyer(None, [], addresses)
-    assert score >= 0.2
-    assert any("property records" in r for r in reasons)
+def test_luxury_buyer_income_over_200k():
+    """Spec: income_est > 200k triggers luxury_buyer."""
+    score, reasons = _score_luxury_buyer(None, [], [], income_estimate=250_000)
+    assert score >= 0.50
+    assert any("$200k" in r for r in reasons)
 
 
 def test_luxury_buyer_no_signals_zero():

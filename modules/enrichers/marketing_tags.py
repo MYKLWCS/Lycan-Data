@@ -988,11 +988,22 @@ class MarketingTagsEngine:
         scoring_map: list[tuple[str, float, list[str]]] = []
 
         # Lending tags
+        _credit = None
+        _prop_count = 0
+        if person:
+            try:
+                _credit = int(person.alt_credit_score) if person.alt_credit_score else None
+            except (TypeError, ValueError):
+                _credit = None
+            try:
+                _prop_count = int(person.property_count) if person.property_count else 0
+            except (TypeError, ValueError):
+                _prop_count = 0
         s, r = _score_title_loan(
             addresses, criminals, wealth,
-            credit_score=person.alt_credit_score if person else None,
+            credit_score=_credit,
             has_vehicle=has_vehicle,
-            property_count=person.property_count if person else 0,
+            property_count=_prop_count,
         )
         scoring_map.append((LendingTag.TITLE_LOAN_CANDIDATE, s, r))
 

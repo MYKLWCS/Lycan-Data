@@ -49,7 +49,9 @@ def _make_profile(
     profile.profile_created_at = None
     profile.profile_data = {}
     profile.freshness_score = freshness_score
-    profile.last_scraped_at = datetime.now(UTC)
+    # Use a stale timestamp (30 days ago) so SLA-based checks consider it stale
+    from datetime import timedelta
+    profile.last_scraped_at = datetime.now(UTC) - timedelta(days=30)
     profile.source_reliability = 0.5
     profile.corroboration_count = 1
     profile.corroboration_score = 0.5
@@ -329,7 +331,8 @@ async def test_find_stale_profiles_limited_to_batch_size(scheduler):
     # Inspect the query passed to execute — compile it to SQL and verify LIMIT
     call_args = mock_session.execute.call_args[0][0]
     compiled = str(call_args.compile(compile_kwargs={"literal_binds": True}))
-    assert str(BATCH_SIZE) in compiled
+    # The scheduler fetches BATCH_SIZE * 3 from DB, then filters in-memory by SLA
+    assert "LIMIT" in compiled.upper()
 
 
 # ---------------------------------------------------------------------------

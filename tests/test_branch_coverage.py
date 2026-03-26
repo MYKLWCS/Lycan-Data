@@ -482,59 +482,61 @@ class TestMeiliSearchByRegionPartialFilters:
             return MeiliIndexer()
 
     def _mock_client(self, body: dict):
+        # Typesense returns {"hits": [{"document": ...}], "found": N}
+        ts_body = {"hits": [], "found": 0}
         resp = MagicMock()
         resp.status_code = 200
-        resp.json.return_value = body
+        resp.json.return_value = ts_body
 
         client = AsyncMock()
         client.__aenter__ = AsyncMock(return_value=client)
         client.__aexit__ = AsyncMock(return_value=False)
+        client.get = AsyncMock(return_value=resp)
         client.post = AsyncMock(return_value=resp)
         return client
 
     @pytest.mark.asyncio
     async def test_search_by_region_state_only(self):
-        """Branch [156,159]: city=None → skip city filter; state provided → state filter only."""
+        """State provided → state filter only in Typesense filter_by param."""
         indexer = self._make_indexer()
-        empty_body = {"hits": [], "estimatedTotalHits": 0, "query": ""}
-        mock_client = self._mock_client(empty_body)
+        mock_client = self._mock_client({})
 
         with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
             await indexer.search_by_region(city=None, state="TX", country=None)
 
-        body = mock_client.post.call_args.kwargs["json"]
-        assert "state_province" in body.get("filter", "")
-        assert "city" not in body.get("filter", "")
-        assert "country" not in body.get("filter", "")
+        params = mock_client.get.call_args.kwargs["params"]
+        filter_by = params.get("filter_by", "")
+        assert "state_province" in filter_by
+        assert "city" not in filter_by
+        assert "country" not in filter_by
 
     @pytest.mark.asyncio
     async def test_search_by_region_country_only(self):
-        """Branch [159,162]: city=None, state=None, country provided → country filter only."""
+        """Country provided → country filter only."""
         indexer = self._make_indexer()
-        empty_body = {"hits": [], "estimatedTotalHits": 0, "query": ""}
-        mock_client = self._mock_client(empty_body)
+        mock_client = self._mock_client({})
 
         with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
             await indexer.search_by_region(city=None, state=None, country="US")
 
-        body = mock_client.post.call_args.kwargs["json"]
-        assert "country" in body.get("filter", "")
-        assert "city" not in body.get("filter", "")
-        assert "state_province" not in body.get("filter", "")
+        params = mock_client.get.call_args.kwargs["params"]
+        filter_by = params.get("filter_by", "")
+        assert "country" in filter_by
+        assert "city" not in filter_by
+        assert "state_province" not in filter_by
 
     @pytest.mark.asyncio
     async def test_search_by_region_no_filters(self):
-        """Branch [162,166]: all None → filter_parts empty → filters=None passed to search."""
+        """All None → no filter_by param in Typesense search."""
         indexer = self._make_indexer()
-        empty_body = {"hits": [], "estimatedTotalHits": 0, "query": ""}
-        mock_client = self._mock_client(empty_body)
+        mock_client = self._mock_client({})
 
         with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
             await indexer.search_by_region(city=None, state=None, country=None, query="alice")
 
-        body = mock_client.post.call_args.kwargs["json"]
-        # filter key should be absent or None when no geographic filters given
-        assert body.get("filter") is None
+        params = mock_client.get.call_args.kwargs["params"]
+        # filter_by should be absent when no geographic filters given
+        assert "filter_by" not in params
 
 
 # ===========================================================================
