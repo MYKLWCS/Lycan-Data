@@ -24,7 +24,7 @@ class CurlCrawler(HttpxCrawler):
     _IMPERSONATE = "chrome124"
 
     async def get(self, url: str, **kwargs):
-        """GET via curl_cffi AsyncSession with Chrome 130 TLS fingerprint."""
+        """GET via curl_cffi AsyncSession with Chrome 124 TLS fingerprint."""
         try:
             from curl_cffi.requests import AsyncSession
 
@@ -37,9 +37,12 @@ class CurlCrawler(HttpxCrawler):
         except ImportError:
             logger.warning("curl_cffi not available, falling back to httpx")
             return await super().get(url, **kwargs)
+        except Exception as exc:
+            logger.warning("curl_cffi GET failed for %s: %s", url, exc)
+            return None
 
     async def post(self, url: str, **kwargs):
-        """POST via curl_cffi AsyncSession with Chrome 130 TLS fingerprint."""
+        """POST via curl_cffi AsyncSession with Chrome 124 TLS fingerprint."""
         try:
             from curl_cffi.requests import AsyncSession
 
@@ -52,3 +55,6 @@ class CurlCrawler(HttpxCrawler):
         except ImportError:
             logger.warning("curl_cffi not available, falling back to httpx")
             return await super().post(url, **kwargs)
+        except Exception as exc:
+            logger.warning("curl_cffi POST failed for %s: %s", url, exc)
+            return None

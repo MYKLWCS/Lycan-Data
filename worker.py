@@ -67,6 +67,7 @@ async def main(
     from modules.dispatcher.dispatcher import CrawlDispatcher
     from modules.dispatcher.freshness_scheduler import FreshnessScheduler
     from modules.dispatcher.growth_daemon import GrowthDaemon
+    from modules.dispatcher.pending_recovery import PendingJobRecovery
     from modules.enrichers.auto_dedup import AutoDedupDaemon
     from modules.pipeline.ingestion_daemon import IngestionDaemon
     from modules.search.index_daemon import IndexDaemon
@@ -117,6 +118,11 @@ async def main(
     dedup_daemon = AutoDedupDaemon()
     tasks.append(asyncio.create_task(dedup_daemon.start(), name="auto-dedup-daemon"))
     logger.info("Started auto-dedup daemon")
+
+    # Pending job recovery daemon
+    recovery = PendingJobRecovery()
+    tasks.append(asyncio.create_task(recovery.start(), name="pending-recovery"))
+    logger.info("Started pending job recovery daemon")
 
     # Commercial tagger daemon
     if enable_commercial:
