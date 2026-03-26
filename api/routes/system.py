@@ -1,7 +1,7 @@
 """System health, stats, and operational endpoints.
 
-Public router: health/simple health/stats — no auth required.
-Admin router: registry, queues, circuit-breakers, rate-limits — auth required.
+Public router: health/simple health — no auth required.
+Admin router: stats, registry, queues, circuit-breakers, rate-limits — auth required.
 """
 
 import logging
@@ -99,9 +99,9 @@ async def health_simple():
     return {"status": "ok", "crawlers_registered": len(CRAWLER_REGISTRY)}
 
 
-@router.get("/stats")
+@admin_router.get("/stats")
 async def stats():
-    """Platform stats — public, no authentication required."""
+    """Platform stats — requires authentication."""
     return {
         "crawlers": len(CRAWLER_REGISTRY),
         "platforms": sorted(list_platforms()),

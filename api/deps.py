@@ -18,7 +18,8 @@ DbDep = Depends(db_session)
 
 # ── API key authentication ───────────────────────────────────────────────────
 
-_bearer = HTTPBearer(auto_error=True)
+# auto_error=False so we can raise 401 (not 403) for missing Authorization header
+_bearer = HTTPBearer(auto_error=False)
 
 
 def _valid_keys() -> set[str]:
@@ -30,13 +31,21 @@ def _valid_keys() -> set[str]:
 
 
 async def verify_api_key(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> str:
     """Validate the Bearer token against configured API keys.
 
     Returns the validated API key string on success.
-    Raises 401 if auth is enabled and the key is invalid.
+    Raises 401 for missing or invalid credentials (HTTP spec: 401 = not authenticated).
     """
+    # Missing Authorization header → 401 Unauthorized
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if not settings.api_auth_enabled:
         return credentials.credentials
 
@@ -48,10 +57,12 @@ async def verify_api_key(
             detail="API keys not configured. Set LYCAN_API_KEYS in environment.",
         )
 
+    # Invalid/wrong key → 401 Unauthorized
     if credentials.credentials not in valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     return credentials.credentials
 

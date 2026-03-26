@@ -2,7 +2,7 @@ import re
 import uuid
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -223,6 +223,16 @@ def _auto_detect_type(value: str) -> SeedType:
 # ── Request / Response schemas ────────────────────────────────────────────────
 
 
+# Seed-type aliases — common-sense inputs mapped to canonical SeedType values
+_SEED_TYPE_ALIASES: dict[str, str] = {
+    "name": "full_name",
+    "full name": "full_name",
+    "user": "username",
+    "handle": "username",
+    "mail": "email",
+}
+
+
 class SearchRequest(BaseModel):
     value: str = Field(..., min_length=1, max_length=200)
     seed_type: SeedType | None = None
@@ -235,6 +245,23 @@ class SearchRequest(BaseModel):
         default="normal",
         pattern=r"^(high|normal|low)$",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_field_aliases(cls, data: dict) -> dict:
+        """Accept 'query' as an alias for 'value'."""
+        if isinstance(data, dict) and "query" in data and "value" not in data:
+            data = {**data, "value": data.pop("query")}
+        return data
+
+    @field_validator("seed_type", mode="before")
+    @classmethod
+    def normalize_seed_type(cls, v):
+        """Map common aliases to canonical SeedType values."""
+        if v is None:
+            return v
+        normalized = str(v).lower().strip()
+        return _SEED_TYPE_ALIASES.get(normalized, normalized)
 
     @field_validator("value")
     @classmethod

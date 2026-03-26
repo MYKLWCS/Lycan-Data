@@ -312,8 +312,8 @@ def build_person_doc(
         "has_sanctions": has_sanctions,
         "has_addresses": has_addresses,
         "verification_status": verification_status,
-        "composite_quality": composite_quality,
-        "corroboration_count": corroboration_count,
+        "composite_quality": composite_quality if composite_quality is not None else 0.0,
+        "corroboration_count": corroboration_count if corroboration_count is not None else 0,
         "created_at": created_at or "",
         # Credit / AML / marketing
         "alt_credit_score": alt_credit_score or 0,
