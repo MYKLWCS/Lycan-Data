@@ -65,8 +65,9 @@ class TestWSForwardMismatch:
             await callback({"event": "progress", "person_id": "OTHER-person"})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _subscribe
+            mock_s.api_auth_enabled = False
             await scrape_progress(mock_ws, person_id)
 
         # send_json must NOT have been called (no matching message)
@@ -104,10 +105,11 @@ class TestSSEForwardMismatch:
             await callback({"event": "x", "person_id": "COMPLETELY-DIFFERENT"})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.is_connected = True
             mock_bus.subscribe = _subscribe
-            response = await sse_progress(person_id, mock_request)
+            mock_s.api_auth_enabled = False
+            response = await sse_progress(person_id, mock_request, token=None)
             chunks: list[str] = []
             async for chunk in response.body_iterator:
                 chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
@@ -146,11 +148,12 @@ class TestSSEDoneEvent:
             await callback({"event": "done", "person_id": person_id})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.is_connected = True
             mock_bus.subscribe = _subscribe
+            mock_s.api_auth_enabled = False
 
-            response = await sse_progress(person_id, mock_request)
+            response = await sse_progress(person_id, mock_request, token=None)
             chunks: list[str] = []
             async for chunk in response.body_iterator:
                 chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
@@ -173,6 +176,7 @@ class TestDrainQueuesEmptyQueue:
 
         app = FastAPI()
         app.include_router(system.router, prefix="/system")
+        app.include_router(system.admin_router, prefix="/system")
 
         mock_redis = AsyncMock()
         # llen returns 0 for every queue → delete must NOT be called

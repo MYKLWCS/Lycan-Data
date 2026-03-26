@@ -1,7 +1,9 @@
 """
-MeiliSearch indexer.
+Typesense indexer.
 Indexes Person records with all their identifiers, social profiles, addresses,
 and key fields for sub-millisecond full-text + region search.
+
+Migrated from MeiliSearch (BSL 1.1) to Typesense (GPL-3) for licensing compliance.
 """
 
 import logging
@@ -13,112 +15,142 @@ from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
-PERSONS_INDEX = "persons"
-MEILI_SETTINGS = {
-    "searchableAttributes": [
-        "full_name",
-        "aliases",
-        "phones",
-        "emails",
-        "usernames",
-        "platforms",
-        "addresses_text",
-        "city",
-        "state_province",
-        "country",
-        "employer",
-        "notes",
+PERSONS_COLLECTION = "persons"
+IDENTIFIERS_COLLECTION = "identifiers"
+SOCIAL_PROFILES_COLLECTION = "social_profiles"
+
+# Typesense collection schemas
+PERSONS_SCHEMA = {
+    "name": PERSONS_COLLECTION,
+    "fields": [
+        {"name": "full_name", "type": "string", "optional": True},
+        {"name": "aliases", "type": "string[]", "optional": True},
+        {"name": "phones", "type": "string[]", "optional": True},
+        {"name": "emails", "type": "string[]", "optional": True},
+        {"name": "usernames", "type": "string[]", "optional": True},
+        {"name": "platforms", "type": "string[]", "optional": True},
+        {"name": "addresses_text", "type": "string[]", "optional": True},
+        {"name": "city", "type": "string", "optional": True},
+        {"name": "state_province", "type": "string", "optional": True},
+        {"name": "country", "type": "string", "optional": True},
+        {"name": "employer", "type": "string", "optional": True},
+        {"name": "notes", "type": "string", "optional": True},
+        {"name": "dob", "type": "string", "optional": True},
+        {"name": "first_name", "type": "string", "optional": True},
+        {"name": "last_name", "type": "string", "optional": True},
+        {"name": "location", "type": "string", "optional": True},
+        # Filterable numeric / string fields
+        {"name": "risk_tier", "type": "string", "facet": True, "optional": True},
+        {"name": "wealth_band", "type": "string", "facet": True, "optional": True},
+        {"name": "has_darkweb", "type": "bool", "facet": True, "optional": True},
+        {"name": "has_sanctions", "type": "bool", "facet": True, "optional": True},
+        {"name": "nationality", "type": "string", "facet": True, "optional": True},
+        {"name": "platform_count", "type": "int32", "optional": True},
+        {"name": "verification_status", "type": "string", "facet": True, "optional": True},
+        {"name": "has_addresses", "type": "bool", "facet": True, "optional": True},
+        # Credit / AML / marketing
+        {"name": "alt_credit_score", "type": "int32", "optional": True},
+        {"name": "alt_credit_tier", "type": "string", "facet": True, "optional": True},
+        {"name": "aml_risk_score", "type": "float", "optional": True},
+        {"name": "aml_risk_tier", "type": "string", "facet": True, "optional": True},
+        {"name": "is_pep", "type": "bool", "facet": True, "optional": True},
+        {"name": "is_sanctioned", "type": "bool", "facet": True, "optional": True},
+        {"name": "marketing_tags_list", "type": "string[]", "facet": True, "optional": True},
+        # Sortable numeric fields
+        {"name": "default_risk_score", "type": "float", "optional": True},
+        {"name": "composite_quality", "type": "float", "optional": True},
+        {"name": "corroboration_count", "type": "int32", "optional": True},
+        {"name": "created_at", "type": "string", "optional": True},
+        {"name": "enrichment_score", "type": "float", "optional": True},
     ],
-    "filterableAttributes": [
-        "risk_tier",
-        "wealth_band",
-        "has_darkweb",
-        "has_sanctions",
-        "nationality",
-        "platform_count",
-        "city",
-        "state_province",
-        "country",
-        "verification_status",
-        "has_addresses",
-        # Credit / AML / marketing filters
-        "alt_credit_score",
-        "alt_credit_tier",
-        "aml_risk_tier",
-        "is_pep",
-        "is_sanctioned",
-        "marketing_tags_list",
+    "default_sorting_field": "default_risk_score",
+}
+
+IDENTIFIERS_SCHEMA = {
+    "name": IDENTIFIERS_COLLECTION,
+    "fields": [
+        {"name": "person_id", "type": "string", "facet": True},
+        {"name": "type", "type": "string", "facet": True},
+        {"name": "value", "type": "string"},
+        {"name": "confidence", "type": "float", "optional": True},
     ],
-    "sortableAttributes": [
-        "default_risk_score",
-        "created_at",
-        "platform_count",
-        "city",
-        "state_province",
-        "composite_quality",
-        "corroboration_count",
-        "alt_credit_score",
-        "aml_risk_score",
-    ],
-    "rankingRules": [
-        "words",
-        "typo",
-        "proximity",
-        "attribute",
-        "sort",
-        "exactness",
+}
+
+SOCIAL_PROFILES_SCHEMA = {
+    "name": SOCIAL_PROFILES_COLLECTION,
+    "fields": [
+        {"name": "person_id", "type": "string", "facet": True},
+        {"name": "platform", "type": "string", "facet": True},
+        {"name": "username", "type": "string", "optional": True},
     ],
 }
 
 
-class MeiliIndexer:
+class TypesenseIndexer:
     def __init__(self):
-        self.base = settings.meili_url.rstrip("/")
-        self.key = settings.meili_master_key
+        self.base = settings.typesense_url.rstrip("/")
+        self.key = settings.typesense_api_key
         self._headers = {
-            "Authorization": f"Bearer {self.key}",
+            "X-TYPESENSE-API-KEY": self.key,
             "Content-Type": "application/json",
         }
 
     async def setup_index(self) -> bool:
-        """Create index and configure settings. Idempotent."""
+        """Create collections if they don't exist. Idempotent."""
         async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(
-                f"{self.base}/indexes",
-                json={"uid": PERSONS_INDEX, "primaryKey": "id"},
-                headers=self._headers,
-            )
-            if r.status_code not in (200, 201, 202):
-                pass  # May already exist — fall through to settings update
+            for schema in [PERSONS_SCHEMA, IDENTIFIERS_SCHEMA, SOCIAL_PROFILES_SCHEMA]:
+                try:
+                    r = await client.get(
+                        f"{self.base}/collections/{schema['name']}",
+                        headers=self._headers,
+                    )
+                    if r.status_code == 200:
+                        continue  # already exists
+                except Exception:
+                    pass
 
-            r2 = await client.patch(
-                f"{self.base}/indexes/{PERSONS_INDEX}/settings",
-                json=MEILI_SETTINGS,
-                headers=self._headers,
-            )
-            return r2.status_code in (200, 202)
+                try:
+                    r = await client.post(
+                        f"{self.base}/collections",
+                        json=schema,
+                        headers=self._headers,
+                    )
+                    if r.status_code in (200, 201):
+                        logger.info("Created Typesense collection: %s", schema["name"])
+                    elif r.status_code == 409:
+                        pass  # already exists
+                    else:
+                        logger.warning(
+                            "Failed to create collection %s: %s %s",
+                            schema["name"], r.status_code, r.text[:200],
+                        )
+                except Exception as exc:
+                    logger.warning("Typesense collection create error: %s", exc)
+        return True
 
     async def index_person(self, doc: dict[str, Any]) -> bool:
-        """Add or update a single person document."""
+        """Add or update a single person document via upsert."""
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.post(
-                f"{self.base}/indexes/{PERSONS_INDEX}/documents",
-                json=[doc],
+                f"{self.base}/collections/{PERSONS_COLLECTION}/documents?action=upsert",
+                json=doc,
                 headers=self._headers,
             )
-            return r.status_code in (200, 202)
+            return r.status_code in (200, 201)
 
     async def index_many(self, docs: list[dict[str, Any]]) -> bool:
-        """Batch index multiple person documents."""
+        """Batch upsert multiple person documents using JSONL import."""
         if not docs:
             return True
+        import json
+        jsonl = "\n".join(json.dumps(d) for d in docs)
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
-                f"{self.base}/indexes/{PERSONS_INDEX}/documents",
-                json=docs,
-                headers=self._headers,
+                f"{self.base}/collections/{PERSONS_COLLECTION}/documents/import?action=upsert",
+                content=jsonl,
+                headers={**self._headers, "Content-Type": "text/plain"},
             )
-            return r.status_code in (200, 202)
+            return r.status_code == 200
 
     async def search(
         self,
@@ -128,26 +160,35 @@ class MeiliIndexer:
         limit: int = 20,
         offset: int = 0,
     ) -> dict[str, Any]:
-        """Search persons. Returns MeiliSearch response dict."""
-        body: dict[str, Any] = {
-            "q": query,
-            "limit": limit,
-            "offset": offset,
-            "attributesToHighlight": ["full_name", "emails", "phones", "city"],
+        """Search persons. Returns Typesense-compatible response dict."""
+        params: dict[str, Any] = {
+            "q": query or "*",
+            "query_by": "full_name,aliases,phones,emails,usernames,platforms,addresses_text,city,state_province,country,employer",
+            "per_page": limit,
+            "page": (offset // limit) + 1 if limit > 0 else 1,
+            "highlight_full_fields": "full_name,emails,phones,city",
         }
         if filters:
-            body["filter"] = filters
+            params["filter_by"] = filters
         if sort:
-            body["sort"] = sort
+            # Convert MeiliSearch sort format (field:dir) to Typesense format (field:dir)
+            params["sort_by"] = ",".join(sort)
 
         async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(
-                f"{self.base}/indexes/{PERSONS_INDEX}/search",
-                json=body,
+            r = await client.get(
+                f"{self.base}/collections/{PERSONS_COLLECTION}/documents/search",
+                params=params,
                 headers=self._headers,
             )
             if r.status_code == 200:
-                return r.json()
+                data = r.json()
+                # Normalize response to common format
+                hits = [h.get("document", h) for h in data.get("hits", [])]
+                return {
+                    "hits": hits,
+                    "estimatedTotalHits": data.get("found", 0),
+                    "query": query,
+                }
             return {"hits": [], "estimatedTotalHits": 0, "query": query}
 
     async def search_by_region(
@@ -163,18 +204,18 @@ class MeiliIndexer:
         """Search persons filtered to a geographic region."""
         filter_parts: list[str] = []
         if city:
-            safe = city.replace('"', "")
-            filter_parts.append(f'city = "{safe}"')
+            safe = city.replace("'", "\\'")
+            filter_parts.append(f"city:='{safe}'")
         if state:
-            safe = state.replace('"', "")
-            filter_parts.append(f'state_province = "{safe}"')
+            safe = state.replace("'", "\\'")
+            filter_parts.append(f"state_province:='{safe}'")
         if country:
-            safe = country.replace('"', "")
-            filter_parts.append(f'country = "{safe}"')
+            safe = country.replace("'", "\\'")
+            filter_parts.append(f"country:='{safe}'")
 
-        filters = " AND ".join(filter_parts) if filter_parts else None
+        filters = " && ".join(filter_parts) if filter_parts else None
         return await self.search(
-            query=query,
+            query=query or "*",
             filters=filters,
             sort=sort or ["default_risk_score:desc"],
             limit=limit,
@@ -184,13 +225,14 @@ class MeiliIndexer:
     async def delete_person(self, person_id: str) -> bool:
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.delete(
-                f"{self.base}/indexes/{PERSONS_INDEX}/documents/{person_id}",
+                f"{self.base}/collections/{PERSONS_COLLECTION}/documents/{person_id}",
                 headers=self._headers,
             )
-            return r.status_code in (200, 202)
+            return r.status_code in (200, 204)
 
 
-meili_indexer = MeiliIndexer()
+# Module-level singleton
+meili_indexer = TypesenseIndexer()
 
 
 def build_person_doc(
@@ -225,41 +267,55 @@ def build_person_doc(
     is_pep: bool = False,
     is_sanctioned: bool = False,
     marketing_tags_list: list[str] | None = None,
+    enrichment_score: float | None = None,
     **extra,
 ) -> dict[str, Any]:
-    """Build a MeiliSearch document from person data."""
+    """Build a Typesense document from person data."""
+    # Split full_name into first/last for the schema
+    first_name = ""
+    last_name = ""
+    if full_name:
+        parts = full_name.strip().split()
+        first_name = parts[0] if parts else ""
+        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+    location = ", ".join(p for p in [city, state_province, country] if p)
+
     return {
         "id": person_id,
         "full_name": full_name or "",
-        "dob": dob,
+        "first_name": first_name,
+        "last_name": last_name,
+        "dob": dob or "",
         "phones": phones or [],
         "emails": emails or [],
         "usernames": usernames or [],
         "platforms": platforms or [],
         "platform_count": len(platforms or []),
         "addresses_text": addresses_text or [],
-        "city": city,
-        "state_province": state_province,
-        "country": country,
-        "employer": employer,
+        "city": city or "",
+        "state_province": state_province or "",
+        "country": country or "",
+        "location": location,
+        "employer": employer or "",
         "default_risk_score": default_risk_score or 0.0,
         "risk_tier": risk_tier or "unknown",
         "wealth_band": wealth_band or "unknown",
-        "nationality": nationality,
+        "nationality": nationality or "",
         "has_darkweb": has_darkweb,
         "has_sanctions": has_sanctions,
         "has_addresses": has_addresses,
         "verification_status": verification_status,
         "composite_quality": composite_quality,
         "corroboration_count": corroboration_count,
-        "created_at": created_at,
+        "created_at": created_at or "",
         # Credit / AML / marketing
-        "alt_credit_score": alt_credit_score,
+        "alt_credit_score": alt_credit_score or 0,
         "alt_credit_tier": alt_credit_tier or "unknown",
-        "aml_risk_score": aml_risk_score,
+        "aml_risk_score": aml_risk_score or 0.0,
         "aml_risk_tier": aml_risk_tier or "unknown",
         "is_pep": is_pep,
         "is_sanctioned": is_sanctioned,
         "marketing_tags_list": marketing_tags_list or [],
-        **extra,
+        "enrichment_score": enrichment_score or 0.0,
     }

@@ -4,7 +4,7 @@ Index Daemon.
 Listens on the 'index' queue for person_ids that need updating.
 Fetches the full current state of the person from PostgreSQL —
 identifiers, addresses, social profiles — then pushes the complete
-document to MeiliSearch for sub-millisecond region + full-text search.
+document to Typesense for sub-millisecond region + full-text search.
 """
 
 import asyncio
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class IndexDaemon:
-    """Consumes indexing requests and updates MeiliSearch."""
+    """Consumes indexing requests and updates Typesense."""
 
     def __init__(self, worker_id: str = "indexer-1"):
         self.worker_id = worker_id
@@ -175,6 +175,6 @@ class IndexDaemon:
 
         success = await meili_indexer.index_person(doc)
         if not success:
-            logger.error(f"MeiliSearch index failed for person {uid}")
+            logger.error(f"Typesense index failed for person {uid}")
         else:
             logger.debug(f"Indexed person {uid} — city={city}, platforms={platforms}")

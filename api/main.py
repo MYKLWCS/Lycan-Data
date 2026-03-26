@@ -72,7 +72,9 @@ async def lifespan(app: FastAPI):
         from modules.search.meili_indexer import meili_indexer
 
         await meili_indexer.setup_index()
+        _log.info("Typesense collections initialized")
     except Exception:
+        _log.warning("Typesense setup skipped (not available)")
         pass
     # Initialize rate limiter and circuit breaker with shared Redis client
     try:
@@ -101,9 +103,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from shared.config import settings as _settings
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in _settings.cors_origins.split(",") if o.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
 )

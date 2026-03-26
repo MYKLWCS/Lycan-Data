@@ -99,9 +99,9 @@ async def health_simple():
     return {"status": "ok", "crawlers_registered": len(CRAWLER_REGISTRY)}
 
 
-@admin_router.get("/stats")
+@router.get("/stats")
 async def stats():
-    """Platform stats — requires authentication."""
+    """Platform stats — public, no authentication required."""
     return {
         "crawlers": len(CRAWLER_REGISTRY),
         "platforms": sorted(list_platforms()),

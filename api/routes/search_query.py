@@ -1,4 +1,4 @@
-"""Fast person search via MeiliSearch — full-text + region + sort."""
+"""Fast person search via Typesense — full-text + region + sort."""
 
 from fastapi import APIRouter, Query
 
@@ -16,11 +16,12 @@ _ALLOWED_SORT = {
     "corroboration_count",
     "alt_credit_score",
     "aml_risk_score",
+    "enrichment_score",
 }
 
 
 def _safe(v: str) -> str:
-    return v.replace('"', "").replace("'", "")
+    return v.replace("'", "\\'").replace("`", "")
 
 
 @router.get("/persons")
@@ -58,59 +59,59 @@ async def search_persons(
     sort_dir: str = Query("desc", description="asc or desc"),
 ):
     """
-    Full-text + filter search over MeiliSearch persons index.
+    Full-text + filter search over Typesense persons collection.
 
     Credit/AML/marketing filters layer on top of existing region and risk filters.
     All filters are AND-combined.
     """
     filter_parts: list[str] = []
 
-    # Geographic
+    # Geographic (Typesense filter_by syntax: field:=value)
     if city:
-        filter_parts.append(f'city = "{_safe(city)}"')
+        filter_parts.append(f"city:='{_safe(city)}'")
     if state:
-        filter_parts.append(f'state_province = "{_safe(state)}"')
+        filter_parts.append(f"state_province:='{_safe(state)}'")
     if country:
-        filter_parts.append(f'country = "{_safe(country)}"')
+        filter_parts.append(f"country:='{_safe(country)}'")
 
     # Risk / compliance
     if risk_tier:
-        filter_parts.append(f'risk_tier = "{_safe(risk_tier)}"')
+        filter_parts.append(f"risk_tier:='{_safe(risk_tier)}'")
     if has_darkweb is not None:
-        filter_parts.append(f"has_darkweb = {'true' if has_darkweb else 'false'}")
+        filter_parts.append(f"has_darkweb:={'true' if has_darkweb else 'false'}")
     if has_sanctions is not None:
-        filter_parts.append(f"has_sanctions = {'true' if has_sanctions else 'false'}")
+        filter_parts.append(f"has_sanctions:={'true' if has_sanctions else 'false'}")
     if is_pep is not None:
-        filter_parts.append(f"is_pep = {'true' if is_pep else 'false'}")
+        filter_parts.append(f"is_pep:={'true' if is_pep else 'false'}")
     if is_sanctioned is not None:
-        filter_parts.append(f"is_sanctioned = {'true' if is_sanctioned else 'false'}")
+        filter_parts.append(f"is_sanctioned:={'true' if is_sanctioned else 'false'}")
 
-    # Credit score range
+    # Credit score range (Typesense uses :>= and :<= for numeric ranges)
     if credit_min is not None:
-        filter_parts.append(f"alt_credit_score >= {credit_min}")
+        filter_parts.append(f"alt_credit_score:>={credit_min}")
     if credit_max is not None:
-        filter_parts.append(f"alt_credit_score <= {credit_max}")
+        filter_parts.append(f"alt_credit_score:<={credit_max}")
     if alt_credit_tier:
-        filter_parts.append(f'alt_credit_tier = "{_safe(alt_credit_tier)}"')
+        filter_parts.append(f"alt_credit_tier:='{_safe(alt_credit_tier)}'")
 
     # AML tier
     if aml_risk_tier:
-        filter_parts.append(f'aml_risk_tier = "{_safe(aml_risk_tier)}"')
+        filter_parts.append(f"aml_risk_tier:='{_safe(aml_risk_tier)}'")
 
     # Marketing tags — each tag must exist in the person's marketing_tags_list
     if tags:
         for raw_tag in tags.split(","):
             tag = _safe(raw_tag.strip())
             if tag:
-                filter_parts.append(f'marketing_tags_list = "{tag}"')
+                filter_parts.append(f"marketing_tags_list:='{tag}'")
 
-    filters = " AND ".join(filter_parts) if filter_parts else None
+    filters = " && ".join(filter_parts) if filter_parts else None
 
     field = sort_by if sort_by in _ALLOWED_SORT else "default_risk_score"
     direction = "asc" if sort_dir.lower() == "asc" else "desc"
 
     return await meili_indexer.search(
-        query=q,
+        query=q or "*",
         filters=filters,
         sort=[f"{field}:{direction}"],
         limit=limit,
@@ -169,24 +170,23 @@ async def search_by_marketing_tag(
     Retrieve all persons matching a specific marketing tag.
 
     Optionally narrow by credit score range or AML tier.
-    Useful for campaign targeting — e.g. all title_loan_candidates with
-    credit score 300-580 who are not high AML risk.
+    Useful for campaign targeting.
     """
-    filter_parts = [f'marketing_tags_list = "{_safe(tag)}"']
+    filter_parts = [f"marketing_tags_list:='{_safe(tag)}'"]
 
     if credit_min is not None:
-        filter_parts.append(f"alt_credit_score >= {credit_min}")
+        filter_parts.append(f"alt_credit_score:>={credit_min}")
     if credit_max is not None:
-        filter_parts.append(f"alt_credit_score <= {credit_max}")
+        filter_parts.append(f"alt_credit_score:<={credit_max}")
     if aml_risk_tier:
-        filter_parts.append(f'aml_risk_tier = "{_safe(aml_risk_tier)}"')
+        filter_parts.append(f"aml_risk_tier:='{_safe(aml_risk_tier)}'")
 
     field = sort_by if sort_by in _ALLOWED_SORT else "alt_credit_score"
     direction = "asc" if sort_dir.lower() == "asc" else "desc"
 
     return await meili_indexer.search(
-        query="",
-        filters=" AND ".join(filter_parts),
+        query="*",
+        filters=" && ".join(filter_parts),
         sort=[f"{field}:{direction}"],
         limit=limit,
         offset=offset,

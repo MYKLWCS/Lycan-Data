@@ -97,7 +97,7 @@ async def main(
         tasks.append(asyncio.create_task(ingest.start(), name=f"ingester-{i + 1}"))
         logger.info(f"Started ingestion daemon-{i + 1}")
 
-    # Index worker (MeiliSearch writes)
+    # Index worker (Typesense writes)
     indexer = IndexDaemon(worker_id="indexer-1")
     tasks.append(asyncio.create_task(indexer.start(), name="indexer-1"))
     logger.info("Started index daemon-1")

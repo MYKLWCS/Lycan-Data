@@ -11,9 +11,12 @@ class Settings(BaseSettings):
     # Dragonfly / Redis
     dragonfly_url: str = "redis://localhost:6379/0"
 
-    # MeiliSearch
-    meili_url: str = "http://localhost:7700"
-    meili_master_key: str = "changeme"
+    # Typesense (replaced MeiliSearch for licensing compliance)
+    typesense_url: str = "http://localhost:8108"
+    typesense_api_key: str = "changeme"
+
+    # CORS
+    cors_origins: str = "http://localhost:3000,http://localhost:8000"
 
     # Tor
     tor_control_password: str = "changeme"

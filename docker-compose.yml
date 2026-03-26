@@ -55,24 +55,7 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # ── MeiliSearch (full-text + filter search) ───────────────────────────────
-  meilisearch:
-    image: getmeili/meilisearch:latest
-    environment:
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
-      MEILI_ENV: production
-    volumes:
-      - meili_data:/meili_data
-    ports:
-      - "7700:7700"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:7700/health | grep -q available"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
-  # ── Typesense (hybrid search / vector support) ────────────────────────────
+  # ── Typesense (full-text + filter search — replaced MeiliSearch BSL 1.1) ──
   typesense:
     image: typesense/typesense:27.0
     command: >
@@ -187,9 +170,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lycan}
       DRAGONFLY_URL: redis://garnet:6379/0
-      MEILI_URL: http://meilisearch:7700
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      TYPESENSE_URL: http://typesense:8108
       TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-changeme}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
       SECRET_KEY: ${SECRET_KEY}
       API_KEYS: ${API_KEYS}
       TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD}
@@ -205,7 +188,7 @@ services:
         condition: service_healthy
       garnet:
         condition: service_healthy
-      meilisearch:
+      typesense:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/system/health | grep -q ok"]
@@ -223,8 +206,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lycan}
       DRAGONFLY_URL: redis://garnet:6379/0
-      MEILI_URL: http://meilisearch:7700
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      TYPESENSE_URL: http://typesense:8108
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-changeme}
       SECRET_KEY: ${SECRET_KEY}
       TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD}
       TOR1_SOCKS: socks5://tor-1:9050
@@ -245,7 +228,6 @@ services:
 volumes:
   postgres_data:
   garnet_data:
-  meili_data:
   typesense_data:
   qdrant_data:
   pulsar_data:

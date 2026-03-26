@@ -42,8 +42,9 @@ class TestWSForwardCallback:
             await callback({"event": "progress", "person_id": person_id, "platform": "x"})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _subscribe
+            mock_s.api_auth_enabled = False
             app = self._make_app()
             with TestClient(app, raise_server_exceptions=False) as c:
                 with c.websocket_connect(f"/ws/progress/{person_id}") as ws_conn:
@@ -81,8 +82,9 @@ class TestWSForwardCallback:
             await callback({"event": "x", "person_id": person_id})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _subscribe
+            mock_s.api_auth_enabled = False
             # Must not raise even though send_json raises inside _forward
             await scrape_progress(mock_ws, person_id)
 
@@ -136,8 +138,9 @@ class TestWSTimeoutPaths:
         async def _hang(ch, cb):
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _hang
+            mock_s.api_auth_enabled = False
             with patch("asyncio.wait_for", _patched_wf):
                 await scrape_progress(mock_ws, person_id)
 
@@ -163,8 +166,9 @@ class TestWSTimeoutPaths:
         async def _hang(ch, cb):
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _hang
+            mock_s.api_auth_enabled = False
             with patch("asyncio.wait_for", _patched_wf):
                 await scrape_progress(mock_ws, person_id)
 
@@ -214,11 +218,12 @@ class TestSSEHeartbeat:
 
         chunks: list = []
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.is_connected = True
             mock_bus.subscribe = _hang_sub
+            mock_s.api_auth_enabled = False
             with patch("asyncio.wait_for", _patched_wf):
-                response = await sse_progress(person_id, mock_request)
+                response = await sse_progress(person_id, mock_request, token=None)
                 async for chunk in response.body_iterator:
                     chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
 
