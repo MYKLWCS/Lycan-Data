@@ -55,6 +55,7 @@ def _person_summary(p: Person, addresses: list[Address] | None = None) -> dict:
         "darkweb_exposure": p.darkweb_exposure,
         "relationship_score": p.relationship_score,
         # Data quality
+        "enrichment_score": p.enrichment_score,
         "source_reliability": p.source_reliability,
         "composite_quality": p.composite_quality,
         "corroboration_count": p.corroboration_count,
@@ -220,6 +221,7 @@ async def get_person(person_id: str, session: AsyncSession = DbDep):
         "darkweb_exposure": p.darkweb_exposure,
         "default_risk_score": p.default_risk_score,
         # Data quality
+        "enrichment_score": p.enrichment_score,
         "source_reliability": p.source_reliability,
         "freshness_score": p.freshness_score,
         "corroboration_count": p.corroboration_count,

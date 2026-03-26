@@ -204,9 +204,12 @@ class PeopleBuilder:
         crawler = crawler_cls()
 
         search_params = source.get("params", {})
+        # crawl(query, params) — build query from name/location, pass rest as params
+        query = search_params.get("name") or search_params.get("location") or ""
+        crawl_params = {k: v for k, v in search_params.items() if k != "name"}
         try:
             result = await asyncio.wait_for(
-                crawler.crawl(**search_params), timeout=120
+                crawler.crawl(query, crawl_params), timeout=120
             )
             if isinstance(result, dict):
                 persons = result.get("persons", result.get("results", []))

@@ -34,11 +34,12 @@ RUN pip install --no-cache-dir poetry==1.8.2 pipx \
     && pipx ensurepath
 
 # Copy dependency files first (Docker cache layer)
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml poetry.lock* requirements.txt ./
 
 # Install Python dependencies
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --no-root
+    && poetry install --no-interaction --no-ansi --no-root \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Install CLI tools in isolated envs (networkx version conflicts with main deps)
 RUN pipx install sherlock-project \
