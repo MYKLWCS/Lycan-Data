@@ -216,7 +216,19 @@ class PeopleBuilder:
                 if isinstance(persons, list):
                     return persons[:max_results]
             elif isinstance(result, list):
-                return result[:max_results]
+                # Convert CrawlerResult objects to person dicts
+                person_dicts = []
+                for item in result:
+                    if hasattr(item, "data") and hasattr(item, "found"):
+                        if item.found and item.data:
+                            person_dicts.append({
+                                **item.data,
+                                "_source": item.platform,
+                                "_source_reliability": item.source_reliability,
+                            })
+                    elif isinstance(item, dict):
+                        person_dicts.append(item)
+                return person_dicts[:max_results]
         except asyncio.TimeoutError:
             logger.warning("Timeout on crawler %s", crawler_name)
         except Exception:

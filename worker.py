@@ -77,7 +77,10 @@ async def main(
 
     await event_bus.connect()
     await tor_manager.connect_all()
-    await meili_indexer.setup_index()
+    try:
+        await meili_indexer.setup_index()
+    except Exception as exc:
+        logger.warning("Typesense setup failed (non-fatal): %s", exc)
 
     tor_status = tor_manager.status()
     active_tor = sum(1 for v in tor_status.values() if v)
