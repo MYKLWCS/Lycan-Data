@@ -171,6 +171,7 @@ class IndexDaemon:
             composite_quality=p.composite_quality,
             corroboration_count=p.corroboration_count,
             created_at=p.created_at.isoformat() if p.created_at else None,
+            enrichment_score=p.enrichment_score or 0.0,
         )
 
         success = await meili_indexer.index_person(doc)
