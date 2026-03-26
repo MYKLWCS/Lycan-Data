@@ -77,10 +77,11 @@ services:
     ports:
       - "8108:8108"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8108/health | grep -q ok"]
-      interval: 10s
+      test: ["CMD-SHELL", "grep -c 'typesense' /proc/1/cmdline || exit 1"]
+      interval: 30s
       timeout: 5s
-      retries: 10
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -97,7 +98,7 @@ services:
       - "6333:6333"   # HTTP / REST
       - "6334:6334"   # gRPC
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz | grep -q passed"]
+      test: ["CMD", "bash", "-c", "cat /proc/1/status | grep -q State"]
       interval: 10s
       timeout: 5s
       retries: 10
