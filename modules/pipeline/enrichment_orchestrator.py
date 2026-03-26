@@ -139,6 +139,15 @@ class EnrichmentOrchestrator:
             )
         )
 
+        # ── Step 10: Enrichment score (spec formula) ───────────────────────
+        steps.append(
+            await self._run_step(
+                enricher="enrichment_score",
+                coro=self._compute_enrichment_score(person_id, session),
+                person_id=person_id,
+            )
+        )
+
         finished_at = datetime.now(UTC)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
@@ -357,6 +366,160 @@ class EnrichmentOrchestrator:
 
         pipeline = EntityResolutionPipeline()
         await pipeline.resolve(person_id, session)
+
+    async def _compute_enrichment_score(self, person_id: str, session: AsyncSession) -> None:
+        """
+        Compute enrichment_score per spec formula:
+          enrichment_score = (
+              identity_completeness * 0.20 +
+              financial_depth * 0.15 +
+              employment_depth * 0.15 +
+              social_coverage * 0.15 +
+              legal_records * 0.15 +
+              property_records * 0.10 +
+              relationship_count * 0.10
+          )
+        Each component is 0-100 based on how many sub-fields are filled.
+        """
+        import uuid
+
+        from sqlalchemy import func, select
+
+        from shared.models.address import Address
+        from shared.models.criminal import CriminalRecord
+        from shared.models.employment import EmploymentHistory
+        from shared.models.identifier import Identifier
+        from shared.models.person import Person
+        from shared.models.property import Property
+        from shared.models.relationship import Relationship
+        from shared.models.social_profile import SocialProfile
+        from shared.models.wealth import WealthAssessment
+
+        pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
+        person = await session.get(Person, pid)
+        if not person:
+            return
+
+        # 1. Identity completeness (0-100): name, DOB, SSN-last4 proxy, photo
+        identity_fields = 0
+        identity_max = 4
+        if person.full_name:
+            identity_fields += 1
+        if person.date_of_birth:
+            identity_fields += 1
+        # SSN-last4 proxy: check if any national_id identifier exists
+        ssn_result = await session.execute(
+            select(func.count()).select_from(Identifier).where(
+                Identifier.person_id == pid,
+                Identifier.type.in_(["national_id", "ssn"]),
+            )
+        )
+        if (ssn_result.scalar() or 0) > 0:
+            identity_fields += 1
+        if person.profile_image_url:
+            identity_fields += 1
+        identity_completeness = (identity_fields / identity_max) * 100
+
+        # 2. Financial depth (0-100): credit score, income estimate, property
+        financial_fields = 0
+        financial_max = 3
+        if person.alt_credit_score:
+            financial_fields += 1
+        if person.estimated_annual_income_usd:
+            financial_fields += 1
+        prop_count = (
+            await session.execute(
+                select(func.count()).select_from(Property).where(Property.person_id == pid)
+            )
+        ).scalar() or 0
+        if prop_count > 0:
+            financial_fields += 1
+        financial_depth = (financial_fields / financial_max) * 100
+
+        # 3. Employment depth (0-100): employer, title, history
+        emp_rows = (
+            await session.execute(
+                select(func.count()).select_from(EmploymentHistory).where(
+                    EmploymentHistory.person_id == pid
+                )
+            )
+        ).scalar() or 0
+        emp_fields = 0
+        emp_max = 3
+        if emp_rows > 0:
+            emp_fields += 1  # has employer
+            emp_fields += 1  # has title (assumed if record exists)
+        if emp_rows > 1:
+            emp_fields += 1  # has history
+        employment_depth = (emp_fields / emp_max) * 100
+
+        # 4. Social coverage (0-100): platforms found, follower counts
+        social_count = (
+            await session.execute(
+                select(func.count()).select_from(SocialProfile).where(
+                    SocialProfile.person_id == pid
+                )
+            )
+        ).scalar() or 0
+        # Score based on coverage: 0=0, 1=25, 2=50, 3=75, 4+=100
+        social_coverage = min(100.0, social_count * 25)
+
+        # 5. Legal records (0-100): court, criminal, civil, AML
+        legal_fields = 0
+        legal_max = 4
+        criminal_count = (
+            await session.execute(
+                select(func.count()).select_from(CriminalRecord).where(
+                    CriminalRecord.person_id == pid
+                )
+            )
+        ).scalar() or 0
+        if criminal_count > 0:
+            legal_fields += 2  # court + criminal
+        if person.aml_risk_score is not None and person.aml_risk_score > 0:
+            legal_fields += 1  # AML screening done
+        if person.is_sanctioned:
+            legal_fields += 1
+        legal_records = (min(legal_fields, legal_max) / legal_max) * 100
+
+        # 6. Property records (0-100): ownership, address history
+        addr_count = (
+            await session.execute(
+                select(func.count()).select_from(Address).where(Address.person_id == pid)
+            )
+        ).scalar() or 0
+        property_score = 0.0
+        if prop_count > 0:
+            property_score += 50
+        if addr_count > 0:
+            property_score += min(50.0, addr_count * 10)
+        property_records = min(100.0, property_score)
+
+        # 7. Relationship count (0-100): family, associates, professional
+        rel_count = (
+            await session.execute(
+                select(func.count()).select_from(Relationship).where(
+                    (Relationship.person_a_id == pid) | (Relationship.person_b_id == pid)
+                )
+            )
+        ).scalar() or 0
+        relationship_count = min(100.0, rel_count * 20)
+
+        # Weighted composite
+        enrichment_score = round(
+            identity_completeness * 0.20
+            + financial_depth * 0.15
+            + employment_depth * 0.15
+            + social_coverage * 0.15
+            + legal_records * 0.15
+            + property_records * 0.10
+            + relationship_count * 0.10,
+            2,
+        )
+
+        person.enrichment_score = enrichment_score
+        await session.flush()
+        await session.commit()
 
     async def _publish_completion(self, person_id: str, report: EnrichmentReport) -> None:
         if not event_bus.is_connected:

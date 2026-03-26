@@ -73,7 +73,7 @@ _WEIGHTS = {
     "utilization": 0.15,
     "trajectory": 0.10,
 }
-_CREDIT_TIERS = [(800, "excellent"), (740, "good"), (670, "fair"), (580, "poor"), (0, "very_poor")]
+_CREDIT_TIERS = [(750, "excellent"), (700, "good"), (650, "fair"), (580, "poor"), (0, "very_poor")]
 _AML_TIERS = [(0.75, "critical"), (0.50, "high"), (0.25, "medium"), (0.0, "low")]
 _FRAUD_TIERS = [(0.75, "critical"), (0.50, "high"), (0.25, "medium"), (0.0, "low")]
 
@@ -277,10 +277,15 @@ class AMLScreener:
         jurisdiction_risk: float = 0.0,
         entity_complexity: float = 0.0,
     ) -> AMLResult:
-        risk = 0.0
         is_pep = False
         sanctions_hits: list[dict[str, Any]] = []
         fuzzy_match_count = 0
+
+        # Component scores (0.0–1.0 each)
+        sanctions_match = 0.0
+        pep_component = 0.0
+        adverse_component = 0.0
+        jurisdiction_component = 0.0
 
         norm_name = _normalize_name(person_name) if person_name else ""
 
@@ -288,12 +293,12 @@ class AMLScreener:
             # Direct DB match (already confirmed by crawler)
             if row.list_type == "pep":
                 is_pep = True
-                risk = max(risk, 0.40)
+                pep_component = max(pep_component, 1.0)
             elif row.list_type in ("sanctions", "terrorist"):
-                risk = max(risk, 0.90)
+                sanctions_match = max(sanctions_match, 1.0)
                 sanctions_hits.append(self._hit_dict(row, "direct"))
             elif row.list_type == "fugitive":
-                risk = max(risk, 0.70)
+                sanctions_match = max(sanctions_match, 0.80)
                 sanctions_hits.append(self._hit_dict(row, "direct"))
 
             # Fuzzy name check against the matched_name on the watchlist row
@@ -303,35 +308,41 @@ class AMLScreener:
                 )
                 if sim >= _FUZZY_HIGH and row.list_type not in ("pep",):
                     fuzzy_match_count += 1
-                    # Only add to hits if not already captured as direct
                     if not any(h.get("match_name") == row.match_name for h in sanctions_hits):
-                        risk = max(risk, 0.70 * sim)
+                        sanctions_match = max(sanctions_match, sim * 0.80)
                         sanctions_hits.append(self._hit_dict(row, "fuzzy", sim))
                 elif sim >= _FUZZY_LOW:
                     fuzzy_match_count += 1
-                    risk = max(risk, 0.40 * sim)
+                    sanctions_match = max(sanctions_match, sim * 0.50)
 
-        # Darkweb exposure contribution
+        # Darkweb / crypto boost sanctions_match component
         if darkweb_rows:
             avg_exp = sum(r.exposure_score for r in darkweb_rows) / len(darkweb_rows)
-            risk = max(risk, min(0.60, avg_exp * 0.60))
+            sanctions_match = max(sanctions_match, min(0.60, avg_exp * 0.60))
 
-        # Crypto mixer / high-risk wallet contribution
         for wallet in crypto_rows:
             if wallet.mixer_exposure:
-                risk = max(risk, 0.65)
+                sanctions_match = max(sanctions_match, 0.65)
             if wallet.risk_score > 0.7:
-                risk = max(risk, wallet.risk_score * 0.70)
+                sanctions_match = max(sanctions_match, wallet.risk_score * 0.70)
 
-        # Adverse media (from news crawlers / adverse_media table)
-        if adverse_media_score > 0:
-            risk = max(risk, min(0.50, adverse_media_score * 0.50))
+        # Adverse media (0.0–1.0)
+        adverse_component = min(1.0, adverse_media_score)
 
-        # Jurisdiction risk (e.g. FATF grey/black list countries)
-        if jurisdiction_risk > 0:
-            risk = max(risk, min(0.40, jurisdiction_risk))
+        # Jurisdiction risk (0.0–1.0)
+        jurisdiction_component = min(1.0, jurisdiction_risk)
 
-        # Entity complexity (multiple nationalities, many corporate links, etc.)
+        # Weighted composite per spec:
+        #   sanctions_match * 0.40 + pep_status * 0.25 +
+        #   adverse_media * 0.20 + jurisdiction_risk * 0.15
+        risk = (
+            sanctions_match * 0.40
+            + pep_component * 0.25
+            + adverse_component * 0.20
+            + jurisdiction_component * 0.15
+        )
+
+        # Entity complexity bonus (additive, small)
         if entity_complexity > 0:
             risk = min(1.0, risk + entity_complexity * 0.10)
 

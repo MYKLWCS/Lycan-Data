@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, Integer, String, func
+from sqlalchemy import DateTime, Float, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,6 +26,28 @@ class AuditLog(Base):
     __table_args__ = (
         Index("ix_audit_actor_access_time", "actor_api_key", "access_time"),
         Index("ix_audit_resource_access_time", "resource_type", "resource_id", "access_time"),
+    )
+
+
+class AuditRequestLog(Base):
+    """Per-request audit log for authenticated API calls (FIX 5)."""
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    api_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    method: Mapped[str] = mapped_column(String(10), nullable=False)
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
+    status_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    duration_ms: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    __table_args__ = (
+        Index("ix_audit_logs_timestamp", "timestamp"),
+        Index("ix_audit_logs_api_key", "api_key"),
     )
 
 

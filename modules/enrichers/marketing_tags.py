@@ -244,34 +244,48 @@ def _score_title_loan(
     addresses: list[Address],
     criminals: list[CriminalRecord],
     wealth: WealthAssessment | None,
+    credit_score: int | None = None,
+    has_vehicle: bool = False,
+    property_count: int = 0,
 ) -> tuple[float, list[str]]:
+    """
+    Spec: title_loan_candidate = credit_score < 580 AND has_vehicle AND NOT property_owner
+    """
     score = 0.0
     reasons: list[str] = []
 
-    # Vehicle signal — via wealth vehicle_signal proxy
-    if wealth and wealth.vehicle_signal > 0.3:
-        score += 0.4
+    # Primary spec criteria: credit_score < 580
+    if credit_score is not None and credit_score < 580:
+        score += 0.35
+        reasons.append(f"credit score {credit_score} < 580")
+    elif credit_score is None:
+        # No credit score — use wealth band as proxy
+        if wealth and wealth.wealth_band in ("low", "lower_middle"):
+            score += 0.20
+            reasons.append(f"wealth band proxy: {wealth.wealth_band}")
+
+    # Must have vehicle
+    if has_vehicle:
+        score += 0.30
+        reasons.append("has vehicle record")
+    elif wealth and wealth.vehicle_signal > 0.3:
+        score += 0.25
         reasons.append(f"vehicle signal present (score: {wealth.vehicle_signal:.2f})")
 
-    # Financial crimes or liens in criminal records
+    # Must NOT be property owner (property_count == 0)
+    if property_count == 0:
+        score += 0.25
+        reasons.append("not a property owner")
+
+    # Financial crimes or liens boost
     fin_crimes = [
         r
         for r in criminals
         if any(kw in (r.charge or "").lower() for kw in _FINANCIAL_CRIME_KEYWORDS)
     ]
     if fin_crimes:
-        score += 0.3
+        score += 0.10
         reasons.append(f"{len(fin_crimes)} financial crime/lien record(s)")
-
-    # Low wealth band
-    if wealth and wealth.wealth_band in ("low", "lower_middle"):
-        score += 0.2
-        reasons.append(f"wealth band: {wealth.wealth_band}")
-
-    # Address instability — >3 addresses recorded
-    if len(addresses) > 3:
-        score += 0.1
-        reasons.append(f"address instability: {len(addresses)} addresses on record")
 
     return _clamp(score), reasons
 
@@ -390,25 +404,40 @@ def _score_luxury_buyer(
     wealth: WealthAssessment | None,
     employment: list[EmploymentHistory],
     addresses: list[Address],
+    income_estimate: float | None = None,
+    property_value: float | None = None,
+    vehicle_value: float | None = None,
 ) -> tuple[float, list[str]]:
+    """
+    Spec: luxury_buyer = income_est > 200k OR property_value > 1M OR vehicle_value > 80k
+    """
     score = 0.0
     reasons: list[str] = []
 
-    if wealth and wealth.wealth_band in ("high", "ultra_high"):
-        score += 0.5
+    # Spec thresholds (any one triggers high confidence)
+    if income_estimate is not None and income_estimate > 200_000:
+        score += 0.50
+        reasons.append(f"income ${income_estimate:,.0f} > $200k")
+    if property_value is not None and property_value > 1_000_000:
+        score += 0.50
+        reasons.append(f"property value ${property_value:,.0f} > $1M")
+    if vehicle_value is not None and vehicle_value > 80_000:
+        score += 0.50
+        reasons.append(f"vehicle value ${vehicle_value:,.0f} > $80k")
+
+    # Fallback to wealth band if no specific numbers
+    if score == 0.0 and wealth and wealth.wealth_band in ("high", "ultra_high"):
+        score += 0.40
         reasons.append(f"wealth band: {wealth.wealth_band}")
 
+    # Job title boost
     current_jobs = [e for e in employment if e.is_current and e.job_title]
     for job in current_jobs:
         title_lower = job.job_title.lower()
         if any(kw in title_lower for kw in _HIGH_INCOME_TITLES):
-            score += 0.3
+            score += 0.20
             reasons.append(f"high-income job title: {job.job_title}")
             break
-
-    if len(addresses) >= 2:
-        score += 0.2
-        reasons.append(f"multiple property records: {len(addresses)} addresses")
 
     return _clamp(score), reasons
 
@@ -959,7 +988,12 @@ class MarketingTagsEngine:
         scoring_map: list[tuple[str, float, list[str]]] = []
 
         # Lending tags
-        s, r = _score_title_loan(addresses, criminals, wealth)
+        s, r = _score_title_loan(
+            addresses, criminals, wealth,
+            credit_score=person.alt_credit_score if person else None,
+            has_vehicle=has_vehicle,
+            property_count=person.property_count if person else 0,
+        )
         scoring_map.append((LendingTag.TITLE_LOAN_CANDIDATE, s, r))
 
         s, r = _score_payday_loan_candidate(financial_distress_score, has_property, income_estimate)
@@ -1019,7 +1053,15 @@ class MarketingTagsEngine:
         s, r = _score_active_gambler(darkweb, socials, behavioural, age)
         scoring_map.append((BehaviouralTag.ACTIVE_GAMBLER, s, r))
 
-        s, r = _score_luxury_buyer(wealth, employment, addresses)
+        # Compute property/vehicle value estimates for luxury buyer
+        _property_value = max((getattr(p, "assessed_value", 0) or 0) for p in properties) if properties else None
+        _vehicle_value = max((getattr(v, "estimated_value", 0) or 0) for v in vehicles) if vehicles else None
+        s, r = _score_luxury_buyer(
+            wealth, employment, addresses,
+            income_estimate=income_estimate,
+            property_value=_property_value,
+            vehicle_value=_vehicle_value,
+        )
         scoring_map.append((BehaviouralTag.LUXURY_BUYER, s, r))
 
         # Life stage tags
