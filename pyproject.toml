@@ -2,6 +2,7 @@
 name = "lycan"
 version = "0.1.0"
 description = "Recursive people intelligence platform"
+authors = ["Wolf Corporation <dev@wolfcorporation.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.12"
