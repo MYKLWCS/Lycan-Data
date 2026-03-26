@@ -4,15 +4,55 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
 from modules.pipeline.progress_tracker import ProgressAggregator
+from shared.config import settings
 from shared.events import event_bus
 from shared.schemas.progress import EventType
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _valid_keys() -> set[str]:
+    """Parse API keys from config."""
+    raw = settings.api_keys.strip()
+    if not raw:
+        return set()
+    return {k.strip() for k in raw.split(",") if k.strip()}
+
+
+def _validate_stream_token(request: Request, token: str | None = None) -> None:
+    """Validate auth for SSE endpoints via Authorization header or ?token= query param."""
+    if not settings.api_auth_enabled:
+        return
+    valid = _valid_keys()
+    if not valid:
+        raise HTTPException(status_code=503, detail="API keys not configured")
+    # Check query param first, then Authorization header
+    if token and token in valid:
+        return
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer ") and auth_header[7:] in valid:
+        return
+    raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
+
+
+async def _validate_ws_token(websocket: WebSocket) -> bool:
+    """Validate auth for WebSocket via ?token= query param. Returns False if invalid."""
+    if not settings.api_auth_enabled:
+        return True
+    valid = _valid_keys()
+    if not valid:
+        await websocket.close(code=4001, reason="API keys not configured")
+        return False
+    token = websocket.query_params.get("token", "")
+    if token in valid:
+        return True
+    await websocket.close(code=4001, reason="Invalid or missing authentication token")
+    return False
 
 
 @router.websocket("/ws/progress/{person_id}")
@@ -27,7 +67,11 @@ async def scrape_progress(websocket: WebSocket, person_id: str):
         "found": true,
         "person_id": "...",
     }
+
+    Auth: pass ?token=<api_key> in the WebSocket URL.
     """
+    if not await _validate_ws_token(websocket):
+        return
     await websocket.accept()
     logger.info("WebSocket connected for person %s", person_id)
 
@@ -70,8 +114,12 @@ async def scrape_progress(websocket: WebSocket, person_id: str):
 
 
 @router.get("/sse/progress/{person_id}")
-async def sse_progress(person_id: str, request: Request):
-    """SSE stream for real-time scrape progress updates."""
+async def sse_progress(person_id: str, request: Request, token: str | None = Query(default=None)):
+    """SSE stream for real-time scrape progress updates.
+
+    Auth: pass Authorization: Bearer <key> header or ?token=<key> query param.
+    """
+    _validate_stream_token(request, token)
 
     async def event_stream():
         if not event_bus.is_connected:
@@ -110,9 +158,11 @@ async def sse_progress(person_id: str, request: Request):
 
 
 @router.get("/search/{person_id}/progress")
-async def search_progress(person_id: str, request: Request):
+async def search_progress(person_id: str, request: Request, token: str | None = Query(default=None)):
     """
     SSE stream of rich phase-based progress for a running search.
+
+    Auth: pass Authorization: Bearer <key> header or ?token=<key> query param.
 
     Events emit a ProgressState JSON payload:
       { search_id, current_phase, progress_pct, results_found,
@@ -122,6 +172,7 @@ async def search_progress(person_id: str, request: Request):
     Phases: collecting (0-60%) → deduplicating (60-75%) →
             enriching (75-95%) → finalizing (95-100%) → complete
     """
+    _validate_stream_token(request, token)
 
     async def event_stream():
         if not event_bus.is_connected:

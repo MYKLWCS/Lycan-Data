@@ -152,7 +152,8 @@ app.include_router(search.router, prefix="/search", tags=["search"], dependencie
 app.include_router(search_query.router, prefix="/query", tags=["query"], dependencies=_auth)
 app.include_router(persons.router, prefix="/persons", tags=["persons"], dependencies=_auth)
 app.include_router(crawls.router, prefix="/crawls", tags=["crawls"], dependencies=_auth)
-app.include_router(system.router, prefix="/system", tags=["system"])  # health stays open
+app.include_router(system.router, prefix="/system", tags=["system"])  # health only: public
+app.include_router(system.admin_router, prefix="/system", tags=["system-admin"], dependencies=_auth)
 app.include_router(ws.router, tags=["websocket"])
 app.include_router(financial.router, prefix="/financial", tags=["financial"], dependencies=_auth)
 app.include_router(marketing.router, prefix="/marketing", tags=["marketing"], dependencies=_auth)

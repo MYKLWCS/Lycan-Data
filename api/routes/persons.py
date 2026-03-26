@@ -1079,7 +1079,13 @@ async def get_family_tree_gedcom(person_id: str, session: AsyncSession = DbDep):
         except Exception:
             pass
 
-    rels_result = await session.execute(select(Relationship).where(Relationship.person_a_id == uid))
+    from sqlalchemy import or_
+
+    rels_result = await session.execute(
+        select(Relationship).where(
+            or_(Relationship.person_a_id == uid, Relationship.person_b_id == uid)
+        )
+    )
     rels = [
         {
             "person_a_id": str(r.person_a_id),
@@ -1106,14 +1112,22 @@ async def list_relatives(
     from shared.models.relationship import Relationship
 
     uid = _parse_uuid(person_id)
-    result = await session.execute(select(Relationship).where(Relationship.person_a_id == uid))
+    from sqlalchemy import or_
+
+    result = await session.execute(
+        select(Relationship).where(
+            or_(Relationship.person_a_id == uid, Relationship.person_b_id == uid)
+        )
+    )
     rels = result.scalars().all()
     relatives = []
     for r in rels:
-        other = await session.get(Person, r.person_b_id)
+        # Determine who the "other" person is in this relationship
+        other_id = r.person_b_id if r.person_a_id == uid else r.person_a_id
+        other = await session.get(Person, other_id)
         relatives.append(
             {
-                "person_id": str(r.person_b_id),
+                "person_id": str(other_id),
                 "full_name": other.full_name if other else None,
                 "relationship_type": r.rel_type,
                 "confidence": r.score,

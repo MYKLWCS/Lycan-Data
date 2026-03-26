@@ -34,6 +34,7 @@ def _make_app():
 
     app = FastAPI()
     app.include_router(system.router, prefix="/system")
+    app.include_router(system.admin_router, prefix="/system")  # admin endpoints (no auth in tests)
     app.include_router(enrichment.router, prefix="/enrich")
     return app
 

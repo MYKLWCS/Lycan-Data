@@ -4,6 +4,11 @@ Knowledge Graph Builder — Apache AGE backed graph for OSINT entity mapping.
 Uses Cypher queries through AGE's SQL wrapper to manage the osint_graph.
 All operations go through the shared asyncpg-based SQLAlchemy engine,
 executing raw SQL for AGE compatibility.
+
+SECURITY: All Cypher queries use AGE parameterized queries ($param syntax)
+for user-supplied values. Labels are validated against whitelists (they
+cannot be parameterized in Cypher). Entity IDs are validated as hex-only,
+and search terms are sanitized to alphanumeric + safe chars.
 """
 
 from __future__ import annotations
@@ -41,11 +46,32 @@ EDGE_LABELS = frozenset({
 
 _SAFE_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
+# Entity IDs are 24-char hex strings from SHA-256
+_SAFE_ENTITY_ID = re.compile(r"^[0-9a-f]{24}$")
+
+# Search terms: alphanumeric, spaces, hyphens, periods, apostrophes only
+_SAFE_SEARCH = re.compile(r"^[a-zA-Z0-9 .\-']+$")
+
 
 def _validate_label(label: str, allowed: frozenset[str]) -> str:
     if label not in allowed:
         raise ValueError(f"Invalid label: {label!r}")
     return label
+
+
+def _validate_entity_id(eid: str) -> str:
+    """Validate that entity_id is a safe hex string (output of _entity_id)."""
+    if not _SAFE_ENTITY_ID.match(eid):
+        raise ValueError(f"Invalid entity_id format: {eid!r}")
+    return eid
+
+
+def _sanitize_search_term(term: str) -> str:
+    """Strip search term to alphanumeric + safe chars only."""
+    sanitized = re.sub(r"[^a-zA-Z0-9 .\-']", "", term)
+    if not sanitized:
+        raise ValueError("Search term contains no valid characters after sanitization")
+    return sanitized
 
 
 def _props_literal(props: dict[str, Any]) -> str:
@@ -77,13 +103,8 @@ def _entity_id(label: str, identifier: str) -> str:
     return hashlib.sha256(f"{label}:{norm}".encode()).hexdigest()[:24]
 
 
-async def _cypher(session: AsyncSession, query: str) -> list[dict]:
-    """Execute a Cypher query via AGE SQL wrapper and return rows as dicts."""
-    sql = text(f"""
-        SELECT * FROM ag_catalog.cypher('osint_graph', $${query}$$) AS (result ag_catalog.agtype)
-    """)
-    result = await session.execute(sql)
-    rows = result.fetchall()
+def _parse_agtype_rows(rows) -> list[dict]:
+    """Parse AGE agtype result rows into Python dicts."""
     parsed = []
     for row in rows:
         val = row[0]
@@ -99,12 +120,49 @@ async def _cypher(session: AsyncSession, query: str) -> list[dict]:
     return parsed
 
 
-async def _cypher_void(session: AsyncSession, query: str) -> None:
+async def _cypher(
+    session: AsyncSession, query: str, params: dict[str, Any] | None = None
+) -> list[dict]:
+    """Execute a Cypher query via AGE SQL wrapper and return rows as dicts.
+
+    Uses parameterized queries to prevent Cypher injection. Variable values
+    should use $param_name placeholders in the Cypher query, with actual
+    values passed via the params dict. Labels and relationship types must
+    come from validated whitelists only (they cannot be parameterized).
+    """
+    if params:
+        sql = text(
+            "SELECT * FROM ag_catalog.cypher('osint_graph', "
+            "$cypher$" + query + "$cypher$, "
+            ":params::ag_catalog.agtype) AS (result ag_catalog.agtype)"
+        )
+        result = await session.execute(sql, {"params": json.dumps(params)})
+    else:
+        sql = text(
+            "SELECT * FROM ag_catalog.cypher('osint_graph', "
+            "$cypher$" + query + "$cypher$) AS (result ag_catalog.agtype)"
+        )
+        result = await session.execute(sql)
+    return _parse_agtype_rows(result.fetchall())
+
+
+async def _cypher_void(
+    session: AsyncSession, query: str, params: dict[str, Any] | None = None
+) -> None:
     """Execute a Cypher query that returns no useful data."""
-    sql = text(f"""
-        SELECT * FROM ag_catalog.cypher('osint_graph', $${query}$$) AS (result ag_catalog.agtype)
-    """)
-    await session.execute(sql)
+    if params:
+        sql = text(
+            "SELECT * FROM ag_catalog.cypher('osint_graph', "
+            "$cypher$" + query + "$cypher$, "
+            ":params::ag_catalog.agtype) AS (result ag_catalog.agtype)"
+        )
+        await session.execute(sql, {"params": json.dumps(params)})
+    else:
+        sql = text(
+            "SELECT * FROM ag_catalog.cypher('osint_graph', "
+            "$cypher$" + query + "$cypher$) AS (result ag_catalog.agtype)"
+        )
+        await session.execute(sql)
 
 
 class KnowledgeGraphBuilder:
@@ -114,7 +172,7 @@ class KnowledgeGraphBuilder:
     All methods accept an AsyncSession from the shared db layer.
     """
 
-    # ── Entity CRUD ───────────────────────────────────────────────────────────
+    # -- Entity CRUD -----------------------------------------------------------
 
     async def add_entity(
         self,
@@ -130,11 +188,11 @@ class KnowledgeGraphBuilder:
         """
         _validate_label(label, VERTEX_LABELS)
         eid = entity_id or _entity_id(label, json.dumps(properties, sort_keys=True))
+        eid = _validate_entity_id(eid)
         props = {**properties, "entity_id": eid, "updated_at": datetime.now(UTC).isoformat()}
-        props_str = _props_literal(props)
-        query = f"MERGE (n:{label} {{entity_id: '{eid}'}}) SET n += {{{props_str}}} RETURN n"
+        query = f"MERGE (n:{label} {{entity_id: $eid}}) SET n += $props RETURN n"
         try:
-            await _cypher(session, query)
+            await _cypher(session, query, {"eid": eid, "props": props})
         except Exception:
             logger.exception("add_entity failed label=%s id=%s", label, eid)
             raise
@@ -148,8 +206,9 @@ class KnowledgeGraphBuilder:
     ) -> dict | None:
         """Fetch a single entity by label and entity_id."""
         _validate_label(label, VERTEX_LABELS)
-        query = f"MATCH (n:{label} {{entity_id: '{entity_id}'}}) RETURN n"
-        rows = await _cypher(session, query)
+        eid = _validate_entity_id(entity_id)
+        query = f"MATCH (n:{label} {{entity_id: $eid}}) RETURN n"
+        rows = await _cypher(session, query, {"eid": eid})
         return rows[0] if rows else None
 
     async def delete_entity(
@@ -160,10 +219,11 @@ class KnowledgeGraphBuilder:
     ) -> None:
         """Delete a vertex and all its edges."""
         _validate_label(label, VERTEX_LABELS)
-        query = f"MATCH (n:{label} {{entity_id: '{entity_id}'}}) DETACH DELETE n"
-        await _cypher_void(session, query)
+        eid = _validate_entity_id(entity_id)
+        query = f"MATCH (n:{label} {{entity_id: $eid}}) DETACH DELETE n"
+        await _cypher_void(session, query, {"eid": eid})
 
-    # ── Relationship CRUD ─────────────────────────────────────────────────────
+    # -- Relationship CRUD -----------------------------------------------------
 
     async def add_relationship(
         self,
@@ -183,19 +243,20 @@ class KnowledgeGraphBuilder:
         _validate_label(from_label, VERTEX_LABELS)
         _validate_label(to_label, VERTEX_LABELS)
         _validate_label(rel_type, EDGE_LABELS)
+        fid = _validate_entity_id(from_id)
+        tid = _validate_entity_id(to_id)
 
         props = {**(properties or {}), "updated_at": datetime.now(UTC).isoformat()}
-        props_str = _props_literal(props)
 
         query = (
-            f"MATCH (a:{from_label} {{entity_id: '{from_id}'}}), "
-            f"(b:{to_label} {{entity_id: '{to_id}'}}) "
+            f"MATCH (a:{from_label} {{entity_id: $fid}}), "
+            f"(b:{to_label} {{entity_id: $tid}}) "
             f"MERGE (a)-[r:{rel_type}]->(b) "
-            f"SET r += {{{props_str}}} "
+            f"SET r += $props "
             f"RETURN r"
         )
         try:
-            await _cypher(session, query)
+            await _cypher(session, query, {"fid": fid, "tid": tid, "props": props})
         except Exception:
             logger.exception(
                 "add_relationship failed %s->%s->%s", from_label, rel_type, to_label
@@ -215,16 +276,18 @@ class KnowledgeGraphBuilder:
         _validate_label(from_label, VERTEX_LABELS)
         _validate_label(to_label, VERTEX_LABELS)
         _validate_label(rel_type, EDGE_LABELS)
+        fid = _validate_entity_id(from_id)
+        tid = _validate_entity_id(to_id)
 
         query = (
-            f"MATCH (a:{from_label} {{entity_id: '{from_id}'}})"
+            f"MATCH (a:{from_label} {{entity_id: $fid}})"
             f"-[r:{rel_type}]->"
-            f"(b:{to_label} {{entity_id: '{to_id}'}}) "
+            f"(b:{to_label} {{entity_id: $tid}}) "
             f"DELETE r"
         )
-        await _cypher_void(session, query)
+        await _cypher_void(session, query, {"fid": fid, "tid": tid})
 
-    # ── Graph queries ─────────────────────────────────────────────────────────
+    # -- Graph queries ---------------------------------------------------------
 
     async def find_connections(
         self,
@@ -237,30 +300,31 @@ class KnowledgeGraphBuilder:
 
         Returns {nodes: [...], edges: [...]}.
         """
+        eid = _validate_entity_id(entity_id)
         if max_depth < 1:
             max_depth = 1
         if max_depth > 6:
             max_depth = 6
 
         # Step 1: get the centre node
-        centre_query = f"MATCH (n {{entity_id: '{entity_id}'}}) RETURN n"
-        centre = await _cypher(session, centre_query)
+        centre_query = "MATCH (n {entity_id: $eid}) RETURN n"
+        centre = await _cypher(session, centre_query, {"eid": eid})
         if not centre:
             return {"nodes": [], "edges": []}
 
-        # Step 2: variable-length path expansion
+        # Step 2: variable-length path expansion (max_depth is int-clamped above)
         query = (
-            f"MATCH (start {{entity_id: '{entity_id}'}})-[r*1..{max_depth}]-(connected) "
+            f"MATCH (start {{entity_id: $eid}})-[r*1..{max_depth}]-(connected) "
             f"RETURN connected"
         )
-        rows = await _cypher(session, query)
+        rows = await _cypher(session, query, {"eid": eid})
 
         # Deduplicate
         node_map: dict[str, dict] = {}
         if centre:
             cdata = centre[0] if isinstance(centre[0], dict) else {}
-            eid = cdata.get("entity_id", entity_id)
-            node_map[eid] = cdata
+            node_eid = cdata.get("entity_id", eid)
+            node_map[node_eid] = cdata
 
         for row in rows:
             if isinstance(row, dict):
@@ -282,6 +346,7 @@ class KnowledgeGraphBuilder:
 
         Returns {nodes, edges, node_count, edge_count}.
         """
+        cid = _validate_entity_id(company_id)
         if max_depth > 5:
             max_depth = 5
 
@@ -299,22 +364,24 @@ class KnowledgeGraphBuilder:
                 return
             nodes.append({"id": eid, "label": label, "data": entity})
 
-            # Fetch direct neighbours via 1-hop
-            neighbour_query = (
-                f"MATCH (a {{entity_id: '{eid}'}})-[r]-(b) RETURN b"
-            )
-            neighbours = await _cypher(session, neighbour_query)
+            # Fetch direct neighbours via 1-hop (eid already validated)
+            neighbour_query = "MATCH (a {entity_id: $eid})-[r]-(b) RETURN b"
+            neighbours = await _cypher(session, neighbour_query, {"eid": eid})
             for nb in neighbours:
                 if not isinstance(nb, dict):
                     continue
                 nb_id = nb.get("entity_id", "")
                 if nb_id and nb_id not in visited:
+                    # Validate the neighbour ID from the graph (should be hex)
+                    try:
+                        _validate_entity_id(nb_id)
+                    except ValueError:
+                        continue
                     edges.append({"source": eid, "target": nb_id})
-                    # Infer label from properties (AGE doesn't expose labels easily in agtype)
                     nb_label = _infer_label(nb)
                     await _traverse(nb_id, nb_label, depth + 1)
 
-        await _traverse(company_id, "Company", 0)
+        await _traverse(cid, "Company", 0)
         return {
             "nodes": nodes,
             "edges": edges,
@@ -336,6 +403,7 @@ class KnowledgeGraphBuilder:
           - shared_officers
           - co_located_companies
         """
+        # These are static queries with no user input — safe as-is
         queries = {
             "circular_ownership": (
                 "MATCH (c1:Company)-[:OWNS*2..4]->(c2:Company)-[:OWNS*1..]->(c1) "
@@ -359,7 +427,7 @@ class KnowledgeGraphBuilder:
 
         return await _cypher(session, queries[pattern_type])
 
-    # ── Expanding search (UI-oriented) ────────────────────────────────────────
+    # -- Expanding search (UI-oriented) ----------------------------------------
 
     async def expand_node(
         self,
@@ -372,14 +440,13 @@ class KnowledgeGraphBuilder:
 
         Returns {centre, neighbours: [{node, edge_type}]}.
         """
-        centre_query = f"MATCH (n {{entity_id: '{entity_id}'}}) RETURN n"
-        centre_rows = await _cypher(session, centre_query)
+        eid = _validate_entity_id(entity_id)
+        centre_query = "MATCH (n {entity_id: $eid}) RETURN n"
+        centre_rows = await _cypher(session, centre_query, {"eid": eid})
         centre = centre_rows[0] if centre_rows else None
 
-        neighbour_query = (
-            f"MATCH (a {{entity_id: '{entity_id}'}})-[r]-(b) RETURN b"
-        )
-        neighbours = await _cypher(session, neighbour_query)
+        neighbour_query = "MATCH (a {entity_id: $eid})-[r]-(b) RETURN b"
+        neighbours = await _cypher(session, neighbour_query, {"eid": eid})
 
         return {
             "centre": centre,
@@ -401,25 +468,28 @@ class KnowledgeGraphBuilder:
         Search entities by label and a property substring (name, legal_name, etc.).
         """
         _validate_label(label, VERTEX_LABELS)
-        escaped = search_term.replace("\\", "\\\\").replace("'", "\\'").lower()
+        sanitized = _sanitize_search_term(search_term).lower()
+        # Escape regex special chars for Cypher =~ operator
+        escaped = re.sub(r"([.*+?^${}()|\\[\]])", r"\\\1", sanitized)
+        pattern = f"(?i).*{escaped}.*"
 
-        # AGE doesn't support toLower() in all contexts — use case-insensitive match
-        # by searching the `name` property (common across all labels)
         name_field = "legal_name" if label == "Company" else "name"
+        safe_limit = min(max(1, limit), 100)
         query = (
             f"MATCH (n:{label}) "
-            f"WHERE n.{name_field} =~ '(?i).*{escaped}.*' "
+            f"WHERE n.{name_field} =~ $pattern "
             f"RETURN n "
-            f"LIMIT {min(limit, 100)}"
+            f"LIMIT {safe_limit}"
         )
-        return await _cypher(session, query)
+        return await _cypher(session, query, {"pattern": pattern})
 
-    # ── Graph statistics ──────────────────────────────────────────────────────
+    # -- Graph statistics ------------------------------------------------------
 
     async def graph_stats(self, session: AsyncSession) -> dict:
         """Return vertex/edge counts per label."""
         counts: dict[str, int] = {}
         for label in VERTEX_LABELS:
+            # Labels are from VERTEX_LABELS frozenset — no user input
             query = f"MATCH (n:{label}) RETURN count(n)"
             rows = await _cypher(session, query)
             counts[label] = rows[0] if rows and isinstance(rows[0], (int, float)) else 0

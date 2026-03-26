@@ -25,6 +25,7 @@ def _make_app():
 
     app = FastAPI()
     app.include_router(system.router, prefix="/system")
+    app.include_router(system.admin_router, prefix="/system")  # admin endpoints (no auth in tests)
     app.include_router(ws.router)
     app.include_router(enrichment.router, prefix="/enrich")
     app.include_router(search_query.router, prefix="/query")
@@ -318,8 +319,12 @@ class TestSSEEndpoint:
     """Tests for GET /sse/progress/{person_id}."""
 
     def test_sse_event_bus_unavailable(self, client):
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with (
+            patch("api.routes.ws.event_bus") as mock_bus,
+            patch("api.routes.ws.settings") as mock_settings,
+        ):
             mock_bus.is_connected = False
+            mock_settings.api_auth_enabled = False
 
             resp = client.get("/sse/progress/test-person-123")
 
@@ -429,8 +434,9 @@ class TestWebSocketEndpoint:
             # Simulate a subscription that blocks forever
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _never_returns
+            mock_s.api_auth_enabled = False
 
             with TestClient(app, raise_server_exceptions=False) as c:
                 with c.websocket_connect("/ws/progress/person-abc") as ws_conn:
@@ -448,8 +454,9 @@ class TestWebSocketEndpoint:
         async def _never_returns(_channel, _cb):
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _never_returns
+            mock_s.api_auth_enabled = False
 
             with TestClient(app, raise_server_exceptions=False) as c:
                 with c.websocket_connect("/ws/progress/person-xyz") as ws_conn:
@@ -467,8 +474,9 @@ class TestWebSocketEndpoint:
         async def _never_returns(_channel, _cb):
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.subscribe = _never_returns
+            mock_s.api_auth_enabled = False
 
             with TestClient(app, raise_server_exceptions=False) as c:
                 with c.websocket_connect("/ws/progress/person-def") as ws_conn:
@@ -501,9 +509,10 @@ class TestSSEEndpointConnected:
             # Then hang (client will have broken out of the loop already)
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.is_connected = True
             mock_bus.subscribe = _fake_subscribe
+            mock_s.api_auth_enabled = False
 
             with TestClient(app, raise_server_exceptions=False) as c:
                 resp = c.get(
@@ -530,9 +539,10 @@ class TestSSEEndpointConnected:
         async def _hang_subscribe(_channel, _cb):
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus:
+        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
             mock_bus.is_connected = True
             mock_bus.subscribe = _hang_subscribe
+            mock_s.api_auth_enabled = False
             # Patch Request.is_disconnected to return True so the while loop exits
             with patch(
                 "starlette.requests.Request.is_disconnected", new_callable=AsyncMock

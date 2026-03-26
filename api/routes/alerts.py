@@ -20,7 +20,7 @@ async def list_alerts(
 ):
     q = select(Alert).order_by(Alert.created_at.desc()).limit(limit)
     if unread_only:
-        q = q.where(not Alert.is_read)
+        q = q.where(Alert.is_read.is_(False))
     rows = (await db.scalars(q)).all()
     return {
         "alerts": [
@@ -52,6 +52,6 @@ async def mark_read(alert_id: uuid.UUID, db: AsyncSession = DbDep):
 
 @router.post("/mark-all-read")
 async def mark_all_read(db: AsyncSession = DbDep):
-    await db.execute(update(Alert).where(not Alert.is_read).values(is_read=True))
+    await db.execute(update(Alert).where(Alert.is_read.is_(False)).values(is_read=True))
     await db.commit()
     return {"message": "All alerts marked as read"}

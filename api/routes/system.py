@@ -1,4 +1,8 @@
-"""System health, stats, and operational endpoints."""
+"""System health, stats, and operational endpoints.
+
+Public router: health/simple health/stats — no auth required.
+Admin router: registry, queues, circuit-breakers, rate-limits — auth required.
+"""
 
 import logging
 import time
@@ -13,7 +17,8 @@ from shared.events import event_bus
 from shared.rate_limiter import get_rate_limiter
 from shared.tor import tor_manager
 
-router = APIRouter()
+router = APIRouter()  # Public: health, simple health, stats
+admin_router = APIRouter()  # Protected: requires auth
 logger = logging.getLogger(__name__)
 
 
@@ -94,15 +99,16 @@ async def health_simple():
     return {"status": "ok", "crawlers_registered": len(CRAWLER_REGISTRY)}
 
 
-@router.get("/stats")
+@admin_router.get("/stats")
 async def stats():
+    """Platform stats — requires authentication."""
     return {
         "crawlers": len(CRAWLER_REGISTRY),
         "platforms": sorted(list_platforms()),
     }
 
 
-@router.get("/registry")
+@admin_router.get("/registry")
 async def registry():
     return {
         "platforms": sorted(list_platforms()),
@@ -110,7 +116,7 @@ async def registry():
     }
 
 
-@router.get("/queues")
+@admin_router.get("/queues")
 async def queue_stats(session: AsyncSession = DbDep):
     """Return queue depths + cumulative throughput stats for the pipeline banner."""
     from sqlalchemy import text
@@ -153,7 +159,7 @@ async def queue_stats(session: AsyncSession = DbDep):
         return {"error": str(exc), "queues": {}}
 
 
-@router.post("/queues/drain")
+@admin_router.post("/queues/drain")
 async def drain_queues(queue: str = "all"):
     """Clear one or all queues (use with caution)."""
 
@@ -177,7 +183,7 @@ async def drain_queues(queue: str = "all"):
         return {"error": str(exc)}
 
 
-@router.get("/circuit-breakers")
+@admin_router.get("/circuit-breakers")
 async def circuit_breaker_status():
     """Return circuit breaker states for all tracked domains."""
 
@@ -197,7 +203,7 @@ async def circuit_breaker_status():
         return {"error": str(exc), "breakers": {}}
 
 
-@router.post("/circuit-breakers/{domain}/reset")
+@admin_router.post("/circuit-breakers/{domain}/reset")
 async def reset_circuit_breaker(domain: str):
     """Manually force a circuit breaker to CLOSED state."""
 
@@ -205,7 +211,7 @@ async def reset_circuit_breaker(domain: str):
     return {"message": f"Circuit breaker for {domain!r} forced to CLOSED", "domain": domain}
 
 
-@router.get("/rate-limits")
+@admin_router.get("/rate-limits")
 async def rate_limit_status():
     """Return current token counts for all active rate-limit buckets."""
 

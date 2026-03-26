@@ -188,6 +188,9 @@ class CrawlDispatcher:
                 )
                 await self._emit_progress(person_id, EventType.SCRAPER_DONE, platform)
 
+            # Check if all jobs for this person are complete
+            await self._check_search_complete(session, person_id, started_at)
+
         except Exception as exc:
             logger.exception("Job %s failed: %s", job_id, exc)
             if retry_count < MAX_RETRIES:
@@ -196,6 +199,8 @@ class CrawlDispatcher:
             await self._emit_progress(
                 person_id, EventType.SCRAPER_FAILED, platform, error=str(exc)
             )
+            # Check if all jobs for this person are complete (even after failure)
+            await self._check_search_complete(session, person_id, started_at)
 
     async def _emit_progress(
         self,
@@ -221,6 +226,76 @@ class CrawlDispatcher:
             )
         except Exception:
             pass  # Never let progress emission crash the job
+
+    async def _check_search_complete(
+        self,
+        session: AsyncSession,
+        person_id: str | None,
+        search_started_at: datetime,
+    ) -> None:
+        """Check if all crawl jobs for a person are terminal. If so, emit SEARCH_COMPLETE."""
+        if not person_id or not event_bus.is_connected:
+            return
+        try:
+            from sqlalchemy import func, select
+
+            # Count jobs still in non-terminal states
+            pending_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(CrawlJob)
+                    .where(
+                        CrawlJob.person_id == person_id,
+                        CrawlJob.status.in_([
+                            CrawlStatus.PENDING.value,
+                            CrawlStatus.RUNNING.value,
+                        ]),
+                    )
+                )
+            ).scalar() or 0
+
+            if pending_count > 0:
+                return
+
+            # All jobs finished — gather summary stats
+            from sqlalchemy import case, literal_column
+
+            stats = (
+                await session.execute(
+                    select(
+                        func.count().label("total"),
+                        func.count(
+                            case(
+                                (CrawlJob.status == CrawlStatus.DONE.value, literal_column("1")),
+                            )
+                        ).label("succeeded"),
+                        func.count(
+                            case(
+                                (CrawlJob.status == CrawlStatus.FAILED.value, literal_column("1")),
+                            )
+                        ).label("failed"),
+                    )
+                    .select_from(CrawlJob)
+                    .where(CrawlJob.person_id == person_id)
+                )
+            ).mappings().one()
+
+            duration = (datetime.now(UTC) - search_started_at).total_seconds()
+
+            await event_bus.publish(
+                "progress",
+                {
+                    "event_type": EventType.SEARCH_COMPLETE,
+                    "search_id": person_id,
+                    "total_scrapers": int(stats["total"] or 0),
+                    "succeeded": int(stats["succeeded"] or 0),
+                    "failed": int(stats["failed"] or 0),
+                    "duration_seconds": round(duration, 1),
+                },
+            )
+            logger.info("SEARCH_COMPLETE emitted for person_id=%s", person_id)
+        except Exception:
+            logger.exception("Failed to check/emit search_complete for %s", person_id)
 
     async def _update_job_status(
         self,
