@@ -30,7 +30,7 @@ class EventBus:
         lycan:queue:normal  — priority 4-7 jobs
         lycan:queue:low     — priority 8-10 jobs
         lycan:queue:ingest  — raw crawler results waiting for DB insertion
-        lycan:queue:index   — parsed person states waiting for MeiliSearch
+        lycan:queue:index   — parsed person states waiting for Typesense
     """
 
     CHANNELS = {

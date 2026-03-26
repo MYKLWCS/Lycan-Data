@@ -62,7 +62,7 @@ def test_search_persons_has_darkweb_true(client):
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"has_darkweb": "true"})
     filters = mock_search.call_args.kwargs.get("filters", "")
-    assert "has_darkweb = true" in (filters or "")
+    assert "has_darkweb:=true" in (filters or "")
 
 
 def test_search_persons_has_darkweb_false(client):
@@ -72,7 +72,7 @@ def test_search_persons_has_darkweb_false(client):
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"has_darkweb": "false"})
     filters = mock_search.call_args.kwargs.get("filters", "")
-    assert "has_darkweb = false" in (filters or "")
+    assert "has_darkweb:=false" in (filters or "")
 
 
 def test_search_persons_sort_asc(client):

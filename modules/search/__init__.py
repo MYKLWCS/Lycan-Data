@@ -1,1 +1,1 @@
-"""MeiliSearch indexing module for Lycan OSINT."""
+"""Typesense indexing module for Lycan OSINT."""

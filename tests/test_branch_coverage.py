@@ -477,8 +477,8 @@ class TestMeiliSearchByRegionPartialFilters:
         from modules.search.meili_indexer import MeiliIndexer
 
         with patch("modules.search.meili_indexer.settings") as ms:
-            ms.meili_url = "http://localhost:7700"
-            ms.meili_master_key = "testkey"
+            ms.typesense_url = "http://localhost:8108"
+            ms.typesense_api_key = "testkey"
             return MeiliIndexer()
 
     def _mock_client(self, body: dict):

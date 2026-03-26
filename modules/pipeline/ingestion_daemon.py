@@ -3,7 +3,7 @@ Ingestion Daemon.
 
 Pulls raw crawler results from the 'ingest' queue on the EventBus.
 Processes them using the database aggregator, and then pushes a signal
-to the 'index' queue for MeiliSearch to pick up asynchronously.
+to the 'index' queue for Typesense to pick up asynchronously.
 """
 
 import asyncio

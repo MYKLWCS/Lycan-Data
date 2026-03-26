@@ -57,7 +57,7 @@ PERSONS_SCHEMA = {
         {"name": "is_sanctioned", "type": "bool", "facet": True, "optional": True},
         {"name": "marketing_tags_list", "type": "string[]", "facet": True, "optional": True},
         # Sortable numeric fields
-        {"name": "default_risk_score", "type": "float", "optional": True},
+        {"name": "default_risk_score", "type": "float"},
         {"name": "composite_quality", "type": "float", "optional": True},
         {"name": "corroboration_count", "type": "int32", "optional": True},
         {"name": "created_at", "type": "string", "optional": True},
@@ -97,6 +97,7 @@ class TypesenseIndexer:
 
     async def setup_index(self) -> bool:
         """Create collections if they don't exist. Idempotent."""
+        success = True
         async with httpx.AsyncClient(timeout=10.0) as client:
             for schema in [PERSONS_SCHEMA, IDENTIFIERS_SCHEMA, SOCIAL_PROFILES_SCHEMA]:
                 try:
@@ -115,7 +116,7 @@ class TypesenseIndexer:
                         json=schema,
                         headers=self._headers,
                     )
-                    if r.status_code in (200, 201):
+                    if r.status_code in (200, 201, 202):
                         logger.info("Created Typesense collection: %s", schema["name"])
                     elif r.status_code == 409:
                         pass  # already exists
@@ -124,9 +125,11 @@ class TypesenseIndexer:
                             "Failed to create collection %s: %s %s",
                             schema["name"], r.status_code, r.text[:200],
                         )
+                        success = False
                 except Exception as exc:
                     logger.warning("Typesense collection create error: %s", exc)
-        return True
+                    success = False
+        return success
 
     async def index_person(self, doc: dict[str, Any]) -> bool:
         """Add or update a single person document via upsert."""
@@ -136,7 +139,7 @@ class TypesenseIndexer:
                 json=doc,
                 headers=self._headers,
             )
-            return r.status_code in (200, 201)
+            return r.status_code in (200, 201, 202)
 
     async def index_many(self, docs: list[dict[str, Any]]) -> bool:
         """Batch upsert multiple person documents using JSONL import."""
@@ -228,11 +231,14 @@ class TypesenseIndexer:
                 f"{self.base}/collections/{PERSONS_COLLECTION}/documents/{person_id}",
                 headers=self._headers,
             )
-            return r.status_code in (200, 204)
+            return r.status_code in (200, 202, 204)
 
 
-# Module-level singleton
+# Module-level singleton (name kept as meili_indexer for backward compat with tests/imports)
 meili_indexer = TypesenseIndexer()
+
+# Backward-compatible alias so tests importing MeiliIndexer still work
+MeiliIndexer = TypesenseIndexer
 
 
 def build_person_doc(
@@ -318,4 +324,5 @@ def build_person_doc(
         "is_sanctioned": is_sanctioned,
         "marketing_tags_list": marketing_tags_list or [],
         "enrichment_score": enrichment_score or 0.0,
+        **extra,
     }

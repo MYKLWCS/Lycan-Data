@@ -36,8 +36,8 @@ def _mock_response(status_code: int, body: dict | None = None):
 def _make_indexer() -> MeiliIndexer:
     """Return a MeiliIndexer with known base/key (no real settings needed)."""
     with patch("modules.search.meili_indexer.settings") as mock_settings:
-        mock_settings.meili_url = "http://localhost:7700"
-        mock_settings.meili_master_key = "testkey"
+        mock_settings.typesense_url = "http://localhost:7700"
+        mock_settings.typesense_api_key = "testkey"
         return MeiliIndexer()
 
 
@@ -142,9 +142,9 @@ async def test_index_person_returns_true_on_202():
         result = await indexer.index_person({"id": "p1", "full_name": "Bob"})
 
     assert result is True
-    # Verify the document was sent as a list
+    # Verify the document was sent (Typesense upserts single documents)
     call_kwargs = mock_client.post.call_args.kwargs
-    assert call_kwargs["json"] == [{"id": "p1", "full_name": "Bob"}]
+    assert call_kwargs["json"] == {"id": "p1", "full_name": "Bob"}
 
 
 @pytest.mark.asyncio
@@ -167,7 +167,7 @@ async def test_index_many_empty_list_returns_true_without_http():
 async def test_index_many_sends_batch():
     indexer = _make_indexer()
     docs = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
-    resp = _mock_response(202)
+    resp = _mock_response(200)
 
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -178,19 +178,22 @@ async def test_index_many_sends_batch():
         result = await indexer.index_many(docs)
 
     assert result is True
-    assert mock_client.post.call_args.kwargs["json"] == docs
+    # Typesense uses JSONL import, so content is sent as text
+    call_kwargs = mock_client.post.call_args.kwargs
+    assert "content" in call_kwargs
 
 
 @pytest.mark.asyncio
 async def test_search_returns_response_on_200():
     indexer = _make_indexer()
-    expected = {"hits": [{"id": "p1"}], "estimatedTotalHits": 1, "query": "alice"}
-    resp = _mock_response(200, expected)
+    # Typesense wraps hits in {"document": ...}
+    ts_response = {"hits": [{"document": {"id": "p1"}}], "found": 1}
+    resp = _mock_response(200, ts_response)
 
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.post = AsyncMock(return_value=resp)
+    mock_client.get = AsyncMock(return_value=resp)
 
     with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.search("alice")
@@ -207,7 +210,7 @@ async def test_search_returns_empty_fallback_on_non_200():
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.post = AsyncMock(return_value=resp)
+    mock_client.get = AsyncMock(return_value=resp)
 
     with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.search("broken")
@@ -220,21 +223,22 @@ async def test_search_returns_empty_fallback_on_non_200():
 @pytest.mark.asyncio
 async def test_search_by_region_builds_filter():
     indexer = _make_indexer()
-    resp = _mock_response(200, {"hits": [], "estimatedTotalHits": 0, "query": ""})
+    ts_response = {"hits": [], "found": 0}
+    resp = _mock_response(200, ts_response)
 
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.post = AsyncMock(return_value=resp)
+    mock_client.get = AsyncMock(return_value=resp)
 
     with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
         await indexer.search_by_region(city="Dallas", state="TX", country="US")
 
-    body = mock_client.post.call_args.kwargs["json"]
-    assert "filter" in body
-    assert 'city = "Dallas"' in body["filter"]
-    assert 'state_province = "TX"' in body["filter"]
-    assert 'country = "US"' in body["filter"]
+    params = mock_client.get.call_args.kwargs["params"]
+    assert "filter_by" in params
+    assert "city:='Dallas'" in params["filter_by"]
+    assert "state_province:='TX'" in params["filter_by"]
+    assert "country:='US'" in params["filter_by"]
 
 
 @pytest.mark.asyncio
