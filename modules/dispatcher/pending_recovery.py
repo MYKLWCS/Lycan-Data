@@ -13,7 +13,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from shared.constants import CrawlStatus
 from shared.db import AsyncSessionLocal

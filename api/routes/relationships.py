@@ -1,14 +1,12 @@
 """Relationship Expansion API routes — family trees, networks, scoring."""
 
 import logging
-import uuid
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
-from api.serializers import _serialize
 from modules.graph.relationship_expansion import relationship_engine
 from shared.events import event_bus
 

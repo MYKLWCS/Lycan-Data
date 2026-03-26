@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, select, update
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.models.person import Alias, Person
+from shared.models.person import Person
 from shared.models.relationship import Relationship
 from shared.models.relationship_detail import RelationshipDetail
 

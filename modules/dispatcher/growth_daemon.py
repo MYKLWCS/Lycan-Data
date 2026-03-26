@@ -11,7 +11,7 @@ to prevent exponential job explosion.
 import logging
 import time
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from modules.dispatcher.dispatcher import dispatch_job
 from shared.config import settings

@@ -24,7 +24,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -183,7 +182,7 @@ class EntityResolutionPipeline:
         from shared.models.identifier import Identifier
         from shared.models.person import Person
 
-        from modules.enrichers.deduplication import BloomDedup, ExactMatchDeduplicator
+        from modules.enrichers.deduplication import ExactMatchDeduplicator
         from shared.events import event_bus
 
         person = await session.get(Person, person_id)
@@ -290,7 +289,6 @@ class EntityResolutionPipeline:
         from modules.enrichers.deduplication import AsyncMergeExecutor
         from modules.enrichers.golden_record import build_golden_record_from_cluster
         from modules.enrichers.graph_dedup import (
-            GraphDedup,
             build_graph_from_dedup_reviews,
         )
 

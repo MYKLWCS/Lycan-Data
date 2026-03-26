@@ -8,7 +8,7 @@ only people matching ALL specified criteria are returned.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 from shared.models.person import Person

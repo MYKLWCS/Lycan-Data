@@ -22,12 +22,11 @@ Every merged field carries provenance metadata:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
 
-from sqlalchemy import func, select, text as sa_text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)

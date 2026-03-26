@@ -2,7 +2,6 @@
 
 import logging
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -11,9 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import DbDep
-from api.serializers import _serialize
 from modules.builder.discovery_engine import people_builder
-from shared.db import AsyncSessionLocal
 from shared.events import event_bus
 from shared.models.builder_job import BuilderJob, BuilderJobPerson
 from shared.models.person import Person
@@ -76,7 +73,6 @@ async def start_discovery(req: DiscoverRequest):
 @router.get("/{job_id}/progress")
 async def job_progress(job_id: str):
     """SSE stream of progress events for a builder job."""
-    import asyncio
     import json
 
     async def event_stream():

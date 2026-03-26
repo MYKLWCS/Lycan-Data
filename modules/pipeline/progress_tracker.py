@@ -8,7 +8,7 @@ ProgressAggregator  — stateful: processes events, tracks scraper statuses
 from datetime import datetime
 from typing import Optional
 
-from shared.schemas.progress import EventType, Phase, ProgressEvent, ProgressState
+from shared.schemas.progress import EventType, Phase, ProgressState
 
 # Phase boundary definitions: {phase: (start_pct, end_pct)}
 PHASE_RANGES: dict[str, tuple[float, float]] = {
