@@ -16,6 +16,7 @@ from api.routes import (
     alerts,
     audit,
     behavioural,
+    builder,
     compliance,
     crawls,
     dedup,
@@ -28,6 +29,7 @@ from api.routes import (
     marketing,
     patterns,
     persons,
+    relationships,
     search,
     search_query,
     system,
@@ -129,6 +131,12 @@ async def ui_discovery():
     return FileResponse("templates/discovery.html")
 
 
+@app.get("/ui/relationships", include_in_schema=False)
+async def ui_relationships():
+    """Serve the Interactive Relationship Graph page."""
+    return FileResponse("templates/relationship_graph.html")
+
+
 @app.get("/ui/{path:path}", include_in_schema=False)
 async def ui_redirect(path: str):
     """Redirect old /ui/* routes to the SPA hash router."""
@@ -159,3 +167,5 @@ app.include_router(alerts.router, prefix="/alerts", tags=["alerts"], dependencie
 app.include_router(compliance.router, prefix="/compliance", tags=["compliance"], dependencies=_auth)
 app.include_router(export.router, prefix="/export", tags=["export"], dependencies=_auth)
 app.include_router(discovery.router, prefix="/discovery", tags=["discovery"], dependencies=_auth)
+app.include_router(builder.router, prefix="/builder", tags=["builder"], dependencies=_auth)
+app.include_router(relationships.router, prefix="/relationships", tags=["relationships"], dependencies=_auth)
