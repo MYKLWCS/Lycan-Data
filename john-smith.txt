@@ -3,7 +3,6 @@ https://allmylinks.com/john-smith
 https://aniworld.to/user/profil/john-smith
 https://discussions.apple.com/profile/john-smith
 https://forum.arduino.cc/u/john-smith/summary
-https://www.artstation.com/john-smith
 https://www.bandcamp.com/john-smith
 https://www.behance.net/john-smith
 https://bitbucket.org/john-smith/
@@ -21,6 +20,7 @@ https://www.colourlovers.com/lover/john-smith
 https://www.coroflot.com/john-smith
 https://dev.to/john-smith
 https://www.dailymotion.com/john-smith
+https://www.discogs.com/user/john-smith
 https://discord.com
 https://www.duolingo.com/profile/john-smith
 https://forums.envato.com/u/john-smith
@@ -34,7 +34,6 @@ https://warframe.market/profile/john-smith
 https://gitlab.com/john-smith
 https://gitee.com/john-smith
 https://www.goodreads.com/john-smith
-https://news.ycombinator.com/user?id=john-smith
 https://hackerone.com/john-smith
 https://hive.blog/@john-smith
 https://houzz.com/user/john-smith
@@ -47,6 +46,7 @@ https://john-smith.itch.io/
 https://laracasts.com/@john-smith
 https://launchpad.net/~john-smith
 https://lichess.org/@/john-smith
+https://john-smith.livejournal.com
 https://medium.com/@john-smith
 https://www.memrise.com/user/john-smith/
 https://www.mixcloud.com/john-smith/
@@ -57,11 +57,13 @@ https://blog.naver.com/john-smith
 https://www.nintendolife.com/users/john-smith
 https://observablehq.com/@john-smith
 https://opencollective.com/john-smith
+https://opengameart.org/users/john-smith
 https://pastebin.com/u/john-smith
 https://www.patreon.com/john-smith
 https://www.hotukdeals.com/profile/john-smith
 https://www.mydealz.de/profile/john-smith
 https://nl.pepper.com/profile/john-smith
+https://www.pinkbike.com/u/john-smith/
 https://pokemonshowdown.com/users/john-smith
 http://promodj.com/john-smith
 https://www.redbubble.com/people/john-smith
@@ -70,7 +72,6 @@ https://apps.runescape.com/runemetrics/app/overview/player/john-smith
 https://scratch.mit.edu/users/john-smith
 https://sketchfab.com/john-smith
 https://john-smith.slack.com
-https://www.slant.co/users/john-smith
 https://slides.com/john-smith
 https://robertsspaceindustries.com/citizens/john-smith
 https://steamcommunity.com/id/john-smith/
@@ -107,4 +108,4 @@ https://sessionize.com/john-smith
 https://john-smith.tumblr.com/
 https://write.as/john-smith
 https://platzi.com/p/john-smith/
-Total Websites Username Detected On : 109
+Total Websites Username Detected On : 110

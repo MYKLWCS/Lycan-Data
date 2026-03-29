@@ -23,7 +23,6 @@ https://www.cgtrader.com/Test
 https://Test.carbonmade.com
 https://www.championat.com/user/Test
 https://www.chess.com/member/Test
-https://community.cloudflare.com/u/Test
 https://www.codecademy.com/profiles/Test
 https://codeforces.com/profile/Test
 https://profile.codersrank.io/user/Test/
@@ -67,7 +66,6 @@ https://www.grailed.com/Test
 https://forum.hackthebox.com/u/Test
 https://hackaday.io/Test
 https://hackerearth.com/@Test
-https://news.ycombinator.com/user?id=Test
 https://hackerone.com/Test
 https://hackmd.io/@Test
 https://hive.blog/@Test
@@ -140,8 +138,9 @@ https://swapd.co/u/Test
 https://scratch.mit.edu/users/Test
 https://www.shitpostbot.com/user/Test
 https://Test.slack.com
-https://www.slant.co/users/Test
+https://soylentnews.org/~Test
 https://speakerdeck.com/Test
+https://forum.spells8.com/u/Test
 https://robertsspaceindustries.com/citizens/Test
 https://status.cafe/users/Test
 https://steamcommunity.com/groups/Test
@@ -172,18 +171,17 @@ https://Test.webnode.cz/
 https://Test.weebly.com/
 http://www.wikidot.com/user:info/Test
 https://en.wikipedia.org/wiki/Special:CentralAuth/Test?uselang=qqx
-https://community.wolfram.com/web/Test/home
 https://Test.wordpress.com/
 https://www.wordnik.com/users/Test
 https://www.wykop.pl/ludzie/Test
 https://xboxgamertag.com/search/Test
+https://www.younow.com/Test/
 https://www.youtube.com/@Test
 https://akniga.org/profile/Test
 https://www.couchsurfing.com/people/Test
 https://d3.ru/user/Test/posts
 https://www.dailykos.com/user/Test
 http://dating.ru/Test
-https://devrant.com/users/Test
 https://www.drive2.ru/users/Test
 https://community.eintracht.de/fans/Test
 https://www.fixya.com/users/Test
@@ -214,6 +212,5 @@ https://sessionize.com/Test
 https://social.tchncs.de/@Test
 https://www.threads.net/@Test
 https://Test.tumblr.com/
-https://write.as/Test
 https://wowhead.com/user=Test
-Total Websites Username Detected On : 218
+Total Websites Username Detected On : 215
