@@ -76,6 +76,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         _log.warning("Typesense setup skipped (not available)")
         pass
+    # Verify socksio for Tor proxy support
+    try:
+        import socksio  # noqa: F401
+    except ImportError:
+        _log.critical("socksio not installed — Tor crawlers will fail. Install: pip install httpx[socks]")
+
+    # Warn if secret_key is default in non-dev environment
+    import os
+    from shared.config import settings
+    if settings.secret_key == "changeme-32-chars-minimum-please" and os.environ.get("ENVIRONMENT") != "dev":
+        _log.warning("SECRET_KEY is still the default — change it for production")
+
     # Initialize rate limiter and circuit breaker with shared Redis client
     try:
         from shared.circuit_breaker import init_circuit_breaker

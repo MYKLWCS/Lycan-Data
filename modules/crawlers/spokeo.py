@@ -15,10 +15,11 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
-_FLARESOLVERR_URL = "http://localhost:8191/v1"
+_FLARESOLVERR_URL = settings.flaresolverr_url
 
 
 @register("spokeo")

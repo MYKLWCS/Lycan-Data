@@ -5,14 +5,20 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Database
-    database_url: str = "postgresql+asyncpg://lycan:lycan@localhost:5432/lycan"
-    database_url_sync: str = "postgresql://lycan:lycan@localhost:5432/lycan"
+    database_url: str = "postgresql+asyncpg://lycan:lycan@postgres:5432/lycan"
+    database_url_sync: str = "postgresql://lycan:lycan@postgres:5432/lycan"
 
     # Dragonfly / Redis
-    dragonfly_url: str = "redis://localhost:6379/0"
+    dragonfly_url: str = "redis://garnet:6379/0"
 
     # Typesense (replaced MeiliSearch for licensing compliance)
-    typesense_url: str = "http://localhost:8108"
+    typesense_url: str = "http://typesense:8108"
+
+    # FlareSolverr
+    flaresolverr_url: str = "http://flaresolverr:8191/v1"
+
+    # SpiderFoot
+    spiderfoot_url: str = ""
     typesense_api_key: str = "changeme"
 
     # CORS

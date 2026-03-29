@@ -26,6 +26,7 @@ from datetime import datetime
 import httpx
 
 from modules.discovery.base import BaseDiscoveryTool, DiscoveryHit
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -39,17 +40,26 @@ def _http() -> httpx.AsyncClient:
 # ── SpiderFoot ────────────────────────────────────────────────────────────────
 
 class SpiderFootTool(BaseDiscoveryTool):
-    """Calls a running SpiderFoot REST server (default: http://localhost:5001)."""
+    """Calls a running SpiderFoot REST server (configured via settings.spiderfoot_url)."""
 
     tool_name = "SpiderFoot"
     timeout = 300
+    _available: bool = True
 
-    def __init__(self, base_url: str = "http://localhost:5001") -> None:
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, base_url: str = "") -> None:
+        url = base_url or settings.spiderfoot_url
+        if not url:
+            logger.warning("SpiderFoot URL not configured (spiderfoot_url is empty) — tool disabled")
+            self._available = False
+            self.base_url = ""
+        else:
+            self.base_url = url.rstrip("/")
 
     async def run(self, query: str) -> list[DiscoveryHit]:
         import asyncio
         hits: list[DiscoveryHit] = []
+        if not self._available:
+            return hits
         try:
             async with _http() as client:
                 scan_name = f"lycan_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"

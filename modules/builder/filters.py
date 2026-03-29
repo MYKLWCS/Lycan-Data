@@ -49,9 +49,8 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
     # Property value range
     prop_range = criteria.get("property_value_range")
     if prop_range:
-        # Property value is on the Person model as estimated_net_worth or property-level
-        # For now we use property_count as proxy
-        pass  # Detailed property value filtering requires join — handled at DB level
+        # TODO: implement when table available
+        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "property_value_range")
 
     # Has vehicle
     if criteria.get("has_vehicle") is True and person.vehicle_count < 1:
@@ -60,7 +59,8 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
     # Vehicle value minimum
     vehicle_min = criteria.get("vehicle_value_min")
     if vehicle_min is not None:
-        pass  # Requires vehicle join — builder handles at DB level
+        # TODO: implement when table available
+        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "vehicle_value_min")
 
     # Risk tier
     risk_tier = criteria.get("risk_tier")
@@ -88,8 +88,8 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
     # Education level
     edu_level = criteria.get("education_level")
     if edu_level:
-        # Education is in a separate table; this is a soft filter
-        pass
+        # TODO: implement when table available
+        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "education_level")
 
     # Marital status
     marital = criteria.get("marital_status")
@@ -99,12 +99,13 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
 
     # Has criminal record
     if criteria.get("has_criminal_record") is True:
-        # Check via meta or criminal_records relationship
-        pass  # Requires join
+        # TODO: implement when table available
+        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "has_criminal_record")
 
     # Has bankruptcy
     if criteria.get("has_bankruptcy") is True:
-        pass  # Requires credit profile join
+        # TODO: implement when table available
+        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "has_bankruptcy")
 
     # Tags
     tags = criteria.get("tags")

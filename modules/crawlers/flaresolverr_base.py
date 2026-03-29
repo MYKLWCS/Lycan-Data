@@ -21,10 +21,11 @@ from typing import Any
 import httpx
 
 from modules.crawlers.curl_base import CurlCrawler
+from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
-_FS_URL = "http://localhost:8191/v1"
+_FS_URL = settings.flaresolverr_url
 _FS_TIMEOUT = 60
 _FS_NEGATIVE_TTL = 60  # seconds before re-probing a down sidecar
 
@@ -46,7 +47,8 @@ class FlareSolverrCrawler(CurlCrawler):
             return False  # negative: within TTL
         try:
             async with httpx.AsyncClient(timeout=5) as client:
-                resp = await client.get("http://localhost:8191/health")
+                _health_url = settings.flaresolverr_url.rsplit("/v1", 1)[0] + "/health"
+                resp = await client.get(_health_url)
                 cls._fs_healthy = resp.status_code == 200
         except Exception:
             cls._fs_healthy = False

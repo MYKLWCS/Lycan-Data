@@ -55,7 +55,7 @@ async def _check_sherlock_installed() -> bool:
 
 
 @register("username_sherlock")
-class UsernameSherockCrawler(BaseCrawler):
+class UsernameSherlockCrawler(BaseCrawler):
     """
     Wraps the Sherlock CLI to search 300+ sites for a given username.
 

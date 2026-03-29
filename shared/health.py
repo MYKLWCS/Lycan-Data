@@ -11,13 +11,16 @@ import logging
 
 import httpx
 
+from shared.config import settings
+
 logger = logging.getLogger(__name__)
 
 
 async def _check_flaresolverr() -> bool:
     try:
+        _health_url = settings.flaresolverr_url.rsplit("/v1", 1)[0] + "/health"
         async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.get("http://localhost:8191/health")
+            r = await c.get(_health_url)
             return r.status_code == 200
     except Exception:
         return False
