@@ -241,19 +241,19 @@ class TestEnrichPerson:
         vessel_crawler.scrape = AsyncMock(return_value=vessel_result)
 
         with (
-            patch("modules.crawlers.zillow_deep.ZillowDeepCrawler", return_value=mock_crawler),
-            patch("modules.crawlers.redfin_deep.RedfinDeepCrawler", return_value=mock_crawler),
-            patch("modules.crawlers.deed_recorder.DeedRecorderCrawler", return_value=mock_crawler),
+            patch("modules.crawlers.property.zillow_deep.ZillowDeepCrawler", return_value=mock_crawler),
+            patch("modules.crawlers.property.redfin_deep.RedfinDeepCrawler", return_value=mock_crawler),
+            patch("modules.crawlers.property.deed_recorder.DeedRecorderCrawler", return_value=mock_crawler),
             patch(
-                "modules.crawlers.county_assessor_multi.CountyAssessorMultiCrawler",
+                "modules.crawlers.property.county_assessor_multi.CountyAssessorMultiCrawler",
                 return_value=mock_crawler,
             ),
             patch(
-                "modules.crawlers.faa_aircraft_registry.FaaAircraftRegistryCrawler",
+                "modules.crawlers.transport.faa_aircraft_registry.FaaAircraftRegistryCrawler",
                 return_value=faa_crawler,
             ),
             patch(
-                "modules.crawlers.marine_vessel.MarineVesselCrawler",
+                "modules.crawlers.transport.marine_vessel.MarineVesselCrawler",
                 return_value=vessel_crawler,
             ),
         ):
@@ -290,27 +290,27 @@ class TestEnrichPerson:
 
         with (
             patch(
-                "modules.crawlers.zillow_deep.ZillowDeepCrawler",
+                "modules.crawlers.property.zillow_deep.ZillowDeepCrawler",
                 return_value=MagicMock(scrape=AsyncMock(return_value=crawler_result)),
             ),
             patch(
-                "modules.crawlers.redfin_deep.RedfinDeepCrawler",
+                "modules.crawlers.property.redfin_deep.RedfinDeepCrawler",
                 return_value=MagicMock(scrape=AsyncMock(return_value=no_result)),
             ),
             patch(
-                "modules.crawlers.deed_recorder.DeedRecorderCrawler",
+                "modules.crawlers.property.deed_recorder.DeedRecorderCrawler",
                 return_value=MagicMock(scrape=AsyncMock(return_value=no_result)),
             ),
             patch(
-                "modules.crawlers.county_assessor_multi.CountyAssessorMultiCrawler",
+                "modules.crawlers.property.county_assessor_multi.CountyAssessorMultiCrawler",
                 return_value=MagicMock(scrape=AsyncMock(return_value=no_result)),
             ),
             patch(
-                "modules.crawlers.faa_aircraft_registry.FaaAircraftRegistryCrawler",
+                "modules.crawlers.transport.faa_aircraft_registry.FaaAircraftRegistryCrawler",
                 return_value=MagicMock(scrape=AsyncMock(return_value=no_result)),
             ),
             patch(
-                "modules.crawlers.marine_vessel.MarineVesselCrawler",
+                "modules.crawlers.transport.marine_vessel.MarineVesselCrawler",
                 return_value=MagicMock(scrape=AsyncMock(return_value=no_result)),
             ),
         ):
@@ -335,27 +335,27 @@ class TestEnrichPerson:
 
         with (
             patch(
-                "modules.crawlers.zillow_deep.ZillowDeepCrawler",
+                "modules.crawlers.property.zillow_deep.ZillowDeepCrawler",
                 return_value=boom,
             ),
             patch(
-                "modules.crawlers.redfin_deep.RedfinDeepCrawler",
+                "modules.crawlers.property.redfin_deep.RedfinDeepCrawler",
                 return_value=boom,
             ),
             patch(
-                "modules.crawlers.deed_recorder.DeedRecorderCrawler",
+                "modules.crawlers.property.deed_recorder.DeedRecorderCrawler",
                 return_value=boom,
             ),
             patch(
-                "modules.crawlers.county_assessor_multi.CountyAssessorMultiCrawler",
+                "modules.crawlers.property.county_assessor_multi.CountyAssessorMultiCrawler",
                 return_value=boom,
             ),
             patch(
-                "modules.crawlers.faa_aircraft_registry.FaaAircraftRegistryCrawler",
+                "modules.crawlers.transport.faa_aircraft_registry.FaaAircraftRegistryCrawler",
                 return_value=boom,
             ),
             patch(
-                "modules.crawlers.marine_vessel.MarineVesselCrawler",
+                "modules.crawlers.transport.marine_vessel.MarineVesselCrawler",
                 return_value=boom,
             ),
         ):
@@ -380,19 +380,19 @@ class TestEnrichPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=no_result))
 
         with (
-            patch("modules.crawlers.zillow_deep.ZillowDeepCrawler", return_value=crawler),
-            patch("modules.crawlers.redfin_deep.RedfinDeepCrawler", return_value=crawler),
-            patch("modules.crawlers.deed_recorder.DeedRecorderCrawler", return_value=crawler),
+            patch("modules.crawlers.property.zillow_deep.ZillowDeepCrawler", return_value=crawler),
+            patch("modules.crawlers.property.redfin_deep.RedfinDeepCrawler", return_value=crawler),
+            patch("modules.crawlers.property.deed_recorder.DeedRecorderCrawler", return_value=crawler),
             patch(
-                "modules.crawlers.county_assessor_multi.CountyAssessorMultiCrawler",
+                "modules.crawlers.property.county_assessor_multi.CountyAssessorMultiCrawler",
                 return_value=crawler,
             ),
             patch(
-                "modules.crawlers.faa_aircraft_registry.FaaAircraftRegistryCrawler",
+                "modules.crawlers.transport.faa_aircraft_registry.FaaAircraftRegistryCrawler",
                 return_value=crawler,
             ),
             patch(
-                "modules.crawlers.marine_vessel.MarineVesselCrawler",
+                "modules.crawlers.transport.marine_vessel.MarineVesselCrawler",
                 return_value=crawler,
             ),
         ):

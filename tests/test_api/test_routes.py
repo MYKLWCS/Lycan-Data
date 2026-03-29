@@ -630,9 +630,8 @@ class TestRootRoutes:
         r = client.get("/")
         assert r.status_code == 200
 
-    def test_ui_redirect(self):
-        """GET /ui/* redirects to SPA hash router."""
+    def test_ui_routes_removed(self):
+        """GET /ui/* returns 404 — server-rendered pages consolidated into SPA."""
         client = TestClient(app, raise_server_exceptions=False, follow_redirects=False)
         r = client.get("/ui/persons")
-        # Either a 307/308 redirect or a 200 if follow_redirects kicks in
-        assert r.status_code in (200, 307, 308)
+        assert r.status_code == 404

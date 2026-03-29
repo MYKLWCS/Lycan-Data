@@ -202,9 +202,9 @@ class TestCheckPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=no_result))
 
         with (
-            patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
+            patch("modules.crawlers.pep.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
             patch(
-                "modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler",
+                "modules.crawlers.pep.world_check_mirror.WorldCheckMirrorCrawler",
                 return_value=crawler,
             ),
         ):
@@ -232,9 +232,9 @@ class TestCheckPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=found_result))
 
         with (
-            patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
+            patch("modules.crawlers.pep.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
             patch(
-                "modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler",
+                "modules.crawlers.pep.world_check_mirror.WorldCheckMirrorCrawler",
                 return_value=crawler,
             ),
         ):
@@ -261,9 +261,9 @@ class TestCheckPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=found_result))
 
         with (
-            patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
+            patch("modules.crawlers.pep.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
             patch(
-                "modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler",
+                "modules.crawlers.pep.world_check_mirror.WorldCheckMirrorCrawler",
                 return_value=crawler,
             ),
         ):
@@ -281,8 +281,8 @@ class TestCheckPerson:
         boom = MagicMock(scrape=AsyncMock(side_effect=RuntimeError("crawl error")))
 
         with (
-            patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=boom),
-            patch("modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler", return_value=boom),
+            patch("modules.crawlers.pep.open_pep_search.OpenPepSearchCrawler", return_value=boom),
+            patch("modules.crawlers.pep.world_check_mirror.WorldCheckMirrorCrawler", return_value=boom),
         ):
             await enricher.check_person(person.id, session)
 
@@ -301,9 +301,9 @@ class TestCheckPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=no_result))
 
         with (
-            patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
+            patch("modules.crawlers.pep.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
             patch(
-                "modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler", return_value=crawler
+                "modules.crawlers.pep.world_check_mirror.WorldCheckMirrorCrawler", return_value=crawler
             ),
         ):
             await enricher.check_person(person.id, session)
@@ -327,9 +327,9 @@ class TestCheckPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=found))
 
         with (
-            patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
+            patch("modules.crawlers.pep.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
             patch(
-                "modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler", return_value=crawler
+                "modules.crawlers.pep.world_check_mirror.WorldCheckMirrorCrawler", return_value=crawler
             ),
         ):
             await enricher.check_person(person.id, session)
@@ -351,9 +351,9 @@ class TestCheckPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=found))
 
         with (
-            patch("modules.crawlers.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
+            patch("modules.crawlers.pep.open_pep_search.OpenPepSearchCrawler", return_value=crawler),
             patch(
-                "modules.crawlers.world_check_mirror.WorldCheckMirrorCrawler", return_value=crawler
+                "modules.crawlers.pep.world_check_mirror.WorldCheckMirrorCrawler", return_value=crawler
             ),
         ):
             await enricher.check_person(person.id, session)

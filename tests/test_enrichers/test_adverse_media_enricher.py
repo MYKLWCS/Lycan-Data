@@ -218,7 +218,7 @@ class TestCheckPerson:
         session.execute = AsyncMock(return_value=_scalars_result([]))
 
         with patch(
-            "modules.crawlers.adverse_media_search.AdverseMediaSearchCrawler",
+            "modules.crawlers.media.adverse_media_search.AdverseMediaSearchCrawler",
             return_value=crawler,
         ):
             await enricher.check_person(person.id, session)
@@ -236,7 +236,7 @@ class TestCheckPerson:
         boom = MagicMock(scrape=AsyncMock(side_effect=RuntimeError("crawl error")))
 
         with patch(
-            "modules.crawlers.adverse_media_search.AdverseMediaSearchCrawler",
+            "modules.crawlers.media.adverse_media_search.AdverseMediaSearchCrawler",
             return_value=boom,
         ):
             await enricher.check_person(person.id, session)
@@ -262,7 +262,7 @@ class TestCheckPerson:
         session.execute = AsyncMock(return_value=_scalars_result(all_media))
 
         with patch(
-            "modules.crawlers.adverse_media_search.AdverseMediaSearchCrawler",
+            "modules.crawlers.media.adverse_media_search.AdverseMediaSearchCrawler",
             return_value=MagicMock(scrape=AsyncMock(return_value=crawler_result)),
         ):
             await enricher.check_person(person.id, session)
@@ -287,7 +287,7 @@ class TestCheckPerson:
         session.execute = AsyncMock(return_value=_scalars_result([new_record]))
 
         with patch(
-            "modules.crawlers.adverse_media_search.AdverseMediaSearchCrawler",
+            "modules.crawlers.media.adverse_media_search.AdverseMediaSearchCrawler",
             return_value=MagicMock(scrape=AsyncMock(return_value=crawler_result)),
         ):
             await enricher.check_person(person.id, session)
@@ -312,7 +312,7 @@ class TestCheckPerson:
         session.execute = AsyncMock(return_value=_scalars_result([]))
 
         with patch(
-            "modules.crawlers.adverse_media_search.AdverseMediaSearchCrawler",
+            "modules.crawlers.media.adverse_media_search.AdverseMediaSearchCrawler",
             return_value=MagicMock(scrape=AsyncMock(return_value=crawler_result)),
         ):
             await enricher.check_person(person.id, session)
@@ -336,7 +336,7 @@ class TestCheckPerson:
         session.execute = AsyncMock(return_value=_scalars_result([new_record]))
 
         with patch(
-            "modules.crawlers.adverse_media_search.AdverseMediaSearchCrawler",
+            "modules.crawlers.media.adverse_media_search.AdverseMediaSearchCrawler",
             return_value=MagicMock(scrape=AsyncMock(return_value=crawler_result)),
         ):
             await enricher.check_person(person.id, session)
@@ -355,7 +355,7 @@ class TestCheckPerson:
         crawler = MagicMock(scrape=AsyncMock(return_value=no_result))
 
         with patch(
-            "modules.crawlers.adverse_media_search.AdverseMediaSearchCrawler",
+            "modules.crawlers.media.adverse_media_search.AdverseMediaSearchCrawler",
             return_value=crawler,
         ):
             await enricher.check_person(person.id, session)
