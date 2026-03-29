@@ -32,16 +32,12 @@ from modules.crawlers.public_npi import (
     PublicNPICrawler,
     _parse_providers,
 )
-from modules.crawlers.public_npi import (
-    _split_name as npi_split_name,
-)
 from modules.crawlers.public_nsopw import (
     PublicNSOPWCrawler,
     _parse_offenders,
 )
-from modules.crawlers.public_nsopw import (
-    _split_name as nsopw_split_name,
-)
+from modules.crawlers.utils import split_name as npi_split_name
+nsopw_split_name = npi_split_name
 from modules.crawlers.public_voter import (
     PublicVoterCrawler,
     _parse_voter_response,

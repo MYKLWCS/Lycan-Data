@@ -159,7 +159,7 @@ class TestSanctionsEuCacheHit:
 
         csv_content = "entity_name,country\nEvil Corp,RU\n"
 
-        with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=True):
             with patch(
                 "builtins.open",
                 MagicMock(

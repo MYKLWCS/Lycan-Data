@@ -25,27 +25,17 @@ from modules.crawlers.registry import is_registered
 from modules.crawlers.sanctions_fbi import (
     SanctionsFBICrawler,
 )
-from modules.crawlers.sanctions_fbi import (
-    _name_matches as fbi_name_matches,
-)
+from modules.crawlers.utils import word_overlap as fbi_name_matches
 from modules.crawlers.sanctions_ofac import (
     SanctionsOFACCrawler,
 )
-from modules.crawlers.sanctions_ofac import (
-    _cache_valid as ofac_cache_valid,
-)
-from modules.crawlers.sanctions_ofac import (
-    _name_matches as ofac_name_matches,
-)
+from modules.crawlers.utils import cache_valid as ofac_cache_valid
+from modules.crawlers.utils import word_overlap as ofac_name_matches
 from modules.crawlers.sanctions_un import (
     SanctionsUNCrawler,
 )
-from modules.crawlers.sanctions_un import (
-    _cache_valid as un_cache_valid,
-)
-from modules.crawlers.sanctions_un import (
-    _name_matches as un_name_matches,
-)
+from modules.crawlers.utils import cache_valid as un_cache_valid
+from modules.crawlers.utils import word_overlap as un_name_matches
 
 # ===========================================================================
 # Helper factories
@@ -225,7 +215,7 @@ async def test_ofac_name_found():
 
     # Ensure cache is bypassed
     with (
-        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+        patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=False),
         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
         patch("builtins.open", mock_open()),
     ):
@@ -244,7 +234,7 @@ async def test_ofac_name_not_found():
     mock_resp = _mock_httpx_response(200, SAMPLE_OFAC_CSV)
 
     with (
-        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+        patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=False),
         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
         patch("builtins.open", mock_open()),
     ):
@@ -260,7 +250,7 @@ async def test_ofac_cache_hit_no_http():
     crawler = SanctionsOFACCrawler()
 
     with (
-        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=True),
+        patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=True),
         patch("builtins.open", mock_open(read_data=SAMPLE_OFAC_CSV)),
         patch.object(crawler, "get", new=AsyncMock()) as mock_get,
     ):
@@ -276,7 +266,7 @@ async def test_ofac_http_failure():
     crawler = SanctionsOFACCrawler()
 
     with (
-        patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+        patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=False),
         patch.object(crawler, "get", new=AsyncMock(return_value=None)),
     ):
         result = await crawler.scrape("JOHN SMITH")
@@ -297,7 +287,7 @@ async def test_un_xml_individual_found():
     mock_resp = _mock_httpx_response(200, SAMPLE_UN_XML)
 
     with (
-        patch("modules.crawlers.sanctions_un._cache_valid", return_value=False),
+        patch("modules.crawlers.sanctions_un.cache_valid", return_value=False),
         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
         patch("builtins.open", mock_open()),
     ):
@@ -318,7 +308,7 @@ async def test_un_xml_entity_found():
     mock_resp = _mock_httpx_response(200, SAMPLE_UN_XML)
 
     with (
-        patch("modules.crawlers.sanctions_un._cache_valid", return_value=False),
+        patch("modules.crawlers.sanctions_un.cache_valid", return_value=False),
         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
         patch("builtins.open", mock_open()),
     ):
@@ -336,7 +326,7 @@ async def test_un_name_not_found():
     mock_resp = _mock_httpx_response(200, SAMPLE_UN_XML)
 
     with (
-        patch("modules.crawlers.sanctions_un._cache_valid", return_value=False),
+        patch("modules.crawlers.sanctions_un.cache_valid", return_value=False),
         patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)),
         patch("builtins.open", mock_open()),
     ):

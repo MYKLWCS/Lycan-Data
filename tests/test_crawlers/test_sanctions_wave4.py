@@ -79,7 +79,7 @@ class TestCanadaGetCsvOsError:
         crawler = SanctionsCanadaCrawler()
         csv_text = "LastName,FirstName\nSmith,John\n"
         with (
-            patch("modules.crawlers.sanctions_canada._cache_valid", return_value=True),
+            patch("modules.crawlers.sanctions_canada.cache_valid", return_value=True),
             patch("builtins.open", side_effect=OSError("disk error")),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
@@ -104,7 +104,7 @@ class TestCanadaCacheWriteOsError:
             raise FileNotFoundError("not cached")
 
         with (
-            patch("modules.crawlers.sanctions_canada._cache_valid", return_value=False),
+            patch("modules.crawlers.sanctions_canada.cache_valid", return_value=False),
             patch("builtins.open", side_effect=selective_open),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
@@ -140,7 +140,7 @@ class TestOfacGetCsvOsError:
         crawler = SanctionsOFACCrawler()
         csv_text = "Ent_num,SDN_Name\n1,TEST PERSON\n"
         with (
-            patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=True),
+            patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=True),
             patch("builtins.open", side_effect=OSError("io error")),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
@@ -162,7 +162,7 @@ class TestOfacCacheWriteOsError:
             raise FileNotFoundError("miss")
 
         with (
-            patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False),
+            patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=False),
             patch("builtins.open", side_effect=selective_open),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
@@ -224,7 +224,7 @@ class TestAustraliaGetCsvOsError:
         crawler = SanctionsAustraliaCrawler()
         csv_text = "Name,DOB\nSmith John,1970-01-01\n"
         with (
-            patch("modules.crawlers.sanctions_australia._cache_valid", return_value=True),
+            patch("modules.crawlers.sanctions_australia.cache_valid", return_value=True),
             patch("builtins.open", side_effect=OSError("permission denied")),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):
@@ -267,7 +267,7 @@ class TestEuGetCsvOsError:
         crawler = EUSanctionsCrawler()
         csv_text = "Id;Entity_logical_id;Name_alias_wholename\n1;42;Smith John\n"
         with (
-            patch("modules.crawlers.sanctions_eu._cache_valid", return_value=True),
+            patch("modules.crawlers.sanctions_eu.cache_valid", return_value=True),
             patch("builtins.open", side_effect=OSError("stale fd")),
             patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(text=csv_text))),
         ):

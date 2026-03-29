@@ -18,8 +18,8 @@ from modules.crawlers.gov.fara_scraper import (
     FaraScraperCrawler,
     _parse_html_table,
     _parse_rest_response,
-    _word_overlap,
 )
+from modules.crawlers.utils import word_overlap as _word_overlap
 
 # ---------------------------------------------------------------------------
 # Shared helpers

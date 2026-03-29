@@ -856,7 +856,7 @@ class TestSanctionsEuWave5:
         from modules.crawlers.sanctions_eu import EUSanctionsCrawler as SanctionsEuCrawler
 
         crawler = SanctionsEuCrawler()
-        with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
             with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
                 result = await crawler._get_csv()
         assert result is None
@@ -867,7 +867,7 @@ class TestSanctionsEuWave5:
 
         crawler = SanctionsEuCrawler()
         resp = _mock_resp(status=503, text="Service Unavailable")
-        with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
             with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
                 result = await crawler._get_csv()
         assert result is None

@@ -1577,7 +1577,7 @@ class TestSanctionsEU:
 
         crawler = EUSanctionsCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("Some Name")
         assert result.found is False
         assert result.data.get("error") == "download_failed"
@@ -1592,7 +1592,7 @@ class TestSanctionsEU:
         csv_text += ",E001,,Vladimir,,Putin,Vladimir Putin,,Person\n"
         resp = _mock_resp(200, text=csv_text)
 
-        with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=True):
             with patch("builtins.open", side_effect=OSError("disk error")):
                 with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
                     result = await crawler.scrape("Vladimir Putin")
@@ -1608,7 +1608,7 @@ class TestSanctionsEU:
         csv_text = ",E001,,Igor,,Sechin,Igor Sechin,,Person\n"
         resp = _mock_resp(200, text=csv_text)
 
-        with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
             # open() for writing raises OSError
             with patch("builtins.open", side_effect=OSError("no space")):
                 with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
@@ -1794,7 +1794,7 @@ class TestSanctionsUN:
 
         crawler = SanctionsUNCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            with patch("modules.crawlers.sanctions_un._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_un.cache_valid", return_value=False):
                 result = await crawler.scrape("Vladimir Putin")
         assert result.found is False
         assert "download" in (result.data.get("error") or "").lower() or result.error is not None
@@ -1805,7 +1805,7 @@ class TestSanctionsUN:
         from modules.crawlers.sanctions_un import SanctionsUNCrawler
 
         crawler = SanctionsUNCrawler()
-        with patch("modules.crawlers.sanctions_un._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_un.cache_valid", return_value=True):
             with patch(
                 "builtins.open",
                 MagicMock(
@@ -1826,7 +1826,7 @@ class TestSanctionsUN:
 
         crawler = SanctionsUNCrawler()
         resp = _mock_resp(200, text=self.SAMPLE_XML)
-        with patch("modules.crawlers.sanctions_un._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_un.cache_valid", return_value=True):
             with patch("builtins.open", side_effect=OSError("disk error")):
                 with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
                     result = await crawler.scrape("Vladimir Putin")
@@ -1852,7 +1852,7 @@ class TestSanctionsUN:
                 read=lambda: self.SAMPLE_XML,
             )
 
-        with patch("modules.crawlers.sanctions_un._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_un.cache_valid", return_value=False):
             with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
                 with patch("builtins.open", side_effect=_open_side_effect):
                     result = await crawler.scrape("Vladimir Putin")
@@ -1916,7 +1916,7 @@ class TestSanctionsUK:
 
         crawler = UKSanctionsCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("Igor Sechin")
         assert result.found is False
         assert result.data.get("error") == "download_failed"
@@ -1952,7 +1952,7 @@ class TestSanctionsUK:
         resp.content = csv_data.encode("latin-1")
         resp.text = csv_data
 
-        with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=True):
             with patch("builtins.open", side_effect=OSError("disk error")):
                 with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
                     result = await crawler.scrape("Igor Sechin")
@@ -1988,7 +1988,7 @@ class TestSanctionsUK:
         resp.content = csv_data.encode("latin-1")
         resp.text = csv_data
 
-        with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
             with patch("builtins.open", side_effect=OSError("no space")):
                 with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
                     result = await crawler.scrape("Roman Abramovich")
@@ -2025,7 +2025,7 @@ class TestSanctionsUK:
         resp.content.decode = MagicMock(side_effect=Exception("decode error"))
         resp.text = csv_data
 
-        with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
             with patch("builtins.open", side_effect=OSError("no cache")):
                 with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
                     result = await crawler.scrape("Test Person")

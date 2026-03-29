@@ -19,8 +19,8 @@ import modules.crawlers.court_state  # noqa: F401
 from modules.crawlers.court_courtlistener import (
     CourtListenerCrawler,
     _parse_case_results,
-    _split_name,
 )
+from modules.crawlers.utils import split_name as _split_name
 from modules.crawlers.court_state import (
     CourtStateCrawler,
     _parse_table_rows,

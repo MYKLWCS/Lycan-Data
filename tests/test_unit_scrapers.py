@@ -383,7 +383,7 @@ async def test_ofac_scraper_finds_match_in_csv():
 
     with patch.object(crawler, "get", return_value=mock_response):
         # Bypass cache so the CSV is always fetched
-        with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=False):
             with patch("builtins.open", MagicMock(side_effect=IOError)):
                 # Allow writing cache — redirect to temp file
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
@@ -410,7 +410,7 @@ async def test_ofac_scraper_no_match_returns_not_found():
     mock_response = _make_http_response(_CSV_CONTENT)
 
     with patch.object(crawler, "get", return_value=mock_response):
-        with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=False):
             with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
                 tmp_path = f.name
 
@@ -429,7 +429,7 @@ async def test_ofac_scraper_http_failure_returns_not_found():
     crawler = SanctionsOFACCrawler()
 
     with patch.object(crawler, "get", return_value=None):
-        with patch("modules.crawlers.sanctions_ofac._cache_valid", return_value=False):
+        with patch("modules.crawlers.sanctions_ofac.cache_valid", return_value=False):
             with patch("modules.crawlers.base.settings") as s:
                 s.tor_enabled = False
                 s.proxy_override = ""

@@ -58,7 +58,7 @@ class TestSanctionsAustralia:
         csv = "Name,Type,Country\nVladimir Putin,Individual,Russia\n"
         resp = _mock_resp(200, text=csv)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_australia._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_australia.cache_valid", return_value=False):
                 result = await crawler.scrape("Vladimir Putin")
         assert result.found is True
         assert result.data["match_count"] >= 1
@@ -71,7 +71,7 @@ class TestSanctionsAustralia:
         csv = "Name,Type,Country\nJohn Doe,Individual,USA\n"
         resp = _mock_resp(200, text=csv)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_australia._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_australia.cache_valid", return_value=False):
                 result = await crawler.scrape("Completely Different Person")
         assert result.found is False
 
@@ -81,7 +81,7 @@ class TestSanctionsAustralia:
 
         crawler = SanctionsAustraliaCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            with patch("modules.crawlers.sanctions_australia._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_australia.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
         assert "Failed" in (result.data.get("error") or "")
@@ -93,7 +93,7 @@ class TestSanctionsAustralia:
         crawler = SanctionsAustraliaCrawler()
         resp = _mock_resp(500)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_australia._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_australia.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
 
@@ -105,7 +105,7 @@ class TestSanctionsAustralia:
         cache_file = tmp_path / "aus.csv"
         cache_file.write_text("Name,Type\nAlice Bob,Individual\n", encoding="utf-8-sig")
 
-        with patch("modules.crawlers.sanctions_australia._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_australia.cache_valid", return_value=True):
             with patch("modules.crawlers.sanctions_australia._CACHE_PATH", str(cache_file)):
                 result = await crawler.scrape("Alice Bob")
         assert result.found is True
@@ -118,7 +118,7 @@ class TestSanctionsAustralia:
         csv = "Name,Type\nAlice Smith,Individual\n"
         resp = _mock_resp(200, text=csv)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_australia._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_australia.cache_valid", return_value=False):
                 with patch("builtins.open", side_effect=[OSError("disk full")]):
                     # Even if cache write fails, should return text from HTTP response
                     result = await crawler.scrape("Alice Smith")
@@ -170,7 +170,7 @@ class TestSanctionsAustralia:
         crawler = SanctionsAustraliaCrawler()
         resp = _mock_resp(200, text="Name,Type\n")
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_australia._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_australia.cache_valid", return_value=False):
                 result = await crawler.scrape("anybody")
         assert result.found is False
         assert result.data["match_count"] == 0
@@ -191,7 +191,7 @@ class TestSanctionsCanada:
         csv = "LastName,FirstName,MiddleName,DOB,Aliases\nPutin,Vladimir,,1952-10-07,Putin\n"
         resp = _mock_resp(200, text=csv)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_canada._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_canada.cache_valid", return_value=False):
                 result = await crawler.scrape("Putin")
         assert result.found is True
 
@@ -204,7 +204,7 @@ class TestSanctionsCanada:
         csv = "FullName,Country\nAlice Smith,Canada\n"
         resp = _mock_resp(200, text=csv)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_canada._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_canada.cache_valid", return_value=False):
                 result = await crawler.scrape("Alice Smith")
         assert result.found is True
 
@@ -214,7 +214,7 @@ class TestSanctionsCanada:
 
         crawler = SanctionsCanadaCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            with patch("modules.crawlers.sanctions_canada._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_canada.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
         assert "Canada" in (result.data.get("error") or "")
@@ -226,7 +226,7 @@ class TestSanctionsCanada:
         crawler = SanctionsCanadaCrawler()
         resp = _mock_resp(503)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_canada._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_canada.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
 
@@ -238,7 +238,7 @@ class TestSanctionsCanada:
         cache_file = tmp_path / "canada.csv"
         # Single-word query "Smith" matches LastName column at score 1.0 (>= 0.7 threshold)
         cache_file.write_text("LastName,FirstName\nSmith,John\n", encoding="utf-8-sig")
-        with patch("modules.crawlers.sanctions_canada._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_canada.cache_valid", return_value=True):
             with patch("modules.crawlers.sanctions_canada._CACHE_PATH", str(cache_file)):
                 result = await crawler.scrape("Smith")
         assert result.found is True
@@ -251,7 +251,7 @@ class TestSanctionsCanada:
         csv = "LastName,FirstName\nPutin,Vladimir\n"
         resp = _mock_resp(200, text=csv)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_canada._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_canada.cache_valid", return_value=False):
                 result = await crawler.scrape("Completely Nobody")
         assert result.found is False
 
@@ -288,7 +288,7 @@ class TestSanctionsEU:
         csv_text = f"FileGenerationDate,Entity_LogicalId,Entity_Remark,NameAlias_FirstName,NameAlias_MiddleName,NameAlias_LastName,NameAlias_WholeName,NameAlias_NameLanguage,Entity_SubjectType\n{csv_row}\n"
         resp = _mock_resp(200, text=csv_text)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("Vladimir Putin")
         assert result.found is True
         assert result.data["match_count"] >= 1
@@ -301,7 +301,7 @@ class TestSanctionsEU:
         csv_text = "FileGenerationDate,Entity_LogicalId,Entity_Remark,NameAlias_FirstName,NameAlias_MiddleName,NameAlias_LastName,NameAlias_WholeName,NameAlias_NameLanguage,Entity_SubjectType\n2024-01-01,E001,remark,John,,Doe,John Doe,en,person\n"
         resp = _mock_resp(200, text=csv_text)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("Completely Different")
         assert result.found is False
 
@@ -311,7 +311,7 @@ class TestSanctionsEU:
 
         crawler = EUSanctionsCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
         assert result.data.get("error") == "download_failed"
@@ -323,7 +323,7 @@ class TestSanctionsEU:
         crawler = EUSanctionsCrawler()
         resp = _mock_resp(403)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
 
@@ -336,7 +336,7 @@ class TestSanctionsEU:
         csv_text = "col1,col2,col3\nval1,val2,val3\n"
         resp = _mock_resp(200, text=csv_text)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("val1")
         assert result.found is False
 
@@ -350,7 +350,7 @@ class TestSanctionsEU:
         csv_text += row + "\n" + row + "\n"  # duplicate rows same entity_id
         resp = _mock_resp(200, text=csv_text)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("Vladimir Putin")
         assert result.data["match_count"] == 1
 
@@ -372,7 +372,7 @@ class TestSanctionsEU:
         )
         resp = _mock_resp(200, text=header + rows)
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_eu._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_eu.cache_valid", return_value=False):
                 result = await crawler.scrape("John Smith")
         assert len(result.data["matches"]) <= 50
 
@@ -528,7 +528,7 @@ class TestSanctionsUK:
         resp.content = csv.encode("latin-1", errors="replace")
         resp.text = csv
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("Igor Sechin")
         assert result.found is True
 
@@ -563,7 +563,7 @@ class TestSanctionsUK:
         resp.content = csv.encode("latin-1")
         resp.text = csv
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("Completely Nobody")
         assert result.found is False
 
@@ -573,7 +573,7 @@ class TestSanctionsUK:
 
         crawler = UKSanctionsCrawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
         assert result.data.get("error") == "download_failed"
@@ -586,7 +586,7 @@ class TestSanctionsUK:
         resp = MagicMock()
         resp.status_code = 500
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("test")
         assert result.found is False
 
@@ -600,7 +600,7 @@ class TestSanctionsUK:
         )
         cache_file = tmp_path / "uk.csv"
         cache_file.write_text(csv, encoding="latin-1")
-        with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=True):
+        with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=True):
             with patch("modules.crawlers.sanctions_uk._CACHE_PATH", str(cache_file)):
                 result = await crawler.scrape("John Smith")
         assert result.found is True
@@ -617,7 +617,7 @@ class TestSanctionsUK:
         resp.content = (header + rows).encode("latin-1")
         resp.text = header + rows
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("John Smith")
         assert len(result.data["matches"]) <= 50
 
@@ -639,7 +639,7 @@ class TestSanctionsUK:
         resp.content = csv.encode("latin-1")
         resp.text = csv
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("Acme Corp")
         assert result.found is True
 
@@ -660,7 +660,7 @@ class TestSanctionsUK:
         resp.content = csv.encode("latin-1")
         resp.text = csv
         with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            with patch("modules.crawlers.sanctions_uk._cache_valid", return_value=False):
+            with patch("modules.crawlers.sanctions_uk.cache_valid", return_value=False):
                 result = await crawler.scrape("John Smith")
         assert result.data["match_count"] == 1
 

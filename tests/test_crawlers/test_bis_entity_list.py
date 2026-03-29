@@ -19,10 +19,9 @@ import modules.crawlers.gov.bis_entity_list  # noqa: F401 — trigger @register
 from modules.crawlers.gov.bis_entity_list import (
     _CACHE_PATH,
     BisEntityListCrawler,
-    _cache_valid,
     _search_csv,
-    _word_overlap,
 )
+from modules.crawlers.utils import cache_valid as _cache_valid, word_overlap as _word_overlap
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -206,7 +205,7 @@ class TestBisEntityListCrawlerGetCsv:
         crawler = self._crawler()
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=True),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=True),
             patch("builtins.open", mock_open(read_data=_SAMPLE_CSV)),
         ):
             result = await crawler._get_csv()
@@ -219,7 +218,7 @@ class TestBisEntityListCrawlerGetCsv:
 
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=True),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=True),
             patch("builtins.open", side_effect=OSError("disk error")),
             patch.object(
                 crawler,
@@ -239,7 +238,7 @@ class TestBisEntityListCrawlerGetCsv:
         m = mock_open()
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=False),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=False),
             patch.object(
                 crawler,
                 "get",
@@ -267,7 +266,7 @@ class TestBisEntityListCrawlerGetCsv:
 
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=False),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=False),
             patch.object(crawler, "get", side_effect=fake_get),
             patch("builtins.open", mock_open()),
         ):
@@ -290,7 +289,7 @@ class TestBisEntityListCrawlerGetCsv:
 
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=False),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=False),
             patch.object(crawler, "get", side_effect=fake_get),
             patch("builtins.open", mock_open()),
         ):
@@ -313,7 +312,7 @@ class TestBisEntityListCrawlerGetCsv:
 
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=False),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=False),
             patch.object(crawler, "get", side_effect=fake_get),
             patch("builtins.open", mock_open()),
         ):
@@ -327,7 +326,7 @@ class TestBisEntityListCrawlerGetCsv:
 
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=False),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=False),
             patch.object(crawler, "get", new=AsyncMock(return_value=None)),
         ):
             result = await crawler._get_csv()
@@ -347,7 +346,7 @@ class TestBisEntityListCrawlerGetCsv:
 
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=False),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=False),
             patch.object(
                 crawler,
                 "get",
@@ -373,7 +372,7 @@ class TestBisEntityListCrawlerScrape:
         crawler = self._crawler()
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=True),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=True),
             patch("builtins.open", mock_open(read_data=_SAMPLE_CSV)),
         ):
             result = await crawler.scrape("Huawei Technologies Co")
@@ -389,7 +388,7 @@ class TestBisEntityListCrawlerScrape:
         crawler = self._crawler()
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=True),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=True),
             patch("builtins.open", mock_open(read_data=_SAMPLE_CSV)),
         ):
             result = await crawler.scrape("completely unknown xyz entity")
@@ -403,7 +402,7 @@ class TestBisEntityListCrawlerScrape:
         crawler = self._crawler()
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=False),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=False),
             patch.object(crawler, "get", new=AsyncMock(return_value=None)),
         ):
             result = await crawler.scrape("Huawei")
@@ -419,7 +418,7 @@ class TestBisEntityListCrawlerScrape:
         crawler = self._crawler()
         with (
             patch("modules.crawlers.gov.bis_entity_list.os.makedirs"),
-            patch("modules.crawlers.gov.bis_entity_list._cache_valid", return_value=True),
+            patch("modules.crawlers.gov.bis_entity_list.cache_valid", return_value=True),
             patch("builtins.open", mock_open(read_data=_SAMPLE_CSV)),
         ):
             result = await crawler.scrape("  Huawei Technologies Co  ")
