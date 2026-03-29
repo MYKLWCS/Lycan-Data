@@ -360,9 +360,15 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
     from shared.models.breach import BreachRecord
     from shared.models.burner import BurnerAssessment
     from shared.models.darkweb import CryptoWallet, DarkwebMention
+    from shared.models.education import Education
     from shared.models.employment import EmploymentHistory
+    from shared.models.intelligence import EmailIntelligence, PhoneIntelligence
     from shared.models.media import MediaAsset
+    from shared.models.professional import CorporateDirectorship, ProfessionalLicense
+    from shared.models.property import Property
+    from shared.models.vehicle import Aircraft, Vehicle, Vessel
     from shared.models.watchlist import WatchlistMatch
+    from shared.models.wealth import WealthAssessment
 
     async def _fetch(model, order_by=None):
         q = select(model).where(model.person_id == uid)
@@ -395,6 +401,16 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
     else:
         burners = []
     wallets = await _fetch(CryptoWallet)
+    education = await _fetch(Education)
+    properties = await _fetch(Property)
+    vehicles = await _fetch(Vehicle)
+    aircraft = await _fetch(Aircraft)
+    vessels = await _fetch(Vessel)
+    licenses = await _fetch(ProfessionalLicense)
+    directorships = await _fetch(CorporateDirectorship)
+    phone_intel = await _fetch(PhoneIntelligence)
+    email_intel = await _fetch(EmailIntelligence)
+    wealth = await _fetch(WealthAssessment)
     alerts = await _fetch(Alert)
     media = await _fetch(MediaAsset)
 
@@ -479,6 +495,16 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
         "behavioural_profiles": [_model_to_dict(b) for b in behavioural],
         "burner_assessments": [_model_to_dict(b) for b in burners],
         "crypto_wallets": [_model_to_dict(w) for w in wallets],
+        "education_history": [_model_to_dict(e) for e in education],
+        "properties": [_model_to_dict(p) for p in properties],
+        "vehicles": [_model_to_dict(v) for v in vehicles],
+        "aircraft": [_model_to_dict(a) for a in aircraft],
+        "vessels": [_model_to_dict(v) for v in vessels],
+        "professional_licenses": [_model_to_dict(l) for l in licenses],
+        "corporate_directorships": [_model_to_dict(d) for d in directorships],
+        "phone_intelligence": [_model_to_dict(p) for p in phone_intel],
+        "email_intelligence": [_model_to_dict(e) for e in email_intel],
+        "wealth_assessments": [_model_to_dict(w) for w in wealth],
         "alerts": [_model_to_dict(a) for a in alerts],
         "media_assets": [_model_to_dict(m) for m in media],
         "commercial_tags": [
@@ -541,6 +567,16 @@ async def get_report(person_id: str, session: AsyncSession = DbDep):
             "has_sanctions": len(watchlist) > 0,
             "has_darkweb": len(darkweb) > 0,
             "crypto_wallet_count": len(wallets),
+            "education_count": len(education),
+            "property_count": len(properties),
+            "vehicle_count": len(vehicles),
+            "aircraft_count": len(aircraft),
+            "vessel_count": len(vessels),
+            "license_count": len(licenses),
+            "directorship_count": len(directorships),
+            "phone_intel_count": len(phone_intel),
+            "email_intel_count": len(email_intel),
+            "wealth_assessment_count": len(wealth),
             "alert_count": len(alerts),
             "identifier_history_count": len(history),
         },
