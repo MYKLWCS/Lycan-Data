@@ -131,6 +131,9 @@ async def run_discovery(
 
     await session.commit()
 
+    # Auto-queue crawl jobs for discovered URLs that match registered crawlers
+    auto_queued = await _auto_queue_discovered(new_hits, session)
+
     elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
     summary = {
         "query": query,
@@ -139,11 +142,56 @@ async def run_discovery(
         "unique_hits": len(unique_hits),
         "skipped_existing": skipped,
         "written_to_queue": written,
+        "auto_queued_crawls": auto_queued,
         "elapsed_seconds": round(elapsed, 2),
         "tool_stats": tool_stats,
     }
     logger.info("Discovery complete: %s", summary)
     return summary
+
+
+async def _auto_queue_discovered(hits: list[DiscoveryHit], session: AsyncSession) -> int:
+    """Queue crawl jobs for discovered URLs that match registered crawlers."""
+    from modules.crawlers.registry import get_crawler
+    from shared.events import event_bus
+
+    URL_TO_CRAWLER = {
+        "twitter.com": "social_twitter",
+        "x.com": "social_twitter",
+        "linkedin.com": "social_linkedin",
+        "instagram.com": "social_instagram",
+        "facebook.com": "social_facebook",
+        "github.com": "github_profile",
+        "reddit.com": "reddit",
+        "tiktok.com": "social_tiktok",
+    }
+
+    queued = 0
+    for hit in hits:
+        if not hit.url:
+            continue
+        domain = urllib.parse.urlparse(hit.url).netloc.replace("www.", "")
+        crawler_name = None
+        for pattern, name in URL_TO_CRAWLER.items():
+            if pattern in domain:
+                crawler_name = name
+                break
+        if crawler_name and get_crawler(crawler_name):
+            await event_bus.enqueue(
+                {
+                    "platform": crawler_name,
+                    "identifier": hit.url,
+                    "priority": "normal",
+                },
+                priority="normal",
+            )
+            queued += 1
+            logger.info(
+                "Auto-queued %s crawl for discovered URL: %s",
+                crawler_name,
+                hit.url,
+            )
+    return queued
 
 
 async def _existing_source_bases(session: AsyncSession) -> set[str]:

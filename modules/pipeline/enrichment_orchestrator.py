@@ -139,7 +139,16 @@ class EnrichmentOrchestrator:
             )
         )
 
-        # ── Step 10: Enrichment score (spec formula) ───────────────────────
+        # ── Step 10: Cross-person entity resolution ─────────────────────
+        steps.append(
+            await self._run_step(
+                enricher="cross_person_resolution",
+                coro=self._run_cross_person_resolution(person_id, session),
+                person_id=person_id,
+            )
+        )
+
+        # ── Step 11: Enrichment score (spec formula) ───────────────────────
         steps.append(
             await self._run_step(
                 enricher="enrichment_score",
@@ -367,17 +376,23 @@ class EnrichmentOrchestrator:
         pipeline = EntityResolutionPipeline()
         await pipeline.resolve(person_id, session)
 
+    async def _run_cross_person_resolution(self, person_id: str, session: AsyncSession) -> None:
+        from modules.enrichers.entity_resolution import EntityResolutionPipeline
+
+        pipeline = EntityResolutionPipeline()
+        await pipeline.resolve_cross_person(person_id, session)
+
     async def _compute_enrichment_score(self, person_id: str, session: AsyncSession) -> None:
         """
         Compute enrichment_score per spec formula:
           enrichment_score = (
-              identity_completeness * 0.20 +
-              financial_depth * 0.15 +
-              employment_depth * 0.15 +
-              social_coverage * 0.15 +
-              legal_records * 0.15 +
-              property_records * 0.10 +
-              relationship_count * 0.10
+              identity_completeness * 0.25 +
+              social_coverage * 0.30 +
+              employment_depth * 0.12 +
+              financial_depth * 0.10 +
+              legal_records * 0.10 +
+              property_records * 0.07 +
+              relationship_count * 0.06
           )
         Each component is 0-100 based on how many sub-fields are filled.
         """

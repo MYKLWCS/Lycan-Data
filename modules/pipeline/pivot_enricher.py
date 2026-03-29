@@ -217,4 +217,52 @@ async def pivot_from_result(
                     queued_for_this,
                 )
 
+        # Cross-person identifier match detection
+        # Flag potential duplicates when a new identifier matches a different person
+        from shared.models.dedup_review import DedupReview
+
+        new_identifiers = [(t, v) for t, v in pivots if v]
+        for ident_type, ident_value in new_identifiers:
+            norm = ident_value.lower()
+            existing = await session.execute(
+                select(Identifier.person_id).where(
+                    Identifier.normalized_value == norm,
+                    Identifier.type == ident_type,
+                    Identifier.person_id != pid,
+                )
+            )
+            for (other_id,) in existing.all():
+                # Check if review already exists for this pair
+                review_exists = await session.execute(
+                    select(DedupReview.id).where(
+                        (
+                            (DedupReview.person_a_id == pid)
+                            & (DedupReview.person_b_id == other_id)
+                        )
+                        | (
+                            (DedupReview.person_a_id == other_id)
+                            & (DedupReview.person_b_id == pid)
+                        )
+                    ).limit(1)
+                )
+                if not review_exists.scalar_one_or_none():
+                    session.add(
+                        DedupReview(
+                            id=uuid.uuid4(),
+                            person_a_id=pid,
+                            person_b_id=other_id,
+                            similarity_score=0.7,
+                            # TODO: add match_reasons JSONB column to DedupReview
+                            # to store ["shared_identifier", f"{ident_type}:{norm}"]
+                        )
+                    )
+                    logger.info(
+                        "Cross-person match: %s shared %s=%s with %s, flagged for dedup review",
+                        pid,
+                        ident_type,
+                        norm,
+                        other_id,
+                    )
+        await session.commit()
+
     return jobs_queued

@@ -10,7 +10,7 @@ from shared.models.base import Base, DataQualityMixin, TimestampMixin
 class Identifier(Base, TimestampMixin, DataQualityMixin):
     __tablename__ = "identifiers"
     __table_args__ = (
-        UniqueConstraint("type", "normalized_value", name="uq_identifier_type_normalized"),
+        UniqueConstraint("person_id", "type", "normalized_value", name="uq_identifier_person_type_value"),
         Index("ix_identifier_value", "value"),
     )
 
@@ -25,5 +25,6 @@ class Identifier(Base, TimestampMixin, DataQualityMixin):
     confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
     is_primary: Mapped[bool] = mapped_column(default=False, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    already_searched: Mapped[bool] = mapped_column(default=False)
 
     person: Mapped["Person | None"] = relationship(back_populates="identifiers")

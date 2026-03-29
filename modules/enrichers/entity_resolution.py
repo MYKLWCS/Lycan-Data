@@ -141,6 +141,144 @@ class EntityResolutionPipeline:
             confidence_score=step_confidence.candidates_found / 100.0,
         )
 
+    # ── Cross-Person Resolution ──────────────────────────────────────────
+
+    async def resolve_cross_person(
+        self,
+        person_id: str,
+        session: AsyncSession,
+    ) -> ResolutionStepResult:
+        """
+        Find OTHER persons sharing identifiers with this person and compute
+        merge confidence from shared-identifier overlap + fuzzy name similarity.
+
+        Auto-merges at >= 0.85 confidence, queues review at >= 0.60.
+        """
+        from rapidfuzz.fuzz import token_sort_ratio
+
+        from modules.enrichers.deduplication import AsyncMergeExecutor
+        from shared.models.dedup_review import DedupReview
+        from shared.models.identifier import Identifier
+        from shared.models.person import Person
+
+        # 1. Load all identifiers for this person
+        stmt = select(Identifier).where(Identifier.person_id == person_id)
+        result = await session.execute(stmt)
+        my_idents = result.scalars().all()
+
+        if not my_idents:
+            return ResolutionStepResult(
+                step="cross_person_resolution",
+                status="skipped",
+                detail="no identifiers",
+            )
+
+        person = await session.get(Person, person_id)
+        if person is None:
+            return ResolutionStepResult(
+                step="cross_person_resolution",
+                status="skipped",
+                detail="person not found",
+            )
+
+        # 2. For each identifier value, find other persons with the same value
+        candidate_scores: dict[str, float] = {}  # other_person_id -> best score
+        for ident in my_idents:
+            val = ident.normalized_value or ident.value
+            if not val:
+                continue
+            others_stmt = (
+                select(Identifier)
+                .where(
+                    Identifier.person_id != person_id,
+                    Identifier.type == ident.type,
+                    Identifier.normalized_value == val,
+                )
+            )
+            others_result = await session.execute(others_stmt)
+            for other_ident in others_result.scalars().all():
+                oid = str(other_ident.person_id)
+                # Each shared identifier adds 0.30 confidence (capped by name match)
+                candidate_scores[oid] = candidate_scores.get(oid, 0.0) + 0.30
+
+        if not candidate_scores:
+            return ResolutionStepResult(
+                step="cross_person_resolution",
+                status="ok",
+                detail="no cross-person matches",
+            )
+
+        # 3. Load candidate persons and refine with fuzzy name match
+        candidate_ids = list(candidate_scores.keys())
+        persons_stmt = select(Person).where(Person.id.in_(candidate_ids))
+        persons_result = await session.execute(persons_stmt)
+        candidate_persons = {str(p.id): p for p in persons_result.scalars().all()}
+
+        my_name = (person.full_name or "").strip()
+        merges = 0
+        reviews = 0
+        executor = AsyncMergeExecutor()
+
+        for oid, ident_score in candidate_scores.items():
+            other_person = candidate_persons.get(oid)
+            if other_person is None:
+                continue
+
+            other_name = (other_person.full_name or "").strip()
+
+            # Compute fuzzy name similarity (0-1 range)
+            if my_name and other_name:
+                name_sim = token_sort_ratio(my_name, other_name) / 100.0
+            elif not my_name and not other_name:
+                name_sim = 0.5  # both missing — neutral
+            else:
+                name_sim = 0.2  # one missing — low confidence
+
+            # Composite: 60% identifier overlap, 40% name similarity
+            confidence = min(1.0, ident_score * 0.60 + name_sim * 0.40)
+
+            if confidence >= self.AUTO_MERGE_THRESHOLD:
+                try:
+                    plan = {
+                        "canonical_id": person_id,
+                        "duplicate_id": oid,
+                    }
+                    merge_result = await executor.execute(plan, session)
+                    if merge_result.get("merged"):
+                        merges += 1
+                except Exception:
+                    logger.exception(
+                        "Cross-person merge failed: %s -> %s", person_id, oid
+                    )
+            elif confidence >= 0.60:
+                # Queue for manual review if not already queued
+                existing = await session.execute(
+                    select(DedupReview).where(
+                        ((DedupReview.person_a_id == person_id) & (DedupReview.person_b_id == oid))
+                        | ((DedupReview.person_a_id == oid) & (DedupReview.person_b_id == person_id))
+                    )
+                )
+                if existing.scalar_one_or_none() is None:
+                    session.add(
+                        DedupReview(
+                            person_a_id=person_id,
+                            person_b_id=oid,
+                            similarity_score=round(confidence, 4),
+                        )
+                    )
+                    reviews += 1
+
+        if reviews:
+            await session.flush()
+
+        return ResolutionStepResult(
+            step="cross_person_resolution",
+            status="ok",
+            detail=f"{len(candidate_scores)} candidates, {merges} merged, {reviews} queued for review",
+            candidates_found=len(candidate_scores),
+            merges_executed=merges,
+        )
+
     # ── Step runner ──────────────────────────────────────────────────────
 
     async def _run_step(

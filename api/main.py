@@ -3,6 +3,7 @@ import logging
 import pkgutil
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -98,6 +99,49 @@ async def lifespan(app: FastAPI):
         init_circuit_breaker(redis)
     except Exception:
         _log.warning("Rate limiter / circuit breaker init skipped (no Redis)")
+
+    # ── Environment validation ────────────────────────────────────────────────
+    _log.info("Running startup checks...")
+    errors: list[str] = []
+
+    # Check database
+    try:
+        from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
+        engine = create_async_engine(_settings.database_url)
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        await engine.dispose()
+        _log.info("Startup check: Database OK")
+    except Exception as e:
+        errors.append(f"Database: {e}")
+
+    # Check cache
+    try:
+        import redis.asyncio as _aioredis
+        _r = _aioredis.from_url(_settings.cache_url, socket_connect_timeout=3)
+        await _r.ping()
+        await _r.aclose()
+        _log.info("Startup check: Cache OK")
+    except Exception as e:
+        errors.append(f"Cache: {e}")
+
+    # Check Typesense
+    try:
+        async with httpx.AsyncClient(timeout=5) as _hc:
+            _resp = await _hc.get(f"{_settings.typesense_url}/health")
+            if _resp.status_code == 200:
+                _log.info("Startup check: Typesense OK")
+            else:
+                errors.append(f"Typesense unhealthy: {_resp.status_code}")
+    except Exception as e:
+        errors.append(f"Typesense: {e}")
+
+    for err in errors:
+        _log.critical("STARTUP FAILED: %s", err)
+
+    if not errors:
+        _log.info("All startup checks passed")
 
     yield
 

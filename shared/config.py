@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     spiderfoot_url: str = ""
     typesense_api_key: str = "changeme"
 
-    # CORS
+    # CORS origins are browser-side — localhost is correct even in Docker
+    # because users access the app from their browser at localhost
     cors_origins: str = "http://localhost:3000,http://localhost:8000"
 
     # Tor

@@ -12,6 +12,7 @@ from datetime import timezone, datetime
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.crawlers.core.result import CrawlerResult
@@ -82,6 +83,45 @@ _GOVERNMENT_PLATFORMS = {"public_voter", "public_npi", "public_faa"}
 
 # Bankruptcy
 _BANKRUPTCY_PLATFORMS = {"bankruptcy_pacer"}
+
+
+async def _safe_upsert_identifier(
+    session: AsyncSession,
+    person_id: uuid.UUID,
+    id_type: str,
+    raw_value: str,
+    normalized_value: str,
+    *,
+    confidence: float = 1.0,
+    is_primary: bool = False,
+    meta: dict | None = None,
+    source_reliability: float | None = None,
+) -> None:
+    """Insert an Identifier using PostgreSQL ON CONFLICT DO NOTHING.
+
+    Relies on the ``uq_identifier_person_type_value`` unique constraint
+    so that duplicate (person_id, type, normalized_value) tuples are
+    silently skipped instead of raising IntegrityError.
+    """
+    values: dict = {
+        "id": uuid.uuid4(),
+        "person_id": person_id,
+        "type": id_type,
+        "value": raw_value,
+        "normalized_value": normalized_value,
+        "confidence": confidence,
+        "is_primary": is_primary,
+        "meta": meta or {},
+    }
+    if source_reliability is not None:
+        values["source_reliability"] = source_reliability
+
+    stmt = (
+        pg_insert(Identifier)
+        .values(**values)
+        .on_conflict_do_nothing(constraint="uq_identifier_person_type_value")
+    )
+    await session.execute(stmt)
 
 
 async def aggregate_result(
@@ -238,6 +278,7 @@ async def aggregate_result(
 # ---------------------------------------------------------------------------
 
 
+from rapidfuzz import fuzz as _fuzz
 from shared.utils import normalize_name as _normalize_name
 
 
@@ -250,8 +291,10 @@ async def _get_or_create_person(
 
     Resolution order:
       1. person_id provided → look up directly
-      2. full_name match (normalized) on existing record
-      3. Create new Person
+      2. Exact identifier match (email, phone)
+      3. Exact normalized full_name match
+      4. Fuzzy name match (token_sort_ratio >= 90)
+      5. Create new Person
     """
     if person_id:
         try:
@@ -261,18 +304,78 @@ async def _get_or_create_person(
         except (ValueError, Exception):
             pass
 
+    data = result.data or {}
+
+    # Try exact identifier match first (email or phone)
+    email = data.get("email") or (
+        result.identifier if result.identifier and "@" in result.identifier else None
+    )
+    phone = data.get("phone") or (
+        result.identifier if result.identifier and _looks_like_phone_number(result.identifier) else None
+    )
+
+    if email:
+        ident_match = (
+            await session.execute(
+                select(Identifier)
+                .where(
+                    Identifier.type == "email",
+                    Identifier.normalized_value == email.lower().strip(),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if ident_match:
+            p = await session.get(Person, ident_match.person_id)
+            if p:
+                return p
+
+    if phone:
+        import re as _re_phone
+        digits = _re_phone.sub(r"\D", "", phone)
+        normalized_phone = f"+{digits}"
+        ident_match = (
+            await session.execute(
+                select(Identifier)
+                .where(
+                    Identifier.type == "phone",
+                    Identifier.normalized_value == normalized_phone,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if ident_match:
+            p = await session.get(Person, ident_match.person_id)
+            if p:
+                return p
+
     # Try to find by normalized full_name if result carries one
     full_name = (
-        result.data.get("name") or result.data.get("full_name") or result.data.get("display_name")
+        data.get("name") or data.get("full_name") or data.get("display_name")
     )
     if full_name:
         norm = _normalize_name(full_name)
-        # Match on exact normalized name to avoid false-positive merges
+        # Exact normalized name match
         existing = (
             await session.execute(select(Person).where(Person.full_name.ilike(norm)).limit(1))
         ).scalar_one_or_none()
         if existing:
             return existing
+
+        # Fuzzy name match: check recent persons with token_sort_ratio
+        candidates = (
+            await session.execute(
+                select(Person)
+                .where(Person.full_name.isnot(None))
+                .order_by(Person.created_at.desc())
+                .limit(500)
+            )
+        ).scalars().all()
+
+        for candidate in candidates:
+            score = _fuzz.token_sort_ratio(norm, candidate.full_name or "")
+            if score >= 90:
+                return candidate
 
     p = Person(id=uuid.uuid4(), full_name=full_name)
     session.add(p)
@@ -379,16 +482,27 @@ async def _handle_phone_enrichment(
     ).scalar_one_or_none()
 
     if not ident:
-        ident = Identifier(
-            id=uuid.uuid4(),
+        await _safe_upsert_identifier(
+            session,
             person_id=person_id,
-            type=IdentifierType.PHONE.value,
-            value=result.identifier,
+            id_type=IdentifierType.PHONE.value,
+            raw_value=result.identifier,
             normalized_value=result.identifier.strip(),
             confidence=0.9,
         )
-        session.add(ident)
         await session.flush()
+        # Re-fetch the identifier row (may have existed via concurrent insert)
+        ident = (
+            await session.execute(
+                select(Identifier)
+                .where(
+                    Identifier.person_id == person_id,
+                    Identifier.type == IdentifierType.PHONE.value,
+                    Identifier.normalized_value == result.identifier.strip(),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
 
     carrier_name = data.get("carrier_name")
     line_type = data.get("line_type")
@@ -935,16 +1049,14 @@ async def _upsert_phone_identifier(
         existing.meta = {**(existing.meta or {}), f"confirmed_{source_platform}": True}
         return
 
-    ident = Identifier(
-        id=uuid.uuid4(),
+    await _safe_upsert_identifier(
+        session,
         person_id=person_id,
-        type=IdentifierType.PHONE.value,
-        value=phone,
+        id_type=IdentifierType.PHONE.value,
+        raw_value=phone,
         normalized_value=normalized,
         confidence=0.9,
         is_primary=False,
         meta={"confirmed_via": source_platform, f"confirmed_{source_platform}": True},
         source_reliability=0.8,
     )
-    session.add(ident)
-    await session.flush()
