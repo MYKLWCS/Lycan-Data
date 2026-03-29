@@ -4,6 +4,8 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .coverage
+coverage*.json
+coverage*.xml
 htmlcov/
 dist/
 build/
@@ -12,3 +14,8 @@ build/
 venv/
 node_modules/
 .DS_Store
+.mypy_cache/
+.ruff_cache/
+modules.svg
+*_test_files.txt
+audit_report.md

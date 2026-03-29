@@ -19,5 +19,5 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      dragonfly:
+      garnet:
         condition: service_healthy
