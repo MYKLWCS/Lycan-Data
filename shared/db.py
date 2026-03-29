@@ -9,8 +9,8 @@ engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=25,
+    max_overflow=50,
 )
 
 # Use NullPool for tests (set via env var TEST_MODE=true)

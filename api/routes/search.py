@@ -5,12 +5,14 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from api.deps import DbDep
 from modules.crawlers.registry import CRAWLER_REGISTRY
 from modules.dispatcher.dispatcher import dispatch_job
 from shared.constants import SeedType
 from shared.events import event_bus
+from shared.models.address import Address
 from shared.models.identifier import Identifier
 from shared.models.person import Person
 from shared.schemas.progress import EventType
@@ -298,6 +300,12 @@ class CandidatePerson(BaseModel):
     nationality: str | None
     identifier_count: int
     risk_score: float
+    profile_image_url: str | None = None
+    location: str | None = None
+    social_platforms: list[str] = []
+    enrichment_score: float | None = None
+    emails: list[str] = []
+    phones: list[str] = []
 
 
 class SearchResponse(BaseModel):
@@ -322,16 +330,85 @@ class BatchSearchResponse(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
+def _mask_email(email: str) -> str:
+    """Mask email: show first char + '***' + @domain."""
+    if "@" not in email:
+        return "***"
+    local, domain = email.rsplit("@", 1)
+    return f"{local[0]}***@{domain}" if local else f"***@{domain}"
+
+
+def _mask_phone(phone: str) -> str:
+    """Mask phone: show '***-***-' + last 4 digits."""
+    digits = "".join(c for c in phone if c.isdigit())
+    last4 = digits[-4:] if len(digits) >= 4 else digits
+    return f"***-***-{last4}"
+
+
 async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePerson]:
-    """Return all Person records whose full_name matches (case-insensitive)."""
-    result = await session.execute(select(Person).where(Person.full_name.ilike(value.strip())))
+    """Return all Person records whose full_name matches (case-insensitive).
+
+    Eagerly loads identifiers and social profiles. Addresses are fetched
+    separately since Person has no addresses relationship defined.
+    """
+    norm = value.strip()
+    result = await session.execute(
+        select(Person)
+        .options(
+            selectinload(Person.identifiers),
+            selectinload(Person.social_profiles),
+        )
+        .where(Person.full_name.ilike(f"%{norm}%"))
+        .where(Person.merged_into.is_(None))
+        .limit(20)
+    )
     persons = result.scalars().all()
+
+    # Batch-fetch addresses for all matched person IDs
+    person_ids = [p.id for p in persons]
+    address_map: dict[str, Address] = {}
+    if person_ids:
+        addr_result = await session.execute(
+            select(Address)
+            .where(Address.person_id.in_(person_ids))
+            .order_by(Address.is_current.desc())
+        )
+        for addr in addr_result.scalars().all():
+            # Keep only the first (most current) address per person
+            pid_str = str(addr.person_id)
+            if pid_str not in address_map:
+                address_map[pid_str] = addr
+
     candidates = []
     for p in persons:
-        count_result = await session.execute(
-            select(func.count()).select_from(Identifier).where(Identifier.person_id == p.id)
+        ident_count = len(p.identifiers)
+
+        # Location from first address
+        addr = address_map.get(str(p.id))
+        location = None
+        if addr:
+            parts = [part for part in (addr.city, addr.state_province) if part]
+            location = ", ".join(parts) if parts else None
+
+        # Social platforms — unique active platform names
+        social_platforms = sorted(
+            {sp.platform for sp in p.social_profiles if sp.is_active}
         )
-        ident_count = count_result.scalar() or 0
+
+        # Masked emails (max 3)
+        emails = [
+            _mask_email(ident.value)
+            for ident in p.identifiers
+            if ident.type == "email"
+        ][:3]
+
+        # Masked phones (max 2)
+        phones = [
+            _mask_phone(ident.value)
+            for ident in p.identifiers
+            if ident.type == "phone"
+        ][:2]
+
         candidates.append(
             CandidatePerson(
                 person_id=str(p.id),
@@ -340,8 +417,17 @@ async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePe
                 nationality=p.nationality,
                 identifier_count=ident_count,
                 risk_score=p.default_risk_score,
+                profile_image_url=p.profile_image_url,
+                location=location,
+                social_platforms=social_platforms,
+                enrichment_score=p.enrichment_score,
+                emails=emails,
+                phones=phones,
             )
         )
+
+    # Sort by enrichment_score descending (None treated as 0)
+    candidates.sort(key=lambda c: c.enrichment_score or 0.0, reverse=True)
     return candidates
 
 

@@ -7,6 +7,7 @@ linked to the right Person. Handles all result types.
 
 import hashlib
 import logging
+import re
 import uuid
 from datetime import timezone, datetime
 from typing import Any
@@ -434,6 +435,15 @@ async def _upsert_social_profile(
             source_name=result.platform,
             corroboration_count=1,
         )
+        # Capture profile image for Person if available
+        avatar = (
+            data.get("profile_image_url") or data.get("avatar_url")
+            or data.get("profile_photo") or data.get("photo_url")
+        )
+        if avatar and isinstance(avatar, str) and avatar.startswith("http"):
+            person = await session.get(Person, person_id)
+            if person and not person.profile_image_url:
+                person.profile_image_url = avatar
         return existing
 
     profile = SocialProfile(
@@ -464,6 +474,15 @@ async def _upsert_social_profile(
     )
     session.add(profile)
     await session.flush()
+    # Capture profile image for Person if available
+    avatar = (
+        data.get("profile_image_url") or data.get("avatar_url")
+        or data.get("profile_photo") or data.get("photo_url")
+    )
+    if avatar and isinstance(avatar, str) and avatar.startswith("http"):
+        person = await session.get(Person, person_id)
+        if person and not person.profile_image_url:
+            person.profile_image_url = avatar
     return profile
 
 
@@ -725,6 +744,36 @@ async def _handle_people_search(
             corroboration_count=1,
         )
         session.add(addr)
+
+    # Extract phone numbers from people search results
+    for key in ("phone", "phones", "phone_number", "phone_numbers", "related_phones"):
+        phones = data.get(key)
+        if phones:
+            if isinstance(phones, str):
+                phones = [phones]
+            for ph in (phones if isinstance(phones, list) else []):
+                if not isinstance(ph, str):
+                    continue
+                digits = re.sub(r"[^\d]", "", ph)
+                normalized = None
+                if len(digits) == 10:
+                    normalized = f"+1{digits}"
+                elif len(digits) == 11 and digits[0] == "1":
+                    normalized = f"+{digits}"
+                elif len(digits) >= 7:
+                    normalized = f"+{digits}"
+                if normalized:
+                    await _safe_upsert_identifier(session, person_id, "phone", ph, normalized)
+
+    # Extract emails from people search results
+    for key in ("email", "emails", "email_address", "email_addresses"):
+        emails = data.get(key)
+        if emails:
+            if isinstance(emails, str):
+                emails = [emails]
+            for em in (emails if isinstance(emails, list) else []):
+                if isinstance(em, str) and "@" in em:
+                    await _safe_upsert_identifier(session, person_id, "email", em, em.strip().lower())
 
 
 async def _handle_court_records(

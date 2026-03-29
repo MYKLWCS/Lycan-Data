@@ -9,6 +9,7 @@ to prevent exponential job explosion.
 """
 
 import logging
+import os
 import time
 
 from sqlalchemy import select
@@ -23,10 +24,10 @@ from shared.models.identifier import Identifier
 
 logger = logging.getLogger(__name__)
 
-MAX_DEPTH = 3  # max hops from seed
-MAX_FANOUT_PER_PERSON = 20  # max follow-up jobs per person per event
-MAX_DAILY_GROWTH_JOBS = 5000  # hard cap on total growth jobs per day
-COOLDOWN_SECONDS = 60  # min seconds between processing events for same person
+MAX_DEPTH = int(os.environ.get("LYCAN_MAX_SEARCH_DEPTH", "4"))
+MAX_FANOUT_PER_PERSON = int(os.environ.get("LYCAN_MAX_FANOUT", "50"))
+MAX_DAILY_GROWTH_JOBS = int(os.environ.get("LYCAN_MAX_DAILY_GROWTH_JOBS", "5000"))
+COOLDOWN_SECONDS = int(os.environ.get("LYCAN_COOLDOWN_SECONDS", "60"))
 
 # Platform -> which identifier types it can accept
 PLATFORM_ACCEPTS: dict[str, list[str]] = {

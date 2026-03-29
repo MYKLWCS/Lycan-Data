@@ -12,6 +12,7 @@ an asyncio.Semaphore so one slow/failed scraper never blocks the others.
 import asyncio
 import json
 import logging
+import os
 from datetime import timezone, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 RETRY_DELAYS = [30, 120, 300]  # seconds: 30s, 2min, 5min
-CONCURRENCY_PER_WORKER = 10  # max parallel scrapers per dispatcher worker
+CONCURRENCY_PER_WORKER = int(os.environ.get("LYCAN_CONCURRENCY_PER_WORKER", "50"))
 
 
 class CrawlDispatcher:

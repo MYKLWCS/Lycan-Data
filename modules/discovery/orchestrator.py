@@ -203,6 +203,20 @@ async def _auto_queue_discovered(hits: list[DiscoveryHit], session: AsyncSession
                 crawler_name,
                 hit.url,
             )
+        else:
+            # Fallback: queue generic web scraper for unmapped URLs
+            if hit.url and hit.url.startswith("http") and not any(skip in hit.url for skip in [".pdf", ".jpg", ".png", ".mp4"]):
+                await event_bus.enqueue({
+                    "platform": "generic_web_scraper",
+                    "identifier": hit.url,
+                    "person_id": "",
+                    "priority": "low",
+                }, priority="low")
+                queued += 1
+                logger.info(
+                    "Auto-queued generic_web_scraper for unmapped URL: %s",
+                    hit.url,
+                )
     return queued
 
 

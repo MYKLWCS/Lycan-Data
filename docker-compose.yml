@@ -252,7 +252,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.app
-    command: python worker.py --workers 4
+    command: python worker.py --workers 2
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-lycan}
       CACHE_URL: redis://garnet:6379/0
@@ -270,6 +270,7 @@ services:
       TOR3_CONTROL_HOST: tor-3
       TOR3_CONTROL_PORT: "9055"
       FLARESOLVERR_URL: http://flaresolverr:8191
+      LYCAN_CONCURRENCY_PER_WORKER: "50"
       LOG_LEVEL: info
     volumes:
       - .:/app

@@ -27,6 +27,7 @@ class CrawlerCategory(str, Enum):
     GEOSPATIAL = "geospatial"
     CYBER = "cyber"
     MONITORING = "monitoring"
+    OTHER = "other"
 
 
 class RateLimit(BaseModel):
