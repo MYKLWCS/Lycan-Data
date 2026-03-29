@@ -177,10 +177,21 @@ function drawRiskDial(containerId, score, color) {
 }
 
 // ── Fetch helpers ────────────────────────────────────────────────────
+const _apiKey = localStorage.getItem('lycan_api_key') || '';
+function _authHeaders() {
+  const h = {};
+  if (_apiKey) h['Authorization'] = 'Bearer ' + _apiKey;
+  return h;
+}
 async function apiGet(path) {
-  const r = await fetch(path);
+  const r = await fetch(path, { headers: _authHeaders() });
+  if (r.status === 401) { promptApiKey(); throw new Error('Auth required'); }
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   return r.json();
+}
+function promptApiKey() {
+  const key = prompt('Enter API key:');
+  if (key) { localStorage.setItem('lycan_api_key', key); location.reload(); }
 }
 
 // ── Format helpers ───────────────────────────────────────────────────

@@ -38,6 +38,10 @@ async def verify_api_key(
     Returns the validated API key string on success.
     Raises 401 for missing or invalid credentials (HTTP spec: 401 = not authenticated).
     """
+    # Auth disabled — allow all requests (dev/local mode)
+    if not settings.api_auth_enabled:
+        return (credentials.credentials if credentials else "anonymous")
+
     # Missing Authorization header → 401 Unauthorized
     if credentials is None:
         raise HTTPException(
@@ -45,9 +49,6 @@ async def verify_api_key(
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    if not settings.api_auth_enabled:
-        return credentials.credentials
 
     valid = _valid_keys()
     if not valid:

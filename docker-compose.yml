@@ -210,6 +210,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
       SECRET_KEY: ${SECRET_KEY}
       API_KEYS: ${API_KEYS}
+      API_AUTH_ENABLED: ${API_AUTH_ENABLED:-true}
       TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD}
       TOR1_SOCKS: socks5://tor-1:9050
       TOR2_SOCKS: socks5://tor-2:9050
