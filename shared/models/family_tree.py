@@ -21,3 +21,7 @@ class FamilyTreeSnapshot(Base, TimestampMixin):
     source_count: Mapped[int] = mapped_column(Integer, default=0)
     built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     is_stale: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    person: Mapped["Person"] = relationship(
+        "Person", back_populates="family_tree_snapshots", foreign_keys=[root_person_id]
+    )

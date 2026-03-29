@@ -34,3 +34,5 @@ class LocationVisit(Base, TimestampMixin):
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     visit_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="location_visits")

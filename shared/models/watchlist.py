@@ -28,3 +28,5 @@ class WatchlistMatch(Base, TimestampMixin):
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     is_confirmed: Mapped[bool] = mapped_column(default=False, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="watchlist_matches")

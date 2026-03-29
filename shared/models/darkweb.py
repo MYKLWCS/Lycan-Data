@@ -28,6 +28,8 @@ class DarkwebMention(Base, TimestampMixin):
     exposure_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="darkweb_mentions")
+
 
 class CryptoWallet(Base, TimestampMixin):
     __tablename__ = "crypto_wallets"
@@ -45,6 +47,8 @@ class CryptoWallet(Base, TimestampMixin):
     exchange_flags: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     risk_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="crypto_wallets")
 
 
 class CryptoTransaction(Base, TimestampMixin):

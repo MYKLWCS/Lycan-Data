@@ -63,6 +63,8 @@ class PhoneIntelligence(Base, TimestampMixin, DataQualityMixin):
     source_platform: Mapped[str | None] = mapped_column(String(100), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="phone_intelligence")
+
 
 class EmailIntelligence(Base, TimestampMixin, DataQualityMixin):
     """MX validation, breach exposure, deliverability, and fraud signals for an email."""
@@ -112,6 +114,8 @@ class EmailIntelligence(Base, TimestampMixin, DataQualityMixin):
     source_platform: Mapped[str | None] = mapped_column(String(100), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="email_intelligence")
+
 
 class IpIntelligence(Base, TimestampMixin, DataQualityMixin):
     """Geolocation, ASN, proxy/VPN/Tor detection, and threat signals for an IP address."""
@@ -158,3 +162,5 @@ class IpIntelligence(Base, TimestampMixin, DataQualityMixin):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     source_platform: Mapped[str | None] = mapped_column(String(100), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="ip_intelligence")

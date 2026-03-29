@@ -24,6 +24,8 @@ class DataQualityLog(Base, TimestampMixin):
     change_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="data_quality_logs")
+
 
 class FreshnessQueue(Base, TimestampMixin):
     __tablename__ = "freshness_queue"

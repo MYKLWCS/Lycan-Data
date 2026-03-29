@@ -21,6 +21,8 @@ class OptOut(Base, TimestampMixin):
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="opt_outs")
+
     __table_args__ = (
         Index("ix_opt_out_email", "email"),
         Index(

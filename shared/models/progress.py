@@ -25,6 +25,8 @@ class SearchProgress(Base, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="search_progress")
+
     __table_args__ = (
         Index("ix_search_progress_person_status", "person_id", "status"),
         Index("ix_search_progress_session_id", "search_session_id"),

@@ -24,3 +24,5 @@ class EmploymentHistory(Base, TimestampMixin, DataQualityMixin):
     estimated_salary_usd: Mapped[float | None] = mapped_column(nullable=True)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="employment_history")

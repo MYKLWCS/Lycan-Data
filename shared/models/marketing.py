@@ -22,6 +22,8 @@ class MarketingTag(Base, TimestampMixin):
     scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     model_version: Mapped[str] = mapped_column(String(20), default="1.0", nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="marketing_tags")
+
     __table_args__ = (
         UniqueConstraint("person_id", "tag", name="uq_marketing_tag_person_tag"),
         Index("ix_marketing_tag_person_tag", "person_id", "tag"),
@@ -39,6 +41,8 @@ class ConsumerSegment(Base, TimestampMixin):
     score: Mapped[float] = mapped_column(Float, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="consumer_segments")
+
 
 class TicketSize(Base, TimestampMixin):
     __tablename__ = "ticket_sizes"
@@ -52,3 +56,5 @@ class TicketSize(Base, TimestampMixin):
     spend_tier: Mapped[str | None] = mapped_column(String(30), nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="ticket_sizes")

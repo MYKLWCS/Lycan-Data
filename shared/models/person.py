@@ -236,7 +236,7 @@ class Person(Base, TimestampMixin, DataQualityMixin):
         "PropertyMortgage", back_populates="person", cascade="all, delete-orphan"
     )
     family_tree_snapshots: Mapped[list["FamilyTreeSnapshot"]] = relationship(
-        "FamilyTreeSnapshot", back_populates="person"
+        "FamilyTreeSnapshot", back_populates="person", foreign_keys="FamilyTreeSnapshot.root_person_id"
     )
     crawl_jobs: Mapped[list["CrawlJob"]] = relationship(
         "CrawlJob", back_populates="person"

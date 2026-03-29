@@ -30,3 +30,5 @@ class MediaAsset(Base, TimestampMixin):
     exif_data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     location_extracted: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="media_assets")

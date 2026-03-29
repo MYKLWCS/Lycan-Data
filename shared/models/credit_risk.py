@@ -27,3 +27,5 @@ class CreditRiskAssessment(Base, TimestampMixin):
     signal_breakdown: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     assessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     model_version: Mapped[str] = mapped_column(String(20), default="1.0", nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="credit_risk_assessments")

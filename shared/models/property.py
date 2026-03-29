@@ -144,6 +144,7 @@ class PropertyOwnershipHistory(Base, TimestampMixin):
 
     # Relationships
     property: Mapped["Property"] = relationship(back_populates="ownership_history")
+    person: Mapped["Person"] = relationship("Person", back_populates="property_ownership_history")
 
 
 class PropertyValuation(Base, TimestampMixin):
@@ -230,3 +231,4 @@ class PropertyMortgage(Base, TimestampMixin):
 
     # Relationships
     property: Mapped["Property"] = relationship(back_populates="mortgages")
+    person: Mapped["Person"] = relationship("Person", back_populates="property_mortgages")

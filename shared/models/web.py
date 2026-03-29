@@ -43,3 +43,4 @@ class WebMembership(Base, TimestampMixin):
     depth_found: Mapped[int] = mapped_column(default=0, nullable=False)
 
     web: Mapped["Web"] = relationship(back_populates="memberships")
+    person: Mapped["Person"] = relationship("Person", back_populates="web_memberships")

@@ -51,6 +51,8 @@ class CrawlJob(Base, TimestampMixin):
     tor_circuit: Mapped[str | None] = mapped_column(String(50), nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    person: Mapped["Person"] = relationship("Person", back_populates="crawl_jobs")
+
 
 class CrawlLog(Base, TimestampMixin):
     __tablename__ = "crawl_logs"

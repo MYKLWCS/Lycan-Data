@@ -25,3 +25,5 @@ class Education(Base, TimestampMixin, DataQualityMixin):
         String(50), nullable=True
     )  # elite, tier1, tier2, vocational
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="education_history")
