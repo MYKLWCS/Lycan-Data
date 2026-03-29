@@ -308,7 +308,7 @@ async def test_fan_out_priority_varies_by_depth(daemon):
     for depth, expected_priority in [(0, "high"), (1, "normal"), (2, "low")]:
         dispatched_priorities = []
 
-        async def fake_dispatch(platform, identifier, person_id, priority, _d=depth):
+        async def fake_dispatch(platform, identifier, person_id, priority, _d=depth, **kwargs):
             dispatched_priorities.append(priority)
 
         with (
