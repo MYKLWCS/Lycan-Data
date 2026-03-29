@@ -185,8 +185,9 @@ class OpenCorporatesCrawler(HttpxCrawler):
 
         # Try API first, fall back to website on auth errors
         companies, officers = await self._try_api(encoded)
-        if companies is None and officers is None:
-            # API returned 401/403 — fall back to website scraping
+        both_failed = companies is None and officers is None
+        if both_failed:
+            # API returned 401/403 or HTTP error — fall back to website scraping
             logger.info("OpenCorporates API auth failed, falling back to website scrape")
             companies, officers = await self._try_website(encoded)
 
@@ -194,9 +195,12 @@ class OpenCorporatesCrawler(HttpxCrawler):
         officers = officers or []
         result_count = len(companies) + len(officers)
 
+        error = "http_error" if both_failed and companies == [] and officers == [] else None
+
         return self._result(
             identifier,
             found=result_count > 0,
+            error=error,
             companies=companies,
             officers=officers,
             result_count=result_count,
