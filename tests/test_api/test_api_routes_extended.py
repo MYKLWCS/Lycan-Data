@@ -752,26 +752,11 @@ class TestFinancialGetAssessment:
 
 
 class TestFinancialAmlMatches:
-    def test_get_aml_invalid_uuid_returns_400(self):
-        """GET /financial/{bad}/aml returns 400."""
+    def test_get_aml_redirects_any_uuid(self):
+        """GET /financial/{any}/aml always redirects to watchlist."""
         client = _client(_make_session())
-        r = client.get(f"/financial/{BAD_UUID}/aml")
-        assert r.status_code == 400
-
-    def test_get_aml_empty_returns_200(self):
-        """GET /financial/{uuid}/aml returns empty matches list."""
-        session = _make_session()
-        exec_result = MagicMock()
-        exec_result.scalars.return_value.all.return_value = []
-        session.execute.return_value = exec_result
-
-        client = _client(session)
-        r = client.get(f"/financial/{VALID_UUID}/aml")
-        assert r.status_code == 200
-        data = r.json()
-        assert data["person_id"] == VALID_UUID
-        assert data["matches"] == []
-        assert data["count"] == 0
+        r = client.get(f"/financial/{BAD_UUID}/aml", follow_redirects=False)
+        assert r.status_code == 307
 
     def test_get_aml_redirects_to_watchlist(self):
         """GET /financial/{uuid}/aml redirects to /watchlist/{uuid}."""
