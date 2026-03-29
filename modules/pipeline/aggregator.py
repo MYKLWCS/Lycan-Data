@@ -263,10 +263,18 @@ async def aggregate_result(
     # Each additional source that confirms this person adds a corroboration
     # bonus, so reliability climbs as evidence accumulates.
     if result.source_reliability > 0.5:
-        person.corroboration_count = (person.corroboration_count or 1) + 1
-        bonus = min(0.20, (person.corroboration_count - 1) * 0.05)
+        try:
+            corr = int(person.corroboration_count or 1)
+        except (TypeError, ValueError):
+            corr = 1
+        person.corroboration_count = corr + 1
+        bonus = min(0.20, corr * 0.05)
+        try:
+            current_rel = float(person.source_reliability or 0.0)
+        except (TypeError, ValueError):
+            current_rel = 0.0
         person.source_reliability = round(
-            min(0.95, max(person.source_reliability, result.source_reliability) + bonus), 3
+            min(0.95, max(current_rel, result.source_reliability) + bonus), 3
         )
 
     await session.commit()
