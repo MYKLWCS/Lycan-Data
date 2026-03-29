@@ -35,7 +35,7 @@ def _mock_response(status_code: int, body: dict | None = None):
 
 def _make_indexer() -> MeiliIndexer:
     """Return a MeiliIndexer with known base/key (no real settings needed)."""
-    with patch("modules.search.meili_indexer.settings") as mock_settings:
+    with patch("modules.search.typesense_indexer.settings") as mock_settings:
         mock_settings.typesense_url = "http://localhost:7700"
         mock_settings.typesense_api_key = "testkey"
         return MeiliIndexer()
@@ -104,7 +104,7 @@ async def test_setup_index_returns_true_on_202():
     mock_client.post = AsyncMock(return_value=post_resp)
     mock_client.patch = AsyncMock(return_value=patch_resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.setup_index()
 
     assert result is True
@@ -122,7 +122,7 @@ async def test_setup_index_returns_false_on_server_error():
     mock_client.post = AsyncMock(return_value=post_resp)
     mock_client.patch = AsyncMock(return_value=patch_resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.setup_index()
 
     assert result is False
@@ -138,7 +138,7 @@ async def test_index_person_returns_true_on_202():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.index_person({"id": "p1", "full_name": "Bob"})
 
     assert result is True
@@ -156,7 +156,7 @@ async def test_index_many_empty_list_returns_true_without_http():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock()
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.index_many([])
 
     assert result is True
@@ -174,7 +174,7 @@ async def test_index_many_sends_batch():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.index_many(docs)
 
     assert result is True
@@ -195,7 +195,7 @@ async def test_search_returns_response_on_200():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.search("alice")
 
     assert result["hits"] == [{"id": "p1"}]
@@ -212,7 +212,7 @@ async def test_search_returns_empty_fallback_on_non_200():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.search("broken")
 
     assert result["hits"] == []
@@ -231,7 +231,7 @@ async def test_search_by_region_builds_filter():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         await indexer.search_by_region(city="Dallas", state="TX", country="US")
 
     params = mock_client.get.call_args.kwargs["params"]
@@ -251,7 +251,7 @@ async def test_delete_person_returns_true_on_202():
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.delete = AsyncMock(return_value=resp)
 
-    with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+    with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
         result = await indexer.delete_person("person-abc")
 
     assert result is True

@@ -773,29 +773,12 @@ class TestFinancialAmlMatches:
         assert data["matches"] == []
         assert data["count"] == 0
 
-    def test_get_aml_with_match_rows(self):
-        """GET /financial/{uuid}/aml serialises WatchlistMatch rows."""
-        mock_match = MagicMock()
-        mock_match.id = uuid.uuid4()
-        mock_match.list_name = "OFAC"
-        mock_match.list_type = "sanctions"
-        mock_match.match_score = 0.98
-        mock_match.is_confirmed = True
-        mock_match.created_at = datetime.now(UTC)
-
-        session = _make_session()
-        exec_result = MagicMock()
-        exec_result.scalars.return_value.all.return_value = [mock_match]
-        session.execute.return_value = exec_result
-
-        client = _client(session)
-        r = client.get(f"/financial/{VALID_UUID}/aml")
-        assert r.status_code == 200
-        data = r.json()
-        assert data["count"] == 1
-        match = data["matches"][0]
-        assert match["list_name"] == "OFAC"
-        assert match["is_confirmed"] is True
+    def test_get_aml_redirects_to_watchlist(self):
+        """GET /financial/{uuid}/aml redirects to /watchlist/{uuid}."""
+        client = _client(_make_session())
+        r = client.get(f"/financial/{VALID_UUID}/aml", follow_redirects=False)
+        assert r.status_code == 307
+        assert f"/watchlist/{VALID_UUID}" in r.headers["location"]
 
 
 class TestFinancialBorrowerScore:

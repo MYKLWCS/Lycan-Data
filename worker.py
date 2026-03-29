@@ -71,7 +71,7 @@ async def main(
     from modules.enrichers.auto_dedup import AutoDedupDaemon
     from modules.pipeline.ingestion_daemon import IngestionDaemon
     from modules.search.index_daemon import IndexDaemon
-    from modules.search.meili_indexer import meili_indexer
+    from modules.search.typesense_indexer import typesense_indexer as meili_indexer
     from shared.events import event_bus
     from shared.tor import tor_manager
 

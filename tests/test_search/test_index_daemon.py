@@ -186,7 +186,7 @@ async def test_index_person_successful():
     )
 
     with patch(
-        "modules.search.meili_indexer.meili_indexer.index_person",
+        "modules.search.typesense_indexer.meili_indexer.index_person",
         new_callable=AsyncMock,
         return_value=True,
     ) as mock_meili:
@@ -232,7 +232,7 @@ async def test_index_person_meili_failure_logs_error():
 
     with (
         patch(
-            "modules.search.meili_indexer.meili_indexer.index_person",
+            "modules.search.typesense_indexer.meili_indexer.index_person",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -300,7 +300,7 @@ async def test_index_person_risk_tiers():
             return True
 
         with patch(
-            "modules.search.meili_indexer.meili_indexer.index_person", side_effect=capture_doc
+            "modules.search.typesense_indexer.meili_indexer.index_person", side_effect=capture_doc
         ):
             await d._index_person(mock_session, uid)
 

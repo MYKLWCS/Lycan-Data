@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
     try:
-        from modules.search.meili_indexer import meili_indexer
+        from modules.search.typesense_indexer import typesense_indexer as meili_indexer
 
         await meili_indexer.setup_index()
         _log.info("Typesense collections initialized")

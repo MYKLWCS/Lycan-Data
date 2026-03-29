@@ -234,10 +234,11 @@ class TypesenseIndexer:
             return r.status_code in (200, 202, 204)
 
 
-# Module-level singleton (name kept as meili_indexer for backward compat with tests/imports)
-meili_indexer = TypesenseIndexer()
+# Module-level singleton
+typesense_indexer = TypesenseIndexer()
 
-# Backward-compatible alias so tests importing MeiliIndexer still work
+# Backward-compatible aliases
+meili_indexer = typesense_indexer
 MeiliIndexer = TypesenseIndexer
 
 

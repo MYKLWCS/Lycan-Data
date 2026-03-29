@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Query
 
-from modules.search.meili_indexer import meili_indexer
+from modules.search.typesense_indexer import typesense_indexer as meili_indexer
 
 router = APIRouter()
 

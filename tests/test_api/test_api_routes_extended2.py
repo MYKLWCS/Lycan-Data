@@ -1117,7 +1117,7 @@ class TestMainLifespan:
     def test_app_survives_meili_failure(self):
         """App starts up even when meili_indexer.setup_index raises."""
         with patch(
-            "modules.search.meili_indexer.meili_indexer.setup_index",
+            "modules.search.typesense_indexer.meili_indexer.setup_index",
             new=AsyncMock(side_effect=Exception("no meili")),
         ):
             client = TestClient(app, raise_server_exceptions=False)

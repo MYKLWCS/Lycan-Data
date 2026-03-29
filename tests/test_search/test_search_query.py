@@ -25,7 +25,7 @@ _SEARCH_RESULT = {
 
 def test_search_persons_basic(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         resp = client.get("/query/persons", params={"q": "John Smith"})
@@ -37,7 +37,7 @@ def test_search_persons_basic(client):
 
 def test_search_persons_risk_tier_filter(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"risk_tier": "high_risk"})
@@ -47,7 +47,7 @@ def test_search_persons_risk_tier_filter(client):
 
 def test_search_persons_city_filter(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"city": "Austin"})
@@ -57,7 +57,7 @@ def test_search_persons_city_filter(client):
 
 def test_search_persons_has_darkweb_true(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"has_darkweb": "true"})
@@ -67,7 +67,7 @@ def test_search_persons_has_darkweb_true(client):
 
 def test_search_persons_has_darkweb_false(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"has_darkweb": "false"})
@@ -77,7 +77,7 @@ def test_search_persons_has_darkweb_false(client):
 
 def test_search_persons_sort_asc(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"sort_by": "created_at", "sort_dir": "asc"})
@@ -87,7 +87,7 @@ def test_search_persons_sort_asc(client):
 
 def test_search_persons_invalid_sort_field_defaults(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"sort_by": "injected_field"})
@@ -97,7 +97,7 @@ def test_search_persons_invalid_sort_field_defaults(client):
 
 def test_search_persons_pagination(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"limit": 50, "offset": 100})
@@ -108,7 +108,7 @@ def test_search_persons_pagination(client):
 
 def test_search_persons_no_filters_passes_none(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search", new_callable=AsyncMock
     ) as mock_search:
         mock_search.return_value = _SEARCH_RESULT
         client.get("/query/persons", params={"q": "test"})
@@ -128,7 +128,7 @@ def test_search_region_no_params_returns_error(client):
 
 def test_search_region_with_city(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search_by_region", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search_by_region", new_callable=AsyncMock
     ) as mock_region:
         mock_region.return_value = _SEARCH_RESULT
         resp = client.get("/query/region", params={"city": "Dallas"})
@@ -140,7 +140,7 @@ def test_search_region_with_city(client):
 
 def test_search_region_with_state_and_country(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search_by_region", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search_by_region", new_callable=AsyncMock
     ) as mock_region:
         mock_region.return_value = _SEARCH_RESULT
         client.get("/query/region", params={"state": "TX", "country": "US"})
@@ -151,7 +151,7 @@ def test_search_region_with_state_and_country(client):
 
 def test_search_region_sort_validation(client):
     with patch(
-        "modules.search.meili_indexer.meili_indexer.search_by_region", new_callable=AsyncMock
+        "modules.search.typesense_indexer.meili_indexer.search_by_region", new_callable=AsyncMock
     ) as mock_region:
         mock_region.return_value = _SEARCH_RESULT
         client.get("/query/region", params={"city": "Austin", "sort_by": "INVALID"})

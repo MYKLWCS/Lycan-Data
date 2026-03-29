@@ -476,7 +476,7 @@ class TestMeiliSearchByRegionPartialFilters:
     def _make_indexer(self):
         from modules.search.meili_indexer import MeiliIndexer
 
-        with patch("modules.search.meili_indexer.settings") as ms:
+        with patch("modules.search.typesense_indexer.settings") as ms:
             ms.typesense_url = "http://localhost:8108"
             ms.typesense_api_key = "testkey"
             return MeiliIndexer()
@@ -501,7 +501,7 @@ class TestMeiliSearchByRegionPartialFilters:
         indexer = self._make_indexer()
         mock_client = self._mock_client({})
 
-        with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+        with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
             await indexer.search_by_region(city=None, state="TX", country=None)
 
         params = mock_client.get.call_args.kwargs["params"]
@@ -516,7 +516,7 @@ class TestMeiliSearchByRegionPartialFilters:
         indexer = self._make_indexer()
         mock_client = self._mock_client({})
 
-        with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+        with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
             await indexer.search_by_region(city=None, state=None, country="US")
 
         params = mock_client.get.call_args.kwargs["params"]
@@ -531,7 +531,7 @@ class TestMeiliSearchByRegionPartialFilters:
         indexer = self._make_indexer()
         mock_client = self._mock_client({})
 
-        with patch("modules.search.meili_indexer.httpx.AsyncClient", return_value=mock_client):
+        with patch("modules.search.typesense_indexer.httpx.AsyncClient", return_value=mock_client):
             await indexer.search_by_region(city=None, state=None, country=None, query="alice")
 
         params = mock_client.get.call_args.kwargs["params"]
@@ -600,7 +600,7 @@ class TestIndexDaemonEmptyAddressParts:
             captured.append(doc)
             return True
 
-        with patch("modules.search.meili_indexer.meili_indexer.index_person", side_effect=_capture):
+        with patch("modules.search.typesense_indexer.meili_indexer.index_person", side_effect=_capture):
             await d._index_person(mock_session, uid)
 
         assert len(captured) == 1
