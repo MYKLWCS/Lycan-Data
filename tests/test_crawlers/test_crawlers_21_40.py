@@ -408,18 +408,15 @@ async def test_virustotal_no_api_key_returns_error():
 
 @pytest.mark.asyncio
 async def test_email_hibp_404_means_no_breach():
-    """EmailHIBPCrawler 404 response means no breaches found (clean)."""
+    """EmailHIBPCrawler is disabled — always returns found=False."""
     import modules.crawlers.email_hibp  # noqa: F401
     from modules.crawlers.email_hibp import EmailHIBPCrawler
 
     crawler = EmailHIBPCrawler()
-    mock_resp = _mock_response(404)
+    result = await crawler.scrape("clean@example.com")
 
-    with patch.object(crawler, "get", new=AsyncMock(return_value=mock_resp)):
-        result = await crawler.scrape("clean@example.com")
-
-    assert result.found is True
-    assert result.data.get("breach_count") == 0
+    assert result.found is False
+    assert "disabled" in (result.error or "")
 
 
 @pytest.mark.asyncio

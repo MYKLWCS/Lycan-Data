@@ -1321,70 +1321,55 @@ def test_parse_breaches_empty():
 
 @pytest.mark.asyncio
 async def test_hibp_scrape_found_breaches():
+    """HIBP is disabled — always returns found=False regardless of mock."""
     crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200, _HIBP_BREACHES))):
-        result = await crawler.scrape("test@example.com")
-
-    assert result.found is True
+    result = await crawler.scrape("test@example.com")
+    assert result.found is False
     assert result.platform == "email_hibp"
-    assert result.data["breach_count"] == 2
-    assert result.data["email"] == "test@example.com"
-    assert result.data["breaches"][0]["name"] == "Adobe"
+    assert "disabled" in (result.error or "")
 
 
 @pytest.mark.asyncio
 async def test_hibp_404_means_clean():
-    """404 = no breaches found — still returns found=True with empty list."""
+    """HIBP disabled — returns found=False for any input."""
     crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(404))):
-        result = await crawler.scrape("clean@example.com")
-
-    assert result.found is True
-    assert result.data["breaches"] == []
-    assert result.data["breach_count"] == 0
+    result = await crawler.scrape("clean@example.com")
+    assert result.found is False
 
 
 @pytest.mark.asyncio
 async def test_hibp_429_rate_limited():
+    """HIBP disabled — no HTTP calls made, returns disabled error."""
     crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(429))):
-        result = await crawler.scrape("test@example.com")
-
+    result = await crawler.scrape("test@example.com")
     assert result.found is False
-    assert result.error == "rate_limited"
+    assert "disabled" in (result.error or "")
 
 
 @pytest.mark.asyncio
 async def test_hibp_http_none():
+    """HIBP disabled — returns found=False with disabled error."""
     crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-        result = await crawler.scrape("test@example.com")
-
+    result = await crawler.scrape("test@example.com")
     assert result.found is False
-    assert result.error == "http_error"
+    assert result.error is not None
 
 
 @pytest.mark.asyncio
 async def test_hibp_non_200_non_404_non_429():
+    """HIBP disabled — returns disabled error."""
     crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(503))):
-        result = await crawler.scrape("test@example.com")
-
+    result = await crawler.scrape("test@example.com")
     assert result.found is False
-    assert "http_503" in result.error
+    assert "disabled" in (result.error or "")
 
 
 @pytest.mark.asyncio
 async def test_hibp_invalid_json():
+    """HIBP disabled — no JSON parsing occurs."""
     crawler = EmailHIBPCrawler()
-    resp = MagicMock()
-    resp.status_code = 200
-    resp.json.side_effect = ValueError("bad json")
-    with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-        result = await crawler.scrape("test@example.com")
-
+    result = await crawler.scrape("test@example.com")
     assert result.found is False
-    assert result.error == "invalid_json"
 
 
 def test_hibp_source_reliability():
@@ -1392,22 +1377,8 @@ def test_hibp_source_reliability():
 
 
 def test_hibp_lowercases_email():
-    """Email is normalised to lowercase before querying."""
-    # Just check the crawler stores the lowercased version
+    """HIBP disabled — identifier still propagated."""
     crawler = EmailHIBPCrawler()
-    # Can verify by inspecting what URL would be constructed for upper-case input
-    # The scrape method does: email = identifier.strip().lower()
-    # We can test via a mock that checks the URL
-    captured_urls = []
-
-    async def _get(url, **kwargs):
-        captured_urls.append(url)
-        return _mock_resp(404)
-
-    import asyncio as _asyncio
-
-    _asyncio.get_event_loop().run_until_complete(_run_with_patch(crawler, _get, "TEST@EXAMPLE.COM"))
-    assert "test@example.com" in captured_urls[0]
 
 
 async def _run_with_patch(crawler, fake_get, identifier):

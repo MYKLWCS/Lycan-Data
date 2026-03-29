@@ -174,55 +174,38 @@ def test_email_hibp_registered():
 
 
 @pytest.mark.asyncio
-async def test_hibp_breaches_found():
-    """HIBP 200 response with breach list is parsed correctly."""
+async def test_hibp_disabled_returns_not_found():
+    """HIBP is disabled (requires paid API key) — always returns found=False."""
     crawler = EmailHIBPCrawler()
-    with patch.object(
-        crawler, "get", new=AsyncMock(return_value=_mock_response(200, json_data=_HIBP_BREACH_JSON))
-    ):
-        result = await crawler.scrape("victim@example.com")
-
-    assert result.found is True
+    result = await crawler.scrape("victim@example.com")
+    assert result.found is False
     assert result.platform == "email_hibp"
-    assert result.data["breach_count"] == 2
-    assert result.data["breaches"][0]["name"] == "Adobe"
-    assert result.data["breaches"][0]["domain"] == "adobe.com"
-    assert "Email addresses" in result.data["breaches"][0]["data_classes"]
-    assert result.data["email"] == "victim@example.com"
+    assert "disabled" in (result.error or "")
 
 
 @pytest.mark.asyncio
-async def test_hibp_clean_email_404():
-    """HIBP 404 means email has no breaches — found=True with empty list."""
+async def test_hibp_disabled_zero_reliability():
+    """Disabled crawler should report 0.0 source reliability."""
     crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_response(404))):
-        result = await crawler.scrape("clean@example.com")
-
-    assert result.found is True
-    assert result.data["breaches"] == []
-    assert result.data["breach_count"] == 0
+    result = await crawler.scrape("clean@example.com")
+    assert result.source_reliability == 0.0
 
 
 @pytest.mark.asyncio
-async def test_hibp_rate_limited_429():
-    """HIBP 429 returns found=False with rate_limited error."""
+async def test_hibp_disabled_preserves_identifier():
+    """Disabled crawler still propagates the identifier."""
     crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=_mock_response(429))):
-        result = await crawler.scrape("test@example.com")
+    result = await crawler.scrape("test@example.com")
+    assert result.identifier == "test@example.com"
 
+
+@pytest.mark.asyncio
+async def test_hibp_disabled_any_email():
+    """Disabled crawler returns same result for any input."""
+    crawler = EmailHIBPCrawler()
+    result = await crawler.scrape("anyone@anywhere.com")
     assert result.found is False
-    assert result.error == "rate_limited"
-
-
-@pytest.mark.asyncio
-async def test_hibp_http_error_none():
-    """Network failure (None) returns found=False with http_error."""
-    crawler = EmailHIBPCrawler()
-    with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
-        result = await crawler.scrape("test@example.com")
-
-    assert result.found is False
-    assert result.error == "http_error"
+    assert "paid key" in (result.error or "")
 
 
 @pytest.mark.asyncio
