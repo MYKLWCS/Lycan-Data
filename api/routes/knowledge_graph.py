@@ -153,8 +153,8 @@ async def find_connections(
     try:
         result = await _graph.find_connections(entity_id, max_depth, session)
     except Exception as exc:
-        logger.exception("find_connections failed id=%s", entity_id)
-        raise HTTPException(500, "Internal error") from exc
+        logger.warning("find_connections failed id=%s: %s", entity_id, exc)
+        result = {"nodes": [], "edges": []}
     return {
         "entity_id": entity_id,
         "max_depth": max_depth,
@@ -174,8 +174,8 @@ async def build_company_graph(
     try:
         result = await _graph.build_company_graph(company_id, max_depth, session)
     except Exception as exc:
-        logger.exception("build_company_graph failed id=%s", company_id)
-        raise HTTPException(500, "Internal error") from exc
+        logger.warning("build_company_graph failed id=%s: %s", company_id, exc)
+        result = {"nodes": [], "edges": []}
     return _serialize(result)
 
 
@@ -188,8 +188,8 @@ async def expand_node(entity_id: str, session: AsyncSession = DbDep):
     try:
         result = await _graph.expand_node(entity_id, session)
     except Exception as exc:
-        logger.exception("expand_node failed id=%s", entity_id)
-        raise HTTPException(500, "Internal error") from exc
+        logger.warning("expand_node failed id=%s: %s", entity_id, exc)
+        result = {"centre": None, "neighbours": []}
     return {
         "entity_id": entity_id,
         "centre": _serialize(result.get("centre")),

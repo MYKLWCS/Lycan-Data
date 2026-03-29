@@ -186,7 +186,7 @@ async def merge_history(person_id: str, session: AsyncSession = DbDep):
     try:
         result = await session.execute(
             sa_text(
-                "SELECT * FROM audit_log WHERE person_id = :id ORDER BY access_time DESC LIMIT 50"
+                "SELECT * FROM audit_log WHERE resource_id = :id ORDER BY access_time DESC LIMIT 50"
             ),
             {"id": person_id},
         )
