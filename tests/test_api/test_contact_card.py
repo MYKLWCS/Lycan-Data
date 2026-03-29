@@ -197,15 +197,11 @@ class TestReportCommercialTags:
         )
         sources_count_exec.scalar_one = MagicMock(return_value=0)
 
-        call_count = {"n": 0}
-
         async def _execute(q):
-            call_count["n"] += 1
-            # Query order: 1-16 standard fetches, 17=MarketingTag, 18=Relationship,
-            # 19=CrawlJob, 20=DataSource count (no related person lookup when rels empty)
-            if call_count["n"] == 17:
+            q_str = str(q)
+            if "marketing_tag" in q_str.lower():
                 return tag_exec
-            if call_count["n"] == 20:
+            if "data_sources" in q_str.lower():
                 return sources_count_exec
             return empty_exec
 
