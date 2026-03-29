@@ -48,7 +48,7 @@ async def get_auto_queue_rows(session: AsyncSession) -> list[dict]:
 # ── Request schemas ────────────────────────────────────────────────────────────
 
 
-class MergeRequest(BaseModel):
+class DedupMergeRequest(BaseModel):
     canonical_id: str
     duplicate_id: str
 
@@ -100,7 +100,7 @@ async def dedup_auto_merge_run(session: AsyncSession = DbDep):
 
 
 @router.post("/merge")
-async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
+async def merge_persons(req: DedupMergeRequest, session: AsyncSession = DbDep):
     """Merge duplicate_id into canonical_id."""
     _validate_uuid(req.canonical_id)
     _validate_uuid(req.duplicate_id)

@@ -20,3 +20,4 @@ modules.svg
 *_test_files.txt
 audit_report.md
 .claude/
+/*.txt

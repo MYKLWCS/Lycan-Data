@@ -26,7 +26,7 @@ class AddEntityRequest(BaseModel):
     properties: dict = Field(default_factory=dict)
 
 
-class AddRelationshipRequest(BaseModel):
+class GraphRelationshipRequest(BaseModel):
     from_label: str
     from_id: str
     rel_type: str = Field(..., description="Edge label: OFFICER_OF, OWNS, LIVES_AT, etc.")
@@ -102,7 +102,7 @@ async def delete_entity(label: str, entity_id: str, session: AsyncSession = DbDe
 
 
 @router.post("/relationship")
-async def add_relationship(req: AddRelationshipRequest, session: AsyncSession = DbDep):
+async def add_relationship(req: GraphRelationshipRequest, session: AsyncSession = DbDep):
     """Add or merge an edge between two vertices."""
     if req.from_label not in VERTEX_LABELS:
         raise HTTPException(400, f"Invalid from_label: {req.from_label}")
@@ -125,7 +125,7 @@ async def add_relationship(req: AddRelationshipRequest, session: AsyncSession = 
 
 
 @router.delete("/relationship")
-async def remove_relationship(req: AddRelationshipRequest, session: AsyncSession = DbDep):
+async def remove_relationship(req: GraphRelationshipRequest, session: AsyncSession = DbDep):
     """Delete a specific edge between two vertices."""
     try:
         await _graph.remove_relationship(

@@ -370,19 +370,20 @@ async def _get_or_create_person(
         if existing:
             return existing
 
-        # Fuzzy name match: check recent persons with token_sort_ratio
+        # Fuzzy name match: prefix-blocked to reduce comparison set
         candidates = (
             await session.execute(
                 select(Person)
                 .where(Person.full_name.isnot(None))
+                .where(Person.full_name.ilike(f"{norm[:3]}%"))
                 .order_by(Person.created_at.desc())
-                .limit(500)
+                .limit(200)
             )
         ).scalars().all()
 
         for candidate in candidates:
             score = _fuzz.token_sort_ratio(norm, candidate.full_name or "")
-            if score >= 90:
+            if score >= 87:
                 return candidate
 
     p = Person(id=uuid.uuid4(), full_name=full_name)

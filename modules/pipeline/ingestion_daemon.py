@@ -10,6 +10,8 @@ import asyncio
 import json
 import logging
 
+from sqlalchemy.exc import IntegrityError
+
 from modules.crawlers.core.result import CrawlerResult
 from modules.pipeline.aggregator import aggregate_result
 from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
@@ -106,6 +108,9 @@ class IngestionDaemon:
                     except Exception as enrich_exc:
                         logger.warning("Auto-enrichment failed for %s: %s", pid, enrich_exc)
 
+            except IntegrityError as e:
+                await session.rollback()
+                logger.info("Duplicate data skipped for person %s: %s", person_id, e.orig)
             except Exception as e:
                 logger.error(f"Error aggregating result for {platform}/{identifier}: {e}")
                 await session.rollback()

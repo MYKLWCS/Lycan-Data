@@ -25,7 +25,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-lycan}
       POSTGRES_USER: ${POSTGRES_USER:-lycan}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql
@@ -132,7 +132,7 @@ services:
     image: dperson/torproxy:latest
     environment:
       TOR_CONTROL_PORT: "9051"
-      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD}
+      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD:-changeme}
     ports:
       - "9050:9050"
       - "9051:9051"
@@ -147,7 +147,7 @@ services:
     image: dperson/torproxy:latest
     environment:
       TOR_CONTROL_PORT: "9053"
-      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD}
+      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD:-changeme}
     ports:
       - "9052:9050"
       - "9053:9051"
@@ -162,7 +162,7 @@ services:
     image: dperson/torproxy:latest
     environment:
       TOR_CONTROL_PORT: "9055"
-      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD}
+      TOR_CONTROL_PASSWD: ${TOR_CONTROL_PASSWORD:-changeme}
     ports:
       - "9054:9050"
       - "9055:9051"
@@ -203,18 +203,21 @@ services:
       --proxy-headers
       --log-level info
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lycan}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-lycan}
       CACHE_URL: redis://garnet:6379/0
       TYPESENSE_URL: http://typesense:8108
       TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-changeme}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
-      SECRET_KEY: ${SECRET_KEY}
-      API_KEYS: ${API_KEYS}
+      SECRET_KEY: ${SECRET_KEY:-changeme-32-chars-minimum-please}
+      API_KEYS: ${API_KEYS:-}
       API_AUTH_ENABLED: ${API_AUTH_ENABLED:-true}
-      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD}
+      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD:-changeme}
       TOR1_SOCKS: socks5://tor-1:9050
+      TOR1_CONTROL_HOST: tor-1
       TOR2_SOCKS: socks5://tor-2:9050
+      TOR2_CONTROL_HOST: tor-2
       TOR3_SOCKS: socks5://tor-3:9050
+      TOR3_CONTROL_HOST: tor-3
       FLARESOLVERR_URL: http://flaresolverr:8191
       LOG_LEVEL: info
     volumes:
@@ -228,6 +231,10 @@ services:
         condition: service_healthy
       typesense:
         condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      flaresolverr:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/system/health | grep -q ok"]
       interval: 15s
@@ -247,17 +254,20 @@ services:
       dockerfile: Dockerfile.app
     command: python worker.py --workers 4
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lycan}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-lycan}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-lycan}
       CACHE_URL: redis://garnet:6379/0
       TYPESENSE_URL: http://typesense:8108
       TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:-changeme}
-      SECRET_KEY: ${SECRET_KEY}
-      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY:-changeme-32-chars-minimum-please}
+      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD:-changeme}
       TOR1_SOCKS: socks5://tor-1:9050
+      TOR1_CONTROL_HOST: tor-1
       TOR1_CONTROL_PORT: "9051"
       TOR2_SOCKS: socks5://tor-2:9050
+      TOR2_CONTROL_HOST: tor-2
       TOR2_CONTROL_PORT: "9053"
       TOR3_SOCKS: socks5://tor-3:9050
+      TOR3_CONTROL_HOST: tor-3
       TOR3_CONTROL_PORT: "9055"
       FLARESOLVERR_URL: http://flaresolverr:8191
       LOG_LEVEL: info
@@ -267,6 +277,8 @@ services:
       postgres:
         condition: service_healthy
       garnet:
+        condition: service_healthy
+      typesense:
         condition: service_healthy
     deploy:
       resources:

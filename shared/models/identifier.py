@@ -12,6 +12,7 @@ class Identifier(Base, TimestampMixin, DataQualityMixin):
     __table_args__ = (
         UniqueConstraint("person_id", "type", "normalized_value", name="uq_identifier_person_type_value"),
         Index("ix_identifier_value", "value"),
+        Index("ix_identifier_type_normalized", "type", "normalized_value"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

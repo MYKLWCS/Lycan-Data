@@ -39,12 +39,15 @@ class Settings(BaseSettings):
     tor_enabled: bool = True
     proxy_override: str = ""
 
-    # Tor instance endpoints
-    tor1_socks: str = "socks5://127.0.0.1:9050"
+    # Tor instance endpoints (Docker service names as defaults)
+    tor1_socks: str = "socks5://tor-1:9050"
+    tor1_control_host: str = "tor-1"
     tor1_control_port: int = 9051
-    tor2_socks: str = "socks5://127.0.0.1:9052"
+    tor2_socks: str = "socks5://tor-2:9050"
+    tor2_control_host: str = "tor-2"
     tor2_control_port: int = 9053
-    tor3_socks: str = "socks5://127.0.0.1:9054"
+    tor3_socks: str = "socks5://tor-3:9050"
+    tor3_control_host: str = "tor-3"
     tor3_control_port: int = 9055
 
     # Module kill switches
