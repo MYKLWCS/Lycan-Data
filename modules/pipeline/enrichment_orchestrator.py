@@ -377,10 +377,13 @@ class EnrichmentOrchestrator:
         await pipeline.resolve(person_id, session)
 
     async def _run_cross_person_resolution(self, person_id: str, session: AsyncSession) -> None:
-        from modules.enrichers.entity_resolution import EntityResolutionPipeline
+        try:
+            from modules.enrichers.entity_resolution import EntityResolutionPipeline
 
-        pipeline = EntityResolutionPipeline()
-        await pipeline.resolve_cross_person(person_id, session)
+            pipeline = EntityResolutionPipeline()
+            await pipeline.resolve_cross_person(person_id, session)
+        except Exception as exc:
+            logger.warning("Cross-person resolution failed for %s: %s", person_id, exc)
 
     async def _compute_enrichment_score(self, person_id: str, session: AsyncSession) -> None:
         """

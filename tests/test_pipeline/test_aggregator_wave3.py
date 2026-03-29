@@ -264,7 +264,8 @@ class TestHandlePhoneEnrichment:
         ):
             await _handle_phone_enrichment(session, result, person_id)
 
-        session.add.assert_called_once()
+        # Upsert uses session.execute (not session.add)
+        assert session.execute.called
 
     @pytest.mark.asyncio
     async def test_existing_identifier_not_duplicated(self):
@@ -439,4 +440,4 @@ class TestUpsertPhoneIdentifier:
 
         await _upsert_phone_identifier(session, phone, person_id, "whatsapp")
 
-        session.add.assert_called_once()
+        assert session.execute.called

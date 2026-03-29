@@ -212,6 +212,6 @@ async def test_enrich_person_includes_coverage_update_step():
         report = await orchestrator.enrich_person(str(uuid.uuid4()), session)
 
     assert mock_cov.called
-    assert len(report.steps) == 10
+    assert len(report.steps) == 11
     step_names = [s.enricher for s in report.steps]
     assert "coverage_update" in step_names

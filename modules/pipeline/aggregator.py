@@ -514,7 +514,8 @@ async def _handle_phone_enrichment(
         line_type=line_type,
         area_code=area_code,
     )
-    await persist_burner_assessment(session, ident.id, score)
+    if ident:
+        await persist_burner_assessment(session, ident.id, score)
 
 
 async def _handle_breach_data(
