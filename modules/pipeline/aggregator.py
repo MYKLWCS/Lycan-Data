@@ -238,11 +238,7 @@ async def aggregate_result(
 # ---------------------------------------------------------------------------
 
 
-def _normalize_name(name: str) -> str:
-    """Lowercase, strip whitespace, collapse inner spaces for fuzzy matching."""
-    import re
-
-    return re.sub(r"\s+", " ", name.lower().strip())
+from shared.utils import normalize_name as _normalize_name
 
 
 async def _get_or_create_person(

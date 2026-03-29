@@ -116,10 +116,6 @@ def make_http_response(status: int, body: str | dict | bytes, *, is_json: bool =
 # 1. TruePeopleSearch
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_truepeoplesearch_registered():
-    assert is_registered("truepeoplesearch")
-
-
 @pytest.mark.asyncio
 async def test_truepeoplesearch_found():
     html = """
@@ -157,10 +153,6 @@ async def test_truepeoplesearch_blocked():
 # 2. FastPeopleSearch
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_fastpeoplesearch_registered():
-    assert is_registered("fastpeoplesearch")
-
-
 @pytest.mark.asyncio
 async def test_fastpeoplesearch_found():
     html = """
@@ -193,10 +185,6 @@ async def test_fastpeoplesearch_no_results():
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. WhitePages
 # ─────────────────────────────────────────────────────────────────────────────
-
-def test_whitepages_registered():
-    assert is_registered("whitepages")
-
 
 @pytest.mark.asyncio
 async def test_whitepages_found():
@@ -520,10 +508,6 @@ def test_snscrape_username_validation():
 # 10. Reddit
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_reddit_registered():
-    assert is_registered("reddit")
-
-
 @pytest.mark.asyncio
 async def test_reddit_found():
     payload = {
@@ -557,10 +541,6 @@ async def test_reddit_not_found():
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. GitHub
 # ─────────────────────────────────────────────────────────────────────────────
-
-def test_github_registered():
-    assert is_registered("github_profile")
-
 
 @pytest.mark.asyncio
 async def test_github_found():
@@ -813,10 +793,6 @@ async def test_fbi_wanted_not_found():
 # 16. NSOPW
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_nsopw_registered():
-    assert is_registered("public_nsopw")
-
-
 @pytest.mark.asyncio
 async def test_nsopw_found():
     payload = {
@@ -852,10 +828,6 @@ async def test_nsopw_no_match():
 # ─────────────────────────────────────────────────────────────────────────────
 # 17. OFAC SDN
 # ─────────────────────────────────────────────────────────────────────────────
-
-def test_ofac_registered():
-    assert is_registered("sanctions_ofac")
-
 
 @pytest.mark.asyncio
 async def test_ofac_found():

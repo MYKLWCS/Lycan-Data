@@ -72,7 +72,7 @@ def _make_zip(csv_text: str, inner_name: str = "MASTER.txt") -> bytes:
 
 class TestCacheValid:
     def _fn(self, path, max_age_hours=48.0):
-        from modules.crawlers.transport.faa_aircraft_registry import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         return _cache_valid(path, max_age_hours)
 
@@ -106,7 +106,7 @@ class TestCacheValid:
 
 class TestWordOverlap:
     def _fn(self, query, candidate):
-        from modules.crawlers.transport.faa_aircraft_registry import _word_overlap
+        from modules.crawlers.utils import word_overlap as _word_overlap
 
         return _word_overlap(query, candidate)
 

@@ -95,8 +95,7 @@ def _years_since(dt: date | datetime | None) -> float:
     return max(0.0, (date.today() - dt).days / 365.25)
 
 
-def _normalize_name(name: str) -> str:
-    return " ".join(name.lower().split())
+from shared.utils import normalize_name as _normalize_name
 
 
 # ─── Alternative Credit Scorer ────────────────────────────────────────────────

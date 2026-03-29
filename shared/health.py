@@ -38,7 +38,9 @@ async def _check_dragonfly() -> bool:
     try:
         import redis.asyncio as aioredis
 
-        r = aioredis.from_url("redis://localhost:6379", socket_connect_timeout=3)
+        from shared.config import settings
+
+        r = aioredis.from_url(settings.dragonfly_url, socket_connect_timeout=3)
         try:
             await r.ping()
             return True

@@ -60,7 +60,7 @@ class TestPublicNPICrawler:
 
     # line 46 — _split_name single-word returns (identifier, "")
     def test_split_name_single_word(self):
-        from modules.crawlers.public_npi import _split_name
+        from modules.crawlers.utils import split_name as _split_name
 
         first, last = _split_name("Madonna")
         assert first == "Madonna"
@@ -218,7 +218,7 @@ class TestPublicNSOPWCrawler:
 
     # line 47 — _split_name single word
     def test_split_name_single_word(self):
-        from modules.crawlers.public_nsopw import _split_name
+        from modules.crawlers.utils import split_name as _split_name
 
         first, last = _split_name("Prince")
         assert first == "Prince"

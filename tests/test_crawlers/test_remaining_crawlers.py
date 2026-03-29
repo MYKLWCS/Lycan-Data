@@ -126,36 +126,36 @@ class TestSanctionsAustralia:
         assert result is not None
 
     def test_name_matches_empty_query(self):
-        from modules.crawlers.sanctions_australia import _name_matches
+        from modules.crawlers.utils import word_overlap as _name_matches
 
         assert _name_matches("", "anything") == 0.0
 
     def test_name_matches_full_overlap(self):
-        from modules.crawlers.sanctions_australia import _name_matches
+        from modules.crawlers.utils import word_overlap as _name_matches
 
         score = _name_matches("John Smith", "John Smith Senior")
         assert score == 1.0
 
     def test_name_matches_partial(self):
-        from modules.crawlers.sanctions_australia import _name_matches
+        from modules.crawlers.utils import word_overlap as _name_matches
 
         score = _name_matches("John Smith", "John Brown")
         assert 0.0 < score < 1.0
 
     def test_cache_valid_missing_file(self, tmp_path):
-        from modules.crawlers.sanctions_australia import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         assert _cache_valid(str(tmp_path / "nonexistent.csv")) is False
 
     def test_cache_valid_fresh_file(self, tmp_path):
-        from modules.crawlers.sanctions_australia import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         f = tmp_path / "fresh.csv"
         f.write_text("data")
         assert _cache_valid(str(f), max_age_hours=6.0) is True
 
     def test_cache_valid_stale_file(self, tmp_path):
-        from modules.crawlers.sanctions_australia import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         f = tmp_path / "stale.csv"
         f.write_text("data")
@@ -256,7 +256,7 @@ class TestSanctionsCanada:
         assert result.found is False
 
     def test_name_matches_empty_query(self):
-        from modules.crawlers.sanctions_canada import _name_matches
+        from modules.crawlers.utils import word_overlap as _name_matches
 
         assert _name_matches("", "anything") == 0.0
 

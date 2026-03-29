@@ -335,7 +335,7 @@ class TestUkSearchCsvParseError:
 # ===========================================================================
 
 import modules.crawlers.sanctions_fbi  # noqa: F401
-from modules.crawlers.sanctions_fbi import _name_matches as fbi_name_matches
+from modules.crawlers.utils import word_overlap as _name_matches as fbi_name_matches
 
 
 class TestFbiNameMatchesEmptyQuery:

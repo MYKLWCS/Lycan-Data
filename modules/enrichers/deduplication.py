@@ -189,8 +189,12 @@ def name_similarity(name_a: str, name_b: str) -> float:
 # ─── Identifier deduplication ─────────────────────────────────────────────────
 
 
-def normalize_phone(phone: str) -> str:
-    """Strip all non-digits, ensure E.164-ish format."""
+def _normalize_phone_for_dedup(phone: str) -> str:
+    """Best-effort E.164 for dedup comparison (never returns None)."""
+    from shared.utils import normalize_phone as _validate
+    result = _validate(phone)
+    if result:
+        return result
     digits = re.sub(r"\D", "", phone)
     if len(digits) == 10:
         return f"+1{digits}"
@@ -199,13 +203,13 @@ def normalize_phone(phone: str) -> str:
     return f"+{digits}"
 
 
-def normalize_email(email: str) -> str:
-    """Lowercase, strip whitespace."""
+def _normalize_email_for_dedup(email: str) -> str:
+    """Lowercase email for dedup comparison (never returns None)."""
     return email.lower().strip()
 
 
-def normalize_username(username: str) -> str:
-    """Lowercase, strip @ prefix."""
+def _normalize_username_for_dedup(username: str) -> str:
+    """Lowercase handle for dedup comparison."""
     return username.lower().lstrip("@").strip()
 
 
@@ -218,9 +222,9 @@ def find_duplicate_identifiers(
     Returns pairs that should be merged.
     """
     normalizers = {
-        "phone": normalize_phone,
-        "email": normalize_email,
-        "username": normalize_username,
+        "phone": _normalize_phone_for_dedup,
+        "email": _normalize_email_for_dedup,
+        "username": _normalize_username_for_dedup,
     }
 
     candidates = []

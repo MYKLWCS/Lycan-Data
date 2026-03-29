@@ -1521,12 +1521,12 @@ class TestSanctionsEU:
     """Lines 40-43, 94-99, 115-116, 127-129."""
 
     def test_cache_valid_no_file(self):
-        from modules.crawlers.sanctions_eu import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         assert _cache_valid("/tmp/__nonexistent_lycan_test__") is False
 
     def test_cache_valid_fresh_file(self):
-        from modules.crawlers.sanctions_eu import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
             path = f.name
@@ -1536,7 +1536,7 @@ class TestSanctionsEU:
             os.unlink(path)
 
     def test_cache_valid_stale_file(self):
-        from modules.crawlers.sanctions_eu import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
             path = f.name
@@ -1683,12 +1683,12 @@ class TestSanctionsUN:
 </CONSOLIDATED_LIST>"""
 
     def test_cache_valid_no_file(self):
-        from modules.crawlers.sanctions_un import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         assert _cache_valid("/tmp/__nonexistent_un_test__") is False
 
     def test_cache_valid_fresh(self):
-        from modules.crawlers.sanctions_un import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
             path = f.name
@@ -1698,7 +1698,7 @@ class TestSanctionsUN:
             os.unlink(path)
 
     def test_cache_valid_stale(self):
-        from modules.crawlers.sanctions_un import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
             path = f.name
@@ -1710,13 +1710,13 @@ class TestSanctionsUN:
             os.unlink(path)
 
     def test_name_matches_threshold(self):
-        from modules.crawlers.sanctions_un import _name_matches
+        from modules.crawlers.utils import word_overlap as _name_matches
 
         score = _name_matches("Vladimir Putin", "Vladimir Putin")
         assert score == 1.0
 
     def test_name_matches_empty_query(self):
-        from modules.crawlers.sanctions_un import _name_matches
+        from modules.crawlers.utils import word_overlap as _name_matches
 
         assert _name_matches("", "anything") == 0.0
 
@@ -1876,12 +1876,12 @@ class TestSanctionsUK:
         return f"{header1}\n{header2}\n{data_row}\n"
 
     def test_cache_valid_no_file(self):
-        from modules.crawlers.sanctions_uk import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         assert _cache_valid("/tmp/__nonexistent_uk_test__") is False
 
     def test_cache_valid_fresh(self):
-        from modules.crawlers.sanctions_uk import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
             path = f.name
@@ -1891,7 +1891,7 @@ class TestSanctionsUK:
             os.unlink(path)
 
     def test_cache_valid_stale(self):
-        from modules.crawlers.sanctions_uk import _cache_valid
+        from modules.crawlers.utils import cache_valid as _cache_valid
 
         with tempfile.NamedTemporaryFile(delete=False) as f:
             path = f.name

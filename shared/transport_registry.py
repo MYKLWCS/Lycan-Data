@@ -34,7 +34,9 @@ class TransportRegistry:
         try:
             import redis.asyncio as aioredis
 
-            self._redis = aioredis.from_url("redis://localhost:6379")
+            from shared.config import settings
+
+            self._redis = aioredis.from_url(settings.dragonfly_url)
             await self._redis.ping()
         except Exception:
             self._redis = None

@@ -237,7 +237,7 @@ _ROLE_PREFIXES = frozenset({
     "abuse", "security", "hostmaster",
 })
 
-_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
+from shared.utils.email import _EMAIL_RE
 
 
 class EmailVerifier:

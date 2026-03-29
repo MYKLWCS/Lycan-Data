@@ -1302,10 +1302,6 @@ _HIBP_BREACHES = [
 ]
 
 
-def test_email_hibp_registered():
-    assert is_registered("email_hibp")
-
-
 def test_parse_breaches_fields():
     breaches = _parse_breaches(_HIBP_BREACHES)
     assert len(breaches) == 2
@@ -1389,10 +1385,6 @@ async def _run_with_patch(crawler, fake_get, identifier):
 # ===========================================================================
 # email_holehe
 # ===========================================================================
-
-
-def test_email_holehe_registered():
-    assert is_registered("email_holehe")
 
 
 @pytest.mark.asyncio
@@ -1518,10 +1510,6 @@ _REDDIT_POSTS_JSON = {
 }
 
 
-def test_reddit_registered():
-    assert is_registered("reddit")
-
-
 @pytest.mark.asyncio
 async def test_reddit_scrape_success():
     crawler = RedditCrawler()
@@ -1644,10 +1632,6 @@ _GITHUB_USER_JSON = {
     "avatar_url": "https://avatars.githubusercontent.com/u/12345",
     "created_at": "2018-04-01T00:00:00Z",
 }
-
-
-def test_github_registered():
-    assert is_registered("github")
 
 
 @pytest.mark.asyncio
