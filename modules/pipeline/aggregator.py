@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from shared.constants import (
     AlertSeverity,
     AlertType,

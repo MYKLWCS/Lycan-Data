@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup
 
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
 from shared.tor import TorInstance
 

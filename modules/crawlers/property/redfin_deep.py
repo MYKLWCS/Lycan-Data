@@ -25,7 +25,7 @@ from urllib.parse import quote_plus
 
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
 

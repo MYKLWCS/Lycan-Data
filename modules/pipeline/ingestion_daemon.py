@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.pipeline.aggregator import aggregate_result
 from modules.pipeline.enrichment_orchestrator import EnrichmentOrchestrator
 from modules.pipeline.pivot_enricher import pivot_from_result

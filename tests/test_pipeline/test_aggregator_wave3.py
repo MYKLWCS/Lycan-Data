@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 
 # ---------------------------------------------------------------------------
 # Helpers

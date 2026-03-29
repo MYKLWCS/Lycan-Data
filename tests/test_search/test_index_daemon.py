@@ -249,7 +249,7 @@ async def test_index_person_meili_failure_logs_error():
 @pytest.mark.asyncio
 async def test_index_person_risk_tiers():
     """Verify that various risk scores map to the correct risk_tier labels."""
-    from modules.search.meili_indexer import build_person_doc
+    from modules.search.typesense_indexer import build_person_doc
 
     risk_cases = [
         (0.85, "do_not_lend"),

@@ -93,7 +93,7 @@ from modules.crawlers.obituary_search import (
 )
 from modules.crawlers.reddit import RedditCrawler
 from modules.crawlers.registry import is_registered
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
 
 # ===========================================================================

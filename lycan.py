@@ -297,7 +297,7 @@ async def run_search(
             try:
                 result = await crawler.run(identifier)
             except Exception as exc:
-                from modules.crawlers.result import CrawlerResult
+                from modules.crawlers.core.result import CrawlerResult
 
                 result = CrawlerResult(
                     platform=platform,

@@ -15,7 +15,7 @@ class TestOceanPersistence:
 
     @pytest.mark.asyncio
     async def test_ocean_written_to_meta_on_new_profile(self):
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from modules.pipeline.aggregator import _handle_behavioural
 
         session = AsyncMock()
@@ -54,7 +54,7 @@ class TestOceanPersistence:
 
     @pytest.mark.asyncio
     async def test_ocean_written_to_meta_on_existing_profile(self):
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from modules.pipeline.aggregator import _handle_behavioural
         from shared.models.behavioural import BehaviouralProfile
 
@@ -89,7 +89,7 @@ class TestOceanPersistence:
 
     @pytest.mark.asyncio
     async def test_ocean_absent_leaves_meta_unchanged(self):
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from modules.pipeline.aggregator import _handle_behavioural
         from shared.models.behavioural import BehaviouralProfile
 

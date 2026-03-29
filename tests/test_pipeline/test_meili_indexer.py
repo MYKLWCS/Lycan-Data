@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from modules.search.meili_indexer import MeiliIndexer, build_person_doc
+from modules.search.typesense_indexer import TypesenseIndexer as MeiliIndexer, build_person_doc
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -13,7 +13,7 @@ import re
 
 from modules.crawlers.base import BaseCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)

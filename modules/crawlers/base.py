@@ -12,7 +12,7 @@ from datetime import timezone, datetime
 from typing import Any, Dict, List, Optional
 
 from modules.crawlers.core.models import CrawlerCategory, CrawlerHealth, RateLimit
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from shared.config import settings
 from shared.tor import TorInstance, tor_manager
 

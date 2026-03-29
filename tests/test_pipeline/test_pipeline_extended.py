@@ -64,7 +64,7 @@ def _scalar_result(value) -> MagicMock:
 
 
 def _make_crawler_result(**kwargs):
-    from modules.crawlers.result import CrawlerResult
+    from modules.crawlers.core.result import CrawlerResult
 
     defaults = {
         "platform": "instagram",

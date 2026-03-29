@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from modules.crawlers.core.orchestrator import ScraperOrchestrator
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.pipeline.progress_tracker import ProgressAggregator
 from shared.schemas.progress import EventType
 

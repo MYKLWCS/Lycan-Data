@@ -26,7 +26,7 @@ from modules.crawlers.pep.open_pep_search import (
     _parse_interpol,
     _parse_opensanctions,
 )
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 
 # ---------------------------------------------------------------------------
 # Helpers

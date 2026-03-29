@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.pipeline.aggregator import (
     _get_or_create_person,
     _handle_behavioural,

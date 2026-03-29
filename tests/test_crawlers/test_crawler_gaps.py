@@ -48,7 +48,7 @@ class TestBaseCrawler:
     def _make_crawler(self):
         """Build a minimal concrete subclass."""
         from modules.crawlers.base import BaseCrawler
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
 
         class _Stub(BaseCrawler):
             platform = "stub"
@@ -87,7 +87,7 @@ class TestBaseCrawler:
     async def test_run_exception_is_caught(self):
         """run() catches exceptions from scrape() and returns error result."""
         from modules.crawlers.base import BaseCrawler
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
 
         class _Failing(BaseCrawler):
             platform = "failing"
@@ -107,7 +107,7 @@ class TestBaseCrawler:
     async def test_run_sets_tor_used_flag(self):
         """result.tor_used is True when requires_tor=True and tor_enabled=True."""
         from modules.crawlers.base import BaseCrawler
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
 
         class _TorCrawler(BaseCrawler):
             platform = "tor_crawler"
@@ -129,7 +129,7 @@ class TestBaseCrawler:
     def test_get_proxy_requires_tor_false(self):
         """get_proxy() returns None when requires_tor=False."""
         from modules.crawlers.base import BaseCrawler
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
 
         class _NoTor(BaseCrawler):
             platform = "no_tor"
@@ -185,7 +185,7 @@ class TestHttpxBase:
 
     def _make_crawler(self):
         from modules.crawlers.httpx_base import HttpxCrawler
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
 
         class _Http(HttpxCrawler):
             platform = "http_stub"
@@ -1091,7 +1091,7 @@ class TestTwitterCrawler:
     @pytest.mark.asyncio
     async def test_all_instances_return_not_found(self):
         """When every _try_instance sets result.error='not_found', all_instances_failed is returned."""
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from modules.crawlers.twitter import TwitterCrawler
 
         crawler = TwitterCrawler()

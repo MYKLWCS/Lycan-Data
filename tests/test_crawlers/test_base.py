@@ -11,7 +11,7 @@ from modules.crawlers.registry import (
     list_platforms,
     register,
 )
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 
 # --- Registry tests ---
 

@@ -23,7 +23,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.crawlers.registry import get_crawler
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.graph.company_intel import CompanyIntelligenceEngine
 from shared.models.employment import EmploymentHistory
 from shared.models.person import Person

@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.phone_carrier import _detect_line_type, parse_phone_parts
 from modules.crawlers.registry import register
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from shared.constants import LineType
 from shared.tor import TorInstance
 from modules.crawlers.core.models import CrawlerCategory, RateLimit

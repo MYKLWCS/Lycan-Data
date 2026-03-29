@@ -30,7 +30,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.crawlers.registry import CRAWLER_REGISTRY, get_crawler
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.graph.knowledge_graph import KnowledgeGraphBuilder, _entity_id
 from shared.models.address import Address
 from shared.models.employment import EmploymentHistory

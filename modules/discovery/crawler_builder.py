@@ -188,7 +188,7 @@ def _render_source(
         \"\"\"
 
         from modules.crawlers.registry import register
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from {base_import} import {base_class}
 
 

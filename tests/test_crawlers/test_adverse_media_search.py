@@ -30,7 +30,7 @@ from modules.crawlers.media.adverse_media_search import (
     _score_severity,
     _url_hash,
 )
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -50,7 +50,7 @@ import modules.crawlers.gov_propublica            # noqa: F401
 import modules.crawlers.gov_fdic                  # noqa: F401
 
 from modules.crawlers.registry import is_registered
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 
 # ── Import classes ────────────────────────────────────────────────────────────
 from modules.crawlers.truepeoplesearch import TruePeopleSearchCrawler

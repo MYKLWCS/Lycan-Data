@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from modules.crawlers.core.orchestrator import ScraperOrchestrator
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.enrichers.deduplication import ExactMatchDeduplicator
 from modules.pipeline.progress_tracker import ProgressAggregator
 from shared.schemas.progress import EventType, Phase
@@ -480,7 +480,7 @@ async def test_aggregator_writes_to_db_session():
 @pytest.mark.asyncio
 async def test_meili_indexer_posts_document_to_search():
     """MeiliIndexer.index_person() sends an HTTP POST to the MeiliSearch endpoint."""
-    from modules.search.meili_indexer import MeiliIndexer
+    from modules.search.typesense_indexer import TypesenseIndexer as MeiliIndexer
 
     indexer = MeiliIndexer()
     doc = {
@@ -510,7 +510,7 @@ async def test_meili_indexer_posts_document_to_search():
 @pytest.mark.asyncio
 async def test_meili_indexer_returns_false_on_error_status():
     """Non-2xx response → index_person returns False."""
-    from modules.search.meili_indexer import MeiliIndexer
+    from modules.search.typesense_indexer import TypesenseIndexer as MeiliIndexer
 
     indexer = MeiliIndexer()
     doc = {"id": str(uuid.uuid4()), "full_name": "John Doe"}
@@ -618,7 +618,7 @@ async def test_full_pipeline_name_to_stored_result():
     assert "person_id" in summary
 
     # Step 3: verify MeiliSearch would be called with valid document
-    from modules.search.meili_indexer import MeiliIndexer
+    from modules.search.typesense_indexer import TypesenseIndexer as MeiliIndexer
 
     doc = {
         "id": summary["person_id"],

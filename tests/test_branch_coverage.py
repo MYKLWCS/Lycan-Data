@@ -474,7 +474,7 @@ class TestMeiliSearchByRegionPartialFilters:
     """search_by_region must build correct filter when only some params are given."""
 
     def _make_indexer(self):
-        from modules.search.meili_indexer import MeiliIndexer
+        from modules.search.typesense_indexer import TypesenseIndexer as MeiliIndexer
 
         with patch("modules.search.typesense_indexer.settings") as ms:
             ms.typesense_url = "http://localhost:8108"
@@ -657,7 +657,7 @@ class TestDispatcherResultNoDataAttr:
     @pytest.mark.asyncio
     async def test_dispatch_result_without_data_attribute(self):
         """Branch [116,119]: hasattr(result, 'data') is False → data key not set."""
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from modules.dispatcher.dispatcher import CrawlDispatcher
 
         dispatcher = CrawlDispatcher(worker_id="branch-worker")
@@ -781,7 +781,7 @@ class TestGetOrCreatePersonIdNotFound:
     @pytest.mark.asyncio
     async def test_get_or_create_falls_through_when_id_not_found(self):
         """Branch [263,269]: session.get returns None → proceed to name lookup."""
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from modules.pipeline.aggregator import _get_or_create_person
         from shared.models.person import Person
 
@@ -822,7 +822,7 @@ class TestHandleBreachDataNoDate:
     @pytest.mark.asyncio
     async def test_handle_breach_no_date(self):
         """Branch [423,431]: raw_date is None → breach_date = None (skip fromisoformat)."""
-        from modules.crawlers.result import CrawlerResult
+        from modules.crawlers.core.result import CrawlerResult
         from modules.pipeline.aggregator import _handle_breach_data
         from shared.models.breach import BreachRecord
 

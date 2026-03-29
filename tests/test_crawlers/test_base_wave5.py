@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from modules.crawlers.base import BaseCrawler
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
 
 # ---------------------------------------------------------------------------

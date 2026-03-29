@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from modules.dispatcher.dispatcher import (
     CONCURRENCY_PER_WORKER,
     MAX_RETRIES,

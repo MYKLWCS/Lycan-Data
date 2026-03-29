@@ -100,7 +100,7 @@ class TestLifespanExceptionPaths:
                     "sys.modules",
                     {
                         "shared.tor": tor_mod,
-                        "modules.search.meili_indexer": meili_mod,
+                        "modules.search.typesense_indexer": meili_mod,
                         "shared.circuit_breaker": cb_mod,
                         "shared.rate_limiter": rl_mod,
                     },
@@ -142,7 +142,7 @@ class TestLifespanExceptionPaths:
                 "sys.modules",
                 {
                     "shared.tor": tor_mod,
-                    "modules.search.meili_indexer": meili_mod,
+                    "modules.search.typesense_indexer": meili_mod,
                     "shared.circuit_breaker": cb_mod,
                     "shared.rate_limiter": rl_mod,
                 },
@@ -184,7 +184,7 @@ class TestLifespanExceptionPaths:
                 "sys.modules",
                 {
                     "shared.tor": tor_mod,
-                    "modules.search.meili_indexer": meili_mod,
+                    "modules.search.typesense_indexer": meili_mod,
                     "shared.circuit_breaker": cb_mod,
                     "shared.rate_limiter": rl_mod,
                 },
@@ -228,7 +228,7 @@ class TestLifespanExceptionPaths:
                 "sys.modules",
                 {
                     "shared.tor": tor_mod,
-                    "modules.search.meili_indexer": meili_mod,
+                    "modules.search.typesense_indexer": meili_mod,
                     "shared.circuit_breaker": cb_mod,
                     "shared.rate_limiter": rl_mod,
                 },
@@ -270,7 +270,7 @@ class TestLifespanExceptionPaths:
                 "sys.modules",
                 {
                     "shared.tor": tor_mod,
-                    "modules.search.meili_indexer": meili_mod,
+                    "modules.search.typesense_indexer": meili_mod,
                     "shared.circuit_breaker": cb_mod,
                     "shared.rate_limiter": rl_mod,
                 },

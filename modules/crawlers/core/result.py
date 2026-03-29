@@ -1,43 +1,43 @@
-"""
-Standardized CrawlerResult — Pydantic model that all crawlers produce.
-
-This is the spec-compliant output schema. The legacy dataclass CrawlerResult
-in modules/crawlers/result.py is preserved for backward compatibility;
-BaseCrawler.crawl() converts legacy results into this standard format.
-"""
-
 from __future__ import annotations
 
-import hashlib
-import json
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
-
-from pydantic import BaseModel, Field
+from dataclasses import dataclass, field
+from datetime import timezone, datetime
+from typing import Any
 
 
-class CrawlerResult(BaseModel):
-    """Standard output schema for ALL crawlers (spec 09)."""
+@dataclass
+class CrawlerResult:
+    """Unified result returned by every scraper."""
 
-    source_name: str
-    source_url: str = ""
-    source_reliability: float = Field(default=0.5, ge=0.0, le=1.0)
-    category: str = ""
-    entity_type: str = "person"
-    raw_data: Dict[str, Any] = Field(default_factory=dict)
-    normalized_data: Dict[str, Any] = Field(default_factory=dict)
-    confidence_score: float = Field(default=0.5, ge=0.0, le=1.0)
-    data_hash: str = ""
-    collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    platform: str
+    identifier: str  # what was searched (handle, phone, email, etc.)
+    found: bool  # did we find a profile?
+    data: dict[str, Any] = field(default_factory=dict)
+    profile_url: str | None = None
+    error: str | None = None
+    scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    source_reliability: float = 0.5
+    tor_used: bool = False
+    circuit_id: str | None = None
 
-    # Backward-compat fields from legacy CrawlerResult
-    platform: Optional[str] = None
-    identifier: Optional[str] = None
-    found: bool = False
-    error: Optional[str] = None
-
-    @staticmethod
-    def hash_data(data: Dict[str, Any]) -> str:
-        canonical = json.dumps(data, sort_keys=True, default=str)
-        return hashlib.sha256(canonical.encode()).hexdigest()
+    def to_db_dict(self) -> dict[str, Any]:
+        """Fields that map directly to SocialProfile columns."""
+        return {
+            "platform": self.platform,
+            "handle": self.data.get("handle"),
+            "display_name": self.data.get("display_name"),
+            "bio": self.data.get("bio"),
+            "url": self.profile_url,
+            "follower_count": self.data.get("follower_count"),
+            "following_count": self.data.get("following_count"),
+            "post_count": self.data.get("post_count"),
+            "is_verified": self.data.get("is_verified", False),
+            "is_private": self.data.get("is_private", False),
+            "is_active": self.found,
+            "profile_created_at": self.data.get("profile_created_at"),
+            "profile_data": self.data,
+            "scraped_from": self.profile_url or self.platform,
+            "last_scraped_at": self.scraped_at,
+            "source_reliability": self.source_reliability,
+            "freshness_score": 1.0,
+        }

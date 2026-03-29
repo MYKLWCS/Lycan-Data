@@ -21,7 +21,7 @@ from typing import Any
 
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.result import CrawlerResult
+from modules.crawlers.core.result import CrawlerResult
 from shared.config import settings
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
