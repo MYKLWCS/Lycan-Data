@@ -197,30 +197,6 @@ async def ui_index():
     return FileResponse("static/index.html")
 
 
-@app.get("/ui/graph", include_in_schema=False)
-async def ui_knowledge_graph():
-    """Serve the Knowledge Graph explorer page."""
-    return FileResponse("templates/knowledge_graph.html")
-
-
-@app.get("/ui/discovery", include_in_schema=False)
-async def ui_discovery():
-    """Serve the Open Discovery / Review Tab page."""
-    return FileResponse("templates/discovery.html")
-
-
-@app.get("/ui/relationships", include_in_schema=False)
-async def ui_relationships():
-    """Serve the Interactive Relationship Graph page."""
-    return FileResponse("templates/relationship_graph.html")
-
-
-@app.get("/ui/{path:path}", include_in_schema=False)
-async def ui_redirect(path: str):
-    """Redirect old /ui/* routes to the SPA hash router."""
-    from fastapi.responses import RedirectResponse
-
-    return RedirectResponse(url=f"/#/{path}")
 
 
 # ── API Routes ────────────────────────────────────────────────────────────────

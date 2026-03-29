@@ -401,24 +401,14 @@ class EnrichmentOrchestrator:
             return
 
         # 1. Identity completeness (0-100): name, DOB, SSN-last4 proxy, photo
-        identity_fields = 0
-        identity_max = 4
-        if person.full_name:
-            identity_fields += 1
-        if person.date_of_birth:
-            identity_fields += 1
-        # SSN-last4 proxy: check if any national_id identifier exists
-        ssn_result = await session.execute(
-            select(func.count()).select_from(Identifier).where(
-                Identifier.person_id == pid,
-                Identifier.type.in_(["national_id", "ssn"]),
-            )
-        )
-        if (ssn_result.scalar() or 0) > 0:
-            identity_fields += 1
-        if person.profile_image_url:
-            identity_fields += 1
-        identity_completeness = (identity_fields / identity_max) * 100
+        # Name alone = 50 (weight 2), DOB = 25, national_id/ssn = 12.5, photo = 12.5
+        identity_fields = sum([
+            2 if person.full_name else 0,
+            1 if person.date_of_birth else 0,
+            0.5 if getattr(person, 'national_id', None) or getattr(person, 'ssn_last4', None) else 0,
+            0.5 if person.profile_image_url else 0,
+        ])
+        identity_completeness = min(100, identity_fields * 25)
 
         # 2. Financial depth (0-100): credit score, income estimate, property
         financial_fields = 0
@@ -461,8 +451,17 @@ class EnrichmentOrchestrator:
                 )
             )
         ).scalar() or 0
-        # Score based on coverage: 0=0, 1=25, 2=50, 3=75, 4+=100
-        social_coverage = min(100.0, social_count * 25)
+        # Score based on coverage with diminishing returns curve
+        if social_count == 0:
+            social_coverage = 0
+        elif social_count == 1:
+            social_coverage = 40
+        elif social_count == 2:
+            social_coverage = 65
+        elif social_count == 3:
+            social_coverage = 80
+        else:
+            social_coverage = 100
 
         # 5. Legal records (0-100): court, criminal, civil, AML
         legal_fields = 0
@@ -507,13 +506,13 @@ class EnrichmentOrchestrator:
 
         # Weighted composite
         enrichment_score = round(
-            identity_completeness * 0.20
-            + financial_depth * 0.15
-            + employment_depth * 0.15
-            + social_coverage * 0.15
-            + legal_records * 0.15
-            + property_records * 0.10
-            + relationship_count * 0.10,
+            identity_completeness * 0.25
+            + social_coverage * 0.30
+            + employment_depth * 0.12
+            + financial_depth * 0.10
+            + legal_records * 0.10
+            + property_records * 0.07
+            + relationship_count * 0.06,
             2,
         )
 

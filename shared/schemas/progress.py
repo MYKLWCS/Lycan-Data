@@ -45,6 +45,22 @@ class ProgressEvent(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class DiscoveredAccount(BaseModel):
+    """An account link discovered by a crawler."""
+
+    platform: str = ""
+    url: str | None = None
+    handle: str | None = None
+
+
+class CrawlerProgress(BaseModel):
+    """Per-crawler status with discovered accounts."""
+
+    status: str = "queued"  # queued | running | done | failed
+    results_found: int = 0
+    discovered_accounts: list[DiscoveredAccount] = []
+
+
 class ProgressState(BaseModel):
     """Aggregated progress state streamed to the frontend via SSE."""
 
@@ -59,4 +75,5 @@ class ProgressState(BaseModel):
     estimated_seconds_remaining: float
     elapsed_seconds: float
     scraper_statuses: dict[str, str]  # {name: "queued"|"running"|"done"|"failed"}
+    all_discovered_accounts: list[DiscoveredAccount] = []
     last_update: datetime

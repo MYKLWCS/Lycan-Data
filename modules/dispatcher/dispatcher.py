@@ -169,11 +169,31 @@ class CrawlDispatcher:
                         "found": True,
                     },
                 )
-                # Emit scraper_done with result count
+                # Emit scraper_done with result count and discovered accounts
                 data = ingest_payload.get("data") or {}
-                results_found = len(data) if isinstance(data, list) else (1 if data else 0)
+                results_found = len(data) if isinstance(data, list) else (sum(1 for v in data.values() if v is not None and v != "" and v != []) if isinstance(data, dict) else (1 if data else 0))
+
+                # Extract discovered account links from crawler results
+                discovered_accounts: list[dict] = []
+                if isinstance(data, dict):
+                    url = data.get("profile_url") or data.get("url") or data.get("link")
+                    handle = data.get("handle") or data.get("username")
+                    acct_platform = data.get("platform") or platform
+                    if url:
+                        discovered_accounts.append({"url": url, "handle": handle, "platform": acct_platform})
+                elif isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            url = item.get("profile_url") or item.get("url") or item.get("link")
+                            handle = item.get("handle") or item.get("username")
+                            acct_platform = item.get("platform") or platform
+                            if url:
+                                discovered_accounts.append({"url": url, "handle": handle, "platform": acct_platform})
+
                 await self._emit_progress(
-                    person_id, EventType.SCRAPER_DONE, platform, results_found=results_found
+                    person_id, EventType.SCRAPER_DONE, platform,
+                    results_found=results_found,
+                    discovered_accounts=discovered_accounts,
                 )
             else:
                 if result.error and "rate" in (result.error or "").lower():
@@ -209,21 +229,22 @@ class CrawlDispatcher:
         platform: str,
         results_found: int = 0,
         error: str | None = None,
+        discovered_accounts: list[dict] | None = None,
     ) -> None:
         """Publish a scraper progress event to the progress channel (fire-and-forget)."""
         if not person_id or not event_bus.is_connected:
             return
         try:
-            await event_bus.publish(
-                "progress",
-                {
-                    "event_type": event_type,
-                    "search_id": person_id,
-                    "scraper_name": platform,
-                    "results_found": results_found,
-                    "error": error,
-                },
-            )
+            payload: dict = {
+                "event_type": event_type,
+                "search_id": person_id,
+                "scraper_name": platform,
+                "results_found": results_found,
+                "error": error,
+            }
+            if discovered_accounts:
+                payload["discovered_accounts"] = discovered_accounts
+            await event_bus.publish("progress", payload)
         except Exception:
             pass  # Never let progress emission crash the job
 

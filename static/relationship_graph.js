@@ -570,7 +570,7 @@
           enrichment_score: c.enrichment_score, age: c.age,
           location: c.location, risk_tier: c.risk_tier || 'unknown',
           relationship_to_center: null, strength: 100, confidence: 1.0,
-          distance: 0, _borderColor: '#00c3ff',
+          distance: 0, _borderColor: '#00d46a',
           x: 0, y: 0,
         });
 

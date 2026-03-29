@@ -8,7 +8,7 @@ ProgressAggregator  — stateful: processes events, tracks scraper statuses
 from datetime import datetime, timezone
 from typing import Optional
 
-from shared.schemas.progress import EventType, Phase, ProgressState
+from shared.schemas.progress import DiscoveredAccount, EventType, Phase, ProgressState
 
 # Phase boundary definitions: {phase: (start_pct, end_pct)}
 PHASE_RANGES: dict[str, tuple[float, float]] = {
@@ -94,6 +94,9 @@ class ProgressAggregator:
         self.scrapers_failed = 0
         self.results_found = 0
 
+        # Discovered account links (accumulated across all scrapers)
+        self.all_discovered_accounts: list[DiscoveredAccount] = []
+
         # Dedup / enrichment tracking
         self._dedup_processed = 0
         self._dedup_total = 0
@@ -131,6 +134,16 @@ class ProgressAggregator:
                 self.scraper_statuses[name] = "done"
             self.scrapers_completed += 1
             self.results_found += event.get("results_found", 0)
+            # Accumulate discovered account links
+            for acct in event.get("discovered_accounts", []):
+                if isinstance(acct, dict) and acct.get("url"):
+                    self.all_discovered_accounts.append(
+                        DiscoveredAccount(
+                            platform=acct.get("platform", ""),
+                            url=acct.get("url"),
+                            handle=acct.get("handle"),
+                        )
+                    )
 
         elif etype == EventType.SCRAPER_FAILED:
             name = event.get("scraper_name", "")
@@ -189,5 +202,6 @@ class ProgressAggregator:
             estimated_seconds_remaining=round(eta, 1),
             elapsed_seconds=round(elapsed, 1),
             scraper_statuses=dict(self.scraper_statuses),
+            all_discovered_accounts=list(self.all_discovered_accounts),
             last_update=datetime.now(timezone.utc),
         )

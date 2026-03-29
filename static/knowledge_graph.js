@@ -16,7 +16,7 @@
   var lastMouse = { x: 0, y: 0 };
 
   var COLORS = {
-    Person: '#00c3ff', Company: '#ff6b6b', Address: '#ffc300',
+    Person: '#00d46a', Company: '#ff6b6b', Address: '#ffc300',
     Phone: '#00ffaa', Email: '#9d00ff', Property: '#ff9500',
     Vehicle: '#36d1dc', Court_Case: '#ff2a55', Social_Profile: '#a855f7',
     Domain: '#06b6d4', Crypto_Wallet: '#f59e0b'
