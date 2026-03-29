@@ -1,6 +1,6 @@
 """
 Tests for username enumeration crawler:
-  - UsernameSherockCrawler (username_sherlock) — 10 tests
+  - UsernameSherlockCrawler (username_sherlock) — 10 tests
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import pytest
 
 import modules.crawlers.username_sherlock  # noqa: F401 — trigger @register
 from modules.crawlers.registry import is_registered
-from modules.crawlers.username_sherlock import UsernameSherockCrawler, _run_sherlock
+from modules.crawlers.username_sherlock import UsernameSherlockCrawler, _run_sherlock
 
 # ---------------------------------------------------------------------------
 # Test 1: sherlock found results — correct parsing
@@ -23,7 +23,7 @@ from modules.crawlers.username_sherlock import UsernameSherockCrawler, _run_sher
 @pytest.mark.asyncio
 async def test_sherlock_found_results():
     """Sherlock output with matches is parsed into found_on list."""
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
 
     async def fake_run(username):
         return [
@@ -56,7 +56,7 @@ async def test_sherlock_found_results():
 @pytest.mark.asyncio
 async def test_sherlock_no_results():
     """Sherlock finds no accounts — result is still found=True with empty list."""
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
 
     async def fake_run(username):
         return []
@@ -85,7 +85,7 @@ async def test_sherlock_no_results():
 @pytest.mark.asyncio
 async def test_sherlock_timeout():
     """Subprocess timeout returns found=False with sherlock_timeout error."""
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
 
     async def timeout_run(username):
         raise TimeoutError()
@@ -114,7 +114,7 @@ async def test_sherlock_timeout():
 @pytest.mark.asyncio
 async def test_sherlock_not_installed():
     """Missing sherlock binary returns graceful found=False result."""
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
 
     with patch(
         "modules.crawlers.username_sherlock._check_sherlock_installed",
@@ -170,7 +170,7 @@ def test_regex_multiple_sites():
 @pytest.mark.asyncio
 async def test_site_count_matches_found_on():
     """site_count in data always equals len(found_on)."""
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
 
     async def fake_run(username):
         return [
@@ -212,7 +212,7 @@ def test_username_sherlock_registered():
 @pytest.mark.asyncio
 async def test_username_stored_in_data():
     """The queried username is stored in data['username']."""
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
 
     async def fake_run(username):
         return []

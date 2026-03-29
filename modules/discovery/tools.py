@@ -116,6 +116,12 @@ class AmassTool(BaseDiscoveryTool):
     timeout = 180
 
     async def run(self, query: str) -> list[DiscoveryHit]:
+        import shutil
+
+        if not shutil.which("amass"):
+            logger.warning("amass binary not found in PATH — skipping subdomain discovery")
+            return []
+
         domain = _extract_domain(query)
         if not domain:
             return []

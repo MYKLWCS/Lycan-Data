@@ -244,6 +244,14 @@ class SaturationCrawler:
                 else:
                     self.stats.duplicate_results += 1
 
+            # Guard against memory leak — cap visited set size
+            if len(self._seen_hashes) > 50_000:
+                logger.warning(
+                    "visited_nodes exceeded 50 000 (%d) — stopping crawl to prevent memory leak",
+                    len(self._seen_hashes),
+                )
+                break
+
             # Discover connected entities and enqueue them
             if item.depth < self.controls.max_depth:
                 connections = await self._discover_connections(

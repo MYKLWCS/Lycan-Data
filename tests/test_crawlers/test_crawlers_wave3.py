@@ -425,9 +425,9 @@ class TestUsernameSherlock:
     """Covers _check_sherlock_installed error branches and scrape() FileNotFoundError."""
 
     def _make_crawler(self):
-        from modules.crawlers.username_sherlock import UsernameSherockCrawler
+        from modules.crawlers.username_sherlock import UsernameSherlockCrawler
 
-        c = UsernameSherockCrawler.__new__(UsernameSherockCrawler)
+        c = UsernameSherlockCrawler.__new__(UsernameSherlockCrawler)
         c.platform = "username_sherlock"
         c.source_reliability = 0.65
         c.requires_tor = False

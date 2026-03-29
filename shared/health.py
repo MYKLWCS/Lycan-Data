@@ -43,7 +43,7 @@ async def _check_dragonfly() -> bool:
 
         from shared.config import settings
 
-        r = aioredis.from_url(settings.dragonfly_url, socket_connect_timeout=3)
+        r = aioredis.from_url(settings.cache_url, socket_connect_timeout=3)
         try:
             await r.ping()
             return True

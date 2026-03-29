@@ -1,15 +1,24 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    @model_validator(mode="after")
+    def _resolve_legacy_aliases(self) -> "Settings":
+        # DRAGONFLY_URL overrides CACHE_URL for backward compat
+        if self.dragonfly_url:
+            self.cache_url = self.dragonfly_url
+        return self
+
     # Database
     database_url: str = "postgresql+asyncpg://lycan:lycan@postgres:5432/lycan"
     database_url_sync: str = "postgresql://lycan:lycan@postgres:5432/lycan"
 
-    # Dragonfly / Redis
-    dragonfly_url: str = "redis://garnet:6379/0"
+    # Cache (Garnet / Redis-compatible)
+    cache_url: str = "redis://garnet:6379/0"
+    dragonfly_url: str = ""  # legacy alias — use CACHE_URL instead
 
     # Typesense (replaced MeiliSearch for licensing compliance)
     typesense_url: str = "http://typesense:8108"

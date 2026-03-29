@@ -36,7 +36,7 @@ class TransportRegistry:
 
             from shared.config import settings
 
-            self._redis = aioredis.from_url(settings.dragonfly_url)
+            self._redis = aioredis.from_url(settings.cache_url)
             await self._redis.ping()
         except Exception:
             self._redis = None

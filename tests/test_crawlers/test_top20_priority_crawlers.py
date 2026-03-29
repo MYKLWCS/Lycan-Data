@@ -58,7 +58,7 @@ from modules.crawlers.fastpeoplesearch import FastPeopleSearchCrawler
 from modules.crawlers.whitepages import WhitepagesCrawler
 from modules.crawlers.people_thatsthem import PeopleThatsThemCrawler
 from modules.crawlers.peekyou import PeekYouCrawler
-from modules.crawlers.username_sherlock import UsernameSherockCrawler
+from modules.crawlers.username_sherlock import UsernameSherlockCrawler
 from modules.crawlers.username_maigret import MaigretCrawler
 from modules.crawlers.social_instaloader import InstaloaderCrawler, _parse_profile_json
 from modules.crawlers.social_snscrape import SnscrapeCrawler, _validate_username
@@ -303,7 +303,7 @@ async def test_sherlock_finds_accounts():
         "[+] GitHub: https://github.com/johndoe\n"
         "[+] Reddit: https://reddit.com/user/johndoe\n"
     )
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
     with patch(
         "modules.crawlers.username_sherlock._check_sherlock_installed",
         AsyncMock(return_value=True),
@@ -325,7 +325,7 @@ async def test_sherlock_finds_accounts():
 
 @pytest.mark.asyncio
 async def test_sherlock_not_installed():
-    crawler = UsernameSherockCrawler()
+    crawler = UsernameSherlockCrawler()
     with patch(
         "modules.crawlers.username_sherlock._check_sherlock_installed",
         AsyncMock(return_value=False),

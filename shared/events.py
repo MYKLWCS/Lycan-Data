@@ -51,7 +51,7 @@ class EventBus:
     }
 
     def __init__(self, url: str | None = None) -> None:
-        self._url = url or settings.dragonfly_url
+        self._url = url or settings.cache_url
         self._redis: aioredis.Redis | None = None
 
     async def connect(self) -> None:

@@ -133,7 +133,7 @@ from starlette.requests import Request
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["100/minute"],
-    storage_uri=_settings.dragonfly_url,
+    storage_uri=_settings.cache_url,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
