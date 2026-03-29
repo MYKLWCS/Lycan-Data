@@ -371,6 +371,25 @@ class CrawlDispatcher:
         logger.info("Requeued job with %ds backoff (retry %d)", delay, retry_count + 1)
 
 
+async def check_search_depth(person_id: str, max_depth: int = 2) -> bool:
+    """Returns True if recursion is still allowed, False if max depth hit."""
+    try:
+        import redis.asyncio as aioredis
+        from shared.config import settings
+        r = aioredis.from_url(settings.cache_url, socket_connect_timeout=2)
+        key = f"lycan:search_depth:{person_id}"
+        depth = await r.incr(key)
+        if depth == 1:
+            await r.expire(key, 3600)
+        await r.aclose()
+        if depth > max_depth:
+            logger.info("Recursion depth %d reached for person %s — stopping pivot chain", depth, person_id)
+            return False
+        return True
+    except Exception:
+        return True  # Fail open — allow if Redis is down
+
+
 async def dispatch_job(
     platform: str,
     identifier: str,

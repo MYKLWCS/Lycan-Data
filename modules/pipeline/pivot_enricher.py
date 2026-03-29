@@ -166,6 +166,15 @@ async def pivot_from_result(
     from modules.crawlers.registry import CRAWLER_REGISTRY
     from modules.dispatcher.dispatcher import dispatch_job
 
+    # Check recursion depth before pivoting (fail open if Redis unavailable)
+    try:
+        from modules.dispatcher.dispatcher import check_search_depth
+        if not await check_search_depth(person_id):
+            logger.info("Skipping pivots for person %s — max depth reached", person_id)
+            return 0
+    except Exception:
+        pass  # Depth check failed — allow pivot to proceed
+
     pivots = _extract_pivots(data)
     if not pivots:
         return 0

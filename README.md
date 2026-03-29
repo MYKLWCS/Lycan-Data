@@ -25,7 +25,7 @@ cd Lycan-Data
 
 # 2. Create your .env file
 cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD, MEILI_MASTER_KEY, TOR_CONTROL_PASSWORD, API_KEYS
+# Edit .env — set POSTGRES_PASSWORD, TYPESENSE_API_KEY, TOR_CONTROL_PASSWORD, API_KEYS
 
 # 3. Start all infrastructure services
 make up
@@ -52,11 +52,10 @@ Copy `.env.example` to `.env` and fill in:
 | Variable | Required | Description |
 |---|---|---|
 | `POSTGRES_PASSWORD` | Yes | PostgreSQL password |
-| `MEILI_MASTER_KEY` | Yes | MeiliSearch master key (any random string) |
+| `TYPESENSE_API_KEY` | Yes | Typesense API key (any random string) |
 | `TOR_CONTROL_PASSWORD` | Yes | Tor control port password |
 | `API_KEYS` | Yes | Comma-separated valid API keys (e.g. `key1,key2`) |
 | `SECRET_KEY` | Yes | JWT signing key (32+ characters) |
-| `TYPESENSE_API_KEY` | No | Typesense API key (defaults to `changeme` in dev) |
 | `POSTGRES_USER` | No | Defaults to `lycan` |
 | `POSTGRES_DB` | No | Defaults to `lycan` |
 | `ATTOM_API_KEY` | No | ATTOM property data (enhances property results) |
@@ -71,8 +70,7 @@ Copy `.env.example` to `.env` and fill in:
 |---|---|---|
 | PostgreSQL + AGE | 5432 | Main relational database + graph extension |
 | Garnet | 6379 | Redis-compatible cache and job queue |
-| MeiliSearch | 7700 | Full-text + filter search |
-| Typesense | 8108 | Hybrid search / vector search |
+| Typesense | 8108 | Full-text + filter + hybrid / vector search |
 | Qdrant | 6333 | Vector database for ML embeddings |
 | Pulsar | 6650 / 8082 | Event streaming (broker / admin) |
 | Tor (×3) | 9050–9055 | Anonymous proxy pool |
@@ -175,9 +173,9 @@ PostgreSQL + AGE (port 5432)                          │
   │  Apache AGE: graph queries for relationships       │
   ▼                                                    │
 IndexDaemon                                            │
-  │  Builds MeiliSearch documents                      │
+  │  Builds Typesense documents                        │
   ▼                                                    │
-MeiliSearch (port 7700)                               │
+Typesense (port 8108)                                  │
   │  Full-text + filter + sort search                  │
   ▼                                                    │
 AutoDedupDaemon (every 10 min) ◄──────────────────────┘
