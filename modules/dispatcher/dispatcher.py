@@ -168,6 +168,7 @@ class CrawlDispatcher:
                         "identifier": identifier,
                         "person_id": person_id,
                         "found": True,
+                        "depth": job_dict.get("depth", 0),
                     },
                 )
                 # Emit scraper_done with result count and discovered accounts
@@ -397,6 +398,7 @@ async def dispatch_job(
     person_id: str | None = None,
     priority: str = "normal",
     job_id: str | None = None,
+    depth: int = 0,
 ) -> None:
     """Helper to enqueue a single crawl job."""
     payload = {
@@ -405,5 +407,6 @@ async def dispatch_job(
         "identifier": identifier,
         "person_id": person_id,
         "retry_count": 0,
+        "depth": depth,
     }
     await event_bus.enqueue(payload, priority=priority)

@@ -105,3 +105,7 @@ search:
 	  -H "Authorization: Bearer $(shell echo $${API_KEYS} | cut -d, -f1)" \
 	  -d "{\"query\": \"$$QUERY\", \"max_results\": 10}" \
 	  | python3 -m json.tool
+
+# ── Dependency management ──────────────────────────────────────────────────
+requirements.txt: pyproject.toml poetry.lock
+	poetry export --format requirements.txt --output requirements.txt --without-hashes

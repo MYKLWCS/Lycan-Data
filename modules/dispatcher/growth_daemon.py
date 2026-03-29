@@ -209,6 +209,7 @@ class GrowthDaemon:
                 identifier=ident_value,
                 person_id=person_id,
                 priority=priority,
+                depth=depth + 1,
             )
             dispatched += 1
             logger.info(

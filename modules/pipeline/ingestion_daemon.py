@@ -85,6 +85,15 @@ class IngestionDaemon:
                 written = await aggregate_result(session, result, person_id=person_id)
                 # Note: aggregate_result commits internally if successful.
 
+                try:
+                    if event_bus.is_connected and person_id:
+                        await event_bus.publish("progress", {
+                            "event_type": "DEDUP_RUNNING",
+                            "search_id": str(person_id),
+                        })
+                except Exception:
+                    pass
+
                 # Push to Index Queue
                 pid = written.get("person_id")
                 if pid:

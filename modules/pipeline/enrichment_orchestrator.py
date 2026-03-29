@@ -55,6 +55,15 @@ class EnrichmentOrchestrator:
         Run the full enrichment pipeline for a person.
         Returns a report of what ran, what succeeded, and what failed.
         """
+        try:
+            if event_bus.is_connected:
+                await event_bus.publish("progress", {
+                    "event_type": "ENRICHMENT_RUNNING",
+                    "search_id": str(person_id),
+                })
+        except Exception:
+            pass
+
         started_at = datetime.now(timezone.utc)
         steps: list[EnrichmentStepResult] = []
 

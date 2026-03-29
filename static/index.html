@@ -2693,7 +2693,7 @@ const App = {
       { label:'Flag for Review',  fn: ()=>{ apiPost('/persons/'+id+'/flag',{}).catch(()=>{}); } },
     ].forEach(a => {
       const btn = el('button','cc-action-btn', a.label);
-      if (a.href) btn.onclick=()=>{ location.hash=a.getAttribute('href'); };
+      if (a.href) btn.onclick=()=>{ location.hash=a.href; };
       else if (a.fn) btn.onclick=a.fn;
       actions.appendChild(btn);
     });

@@ -112,7 +112,7 @@ async def test_fan_out_phone_enqueues_phone_platforms(daemon):
 
     dispatched_platforms = []
 
-    async def fake_dispatch(platform, identifier, person_id, priority):
+    async def fake_dispatch(platform, identifier, person_id, priority, **kwargs):
         dispatched_platforms.append(platform)
 
     with (
@@ -151,7 +151,7 @@ async def test_fan_out_email_enqueues_email_platforms(daemon):
 
     dispatched_platforms = []
 
-    async def fake_dispatch(platform, identifier, person_id, priority):
+    async def fake_dispatch(platform, identifier, person_id, priority, **kwargs):
         dispatched_platforms.append(platform)
 
     with (
@@ -176,7 +176,7 @@ async def test_fan_out_username_enqueues_username_platforms(daemon):
 
     dispatched_platforms = []
 
-    async def fake_dispatch(platform, identifier, person_id, priority):
+    async def fake_dispatch(platform, identifier, person_id, priority, **kwargs):
         dispatched_platforms.append(platform)
 
     with (
@@ -201,7 +201,7 @@ async def test_fan_out_kill_switch_disables_platform(daemon):
 
     dispatched_platforms = []
 
-    async def fake_dispatch(platform, identifier, person_id, priority):
+    async def fake_dispatch(platform, identifier, person_id, priority, **kwargs):
         dispatched_platforms.append(platform)
 
     # Disable instagram via kill switch
@@ -345,7 +345,7 @@ async def test_fan_out_respects_budget():
 
     dispatched_platforms = []
 
-    async def fake_dispatch(platform, identifier, person_id, priority):
+    async def fake_dispatch(platform, identifier, person_id, priority, **kwargs):
         dispatched_platforms.append(platform)
 
     daemon = GrowthDaemon()

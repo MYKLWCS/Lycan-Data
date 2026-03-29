@@ -56,4 +56,7 @@ RUN python -m spacy download en_core_web_lg \
 # Copy application source
 COPY . .
 
+RUN chmod +x scripts/entrypoint.sh
+ENTRYPOINT ["./scripts/entrypoint.sh"]
+
 EXPOSE 8000
