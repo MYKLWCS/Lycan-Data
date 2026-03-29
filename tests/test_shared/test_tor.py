@@ -31,7 +31,7 @@ def test_get_proxy_for_role():
     mgr = TorManager()
     # darkweb role maps to TOR3
     proxy = mgr.get_proxy_for_role("darkweb")
-    assert "9054" in proxy  # TOR3 is on port 9054
+    assert "tor-3" in proxy or "9054" in proxy  # TOR3 Docker service or host port
 
 
 def test_status_all_disconnected_initially():

@@ -182,6 +182,7 @@ class EntityResolutionPipeline:
             )
 
         # 2. For each identifier value, find other persons with the same value
+        ident_weights = {"email": 0.50, "phone": 0.45, "ssn_last4": 0.60, "username": 0.35}
         candidate_scores: dict[str, float] = {}  # other_person_id -> best score
         for ident in my_idents:
             val = ident.normalized_value or ident.value
@@ -198,8 +199,7 @@ class EntityResolutionPipeline:
             others_result = await session.execute(others_stmt)
             for other_ident in others_result.scalars().all():
                 oid = str(other_ident.person_id)
-                # Each shared identifier adds 0.30 confidence (capped by name match)
-                candidate_scores[oid] = candidate_scores.get(oid, 0.0) + 0.30
+                candidate_scores[oid] = candidate_scores.get(oid, 0.0) + ident_weights.get(ident.type, 0.25)
 
         if not candidate_scores:
             return ResolutionStepResult(
@@ -219,12 +219,13 @@ class EntityResolutionPipeline:
         reviews = 0
         executor = AsyncMergeExecutor()
 
-        for oid, ident_score in candidate_scores.items():
+        for oid, raw_ident_score in candidate_scores.items():
             other_person = candidate_persons.get(oid)
             if other_person is None:
                 continue
 
             other_name = (other_person.full_name or "").strip()
+            ident_score = min(1.0, raw_ident_score)
 
             # Compute fuzzy name similarity (0-1 range)
             if my_name and other_name:
@@ -234,8 +235,8 @@ class EntityResolutionPipeline:
             else:
                 name_sim = 0.2  # one missing — low confidence
 
-            # Composite: 60% identifier overlap, 40% name similarity
-            confidence = min(1.0, ident_score * 0.60 + name_sim * 0.40)
+            # Composite: 70% identifier overlap, 30% name similarity
+            confidence = min(1.0, ident_score * 0.70 + name_sim * 0.30)
 
             if confidence >= self.AUTO_MERGE_THRESHOLD:
                 try:

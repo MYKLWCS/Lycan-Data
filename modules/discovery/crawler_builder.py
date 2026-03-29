@@ -106,6 +106,8 @@ def _render_source(
     pagination: str,
     reliability_tier: str,
 ) -> str:
+    # Note: TODOs below are intentional — they appear in GENERATED crawler
+    # templates for developers to fill in, not in runtime code.
     sel_lines = "\n".join(
         f'        "{k}": "{v}",'
         for k, v in selectors.items()

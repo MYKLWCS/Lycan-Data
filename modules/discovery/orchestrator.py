@@ -164,6 +164,18 @@ async def _auto_queue_discovered(hits: list[DiscoveryHit], session: AsyncSession
         "github.com": "github_profile",
         "reddit.com": "reddit",
         "tiktok.com": "social_tiktok",
+        "youtube.com": "social_youtube",
+        "pinterest.com": "social_pinterest",
+        "telegram.org": "telegram",
+        "t.me": "telegram",
+        "discord.gg": "discord",
+        "twitch.tv": "social_twitch",
+        "snapchat.com": "social_snapchat",
+        "threads.net": "social_threads",
+        "bsky.app": "social_bluesky",
+        "truthsocial.com": "social_truthsocial",
+        "vk.com": "social_vk",
+        "steamcommunity.com": "social_steam",
     }
 
     queued = 0
@@ -173,7 +185,7 @@ async def _auto_queue_discovered(hits: list[DiscoveryHit], session: AsyncSession
         domain = urllib.parse.urlparse(hit.url).netloc.replace("www.", "")
         crawler_name = None
         for pattern, name in URL_TO_CRAWLER.items():
-            if pattern in domain:
+            if domain == pattern or domain.endswith("." + pattern):
                 crawler_name = name
                 break
         if crawler_name and get_crawler(crawler_name):

@@ -144,6 +144,14 @@ class ProgressAggregator:
                             handle=acct.get("handle"),
                         )
                     )
+            # Deduplicate discovered accounts by URL
+            seen: set[str] = set()
+            unique: list[DiscoveredAccount] = []
+            for a in self.all_discovered_accounts:
+                if a.url and a.url not in seen:
+                    seen.add(a.url)
+                    unique.append(a)
+            self.all_discovered_accounts = unique
 
         elif etype == EventType.SCRAPER_FAILED:
             name = event.get("scraper_name", "")

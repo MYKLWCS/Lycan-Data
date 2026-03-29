@@ -246,14 +246,21 @@ async def pivot_from_result(
                     ).limit(1)
                 )
                 if not review_exists.scalar_one_or_none():
+                    # Compute actual similarity from name comparison
+                    from shared.models.person import Person as _Person
+                    from rapidfuzz import fuzz as _fuzz_mod
+                    _person_a = await session.get(_Person, pid)
+                    _person_b = await session.get(_Person, other_id)
+                    _name_a = getattr(_person_a, 'full_name', '') or ''
+                    _name_b = getattr(_person_b, 'full_name', '') or ''
+                    _name_sim = _fuzz_mod.token_sort_ratio(_name_a, _name_b) / 100.0
+                    _similarity_score = min(1.0, 0.4 + _name_sim * 0.6)
                     session.add(
                         DedupReview(
                             id=uuid.uuid4(),
                             person_a_id=pid,
                             person_b_id=other_id,
-                            similarity_score=0.7,
-                            # TODO: add match_reasons JSONB column to DedupReview
-                            # to store ["shared_identifier", f"{ident_type}:{norm}"]
+                            similarity_score=_similarity_score,
                         )
                     )
                     logger.info(
