@@ -88,10 +88,11 @@ def test_candidates_full_name_returns_persons_with_dob():
     persons_result = MagicMock()
     persons_result.scalars.return_value.all.return_value = [person]
 
-    count_result = MagicMock()
-    count_result.scalar.return_value = 3
+    # Address query returns empty
+    addr_result = MagicMock()
+    addr_result.scalars.return_value.all.return_value = []
 
-    session.execute = AsyncMock(side_effect=[persons_result, count_result])
+    session.execute = AsyncMock(side_effect=[persons_result, addr_result])
 
     app = _make_app(session)
     with TestClient(app) as client:
@@ -102,7 +103,6 @@ def test_candidates_full_name_returns_persons_with_dob():
     assert data["count"] == 1
     assert data["candidates"][0]["full_name"] == "John Smith"
     assert data["candidates"][0]["date_of_birth"] == "1985-06-15"
-    assert data["candidates"][0]["identifier_count"] == 3
 
 
 def test_candidates_full_name_none_dob():

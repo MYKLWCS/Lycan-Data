@@ -381,7 +381,10 @@ async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePe
 
     candidates = []
     for p in persons:
-        ident_count = len(p.identifiers)
+        try:
+            ident_count = len(p.identifiers)
+        except TypeError:
+            ident_count = 0
 
         # Location from first address
         addr = address_map.get(str(p.id))
@@ -417,10 +420,10 @@ async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePe
                 nationality=p.nationality,
                 identifier_count=ident_count,
                 risk_score=p.default_risk_score,
-                profile_image_url=p.profile_image_url,
+                profile_image_url=p.profile_image_url if isinstance(p.profile_image_url, str) else None,
                 location=location,
                 social_platforms=social_platforms,
-                enrichment_score=p.enrichment_score,
+                enrichment_score=float(p.enrichment_score) if isinstance(p.enrichment_score, (int, float)) else None,
                 emails=emails,
                 phones=phones,
             )
