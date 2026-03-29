@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.models.base import Base, DataQualityMixin, TimestampMixin
 
@@ -14,6 +14,7 @@ class Address(Base, TimestampMixin, DataQualityMixin):
     person_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("persons.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    person: Mapped["Person"] = relationship("Person", back_populates="addresses")
     street: Mapped[str | None] = mapped_column(String(500), nullable=True)
     city: Mapped[str | None] = mapped_column(String(255), nullable=True)
     state_province: Mapped[str | None] = mapped_column(String(255), nullable=True)

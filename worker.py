@@ -34,21 +34,21 @@ logger = logging.getLogger("lycan.worker")
 
 
 def _import_all_crawlers():
+    import os
     import modules.crawlers as pkg
 
-    for _finder, name, ispkg in pkgutil.iter_modules(pkg.__path__):
-        try:
-            mod = importlib.import_module(f"modules.crawlers.{name}")
-            if ispkg:
-                import pkgutil as _pkgutil
-
-                for _, subname, _ in _pkgutil.iter_modules(mod.__path__):
-                    try:
-                        importlib.import_module(f"modules.crawlers.{name}.{subname}")
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+    base_path = pkg.__path__[0]
+    for root, dirs, files in os.walk(base_path):
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", "core")]
+        for fname in files:
+            if not fname.endswith(".py") or fname == "__init__.py":
+                continue
+            rel = os.path.relpath(os.path.join(root, fname), base_path)
+            module_name = f"modules.crawlers.{rel.replace(os.sep, '.').removesuffix('.py')}"
+            try:
+                importlib.import_module(module_name)
+            except Exception:
+                pass
 
 
 async def main(

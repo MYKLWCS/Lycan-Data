@@ -44,14 +44,25 @@ _auth = [Depends(verify_api_key)]
 
 
 def _import_all_crawlers() -> None:
-    """Auto-import every module under modules.crawlers so they self-register."""
+    """Auto-import every module under modules.crawlers (recursively) so they self-register."""
+    import os
     import modules.crawlers as pkg
 
-    for _, name, _ in pkgutil.iter_modules(pkg.__path__):
-        try:
-            importlib.import_module(f"modules.crawlers.{name}")
-        except Exception:
-            pass
+    base_path = pkg.__path__[0]
+    # Walk the package tree to find all .py files in subpackages
+    for root, dirs, files in os.walk(base_path):
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", "core")]
+        for fname in files:
+            if not fname.endswith(".py") or fname == "__init__.py":
+                continue
+            # Build dotted module path: modules.crawlers.subpkg.module
+            rel = os.path.relpath(os.path.join(root, fname), base_path)
+            parts = rel.replace(os.sep, ".").removesuffix(".py")
+            module_name = f"modules.crawlers.{parts}"
+            try:
+                importlib.import_module(module_name)
+            except Exception:
+                pass
 
 
 @asynccontextmanager

@@ -214,11 +214,14 @@ services:
       TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD:-changeme}
       TOR1_SOCKS: socks5://tor-1:9050
       TOR1_CONTROL_HOST: tor-1
+      TOR1_CONTROL_PORT: "9051"
       TOR2_SOCKS: socks5://tor-2:9050
       TOR2_CONTROL_HOST: tor-2
+      TOR2_CONTROL_PORT: "9053"
       TOR3_SOCKS: socks5://tor-3:9050
       TOR3_CONTROL_HOST: tor-3
-      FLARESOLVERR_URL: http://flaresolverr:8191
+      TOR3_CONTROL_PORT: "9055"
+      FLARESOLVERR_URL: http://flaresolverr:8191/v1
       LOG_LEVEL: info
     volumes:
       - .:/app
@@ -269,7 +272,7 @@ services:
       TOR3_SOCKS: socks5://tor-3:9050
       TOR3_CONTROL_HOST: tor-3
       TOR3_CONTROL_PORT: "9055"
-      FLARESOLVERR_URL: http://flaresolverr:8191
+      FLARESOLVERR_URL: http://flaresolverr:8191/v1
       LYCAN_CONCURRENCY_PER_WORKER: "50"
       LOG_LEVEL: info
     volumes:

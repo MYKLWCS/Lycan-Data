@@ -135,6 +135,9 @@ class Person(Base, TimestampMixin, DataQualityMixin):
     vessels: Mapped[list["Vessel"]] = relationship(
         back_populates="person", cascade="all, delete-orphan"
     )
+    addresses: Mapped[list["Address"]] = relationship(
+        back_populates="person", cascade="all, delete-orphan"
+    )
     pep_classifications: Mapped[list["PepClassification"]] = relationship(
         back_populates="person",
         cascade="all, delete-orphan",
