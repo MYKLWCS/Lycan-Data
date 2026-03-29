@@ -5,7 +5,7 @@ ProgressCalculator  — pure math: phase % → overall %
 ProgressAggregator  — stateful: processes events, tracks scraper statuses
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from shared.schemas.progress import EventType, Phase, ProgressState
