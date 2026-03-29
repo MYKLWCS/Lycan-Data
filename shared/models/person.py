@@ -168,6 +168,86 @@ class Person(Base, TimestampMixin, DataQualityMixin):
         back_populates="person", cascade="all, delete-orphan"
     )
 
+    # --- Relationships added for complete bidirectional mapping ---
+    education_history: Mapped[list["Education"]] = relationship(
+        "Education", back_populates="person", cascade="all, delete-orphan"
+    )
+    employment_history: Mapped[list["EmploymentHistory"]] = relationship(
+        "EmploymentHistory", back_populates="person", cascade="all, delete-orphan"
+    )
+    location_visits: Mapped[list["LocationVisit"]] = relationship(
+        "LocationVisit", back_populates="person", cascade="all, delete-orphan"
+    )
+    watchlist_matches: Mapped[list["WatchlistMatch"]] = relationship(
+        "WatchlistMatch", back_populates="person", cascade="all, delete-orphan"
+    )
+    alerts: Mapped[list["Alert"]] = relationship(
+        "Alert", back_populates="person", cascade="all, delete-orphan"
+    )
+    breach_records: Mapped[list["BreachRecord"]] = relationship(
+        "BreachRecord", back_populates="person", cascade="all, delete-orphan"
+    )
+    darkweb_mentions: Mapped[list["DarkwebMention"]] = relationship(
+        "DarkwebMention", back_populates="person", cascade="all, delete-orphan"
+    )
+    crypto_wallets: Mapped[list["CryptoWallet"]] = relationship(
+        "CryptoWallet", back_populates="person", cascade="all, delete-orphan"
+    )
+    media_assets: Mapped[list["MediaAsset"]] = relationship(
+        "MediaAsset", back_populates="person", cascade="all, delete-orphan"
+    )
+    web_memberships: Mapped[list["WebMembership"]] = relationship(
+        "WebMembership", back_populates="person", cascade="all, delete-orphan"
+    )
+    marketing_tags: Mapped[list["MarketingTag"]] = relationship(
+        "MarketingTag", back_populates="person", cascade="all, delete-orphan"
+    )
+    consumer_segments: Mapped[list["ConsumerSegment"]] = relationship(
+        "ConsumerSegment", back_populates="person", cascade="all, delete-orphan"
+    )
+    ticket_sizes: Mapped[list["TicketSize"]] = relationship(
+        "TicketSize", back_populates="person", cascade="all, delete-orphan"
+    )
+    phone_intelligence: Mapped[list["PhoneIntelligence"]] = relationship(
+        "PhoneIntelligence", back_populates="person", cascade="all, delete-orphan"
+    )
+    email_intelligence: Mapped[list["EmailIntelligence"]] = relationship(
+        "EmailIntelligence", back_populates="person", cascade="all, delete-orphan"
+    )
+    ip_intelligence: Mapped[list["IpIntelligence"]] = relationship(
+        "IpIntelligence", back_populates="person", cascade="all, delete-orphan"
+    )
+    credit_risk_assessments: Mapped[list["CreditRiskAssessment"]] = relationship(
+        "CreditRiskAssessment", back_populates="person", cascade="all, delete-orphan"
+    )
+    behavioural_profiles: Mapped[list["BehaviouralProfile"]] = relationship(
+        "BehaviouralProfile", back_populates="person", cascade="all, delete-orphan"
+    )
+    opt_outs: Mapped[list["OptOut"]] = relationship(
+        "OptOut", back_populates="person", cascade="all, delete-orphan"
+    )
+    wealth_assessments: Mapped[list["WealthAssessment"]] = relationship(
+        "WealthAssessment", back_populates="person", cascade="all, delete-orphan"
+    )
+    property_ownership_history: Mapped[list["PropertyOwnershipHistory"]] = relationship(
+        "PropertyOwnershipHistory", back_populates="person", cascade="all, delete-orphan"
+    )
+    property_mortgages: Mapped[list["PropertyMortgage"]] = relationship(
+        "PropertyMortgage", back_populates="person", cascade="all, delete-orphan"
+    )
+    family_tree_snapshots: Mapped[list["FamilyTreeSnapshot"]] = relationship(
+        "FamilyTreeSnapshot", back_populates="person"
+    )
+    crawl_jobs: Mapped[list["CrawlJob"]] = relationship(
+        "CrawlJob", back_populates="person"
+    )
+    data_quality_logs: Mapped[list["DataQualityLog"]] = relationship(
+        "DataQualityLog", back_populates="person"
+    )
+    search_progress: Mapped[list["SearchProgress"]] = relationship(
+        "SearchProgress", back_populates="person"
+    )
+
 
 class Alias(Base, TimestampMixin):
     __tablename__ = "aliases"

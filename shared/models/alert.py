@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.models.base import Base, TimestampMixin
 
@@ -29,3 +29,5 @@ class Alert(Base, TimestampMixin):
     delivery_channel: Mapped[str | None] = mapped_column(
         String(50), nullable=True
     )  # webhook, email, telegram
+
+    person: Mapped["Person"] = relationship("Person", back_populates="alerts")

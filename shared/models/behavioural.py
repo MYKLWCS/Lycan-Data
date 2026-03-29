@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.models.base import Base, TimestampMixin
 
@@ -34,6 +34,8 @@ class BehaviouralProfile(Base, TimestampMixin):
         DateTime(timezone=True), nullable=True
     )
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="behavioural_profiles")
 
 
 class BehaviouralSignal(Base, TimestampMixin):

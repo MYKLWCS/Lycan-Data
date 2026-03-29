@@ -3,7 +3,7 @@ from datetime import date
 
 from sqlalchemy import Date, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.models.base import Base, DataQualityMixin, TimestampMixin
 

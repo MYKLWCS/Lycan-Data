@@ -3,7 +3,7 @@ from datetime import date
 
 from sqlalchemy import Date, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.models.base import Base, TimestampMixin
 
@@ -28,3 +28,5 @@ class BreachRecord(Base, TimestampMixin):
     severity: Mapped[str] = mapped_column(String(20), default="medium", nullable=False)
     raw_sample: Mapped[str | None] = mapped_column(Text, nullable=True)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    person: Mapped["Person"] = relationship("Person", back_populates="breach_records")

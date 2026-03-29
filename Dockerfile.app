@@ -53,6 +53,8 @@ RUN pipx install sherlock-project \
 RUN python -m spacy download en_core_web_lg \
     && playwright install chromium --with-deps
 
+RUN patchright install chromium
+
 # Copy application source
 COPY . .
 
