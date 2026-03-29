@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from modules.crawlers.adverse_media_search import AdverseMediaSearchCrawler
-from modules.crawlers.faa_aircraft_registry import FaaAircraftRegistryCrawler
-from modules.crawlers.marine_vessel import MarineVesselCrawler
+from modules.crawlers.media.adverse_media_search import AdverseMediaSearchCrawler
+from modules.crawlers.transport.faa_aircraft_registry import FaaAircraftRegistryCrawler
+from modules.crawlers.transport.marine_vessel import MarineVesselCrawler
 
 
 # ---------------------------------------------------------------------------

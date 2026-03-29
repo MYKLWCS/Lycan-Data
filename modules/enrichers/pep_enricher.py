@@ -83,8 +83,8 @@ class PepEnricher:
 
     async def check_person(self, person_id: uuid.UUID, session: AsyncSession) -> None:
         """Run PEP crawlers for one person and persist any matches found."""
-        from modules.crawlers.open_pep_search import OpenPepSearchCrawler
-        from modules.crawlers.world_check_mirror import WorldCheckMirrorCrawler
+        from modules.crawlers.pep.open_pep_search import OpenPepSearchCrawler
+        from modules.crawlers.pep.world_check_mirror import WorldCheckMirrorCrawler
 
         person = await session.get(Person, person_id)
         if not person:

@@ -93,7 +93,7 @@ class AdverseMediaEnricher:
 
     async def check_person(self, person_id: uuid.UUID, session: AsyncSession) -> None:
         """Run adverse-media crawler for one person, persist results, update person."""
-        from modules.crawlers.adverse_media_search import AdverseMediaSearchCrawler
+        from modules.crawlers.media.adverse_media_search import AdverseMediaSearchCrawler
 
         person = await session.get(Person, person_id)
         if not person:

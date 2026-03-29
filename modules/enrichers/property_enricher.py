@@ -88,12 +88,12 @@ class PropertyEnricher:
 
     async def enrich_person(self, person_id: uuid.UUID, session: AsyncSession) -> None:
         """Run all property/asset crawlers for one person and persist results."""
-        from modules.crawlers.county_assessor_multi import CountyAssessorMultiCrawler
-        from modules.crawlers.deed_recorder import DeedRecorderCrawler
-        from modules.crawlers.faa_aircraft_registry import FaaAircraftRegistryCrawler
-        from modules.crawlers.marine_vessel import MarineVesselCrawler
-        from modules.crawlers.redfin_deep import RedfinDeepCrawler
-        from modules.crawlers.zillow_deep import ZillowDeepCrawler
+        from modules.crawlers.property.county_assessor_multi import CountyAssessorMultiCrawler
+        from modules.crawlers.property.deed_recorder import DeedRecorderCrawler
+        from modules.crawlers.transport.faa_aircraft_registry import FaaAircraftRegistryCrawler
+        from modules.crawlers.transport.marine_vessel import MarineVesselCrawler
+        from modules.crawlers.property.redfin_deep import RedfinDeepCrawler
+        from modules.crawlers.property.zillow_deep import ZillowDeepCrawler
 
         person = await session.get(Person, person_id)
         if not person:
