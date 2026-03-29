@@ -71,6 +71,7 @@ https://www.grailed.com/test
 https://forum.hackthebox.com/u/test
 https://hackaday.io/test
 https://hackerearth.com/@test
+https://news.ycombinator.com/user?id=test
 https://hackerone.com/test
 https://hackmd.io/@test
 https://hive.blog/@test
@@ -91,13 +92,13 @@ https://keybase.io/test
 https://kick.com/test
 https://www.kongregate.com/accounts/test
 https://forum.kvinneguiden.no
+https://www.linux.org.ru/people/test/profile
 https://laracasts.com/@test
 https://launchpad.net/~test
 https://lemmy.world/u/test
 https://lichess.org/@/test
 https://linktr.ee/test
 https://listed.to/@test
-https://test.livejournal.com
 https://forums.mmorpg.com/profile/test
 https://mamot.fr/@test
 https://www.memrise.com/user/test/
@@ -115,6 +116,7 @@ https://www.nitrotype.com/racer/test
 https://nyaa.si/user/test
 https://observablehq.com/@test
 https://opencollective.com/test
+https://opengameart.org/users/test
 https://www.openstreetmap.org/user/test
 https://odysee.com/@test
 https://forums.pcgamer.com/members/?username=test
@@ -131,12 +133,11 @@ https://www.preisjaeger.at/profile/test
 https://www.pepperdeals.se/profile/test
 https://www.promodescuentos.com/profile/test
 https://www.periscope.tv/test/
+https://www.pinkbike.com/u/test/
 https://pixelfed.social/test/
 https://pokemonshowdown.com/users/test
 https://polarsteps.com/test
 https://www.producthunt.com/@test
-https://programming.dev/u/test
-http://promodj.com/test
 https://pronouns.page/@test
 https://test.rajce.idnes.cz/
 https://replit.com/@test
@@ -154,7 +155,6 @@ https://www.snapchat.com/add/test
 https://soylentnews.org/~test
 https://speakerdeck.com/test
 https://forum.spells8.com/u/test
-https://robertsspaceindustries.com/citizens/test
 https://status.cafe/users/test
 https://steamcommunity.com/groups/test
 https://steamcommunity.com/id/test/
@@ -189,23 +189,26 @@ https://test.webnode.cz/
 https://test.weebly.com/
 http://www.wikidot.com/user:info/test
 https://en.wikipedia.org/wiki/Special:CentralAuth/test?uselang=qqx
+https://community.wolfram.com/web/test/home
 https://test.wordpress.com/
 https://profiles.wordpress.org/test/
 https://www.wordnik.com/users/test
 https://www.wykop.pl/ludzie/test
 https://xboxgamertag.com/search/test
+https://www.younow.com/test/
 https://www.youtube.com/@test
 https://akniga.org/profile/test
 https://www.couchsurfing.com/people/test
 https://d3.ru/user/test/posts
 https://www.dailykos.com/user/test
 http://dating.ru/test
-https://www.drive2.ru/users/test
+https://devrant.com/users/test
 https://community.eintracht.de/fans/test
 https://www.fixya.com/users/test
 https://www.fl.ru/users/test
 https://www.furaffinity.net/user/test
 https://www.geocaching.com/p/default.aspx?u=test
+https://habr.com/ru/users/test
 https://www.hunting.ru/forum/members/?username=test
 http://forum.igromania.ru/member.php?username=test
 https://www.interpals.net/test
@@ -214,7 +217,6 @@ https://www.jeuxvideo.com/profil/test
 https://ko-fi.com/test
 https://kwork.ru/user/test
 https://last.fm/user/test
-https://www.livelib.ru/reader/test
 https://mastodon.cloud/@test
 https://mastodon.social/@test
 https://mastodon.xyz/@test
@@ -237,4 +239,4 @@ https://test.tumblr.com/
 https://write.as/test
 https://platzi.com/p/test/
 https://wowhead.com/user=test
-Total Websites Username Detected On : 239
+Total Websites Username Detected On : 241
