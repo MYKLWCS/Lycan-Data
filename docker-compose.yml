@@ -217,6 +217,8 @@ services:
       TOR3_SOCKS: socks5://tor-3:9050
       FLARESOLVERR_URL: http://flaresolverr:8191
       LOG_LEVEL: info
+    volumes:
+      - .:/app
     ports:
       - "8000:8000"
     depends_on:
@@ -259,6 +261,8 @@ services:
       TOR3_CONTROL_PORT: "9055"
       FLARESOLVERR_URL: http://flaresolverr:8191
       LOG_LEVEL: info
+    volumes:
+      - .:/app
     depends_on:
       postgres:
         condition: service_healthy

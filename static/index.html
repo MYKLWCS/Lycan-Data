@@ -729,9 +729,12 @@ function _authHeaders() {
   if (_apiKey) h['Authorization'] = 'Bearer ' + _apiKey;
   return h;
 }
-async function apiGet(path) {
+async function apiGet(path, opts = {}) {
   const r = await fetch(path, { headers: _authHeaders() });
-  if (r.status === 401) { showAuthBar(); throw new Error('Auth required'); }
+  if (r.status === 401) {
+    if (!opts.silent) showAuthBar();
+    throw new Error('Auth required');
+  }
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   return r.json();
 }
@@ -1453,10 +1456,9 @@ const App = {
 
     const update = async () => {
       try {
-        const [health, queues] = await Promise.all([
-          apiGet('/system/health'),
-          apiGet('/system/queues'),
-        ]);
+        const health = await apiGet('/system/health');
+        let queues = {total_pending:0,ingest_backlog:0,index_backlog:0,crawls_total:0,crawls_found:0,persons_total:0};
+        try { queues = await apiGet('/system/queues', {silent:true}); } catch(_) {}
 
         // ── Sidebar ──
         const cn = document.getElementById('crawler-num');
@@ -1531,7 +1533,7 @@ const App = {
 
         // ── Ticker: show most recent crawl job activity ──
         try {
-          const jobs = await apiGet('/crawls?limit=1&sort_by=updated_at&sort_dir=desc');
+          const jobs = await apiGet('/crawls?limit=1&sort_by=updated_at&sort_dir=desc', {silent:true});
           const recent = (jobs.jobs || jobs.crawl_jobs || [])[0];
           if (recent && String(recent.id) !== String(lastJobId)) {
             lastJobId = recent.id;
