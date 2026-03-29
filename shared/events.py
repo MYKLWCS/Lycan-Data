@@ -3,7 +3,7 @@ import json
 import logging
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 from uuid import UUID
 
@@ -111,7 +111,7 @@ class EventBus:
 
     async def enqueue(self, job: dict[str, Any], priority: str = "normal") -> None:
         """Push a job to the appropriate priority queue."""
-        job.setdefault("enqueued_at", datetime.now(UTC).isoformat())
+        job.setdefault("enqueued_at", datetime.now(timezone.utc).isoformat())
         queue = self.QUEUES.get(priority, self.QUEUES["normal"])
         await self.redis.lpush(queue, _serialize(job))
 

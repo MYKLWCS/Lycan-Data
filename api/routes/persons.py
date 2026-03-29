@@ -3,7 +3,7 @@ Persons API — CRUD, reporting, deduplication, and merge endpoints.
 """
 
 import uuid
-from datetime import UTC
+from datetime import timezone
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -587,7 +587,7 @@ async def delete_person(person_id: str, session: AsyncSession = DbDep):
     p = await _require_person(session, uid)
 
     if hasattr(p, "deleted_at"):
-        p.deleted_at = datetime.now(UTC)
+        p.deleted_at = datetime.now(timezone.utc)
         await session.commit()
         return {"message": "Person soft-deleted", "person_id": person_id}
     else:

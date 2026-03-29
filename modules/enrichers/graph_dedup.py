@@ -248,11 +248,11 @@ async def cluster_persons(
 
     # If no explicit IDs, grab recent persons
     if person_ids is None:
-        from datetime import UTC, datetime, timedelta
+        from datetime import timezone, datetime, timedelta
 
         from shared.models.person import Person
 
-        cutoff = datetime.now(UTC) - timedelta(hours=24)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
         stmt = (
             select(Person.id)
             .where(Person.updated_at >= cutoff)

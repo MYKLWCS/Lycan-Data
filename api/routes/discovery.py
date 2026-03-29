@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
@@ -178,7 +178,7 @@ async def approve_source(source_id: str, body: ApproveRequest, session=DbDep):
     if row.status == "approved":
         raise HTTPException(409, "Source already approved")
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     row.status = "approved"
     row.approval_notes = body.notes or None
     row.reliability_tier = body.reliability_tier.upper()[:2]
@@ -209,7 +209,7 @@ async def reject_source(source_id: str, body: RejectRequest, session=DbDep):
 
     row.status = "rejected"
     row.approval_notes = body.notes or None
-    row.rejected_at = datetime.now(UTC)
+    row.rejected_at = datetime.now(timezone.utc)
 
     await session.commit()
     await session.refresh(row)
@@ -273,7 +273,7 @@ async def bulk_action(body: BulkActionRequest, session=DbDep):
         except ValueError:
             raise HTTPException(400, f"Invalid UUID: {sid!r}")
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     if body.action == "approve":
         await session.execute(
             update(DiscoveredSource)

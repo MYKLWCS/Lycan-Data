@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 
@@ -15,7 +15,7 @@ class CrawlerResult:
     data: dict[str, Any] = field(default_factory=dict)
     profile_url: str | None = None
     error: str | None = None
-    scraped_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     source_reliability: float = 0.5
     tor_used: bool = False
     circuit_id: str | None = None

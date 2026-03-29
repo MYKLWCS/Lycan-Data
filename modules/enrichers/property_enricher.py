@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 from sqlalchemy import DateTime, Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,7 +56,7 @@ class PropertyEnricher:
     # ── Batch selection ───────────────────────────────────────────────────────
 
     async def _process_pending(self) -> None:
-        stale_cutoff = datetime.now(UTC) - timedelta(hours=_STALE_THRESHOLD_HOURS)
+        stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=_STALE_THRESHOLD_HOURS)
 
         async with AsyncSessionLocal() as session:
             # Persons whose property_count is 0 (key absent or explicitly 0)
@@ -199,7 +199,7 @@ class PropertyEnricher:
         meta["vessel_count"] = int(vessel_count)
         meta["vehicle_count"] = int(vehicle_count)
         meta["estimated_net_worth_usd"] = net_worth
-        meta["property_enriched_at"] = datetime.now(UTC).isoformat()
+        meta["property_enriched_at"] = datetime.now(timezone.utc).isoformat()
         person.meta = meta
 
         logger.info(
@@ -280,7 +280,7 @@ class PropertyEnricher:
                 val = prop_data.get(field)
                 if val is not None:
                     setattr(existing, field, val)
-            existing.last_scraped_at = datetime.now(UTC)
+            existing.last_scraped_at = datetime.now(timezone.utc)
             return existing
 
         prop = Property(
@@ -320,7 +320,7 @@ class PropertyEnricher:
             is_owner_occupied=prop_data.get("is_owner_occupied"),
             homestead_exemption=bool(prop_data.get("homestead_exemption", False)),
             is_investment_property=bool(prop_data.get("is_investment_property", False)),
-            last_scraped_at=datetime.now(UTC),
+            last_scraped_at=datetime.now(timezone.utc),
             meta=prop_data.get("meta", {}),
         )
         session.add(prop)
@@ -495,7 +495,7 @@ class PropertyEnricher:
                 val = aircraft_data.get(field)
                 if val is not None:
                     setattr(existing, field, val)
-            existing.last_scraped_at = datetime.now(UTC)
+            existing.last_scraped_at = datetime.now(timezone.utc)
             return existing
 
         aircraft = Aircraft(
@@ -519,7 +519,7 @@ class PropertyEnricher:
             is_deregistered=bool(aircraft_data.get("is_deregistered", False)),
             estimated_value_usd=aircraft_data.get("estimated_value_usd"),
             source_platform=aircraft_data.get("source_platform", "faa_aircraft_registry"),
-            last_scraped_at=datetime.now(UTC),
+            last_scraped_at=datetime.now(timezone.utc),
             meta=aircraft_data.get("meta", {}),
         )
         session.add(aircraft)
@@ -581,7 +581,7 @@ class PropertyEnricher:
                 val = vessel_data.get(field)
                 if val is not None:
                     setattr(existing, field, val)
-            existing.last_scraped_at = datetime.now(UTC)
+            existing.last_scraped_at = datetime.now(timezone.utc)
             return existing
 
         vessel = Vessel(
@@ -609,7 +609,7 @@ class PropertyEnricher:
             is_active=bool(vessel_data.get("is_active", True)),
             estimated_value_usd=vessel_data.get("estimated_value_usd"),
             source_platform=vessel_data.get("source_platform", "marine_vessel"),
-            last_scraped_at=datetime.now(UTC),
+            last_scraped_at=datetime.now(timezone.utc),
             meta=vessel_data.get("meta", {}),
         )
         session.add(vessel)

@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import UTC, date
+from datetime import timezone, date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -375,7 +375,7 @@ class TestApplyQualityToModelMissingField:
             # intentionally omits source_reliability, etc.
 
         model = MinimalModel()
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         # Should not raise even though model is missing many fields
         apply_quality_to_model(
             model,

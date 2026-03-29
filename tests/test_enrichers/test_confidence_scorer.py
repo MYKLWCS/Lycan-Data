@@ -1,6 +1,6 @@
 """Tests for modules/enrichers/confidence_scorer.py — confidence scoring algorithm."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import pytest
 
@@ -77,23 +77,23 @@ class TestScoreFreshness:
         assert score_freshness("phone", None) == 0.50
 
     def test_just_verified_high_score(self):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         score = score_freshness("phone", now)
         assert score >= 0.95
 
     def test_stale_data_low_score(self):
-        old = (datetime.now(UTC) - timedelta(days=365)).isoformat()
+        old = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
         score = score_freshness("phone", old)  # TTL=90 days
         assert score == 0.20  # beyond TTL
 
     def test_half_ttl_moderate(self):
-        half = (datetime.now(UTC) - timedelta(days=45)).isoformat()
+        half = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
         score = score_freshness("phone", half)  # TTL=90
         assert 0.20 < score < 0.80
 
     def test_ssn_stays_fresh(self):
         """SSN has TTL=7300 days, so even 1 year old is very fresh."""
-        one_year = (datetime.now(UTC) - timedelta(days=365)).isoformat()
+        one_year = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
         score = score_freshness("ssn", one_year)
         assert score > 0.80
 
@@ -150,13 +150,13 @@ class TestConfidenceScorer:
         result = self.scorer.compute(
             field="email",
             sources=["government", "credit_bureau"],
-            last_verified=datetime.now(UTC).isoformat(),
+            last_verified=datetime.now(timezone.utc).isoformat(),
         )
         assert result.score >= 0.70
         assert result.verification_level >= 3
 
     def test_low_confidence_single_scrape(self):
-        old = (datetime.now(UTC) - timedelta(days=500)).isoformat()
+        old = (datetime.now(timezone.utc) - timedelta(days=500)).isoformat()
         result = self.scorer.compute(
             field="phone",
             sources=["web_scrape"],
@@ -166,7 +166,7 @@ class TestConfidenceScorer:
         assert result.verification_level <= 1
 
     def test_conflict_reduces_score(self):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         no_conflict = self.scorer.compute(
             field="email",
             sources=["credit_bureau", "government"],
@@ -187,7 +187,7 @@ class TestConfidenceScorer:
         result = self.scorer.compute(
             field="phone",
             sources=["government"] * 5,
-            last_verified=datetime.now(UTC).isoformat(),
+            last_verified=datetime.now(timezone.utc).isoformat(),
         )
         assert 0.0 <= result.score <= 1.0
 
@@ -195,7 +195,7 @@ class TestConfidenceScorer:
         result = self.scorer.compute(
             field="email",
             sources=["credit_bureau"],
-            last_verified=datetime.now(UTC).isoformat(),
+            last_verified=datetime.now(timezone.utc).isoformat(),
         )
         assert "source_reliability" in result.breakdown
         assert "cross_reference_bonus" in result.breakdown
@@ -206,12 +206,12 @@ class TestConfidenceScorer:
         result = self.scorer.compute(
             field="ssn",
             sources=["government", "credit_bureau", "state_government"],
-            last_verified=datetime.now(UTC).isoformat(),
+            last_verified=datetime.now(timezone.utc).isoformat(),
         )
         assert result.level_name in ("certified", "confirmed")
 
     def test_level_mapping_unverified(self):
-        old = (datetime.now(UTC) - timedelta(days=3000)).isoformat()
+        old = (datetime.now(timezone.utc) - timedelta(days=3000)).isoformat()
         result = self.scorer.compute(
             field="phone",
             sources=["unknown"],

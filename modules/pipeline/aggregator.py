@@ -8,7 +8,7 @@ linked to the right Person. Handles all result types.
 import hashlib
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -302,7 +302,7 @@ async def _upsert_social_profile(
         )
     ).scalar_one_or_none()
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     if existing:
         # Update mutable fields — never overwrite with None
@@ -571,7 +571,7 @@ async def _handle_people_search(
     """Write Address rows from people-search results (up to 3 per scrape)."""
     data = result.data or {}
     results = data.get("results") or []
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     for r in results[:3]:
         if not isinstance(r, dict):
@@ -768,7 +768,7 @@ async def _record_identifier_history(
     if not result.identifier:
         return
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     # Determine type from platform context
     platform = (result.platform or "").lower()
@@ -865,7 +865,7 @@ async def _handle_behavioural(
         existing.financial_distress_score = max(existing.financial_distress_score or 0.0, financial)
         existing.drug_signal_score = max(existing.drug_signal_score or 0.0, substance)
         existing.violence_score = max(existing.violence_score or 0.0, aggression)
-        existing.last_assessed_at = datetime.now(UTC)
+        existing.last_assessed_at = datetime.now(timezone.utc)
         if "ocean_openness" in data:
             existing.meta = existing.meta or {}
             existing.meta["ocean_openness"] = data["ocean_openness"]
@@ -890,7 +890,7 @@ async def _handle_behavioural(
             drug_signal_score=substance,
             violence_score=aggression,
             criminal_signal_score=0.0,
-            last_assessed_at=datetime.now(UTC),
+            last_assessed_at=datetime.now(timezone.utc),
             meta=meta,
         )
         session.add(bp)

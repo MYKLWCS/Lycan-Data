@@ -8,7 +8,7 @@ import random
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any, Dict, List, Optional
 
 from modules.crawlers.core.models import CrawlerCategory, CrawlerHealth, RateLimit
@@ -279,7 +279,7 @@ class BaseCrawler(ABC):
         is_open = await cb.is_open(self.platform)
         return CrawlerHealth(
             healthy=not is_open,
-            last_check=datetime.now(UTC),
+            last_check=datetime.now(timezone.utc),
             avg_latency_ms=0.0,
             success_rate=0.0 if is_open else 1.0,
             last_error="circuit_open" if is_open else None,

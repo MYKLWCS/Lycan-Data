@@ -18,7 +18,7 @@ Targets:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime, timezone
+from datetime import timezone, date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -112,7 +112,7 @@ class TestModelToDict:
         """Line 36: objects with .isoformat() are called."""
         from api.routes.persons import _model_to_dict
 
-        dt = datetime(2020, 1, 15, tzinfo=UTC)
+        dt = datetime(2020, 1, 15, tzinfo=timezone.utc)
         obj = self._make_mock_obj({"created_at": dt})
         result = _model_to_dict(obj)
         assert result["created_at"] == dt.isoformat()

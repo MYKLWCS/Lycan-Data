@@ -1,6 +1,6 @@
 """Progress event models for real-time search tracking via SSE."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -42,7 +42,7 @@ class ProgressEvent(BaseModel):
     estimated_seconds_remaining: float = 0.0
     partial_results: Optional[list[dict]] = None
     error: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProgressState(BaseModel):

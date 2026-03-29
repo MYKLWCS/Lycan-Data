@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -180,7 +180,7 @@ class GoldenRecordBuilder:
             return GoldenRecord(
                 canonical_id=canonical_id,
                 merged_ids=[],
-                merged_at=datetime.now(UTC).isoformat(),
+                merged_at=datetime.now(timezone.utc).isoformat(),
                 fields={},
                 provenance={},
             )
@@ -220,7 +220,7 @@ class GoldenRecordBuilder:
         golden = GoldenRecord(
             canonical_id=canonical_id,
             merged_ids=merged_ids,
-            merged_at=datetime.now(UTC).isoformat(),
+            merged_at=datetime.now(timezone.utc).isoformat(),
             fields=merged_fields,
             provenance=provenance,
         )

@@ -9,7 +9,7 @@ multiple DB round-trips inside score_person / tag_person.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -186,7 +186,7 @@ class TestFinancialIntelligenceEngine:
         wealth_row.crypto_signal = 0.0
         wealth_row.vehicle_signal = 0.0
         wealth_row.confidence = 0.5
-        wealth_row.assessed_at = datetime.now(UTC)
+        wealth_row.assessed_at = datetime.now(timezone.utc)
 
         person_mock = MagicMock()
         person_mock.default_risk_score = 0.3
@@ -418,7 +418,7 @@ class TestMarketingTagsEngine:
         wealth = MagicMock()
         wealth.wealth_band = "high"
         wealth.income_estimate_usd = 250_000.0
-        wealth.assessed_at = datetime.now(UTC)
+        wealth.assessed_at = datetime.now(timezone.utc)
         wealth.vehicle_signal = 0.0
         wealth.property_signal = 0.0
         wealth.crypto_signal = 0.0

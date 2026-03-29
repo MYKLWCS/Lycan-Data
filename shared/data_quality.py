@@ -130,7 +130,7 @@ def apply_quality_to_model(model: Any, **kwargs: Any) -> None:
     Usage:
         apply_quality_to_model(
             record,
-            last_scraped_at=datetime.utcnow(),
+            last_scraped_at=datetime.now(timezone.utc),
             source_type="social_media_profile",
             source_name="instagram",
             corroboration_count=2,

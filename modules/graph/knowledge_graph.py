@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -189,7 +189,7 @@ class KnowledgeGraphBuilder:
         _validate_label(label, VERTEX_LABELS)
         eid = entity_id or _entity_id(label, json.dumps(properties, sort_keys=True))
         eid = _validate_entity_id(eid)
-        props = {**properties, "entity_id": eid, "updated_at": datetime.now(UTC).isoformat()}
+        props = {**properties, "entity_id": eid, "updated_at": datetime.now(timezone.utc).isoformat()}
         query = f"MERGE (n:{label} {{entity_id: $eid}}) SET n += $props RETURN n"
         try:
             await _cypher(session, query, {"eid": eid, "props": props})
@@ -246,7 +246,7 @@ class KnowledgeGraphBuilder:
         fid = _validate_entity_id(from_id)
         tid = _validate_entity_id(to_id)
 
-        props = {**(properties or {}), "updated_at": datetime.now(UTC).isoformat()}
+        props = {**(properties or {}), "updated_at": datetime.now(timezone.utc).isoformat()}
 
         query = (
             f"MATCH (a:{from_label} {{entity_id: $fid}}), "

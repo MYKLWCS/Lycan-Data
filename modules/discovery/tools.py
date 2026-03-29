@@ -52,7 +52,7 @@ class SpiderFootTool(BaseDiscoveryTool):
         hits: list[DiscoveryHit] = []
         try:
             async with _http() as client:
-                scan_name = f"lycan_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+                scan_name = f"lycan_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
                 resp = await client.post(
                     f"{self.base_url}/startscan",
                     data={

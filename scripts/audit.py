@@ -15,7 +15,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -444,7 +444,7 @@ def run_full_audit() -> dict:
     )
 
     audit_result = {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "summary": {
             "registered_crawlers": len(registered_crawlers),
             "missing_crawlers": sorted(missing_crawlers),
@@ -592,7 +592,7 @@ def main():
     ai_report = generate_ollama_analysis(audit_data, spec_excerpt)
 
     # Build full report
-    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M timezone.utc")
     s = audit_data["summary"]
 
     header = f"""# 🔍 Lycan OSINT — Automated System Audit
@@ -646,7 +646,7 @@ def main():
     print(f"Report saved to {report_path}")
 
     # Post to GitHub
-    title = f"System Audit — {datetime.now(UTC).strftime('%Y-%m-%d')} | {s['high_severity_issues']} critical issues"
+    title = f"System Audit — {datetime.now(timezone.utc).strftime('%Y-%m-%d')} | {s['high_severity_issues']} critical issues"
     url = post_github_issue(title, full_report[:65000])
 
     if url:

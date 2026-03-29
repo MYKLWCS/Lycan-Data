@@ -3,7 +3,7 @@
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
+from datetime import timezone, date, datetime, timedelta
 from enum import StrEnum
 
 from sqlalchemy import delete, select
@@ -172,7 +172,7 @@ class TagResult:
     tag: str
     confidence: float
     reasoning: list[str]
-    scored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    scored_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -379,7 +379,7 @@ def _score_recent_mover(
 ) -> tuple[float, list[str]]:
     reasons: list[str] = []
 
-    cutoff = datetime.now(UTC) - timedelta(days=90)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
 
     recent_addrs = [a for a in addresses if a.updated_at and a.updated_at >= cutoff]
     addr_score = 0.7 if recent_addrs else 0.0
@@ -499,7 +499,7 @@ def _score_new_parent(
         reasons.append(f"age {age} in new-parent range (25-40)")
 
     # Recent address change as proxy for getting more space
-    cutoff = datetime.now(UTC) - timedelta(days=180)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=180)
     recent = [a for a in addresses if a.updated_at and a.updated_at >= cutoff]
     if recent:
         score += 0.2
@@ -965,7 +965,7 @@ class MarketingTagsEngine:
         # ── Derived values ────────────────────────────────────────────────────
         dob = person.date_of_birth if person else None
         age = _compute_age(dob)
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         has_vehicle = len(vehicles) > 0
         has_property = len(properties) > 0

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from sqlalchemy import select, update
@@ -72,7 +72,7 @@ class PeopleBuilder:
                 await session.execute(
                     update(BuilderJob)
                     .where(BuilderJob.id == uuid.UUID(job_id))
-                    .values(status="cancelled", completed_at=datetime.now(UTC))
+                    .values(status="cancelled", completed_at=datetime.now(timezone.utc))
                 )
                 await session.commit()
             return True
@@ -90,7 +90,7 @@ class PeopleBuilder:
         max_results: int,
     ) -> None:
         try:
-            await self._update_status(job_id, "discovering", started_at=datetime.now(UTC))
+            await self._update_status(job_id, "discovering", started_at=datetime.now(timezone.utc))
             await self._emit(job_id, "discovering", "Starting discovery...")
 
             # Phase 1: DISCOVER
@@ -116,7 +116,7 @@ class PeopleBuilder:
 
             # Mark complete
             await self._update_status(
-                job_id, "complete", completed_at=datetime.now(UTC)
+                job_id, "complete", completed_at=datetime.now(timezone.utc)
             )
             await self._emit(
                 job_id,
@@ -133,7 +133,7 @@ class PeopleBuilder:
                     .values(
                         status="failed",
                         error_message=str(exc)[:2000],
-                        completed_at=datetime.now(UTC),
+                        completed_at=datetime.now(timezone.utc),
                     )
                 )
                 await session.commit()
@@ -492,7 +492,7 @@ class PeopleBuilder:
                 "job_id": job_id,
                 "phase": phase,
                 "message": message,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             })
         except Exception:
             pass  # SSE is best-effort

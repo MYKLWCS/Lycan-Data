@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
@@ -28,7 +28,7 @@ class CrawlerResult(BaseModel):
     normalized_data: Dict[str, Any] = Field(default_factory=dict)
     confidence_score: float = Field(default=0.5, ge=0.0, le=1.0)
     data_hash: str = ""
-    collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     # Backward-compat fields from legacy CrawlerResult

@@ -11,7 +11,7 @@ coverage, and trustworthiness. Certificates are:
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -57,7 +57,7 @@ class DataCertificate:
     coverage_score: float = 0.0
 
     # Metadata
-    certified_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    certified_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     certificate_version: str = "1.0"
 
     # Recommendations for improving the certificate

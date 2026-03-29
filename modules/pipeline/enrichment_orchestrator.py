@@ -7,7 +7,7 @@ Each enricher is independent — failures are logged and don't block subsequent 
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,7 +55,7 @@ class EnrichmentOrchestrator:
         Run the full enrichment pipeline for a person.
         Returns a report of what ran, what succeeded, and what failed.
         """
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         steps: list[EnrichmentStepResult] = []
 
         # ── Step 1: Financial / AML ───────────────────────────────────────────
@@ -148,7 +148,7 @@ class EnrichmentOrchestrator:
             )
         )
 
-        finished_at = datetime.now(UTC)
+        finished_at = datetime.now(timezone.utc)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
         report = EnrichmentReport(
@@ -166,17 +166,17 @@ class EnrichmentOrchestrator:
 
     async def _run_step(self, enricher: str, coro, person_id: str = "") -> EnrichmentStepResult:
         """Run a single enricher coroutine, catching all exceptions."""
-        t0 = datetime.now(UTC)
+        t0 = datetime.now(timezone.utc)
         try:
             await coro
-            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
+            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
             return EnrichmentStepResult(
                 enricher=enricher,
                 status="ok",
                 duration_ms=round(duration, 2),
             )
         except Exception as exc:
-            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
+            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
             logger.exception("Enricher %r failed for person_id=%s", enricher, person_id)
             return EnrichmentStepResult(
                 enricher=enricher,

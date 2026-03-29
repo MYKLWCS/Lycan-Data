@@ -537,7 +537,7 @@ async def test_assemble_person_signals_all_none():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_new_row():
     """_upsert_commercial_tags inserts a new MarketingTag when no existing row (line 346-356)."""
-    from datetime import UTC, datetime
+    from datetime import timezone, datetime
 
     from modules.enrichers.commercial_tagger import _upsert_commercial_tags
     from modules.enrichers.marketing_tags import TagResult
@@ -547,7 +547,7 @@ async def test_upsert_commercial_tags_new_row():
         tag="insurance_auto",
         confidence=0.9,
         reasoning=["has vehicle"],
-        scored_at=datetime.now(UTC),
+        scored_at=datetime.now(timezone.utc),
     )
 
     session = AsyncMock()
@@ -567,7 +567,7 @@ async def test_upsert_commercial_tags_new_row():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_existing_row():
     """_upsert_commercial_tags updates confidence on existing MarketingTag (line 341-345)."""
-    from datetime import UTC, datetime
+    from datetime import timezone, datetime
 
     from modules.enrichers.commercial_tagger import _upsert_commercial_tags
     from modules.enrichers.marketing_tags import TagResult
@@ -577,7 +577,7 @@ async def test_upsert_commercial_tags_existing_row():
         tag="insurance_auto",
         confidence=0.85,
         reasoning=["has vehicle"],
-        scored_at=datetime.now(UTC),
+        scored_at=datetime.now(timezone.utc),
     )
 
     existing_row = MagicMock()

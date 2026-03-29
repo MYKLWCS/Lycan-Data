@@ -108,7 +108,7 @@ class GrowthDaemon:
         self._running = False
 
     def _reset_daily_counter_if_needed(self) -> None:
-        """Reset the daily job counter at midnight (UTC day boundary)."""
+        """Reset the daily job counter at midnight (timezone.utc day boundary)."""
         today = int(time.time()) // 86400
         if today != self._day_marker:
             self._day_marker = today

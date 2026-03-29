@@ -13,7 +13,7 @@ Both UUIDs are written to audit_log with action="auto_merge".
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +48,7 @@ class AutoDedupDaemon:
 
     async def _run_batch(self, session: AsyncSession) -> None:
         """Process one batch of recently-updated persons."""
-        cutoff = datetime.now(UTC) - timedelta(minutes=BATCH_WINDOW_MINUTES)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=BATCH_WINDOW_MINUTES)
 
         result = await session.execute(
             select(Person).where(Person.updated_at >= cutoff).where(Person.merged_into.is_(None))

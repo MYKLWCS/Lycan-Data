@@ -16,7 +16,7 @@ import asyncio
 import logging
 import uuid
 from collections import deque
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -145,7 +145,7 @@ class GenealogyEnricher:
             depth_ancestors=8,
             depth_descendants=5,
             source_count=source_count,
-            built_at=datetime.now(UTC),
+            built_at=datetime.now(timezone.utc),
             is_stale=False,
         )
         session.add(snapshot)

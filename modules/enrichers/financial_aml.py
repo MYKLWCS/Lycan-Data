@@ -3,7 +3,7 @@
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import timezone, date, datetime
 from typing import Any
 
 from rapidfuzz.distance import JaroWinkler
@@ -59,7 +59,7 @@ class FinancialProfile:
     credit: CreditScoreResult
     aml: AMLResult
     fraud: FraudRiskResult
-    assessed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    assessed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -721,7 +721,7 @@ class FinancialIntelligenceEngine:
             list(addresses), list(identifiers), list(darkweb), list(criminals), list(crypto)
         )
 
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         # ── Persist CreditRiskAssessment ──────────────────────────────────────
         session.add(

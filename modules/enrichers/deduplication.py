@@ -10,7 +10,7 @@ import logging
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -385,7 +385,7 @@ def merge_persons(canonical_id: str, duplicate_id: str) -> dict[str, Any]:
             "identifier_history",
         ],
         "delete_duplicate": True,
-        "merged_at": datetime.now(UTC).isoformat(),
+        "merged_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -890,7 +890,7 @@ class AsyncMergeExecutor:
                 "canonical_id": canonical_id,
                 "duplicate_id": duplicate_id,
                 "tables_updated": tables_updated,
-                "merged_at": datetime.now(UTC).isoformat(),
+                "merged_at": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as exc:

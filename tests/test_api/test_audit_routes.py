@@ -5,7 +5,7 @@ Tests verify routing, response shape, and status codes.
 """
 
 import uuid
-from datetime import UTC, datetime, timezone
+from datetime import timezone, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -32,7 +32,7 @@ def _make_audit_row(**kwargs):
     """Build a minimal SystemAudit-like dict for endpoint response checks."""
     defaults = {
         "id": uuid.uuid4(),
-        "run_at": datetime.now(UTC),
+        "run_at": datetime.now(timezone.utc),
         "persons_total": 100,
         "persons_low_coverage": 10,
         "persons_stale": 5,
@@ -44,8 +44,8 @@ def _make_audit_row(**kwargs):
         "merges_today": 3,
         "persons_ingested_today": 20,
         "meta": {},
-        "created_at": datetime.now(UTC),
-        "updated_at": datetime.now(UTC),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     }
     defaults.update(kwargs)
     row = MagicMock()
@@ -214,7 +214,7 @@ def test_audit_persons_stale_returns_list(client, mock_session):
     p = MagicMock()
     p.id = uuid.uuid4()
     p.full_name = "John Doe"
-    p.last_scraped_at = datetime.now(UTC)
+    p.last_scraped_at = datetime.now(timezone.utc)
     p.meta = {}
 
     scalars_result = MagicMock()

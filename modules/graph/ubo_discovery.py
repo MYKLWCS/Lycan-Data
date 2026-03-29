@@ -17,7 +17,7 @@ import re
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -289,7 +289,7 @@ class UBODiscoveryEngine:
             ubo_candidates=ubo_candidates,
             risk_flags=risk_flags,
             crawl_errors=all_crawl_errors,
-            discovered_at=datetime.now(UTC),
+            discovered_at=datetime.now(timezone.utc),
             partial=partial,
         )
 

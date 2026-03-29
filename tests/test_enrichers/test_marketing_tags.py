@@ -1,6 +1,6 @@
 """Tests for modules/enrichers/marketing_tags.py — pure logic, no DB required."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import timezone, date, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -319,7 +319,7 @@ def test_real_estate_investor_high_wealth():
 
 
 def test_recent_mover_address_updated_within_90_days():
-    recent_dt = datetime.now(UTC) - timedelta(days=30)
+    recent_dt = datetime.now(timezone.utc) - timedelta(days=30)
     addresses = [_make_address(updated_at=recent_dt)]
     score, reasons = _score_recent_mover(addresses, [])
     assert score >= 0.7
@@ -327,14 +327,14 @@ def test_recent_mover_address_updated_within_90_days():
 
 
 def test_recent_mover_no_recent_addresses():
-    old_dt = datetime.now(UTC) - timedelta(days=200)
+    old_dt = datetime.now(timezone.utc) - timedelta(days=200)
     addresses = [_make_address(updated_at=old_dt)]
     score, _ = _score_recent_mover(addresses, [])
     assert score == 0.0
 
 
 def test_recent_mover_address_identifier_updated():
-    recent_dt = datetime.now(UTC) - timedelta(days=45)
+    recent_dt = datetime.now(timezone.utc) - timedelta(days=45)
     ids = [_make_identifier(type="home_address", updated_at=recent_dt)]
     score, reasons = _score_recent_mover([], ids)
     assert score >= 0.3
@@ -410,7 +410,7 @@ def test_new_parent_age_in_range():
 
 
 def test_new_parent_recent_move():
-    recent_dt = datetime.now(UTC) - timedelta(days=60)
+    recent_dt = datetime.now(timezone.utc) - timedelta(days=60)
     addresses = [_make_address(updated_at=recent_dt)]
     score, reasons = _score_new_parent(None, None, addresses)
     assert score >= 0.2

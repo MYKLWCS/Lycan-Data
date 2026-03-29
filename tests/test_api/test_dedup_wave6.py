@@ -9,7 +9,7 @@ Targets:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -42,7 +42,7 @@ def _fake_review(score: float = 0.91) -> MagicMock:
     r.similarity_score = score
     r.reviewed = False
     r.decision = None
-    r.created_at = datetime.now(UTC)
+    r.created_at = datetime.now(timezone.utc)
     return r
 
 

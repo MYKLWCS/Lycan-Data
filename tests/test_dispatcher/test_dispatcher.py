@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -330,7 +330,7 @@ async def test_requeue_backoff_first_retry():
     enqueued_job = mock_bus.enqueue.call_args[0][0]
     assert enqueued_job["retry_count"] == 1
     assert enqueued_job["run_after"] == pytest.approx(
-        datetime.now(UTC).timestamp() + RETRY_DELAYS[0], abs=2
+        datetime.now(timezone.utc).timestamp() + RETRY_DELAYS[0], abs=2
     )
     assert mock_bus.enqueue.call_args[1]["priority"] == "normal"
 
@@ -353,7 +353,7 @@ async def test_requeue_backoff_second_retry_uses_low_priority():
     enqueued_job = mock_bus.enqueue.call_args[0][0]
     assert enqueued_job["retry_count"] == 2
     assert enqueued_job["run_after"] == pytest.approx(
-        datetime.now(UTC).timestamp() + RETRY_DELAYS[1], abs=2
+        datetime.now(timezone.utc).timestamp() + RETRY_DELAYS[1], abs=2
     )
 
 

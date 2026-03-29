@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,7 +75,7 @@ class EntityResolutionPipeline:
         session: AsyncSession,
     ) -> EntityResolutionReport:
         """Run the full 4-pass pipeline for a single person."""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         steps: list[ResolutionStepResult] = []
         total_dupes = 0
         total_merges = 0
@@ -126,7 +126,7 @@ class EntityResolutionPipeline:
         )
         steps.append(step_confidence)
 
-        finished_at = datetime.now(UTC)
+        finished_at = datetime.now(timezone.utc)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
         return EntityResolutionReport(
@@ -148,10 +148,10 @@ class EntityResolutionPipeline:
         name: str,
         coro,
     ) -> ResolutionStepResult:
-        t0 = datetime.now(UTC)
+        t0 = datetime.now(timezone.utc)
         try:
             result = await coro
-            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
+            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
             if isinstance(result, ResolutionStepResult):
                 result.duration_ms = round(duration, 2)
                 return result
@@ -159,7 +159,7 @@ class EntityResolutionPipeline:
                 step=name, status="ok", duration_ms=round(duration, 2)
             )
         except Exception as exc:
-            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
+            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
             logger.exception("EntityResolution step %r failed for person", name)
             return ResolutionStepResult(
                 step=name,

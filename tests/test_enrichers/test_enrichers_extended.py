@@ -951,7 +951,7 @@ class TestRankingEdgeCases:
         assert score == 0.5
 
     def test_naive_datetime_gets_utc_attached(self):
-        """Naive (no tzinfo) datetime object gets UTC attached without error."""
+        """Naive (no tzinfo) datetime object gets timezone.utc attached without error."""
         from datetime import datetime
 
         from modules.enrichers.ranking import _compute_recency

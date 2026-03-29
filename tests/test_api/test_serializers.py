@@ -2,7 +2,7 @@
 
 import dataclasses
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from api.serializers import _safe_asdict, _serialize, _serialize_datetimes
 
@@ -18,14 +18,14 @@ class _SampleDC:
 
 
 def test_serialize_datetimes_converts_datetime():
-    dt = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
+    dt = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
     result = _serialize_datetimes(dt)
     assert isinstance(result, str)
     assert "2024-01-15" in result
 
 
 def test_serialize_datetimes_nested_dict():
-    dt = datetime(2024, 1, 15, tzinfo=UTC)
+    dt = datetime(2024, 1, 15, tzinfo=timezone.utc)
     data = {"created": dt, "name": "Alice"}
     result = _serialize_datetimes(data)
     assert isinstance(result["created"], str)
@@ -33,7 +33,7 @@ def test_serialize_datetimes_nested_dict():
 
 
 def test_serialize_datetimes_list():
-    dt = datetime(2024, 6, 1, tzinfo=UTC)
+    dt = datetime(2024, 6, 1, tzinfo=timezone.utc)
     result = _serialize_datetimes([dt, "plain string", 42])
     assert isinstance(result[0], str)
     assert result[1] == "plain string"
@@ -50,7 +50,7 @@ def test_serialize_datetimes_passthrough_primitives():
 
 
 def test_safe_asdict_converts_dataclass():
-    dt = datetime(2024, 3, 10, tzinfo=UTC)
+    dt = datetime(2024, 3, 10, tzinfo=timezone.utc)
     dc = _SampleDC(name="test", score=0.9, created_at=dt)
     result = _safe_asdict(dc)
     assert result["name"] == "test"
@@ -63,14 +63,14 @@ def test_safe_asdict_converts_dataclass():
 
 
 def test_serialize_datetime():
-    dt = datetime(2024, 1, 15, tzinfo=UTC)
+    dt = datetime(2024, 1, 15, tzinfo=timezone.utc)
     result = _serialize(dt)
     assert isinstance(result, str)
     assert "2024-01-15" in result
 
 
 def test_serialize_dataclass():
-    dt = datetime(2024, 5, 20, tzinfo=UTC)
+    dt = datetime(2024, 5, 20, tzinfo=timezone.utc)
     dc = _SampleDC(name="Alice", score=0.75, created_at=dt)
     result = _serialize(dc)
     assert isinstance(result, dict)
@@ -79,7 +79,7 @@ def test_serialize_dataclass():
 
 
 def test_serialize_nested_dict():
-    dt = datetime(2024, 6, 1, tzinfo=UTC)
+    dt = datetime(2024, 6, 1, tzinfo=timezone.utc)
     data = {"key": {"nested_date": dt, "value": 42}}
     result = _serialize(data)
     assert isinstance(result["key"]["nested_date"], str)
@@ -87,7 +87,7 @@ def test_serialize_nested_dict():
 
 
 def test_serialize_list():
-    dt = datetime(2024, 7, 4, tzinfo=UTC)
+    dt = datetime(2024, 7, 4, tzinfo=timezone.utc)
     result = _serialize([dt, "string", 99])
     assert isinstance(result[0], str)
     assert result[1] == "string"

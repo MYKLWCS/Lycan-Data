@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -164,7 +164,7 @@ class CommercialTagsEngine:
     """Run all Phase 4 commercial scorers against a PersonSignals struct."""
 
     def tag_person(self, signals: PersonSignals) -> list[TagResult]:
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         scoring_map: list[tuple[str, float, list[str]]] = []
 
         # Insurance
@@ -251,7 +251,7 @@ class CommercialTaggerDaemon:
 
     def __init__(self) -> None:
         self._running = False
-        self._last_run_at: datetime = datetime.min.replace(tzinfo=UTC)
+        self._last_run_at: datetime = datetime.min.replace(tzinfo=timezone.utc)
         self._engine = CommercialTagsEngine()
 
     def stop(self) -> None:
@@ -269,7 +269,7 @@ class CommercialTaggerDaemon:
 
     async def _run_batch(self) -> None:
         cutoff = self._last_run_at
-        run_started = datetime.now(UTC)
+        run_started = datetime.now(timezone.utc)
 
         async with AsyncSessionLocal() as session:
             persons = list(

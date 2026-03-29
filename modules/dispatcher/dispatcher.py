@@ -12,7 +12,7 @@ an asyncio.Semaphore so one slow/failed scraper never blocks the others.
 import asyncio
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -128,7 +128,7 @@ class CrawlDispatcher:
             return
 
         await self._update_job_status(session, job_id, CrawlStatus.RUNNING)
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
 
         # Emit scraper_running progress event
         await self._emit_progress(person_id, EventType.SCRAPER_RUNNING, platform)
@@ -137,7 +137,7 @@ class CrawlDispatcher:
             crawler = crawler_cls()
             result = await crawler.run(identifier)
 
-            duration_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
+            duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
 
             if result.found:
                 # ── DECOUPLED: Push to Ingest Queue ──
@@ -280,7 +280,7 @@ class CrawlDispatcher:
                 )
             ).mappings().one()
 
-            duration = (datetime.now(UTC) - search_started_at).total_seconds()
+            duration = (datetime.now(timezone.utc) - search_started_at).total_seconds()
 
             await event_bus.publish(
                 "progress",
@@ -311,7 +311,7 @@ class CrawlDispatcher:
         await session.execute(
             update(CrawlJob)
             .where(CrawlJob.id == job_id)
-            .values(status=status.value, error_message=error, updated_at=datetime.now(UTC))
+            .values(status=status.value, error_message=error, updated_at=datetime.now(timezone.utc))
         )
         await session.commit()
 
@@ -344,7 +344,7 @@ class CrawlDispatcher:
     async def _requeue_with_backoff(self, job_dict: dict, retry_count: int) -> None:
         delay = RETRY_DELAYS[min(retry_count, len(RETRY_DELAYS) - 1)]
         job_dict["retry_count"] = retry_count + 1
-        job_dict["run_after"] = datetime.now(UTC).timestamp() + delay
+        job_dict["run_after"] = datetime.now(timezone.utc).timestamp() + delay
         priority = "low" if retry_count >= 1 else "normal"
         await event_bus.enqueue(job_dict, priority=priority)
         logger.info("Requeued job with %ds backoff (retry %d)", delay, retry_count + 1)

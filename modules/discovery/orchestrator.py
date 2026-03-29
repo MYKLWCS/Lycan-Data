@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import urllib.parse
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +47,7 @@ async def run_discovery(
         tool_names:  Optional whitelist of tool names to run
         on_progress: Optional async callable(dict) for live progress events
     """
-    started_at = datetime.now(UTC)
+    started_at = datetime.now(timezone.utc)
 
     # Instantiate tools
     tools: list[BaseDiscoveryTool] = []
@@ -131,7 +131,7 @@ async def run_discovery(
 
     await session.commit()
 
-    elapsed = (datetime.now(UTC) - started_at).total_seconds()
+    elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
     summary = {
         "query": query,
         "tools_run": len(tools),

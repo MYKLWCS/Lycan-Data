@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -60,7 +60,7 @@ class TestApiSerializers:
         obj = MagicMock()
         obj.__table__ = MagicMock()
         obj.__table__.columns = [col]
-        dt = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
+        dt = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
         obj.created_at = dt
 
         result = _model_to_dict(obj)
@@ -86,7 +86,7 @@ class TestApiSerializers:
         """_serialize_datetimes handles nested dicts and lists."""
         from api.serializers import _serialize_datetimes
 
-        dt = datetime(2024, 1, 1, tzinfo=UTC)
+        dt = datetime(2024, 1, 1, tzinfo=timezone.utc)
         data = {
             "created_at": dt,
             "nested": {"ts": dt},

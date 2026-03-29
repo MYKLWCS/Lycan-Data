@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import UTC, date, datetime
+from datetime import timezone, date, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

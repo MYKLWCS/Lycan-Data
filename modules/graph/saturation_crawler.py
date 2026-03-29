@@ -22,7 +22,7 @@ import logging
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import Enum
 from typing import Any
 
@@ -60,7 +60,7 @@ class CrawlStats:
     depth_distribution: dict[int, int] = field(default_factory=dict)
     source_contribution: dict[str, int] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
-    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     elapsed_seconds: float = 0.0
 
 
@@ -163,7 +163,7 @@ class SaturationCrawler:
         # ── Done ──────────────────────────────────────────────────────────────
         self.stats.phase = CrawlPhase.COMPLETE
         self.stats.elapsed_seconds = (
-            datetime.now(UTC) - self.stats.started_at
+            datetime.now(timezone.utc) - self.stats.started_at
         ).total_seconds()
 
         overall_novelty = (
@@ -679,7 +679,7 @@ class SaturationCrawler:
             "novelty_rate": round(overall, 4),
             "depth_distribution": self.stats.depth_distribution,
             "elapsed_seconds": round(
-                (datetime.now(UTC) - self.stats.started_at).total_seconds(), 2
+                (datetime.now(timezone.utc) - self.stats.started_at).total_seconds(), 2
             ),
         }
 

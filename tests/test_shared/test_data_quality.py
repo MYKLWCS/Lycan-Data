@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timezone
+from datetime import timezone, datetime, timezone
 
 import pytest
 
@@ -61,7 +61,7 @@ def test_get_source_reliability_unknown():
 
 
 def test_assess_quality_returns_all_fields():
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     result = assess_quality(
         last_scraped_at=now,
         source_type="social_media_profile",
@@ -91,7 +91,7 @@ def test_apply_quality_to_model():
         data_quality = {}
 
     model = FakeModel()
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     apply_quality_to_model(
         model,
         last_scraped_at=now,

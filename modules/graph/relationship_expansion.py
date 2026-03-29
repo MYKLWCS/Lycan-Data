@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -205,7 +205,7 @@ class RelationshipExpansionEngine:
         if rel:
             # Update score if this source is more confident
             rel.score = max(rel.score or 0.0, confidence)
-            rel.last_seen_at = datetime.now(UTC)
+            rel.last_seen_at = datetime.now(timezone.utc)
             if evidence:
                 current_evidence = rel.evidence or {}
                 current_evidence[source] = evidence
@@ -217,8 +217,8 @@ class RelationshipExpansionEngine:
                 rel_type=broad_type,
                 score=confidence,
                 evidence={source: evidence} if evidence else {},
-                first_seen_at=datetime.now(UTC),
-                last_seen_at=datetime.now(UTC),
+                first_seen_at=datetime.now(timezone.utc),
+                last_seen_at=datetime.now(timezone.utc),
             )
             session.add(rel)
             await session.flush()
@@ -243,7 +243,7 @@ class RelationshipExpansionEngine:
                 sources.append(source)
                 detail.discovery_sources = sources
                 detail.source_count = len(sources)
-            detail.last_confirmed_at = datetime.now(UTC)
+            detail.last_confirmed_at = datetime.now(timezone.utc)
             # Upgrade verification level based on source count
             detail.verification_level = self._verification_level(detail.source_count)
         else:
@@ -260,7 +260,7 @@ class RelationshipExpansionEngine:
                 verification_level="single_source",
                 relationship_start=relationship_start,
                 relationship_end=relationship_end,
-                last_confirmed_at=datetime.now(UTC),
+                last_confirmed_at=datetime.now(timezone.utc),
             )
             session.add(detail)
 

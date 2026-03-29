@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from modules.crawlers.core.models import CrawlerCategory, CrawlerHealth
@@ -174,7 +174,7 @@ class ScraperOrchestrator:
             except Exception as exc:
                 results[crawler.platform] = CrawlerHealth(
                     healthy=False,
-                    last_check=datetime.now(UTC),
+                    last_check=datetime.now(timezone.utc),
                     avg_latency_ms=0,
                     success_rate=0,
                     last_error=str(exc),

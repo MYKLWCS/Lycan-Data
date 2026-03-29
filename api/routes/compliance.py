@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -61,6 +61,6 @@ async def process_opt_out(opt_out_id: uuid.UUID, db: AsyncSession = DbDep):
     if not row:
         raise HTTPException(status_code=404, detail="Opt-out not found")
     row.status = "processed"
-    row.processed_at = datetime.now(UTC)
+    row.processed_at = datetime.now(timezone.utc)
     await db.commit()
     return {"message": "Opt-out processed", "id": str(opt_out_id)}

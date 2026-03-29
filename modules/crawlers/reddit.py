@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
@@ -73,7 +73,7 @@ class RedditCrawler(HttpxCrawler):
         created_utc = raw.get("created_utc")
         created_at = None
         if created_utc:
-            created_at = datetime.fromtimestamp(created_utc, tz=UTC)
+            created_at = datetime.fromtimestamp(created_utc, tz=timezone.utc)
 
         return {
             "handle": handle,

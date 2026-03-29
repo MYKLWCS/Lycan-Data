@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -47,7 +47,7 @@ class PendingJobRecovery:
         self._running = False
 
     async def _recover_stale(self) -> None:
-        cutoff = datetime.now(UTC) - timedelta(seconds=STALE_THRESHOLD)
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=STALE_THRESHOLD)
 
         async with AsyncSessionLocal() as session:
             result = await session.execute(

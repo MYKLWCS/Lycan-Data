@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timezone, datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
@@ -278,7 +278,7 @@ def test_json_default_uuid():
 
 
 def test_json_default_datetime():
-    dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
+    dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
     result = _json_default(dt)
     assert "2024-06-15" in result
 
@@ -963,10 +963,10 @@ def test_get_rate_limiter_lazy_init():
 from shared.freshness import compute_freshness, get_half_life, hours_until_stale, is_stale
 
 
-# Line 37 — compute_freshness: naive datetime (no tzinfo) is treated as UTC
+# Line 37 — compute_freshness: naive datetime (no tzinfo) is treated as timezone.utc
 def test_compute_freshness_naive_datetime():
     # Naive datetime, just scraped
-    now_naive = datetime.utcnow()
+    now_naive = datetime.now(timezone.utc)
     score = compute_freshness(now_naive, "default")
     assert score >= 0.99
 
@@ -977,9 +977,9 @@ def test_hours_until_stale_none_returns_zero():
     assert result == 0.0
 
 
-# Line 66 — hours_until_stale: naive datetime is treated as UTC
+# Line 66 — hours_until_stale: naive datetime is treated as timezone.utc
 def test_hours_until_stale_naive_datetime():
-    now_naive = datetime.utcnow() - timedelta(hours=1)
+    now_naive = datetime.now(timezone.utc) - timedelta(hours=1)
     result = hours_until_stale(now_naive, "social_media_profile")
     assert result >= 0.0
 

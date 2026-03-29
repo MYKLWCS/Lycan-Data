@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -116,7 +116,7 @@ def score_freshness(field: str, last_verified: str | datetime | None) -> float:
         if last_dt.tzinfo is None:
             now = datetime.now()
         else:
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
 
         days_old = max(0, (now - last_dt).days)
     except (ValueError, TypeError):

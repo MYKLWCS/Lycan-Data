@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import IntEnum
 from typing import Any
 
@@ -62,7 +62,7 @@ class TypeVerificationResult:
 
     def __post_init__(self) -> None:
         if not self.verified_at:
-            self.verified_at = datetime.now(UTC).isoformat()
+            self.verified_at = datetime.now(timezone.utc).isoformat()
 
     @property
     def level_name(self) -> str:

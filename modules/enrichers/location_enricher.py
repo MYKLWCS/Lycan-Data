@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -242,7 +242,7 @@ class LocationEnricher:
             )
         )
         existing = existing_result.scalar_one_or_none()
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
 
         if existing:
             existing.last_seen = now

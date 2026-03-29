@@ -15,7 +15,7 @@ import logging
 import re
 import textwrap
 import urllib.parse
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ def build_template(
         "base_import": base_import,
         "category": cat,
         "source_code": source,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
