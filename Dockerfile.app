@@ -40,7 +40,7 @@ COPY pyproject.toml poetry.lock* requirements.txt ./
 # Poetry handles main deps; pip adds runtime extras not in pyproject.toml
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root \
-    && pip install --no-cache-dir slowapi uvloop praw typesense python-dotenv
+    && pip install --no-cache-dir python-dotenv
 
 # Install CLI tools in isolated envs (networkx version conflicts with main deps)
 RUN pipx install sherlock-project \

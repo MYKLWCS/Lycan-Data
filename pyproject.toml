@@ -36,6 +36,8 @@ beautifulsoup4 = "^4.12"
 lxml = "^5.0"
 slowapi = "^0.1"
 rapidfuzz = "^3.0"
+typesense = "^0.21"
+uvloop = {version = "^0.21", markers = "sys_platform != 'win32'"}
 # sherlock-project + maigret: installed via pipx in Dockerfile (networkx conflict)
 # phoneinfoga: install as Go binary from https://github.com/sundowndev/phoneinfoga/releases
 
