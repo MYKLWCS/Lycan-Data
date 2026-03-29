@@ -722,7 +722,8 @@ function span(cls, text) { return el('span', cls, text); }
 function div(cls, text)  { return el('div',  cls, text); }
 
 // ── API helpers ────────────────────────────────────────────────────────
-const _apiKey = localStorage.getItem('lycan_api_key') || '';
+let _apiKey = localStorage.getItem('lycan_api_key') || '';
+let _authPrompted = false;
 function _authHeaders() {
   const h = {};
   if (_apiKey) h['Authorization'] = 'Bearer ' + _apiKey;
@@ -730,7 +731,7 @@ function _authHeaders() {
 }
 async function apiGet(path) {
   const r = await fetch(path, { headers: _authHeaders() });
-  if (r.status === 401) { promptApiKey(); throw new Error('Auth required'); }
+  if (r.status === 401) { showAuthBar(); throw new Error('Auth required'); }
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   return r.json();
 }
@@ -740,13 +741,33 @@ async function apiPost(path, body) {
     headers: {'Content-Type':'application/json', ..._authHeaders()},
     body: JSON.stringify(body),
   });
-  if (r.status === 401) { promptApiKey(); throw new Error('Auth required'); }
+  if (r.status === 401) { showAuthBar(); throw new Error('Auth required'); }
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
-function promptApiKey() {
-  const key = prompt('Enter API key:');
-  if (key) { localStorage.setItem('lycan_api_key', key); location.reload(); }
+function showAuthBar() {
+  if (_authPrompted) return;
+  _authPrompted = true;
+  const bar = document.createElement('div');
+  bar.id = 'auth-bar';
+  Object.assign(bar.style, {position:'fixed',top:'0',left:'0',right:'0',zIndex:'9999',background:'#1a1a2e',borderBottom:'1px solid var(--accent)',padding:'10px 20px',display:'flex',alignItems:'center',gap:'10px',fontFamily:'var(--mono)',fontSize:'12px'});
+  const label = span('', '');
+  label.style.color = 'var(--yellow)';
+  label.textContent = '\u26A1 API KEY REQUIRED';
+  const inp = document.createElement('input');
+  inp.id = 'auth-input';
+  inp.type = 'password';
+  inp.placeholder = 'Enter API key';
+  Object.assign(inp.style, {flex:'1',background:'#0d0d1a',border:'1px solid #333',color:'#eee',padding:'6px 10px',fontFamily:'var(--mono)',fontSize:'12px',borderRadius:'4px'});
+  const btn = document.createElement('button');
+  btn.textContent = 'CONNECT';
+  Object.assign(btn.style, {background:'var(--accent)',color:'#000',border:'none',padding:'6px 16px',cursor:'pointer',fontFamily:'var(--mono)',fontSize:'12px',borderRadius:'4px',fontWeight:'600'});
+  bar.append(label, inp, btn);
+  document.body.prepend(bar);
+  const submit = () => { const k = inp.value.trim(); if (k) { localStorage.setItem('lycan_api_key', k); location.reload(); } };
+  btn.addEventListener('click', submit);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  inp.focus();
 }
 
 // ── Format helpers ─────────────────────────────────────────────────────

@@ -92,38 +92,11 @@ async def get_latest_assessment(person_id: str, session: AsyncSession = DbDep):
 
 
 @router.get("/{person_id}/aml")
-async def get_aml_matches(person_id: str, session: AsyncSession = DbDep):
-    """Return WatchlistMatch rows for the person (capped at 500)."""
-    try:
-        uid = uuid.UUID(person_id)
-    except ValueError:
-        raise HTTPException(400, f"Invalid UUID: {person_id!r}")
+async def get_aml_matches(person_id: str):
+    """Redirect to /watchlist/{person_id} — canonical AML match endpoint."""
+    from fastapi.responses import RedirectResponse
 
-    rows = (
-        (
-            await session.execute(
-                select(WatchlistMatch).where(WatchlistMatch.person_id == uid).limit(500)
-            )
-        )
-        .scalars()
-        .all()
-    )
-
-    return {
-        "person_id": person_id,
-        "matches": [
-            {
-                "id": str(r.id),
-                "list_name": r.list_name,
-                "list_type": r.list_type,
-                "match_score": r.match_score,
-                "is_confirmed": r.is_confirmed,
-                "matched_at": r.created_at.isoformat() if r.created_at else None,
-            }
-            for r in rows
-        ],
-        "count": len(rows),
-    }
+    return RedirectResponse(url=f"/watchlist/{person_id}", status_code=307)
 
 
 @router.post("/borrower-score")

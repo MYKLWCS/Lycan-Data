@@ -140,30 +140,8 @@ async def relationship_score(
 
 
 # ── Graph visualization endpoint ──────────────────────────────────────────
-
-
-@router.get("/graph/person/{person_id}/network")
-async def graph_person_network(
-    person_id: str,
-    depth: int = Query(2, ge=1, le=3),
-    session: AsyncSession = DbDep,
-):
-    """Graph visualization data with full relationship metadata.
-
-    Returns the format expected by the interactive graph:
-    {center, nodes, edges, stats}
-    """
-    try:
-        network = await relationship_engine.build_network_for_visualization(
-            session, person_id, max_depth=depth
-        )
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    except Exception as exc:
-        logger.exception("Failed to build graph network for %s", person_id)
-        raise HTTPException(500, "Internal error") from exc
-
-    return network
+# NOTE: Person network graph is now at /graph/person/{id}/network (graph.py).
+# This endpoint was a duplicate and has been removed.
 
 
 # ── Manual relationship management ─────────────────────────────────────────
