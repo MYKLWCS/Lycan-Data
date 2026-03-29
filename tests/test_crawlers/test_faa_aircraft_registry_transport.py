@@ -661,7 +661,7 @@ class TestGetMasterCsv:
                 cache_master,
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=True,
             ),
             patch("builtins.open", mock_open(read_data=csv_content)),
@@ -706,7 +706,7 @@ class TestGetMasterCsv:
                 str(tmp_path / "faa_aircraft.zip"),
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=True,
             ),
             patch("builtins.open", side_effect=_fake_open),
@@ -750,7 +750,7 @@ class TestGetMasterCsv:
                 cache_master,
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
@@ -770,7 +770,7 @@ class TestGetMasterCsv:
                 str(tmp_path),
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=None)),
@@ -790,7 +790,7 @@ class TestGetMasterCsv:
                 str(tmp_path),
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
@@ -836,7 +836,7 @@ class TestGetMasterCsv:
                 str(tmp_path / "faa_master.csv"),
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
@@ -869,7 +869,7 @@ class TestGetMasterCsv:
                 str(tmp_path / "faa_master.csv"),
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
@@ -906,7 +906,7 @@ class TestGetMasterCsv:
                 cache_master,
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
@@ -948,7 +948,7 @@ class TestGetMasterCsv:
                 cache_master,
             ),
             patch(
-                "modules.crawlers.transport.faa_aircraft_registry._cache_valid",
+                "modules.crawlers.transport.faa_aircraft_registry.cache_valid",
                 return_value=False,
             ),
             patch.object(crawler, "get", new=AsyncMock(return_value=resp)),

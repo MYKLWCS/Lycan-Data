@@ -292,9 +292,9 @@ class TestPublicFAACrawler:
 
         return PublicFAACrawler()
 
-    # line 39 — _split_name single-word returns ("", identifier)
+    # line 39 — public_faa._split_name single-word returns ("", identifier)
     def test_split_name_single_word(self):
-        from modules.crawlers.utils import split_name as _split_name
+        from modules.crawlers.public_faa import _split_name
 
         first, last = _split_name("Smith")
         assert first == ""
