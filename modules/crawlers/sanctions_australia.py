@@ -38,6 +38,7 @@ _MATCH_THRESHOLD = 0.7
 # ---------------------------------------------------------------------------
 
 
+@register("sanctions_australia")
 class SanctionsAustraliaCrawler(HttpxCrawler):
     """
     Downloads the DFAT Australia consolidated sanctions CSV, caches it for 6 hours,

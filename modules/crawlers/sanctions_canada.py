@@ -43,6 +43,7 @@ _NAME_COLUMNS = ["LastName", "FirstName", "MiddleName", "Aliases", "AliasType"]
 # ---------------------------------------------------------------------------
 
 
+@register("sanctions_canada")
 class SanctionsCanadaCrawler(HttpxCrawler):
     """
     Downloads the OSFI Canada consolidated individuals sanctions CSV, caches it

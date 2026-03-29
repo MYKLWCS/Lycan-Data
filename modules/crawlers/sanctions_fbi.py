@@ -28,6 +28,7 @@ MATCH_THRESHOLD = 0.7
 # ---------------------------------------------------------------------------
 
 
+@register("sanctions_fbi")
 class SanctionsFBICrawler(HttpxCrawler):
     """
     Queries the FBI Most Wanted public API by name and returns matching

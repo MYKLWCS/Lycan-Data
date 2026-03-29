@@ -46,9 +46,7 @@ import modules.crawlers.sanctions_canada  # noqa: F401 — trigger @register
 from modules.crawlers.sanctions_canada import (
     SanctionsCanadaCrawler,
 )
-from modules.crawlers.sanctions_canada import (
-    _cache_valid as canada_cache_valid,
-)
+from modules.crawlers.utils import cache_valid as canada_cache_valid
 
 
 class TestCanadaCacheValid:
@@ -335,7 +333,7 @@ class TestUkSearchCsvParseError:
 # ===========================================================================
 
 import modules.crawlers.sanctions_fbi  # noqa: F401
-from modules.crawlers.utils import word_overlap as _name_matches as fbi_name_matches
+from modules.crawlers.utils import word_overlap as fbi_name_matches
 
 
 class TestFbiNameMatchesEmptyQuery:
@@ -372,10 +370,8 @@ class TestUnCachePath:
 # ===========================================================================
 
 import modules.crawlers.sanctions_worldbank_debarment  # noqa: F401
-from modules.crawlers.sanctions_worldbank_debarment import (
-    _parse_debarred,
-    _word_overlap,
-)
+from modules.crawlers.sanctions_worldbank_debarment import _parse_debarred
+from modules.crawlers.utils import word_overlap as _word_overlap
 
 
 class TestWordOverlapEmptyQuery:

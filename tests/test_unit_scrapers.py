@@ -23,11 +23,8 @@ from modules.crawlers.core.models import CrawlerCategory
 from modules.crawlers.google_news_rss import GoogleNewsRssCrawler
 from modules.crawlers.registry import get_crawler, is_registered
 from modules.crawlers.result import CrawlerResult
-from modules.crawlers.sanctions_ofac import (
-    SanctionsOFACCrawler,
-    _cache_valid,
-    _name_matches,
-)
+from modules.crawlers.sanctions_ofac import SanctionsOFACCrawler
+from modules.crawlers.utils import cache_valid as _cache_valid, word_overlap as _name_matches
 
 
 # ===========================================================================

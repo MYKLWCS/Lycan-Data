@@ -5,14 +5,14 @@ import pytest
 from modules.enrichers.deduplication import (
     MERGE_THRESHOLD,
     MergeCandidate,
+    _normalize_email_for_dedup as normalize_email,
+    _normalize_phone_for_dedup as normalize_phone,
+    _normalize_username_for_dedup as normalize_username,
     find_duplicate_identifiers,
     find_duplicate_persons,
     merge_persons,
     name_similarity,
-    normalize_email,
     normalize_name,
-    normalize_phone,
-    normalize_username,
 )
 
 # ─── normalize_name ───────────────────────────────────────────────────────────

@@ -42,6 +42,7 @@ def _cache_path(name: str, ext: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+@register("sanctions_ofac")
 class SanctionsOFACCrawler(HttpxCrawler):
     """
     Downloads the OFAC SDN CSV list, caches it for 6 hours, and searches
