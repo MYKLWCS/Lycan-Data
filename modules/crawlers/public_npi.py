@@ -21,6 +21,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import split_name
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +35,6 @@ _MAX_RESULTS = 10
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
-
-
-def _split_name(identifier: str) -> tuple[str, str]:
-    """
-    Split "First Last" into (first, last).
-    For single-word identifiers returns (identifier, "").
-    """
-    parts = identifier.strip().split()
-    if len(parts) >= 2:
-        return parts[0], parts[-1]
-    return identifier.strip(), ""
 
 
 def _parse_providers(data: dict) -> list[dict[str, Any]]:
@@ -141,7 +131,7 @@ class PublicNPICrawler(HttpxCrawler):
             org_name = query[4:].strip()
             url = _ORG_URL.format(org=quote_plus(org_name))
         else:
-            first, last = _split_name(query)
+            first, last = split_name(query)
             url = _INDIVIDUAL_URL.format(
                 first=quote_plus(first),
                 last=quote_plus(last),

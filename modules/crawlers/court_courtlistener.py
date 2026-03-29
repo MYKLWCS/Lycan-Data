@@ -17,6 +17,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import split_name
 
 logger = logging.getLogger(__name__)
 
@@ -26,17 +27,6 @@ _OPINION_URL = _BASE + "/search/?q={query}&type=o&format=json"
 _PEOPLE_URL = _BASE + "/people/?name_last={last}&name_first={first}&format=json"
 
 _MAX_RESULTS = 10
-
-
-def _split_name(identifier: str) -> tuple[str, str]:
-    """
-    Split 'First Last' into (first, last).
-    Works for 2-word names; falls back to (identifier, "") for anything else.
-    """
-    parts = identifier.strip().split()
-    if len(parts) >= 2:
-        return parts[0], parts[-1]
-    return identifier.strip(), ""
 
 
 def _parse_case_results(data: dict) -> list[dict[str, Any]]:
@@ -122,7 +112,7 @@ class CourtListenerCrawler(HttpxCrawler):
         cases = _parse_case_results(data)
 
         # --- Secondary: people search (judge/attorney) if name-shaped query ---
-        first, last = _split_name(query)
+        first, last = split_name(query)
         if first and last:
             people_url = _PEOPLE_URL.format(last=quote_plus(last), first=quote_plus(first))
             people_resp = await self.get(people_url)

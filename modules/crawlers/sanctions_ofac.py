@@ -18,6 +18,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import cache_valid, word_overlap
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,6 @@ MATCH_THRESHOLD = 0.7
 # ---------------------------------------------------------------------------
 
 
-def _cache_valid(path: str, max_age_hours: float = CACHE_MAX_AGE_HOURS) -> bool:
-    """Return True if the cached file exists and is within the max age."""
-    if not os.path.exists(path):
-        return False
-    age_hours = (time.time() - os.path.getmtime(path)) / 3600
-    return age_hours < max_age_hours
-
-
 def _cache_path(name: str, ext: str) -> str:
     return f"/tmp/lycan_{name}.{ext}"
 
@@ -49,26 +42,6 @@ def _cache_path(name: str, ext: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD) -> float:
-    """
-    Returns a match score 0.0–1.0 based on word overlap.
-    All query words that appear in the candidate count toward the score.
-    """
-    q_words = set(query.lower().split())
-    c_words = set(candidate.lower().split())
-    if not q_words:
-        return 0.0
-    overlap = len(q_words & c_words)
-    score = overlap / len(q_words)
-    return score
-
-
-# ---------------------------------------------------------------------------
-# Crawler
-# ---------------------------------------------------------------------------
-
-
-@register("sanctions_ofac")
 class SanctionsOFACCrawler(HttpxCrawler):
     """
     Downloads the OFAC SDN CSV list, caches it for 6 hours, and searches
@@ -109,7 +82,7 @@ class SanctionsOFACCrawler(HttpxCrawler):
 
     async def _get_csv(self) -> str | None:
         """Return CSV text from cache (if fresh) or download from OFAC."""
-        if _cache_valid(CACHE_PATH):
+        if cache_valid(CACHE_PATH):
             logger.debug("OFAC: using cached list at %s", CACHE_PATH)
             try:
                 with open(CACHE_PATH, encoding="latin-1") as fh:
@@ -156,7 +129,7 @@ class SanctionsOFACCrawler(HttpxCrawler):
             if not sdn_name or sdn_name.lower() in ("-0-", "name"):
                 continue  # skip header / empty sentinel rows
 
-            score = _name_matches(query, sdn_name)
+            score = word_overlap(query, sdn_name)
             if score >= MATCH_THRESHOLD:
                 matches.append(
                     {

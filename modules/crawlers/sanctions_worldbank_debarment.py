@@ -16,21 +16,13 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import word_overlap
 
 logger = logging.getLogger(__name__)
 
 _SEARCH_URL = (
     "https://apigwext.worldbank.org/dvsvc/v1.0/json/CONTRACT_AWARD/debarred/FIRM_NAME/{name}/0/20"
 )
-
-
-def _word_overlap(query: str, candidate: str) -> float:
-    """Return fraction of query words found in candidate string."""
-    q_words = set(query.lower().split())
-    c_words = set(candidate.lower().split())
-    if not q_words:
-        return 0.0
-    return len(q_words & c_words) / len(q_words)
 
 
 def _parse_debarred(payload: Any, query: str) -> list[dict[str, Any]]:
@@ -58,7 +50,7 @@ def _parse_debarred(payload: Any, query: str) -> list[dict[str, Any]]:
         if not isinstance(rec, dict):
             continue
         firm_name = rec.get("firmName", "") or rec.get("firm_name", "") or rec.get("name", "")
-        overlap = _word_overlap(query, firm_name)
+        overlap = word_overlap(query, firm_name)
         if overlap < 0.3:
             continue  # Skip low-relevance results
         entities.append(

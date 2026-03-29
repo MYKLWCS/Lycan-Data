@@ -21,6 +21,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import cache_valid
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +36,6 @@ _MATCH_THRESHOLD = 0.6
 # 0: FileGenerationDate, 1: Entity_LogicalId, 2: Entity_Remark,
 # 3: NameAlias_FirstName, 4: NameAlias_MiddleName, 5: NameAlias_LastName,
 # 6: NameAlias_WholeName, 7: NameAlias_NameLanguage, 8: Entity_SubjectType
-
-
-def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool:
-    if not os.path.exists(path):
-        return False
-    age_hours = (time.time() - os.path.getmtime(path)) / 3600
-    return age_hours < max_age_hours
 
 
 def _name_overlap_score(query: str, candidate: str) -> float:
@@ -93,7 +87,7 @@ class EUSanctionsCrawler(HttpxCrawler):
 
     async def _get_csv(self) -> str | None:
         """Return CSV text from cache (if fresh) or download from EU FSDB."""
-        if _cache_valid(_CACHE_PATH):
+        if cache_valid(_CACHE_PATH):
             logger.debug("EU sanctions: using cached list at %s", _CACHE_PATH)
             try:
                 with open(_CACHE_PATH, encoding="utf-8", errors="replace") as fh:

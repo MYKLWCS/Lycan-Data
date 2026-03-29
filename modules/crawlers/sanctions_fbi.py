@@ -15,6 +15,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import word_overlap
 
 logger = logging.getLogger(__name__)
 
@@ -27,23 +28,6 @@ MATCH_THRESHOLD = 0.7
 # ---------------------------------------------------------------------------
 
 
-def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD) -> float:
-    """Returns a match score 0.0–1.0 based on word overlap."""
-    q_words = set(query.lower().split())
-    c_words = set(candidate.lower().split())
-    if not q_words:
-        return 0.0
-    overlap = len(q_words & c_words)
-    score = overlap / len(q_words)
-    return score
-
-
-# ---------------------------------------------------------------------------
-# Crawler
-# ---------------------------------------------------------------------------
-
-
-@register("sanctions_fbi")
 class SanctionsFBICrawler(HttpxCrawler):
     """
     Queries the FBI Most Wanted public API by name and returns matching
@@ -125,7 +109,7 @@ class SanctionsFBICrawler(HttpxCrawler):
 
             # Score against title and all aliases
             candidates = [title] + [a for a in aliases if a]
-            best_score = max((_name_matches(query, c) for c in candidates if c), default=0.0)
+            best_score = max((word_overlap(query, c) for c in candidates if c), default=0.0)
 
             if best_score >= MATCH_THRESHOLD:
                 matches.append(

@@ -21,6 +21,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import split_name
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +39,6 @@ _HEADERS = {
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
-
-
-def _split_name(identifier: str) -> tuple[str, str]:
-    """Split "First Last" into (first, last)."""
-    parts = identifier.strip().split()
-    if len(parts) >= 2:
-        return parts[0], parts[-1]
-    return identifier.strip(), ""
 
 
 def _parse_offenders(data: dict) -> list[dict[str, Any]]:
@@ -96,7 +89,7 @@ class PublicNSOPWCrawler(HttpxCrawler):
 
     async def scrape(self, identifier: str) -> CrawlerResult:
         query = identifier.strip()
-        first, last = _split_name(query)
+        first, last = split_name(query)
 
         payload = {
             "firstName": first,

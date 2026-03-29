@@ -23,6 +23,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import word_overlap, cache_valid
 
 logger = logging.getLogger(__name__)
 
@@ -40,21 +41,6 @@ _BIS_CSV_FALLBACK = (
 _CACHE_PATH = "/tmp/lycan_cache/bis_entity_list.csv"
 _CACHE_MAX_AGE_HOURS = 24.0
 _MATCH_THRESHOLD = 0.55
-
-
-def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool:
-    if not os.path.exists(path):
-        return False
-    age_hours = (time.time() - os.path.getmtime(path)) / 3600
-    return age_hours < max_age_hours
-
-
-def _word_overlap(query: str, candidate: str) -> float:
-    q = set(query.lower().split())
-    c = set(candidate.lower().split())
-    if not q:
-        return 0.0
-    return len(q & c) / len(q)
 
 
 def _search_csv(csv_text: str, query: str) -> list[dict[str, Any]]:
@@ -78,7 +64,7 @@ def _search_csv(csv_text: str, query: str) -> list[dict[str, Any]]:
             ).strip()
             if not name:
                 continue
-            score = _word_overlap(query, name)
+            score = word_overlap(query, name)
             if score < _MATCH_THRESHOLD:
                 continue
             country = (row.get("Country") or row.get("country", "")).strip()
@@ -164,7 +150,7 @@ class BisEntityListCrawler(HttpxCrawler):
         """Return CSV text from cache or download fresh from BIS."""
         os.makedirs(os.path.dirname(_CACHE_PATH), exist_ok=True)
 
-        if _cache_valid(_CACHE_PATH):
+        if cache_valid(_CACHE_PATH):
             logger.debug("BIS Entity List: using cached file at %s", _CACHE_PATH)
             try:
                 with open(_CACHE_PATH, encoding="utf-8", errors="replace") as fh:

@@ -25,6 +25,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import word_overlap, cache_valid
 
 logger = logging.getLogger(__name__)
 
@@ -131,20 +132,6 @@ _VALUE_ESTIMATES = {
 }
 
 
-def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool:
-    if not os.path.exists(path):
-        return False
-    return (time.time() - os.path.getmtime(path)) / 3600 < max_age_hours
-
-
-def _word_overlap(query: str, candidate: str) -> float:
-    q = set(query.lower().split())
-    c = set(candidate.lower().split())
-    if not q:
-        return 0.0
-    return len(q & c) / len(q)
-
-
 def _is_nnumber(identifier: str) -> bool:
     """Return True if identifier looks like an FAA N-number (N12345)."""
     clean = identifier.strip().upper().lstrip("N")
@@ -221,7 +208,7 @@ def _search_master_csv(csv_text: str, query: str, threshold: float = 0.6) -> lis
         owner_name = row_list[6].strip() if len(row_list) > 6 else ""
         if not owner_name:
             continue
-        score = _word_overlap(query, owner_name)
+        score = word_overlap(query, owner_name)
         if score < threshold:
             continue
         # Build a dict using known column positions
@@ -391,7 +378,7 @@ class FaaAircraftRegistryCrawler(HttpxCrawler):
         """Return FAA master CSV text from cache or download the bulk ZIP."""
         os.makedirs(_CACHE_DIR, exist_ok=True)
 
-        if _cache_valid(_CACHE_MASTER):
+        if cache_valid(_CACHE_MASTER):
             logger.debug("FAA: using cached master CSV at %s", _CACHE_MASTER)
             try:
                 with open(_CACHE_MASTER, encoding="latin-1") as fh:

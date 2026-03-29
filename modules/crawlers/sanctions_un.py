@@ -17,6 +17,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import cache_valid, word_overlap
 
 logger = logging.getLogger(__name__)
 
@@ -31,34 +32,12 @@ MATCH_THRESHOLD = 0.7
 # ---------------------------------------------------------------------------
 
 
-def _cache_valid(path: str, max_age_hours: float = CACHE_MAX_AGE_HOURS) -> bool:
-    if not os.path.exists(path):
-        return False
-    age_hours = (time.time() - os.path.getmtime(path)) / 3600
-    return age_hours < max_age_hours
-
-
 def _cache_path(name: str, ext: str) -> str:
     return f"/tmp/lycan_{name}.{ext}"
 
 
 # ---------------------------------------------------------------------------
 # Name-matching helper
-# ---------------------------------------------------------------------------
-
-
-def _name_matches(query: str, candidate: str, threshold: float = MATCH_THRESHOLD) -> float:
-    q_words = set(query.lower().split())
-    c_words = set(candidate.lower().split())
-    if not q_words:
-        return 0.0
-    overlap = len(q_words & c_words)
-    score = overlap / len(q_words)
-    return score
-
-
-# ---------------------------------------------------------------------------
-# XML parsing helpers
 # ---------------------------------------------------------------------------
 
 
@@ -120,7 +99,7 @@ class SanctionsUNCrawler(HttpxCrawler):
 
     async def _get_xml(self) -> str | None:
         """Return XML text from cache (if fresh) or download from UN."""
-        if _cache_valid(CACHE_PATH):
+        if cache_valid(CACHE_PATH):
             logger.debug("UN: using cached list at %s", CACHE_PATH)
             try:
                 with open(CACHE_PATH, encoding="utf-8") as fh:
@@ -198,7 +177,7 @@ class SanctionsUNCrawler(HttpxCrawler):
 
             # Check full name and all aliases
             candidates = [full_name] + aliases
-            best_score = max((_name_matches(query, c) for c in candidates if c), default=0.0)
+            best_score = max((word_overlap(query, c) for c in candidates if c), default=0.0)
 
             if best_score >= MATCH_THRESHOLD:
                 matches.append(
@@ -229,7 +208,7 @@ class SanctionsUNCrawler(HttpxCrawler):
             ]
 
             candidates = [full_name] + aliases
-            best_score = max((_name_matches(query, c) for c in candidates if c), default=0.0)
+            best_score = max((word_overlap(query, c) for c in candidates if c), default=0.0)
 
             if best_score >= MATCH_THRESHOLD:
                 matches.append(

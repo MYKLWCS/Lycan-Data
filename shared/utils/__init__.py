@@ -3,6 +3,12 @@ from shared.utils.phone import get_country_code, get_line_type, is_valid_phone, 
 from shared.utils.scoring import clamp, log_scale, tier_from_score, weighted_sum
 from shared.utils.social import build_profile_url, extract_handle_from_url, normalize_handle
 
+
+def normalize_name(name: str) -> str:
+    """Lowercase, strip whitespace, collapse inner spaces for fuzzy matching."""
+    return " ".join(name.lower().split())
+
+
 __all__ = [
     "normalize_phone",
     "get_line_type",
@@ -19,4 +25,5 @@ __all__ = [
     "weighted_sum",
     "log_scale",
     "tier_from_score",
+    "normalize_name",
 ]

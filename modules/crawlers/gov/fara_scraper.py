@@ -20,6 +20,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import word_overlap
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +33,6 @@ _FARA_REST = (
 )
 
 _MATCH_THRESHOLD = 0.5
-
-
-def _word_overlap(query: str, candidate: str) -> float:
-    """Simple word-overlap score (0.0–1.0) for name matching."""
-    q = set(query.lower().split())
-    c = set(candidate.lower().split())
-    if not q:
-        return 0.0
-    return len(q & c) / len(q)
 
 
 def _parse_rest_response(data: Any, query: str) -> list[dict[str, Any]]:
@@ -100,7 +92,7 @@ def _parse_rest_response(data: Any, query: str) -> list[dict[str, Any]]:
 
         # Filter by name match when we have a registrant name
         candidate = reg_name or fp_name
-        if candidate and _word_overlap(query, candidate) < _MATCH_THRESHOLD:
+        if candidate and word_overlap(query, candidate) < _MATCH_THRESHOLD:
             continue
 
         registrations.append(
@@ -155,7 +147,7 @@ def _parse_html_table(html: str, query: str) -> list[dict[str, Any]]:
                 reg_number = record.get("registration number") or record.get("reg #", "")
 
                 candidate = reg_name or fp_name
-                if candidate and _word_overlap(query, candidate) < _MATCH_THRESHOLD:
+                if candidate and word_overlap(query, candidate) < _MATCH_THRESHOLD:
                     continue
 
                 registrations.append(

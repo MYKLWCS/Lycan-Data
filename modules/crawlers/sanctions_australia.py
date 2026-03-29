@@ -23,6 +23,7 @@ from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.utils import cache_valid, word_overlap
 
 logger = logging.getLogger(__name__)
 
@@ -37,33 +38,6 @@ _MATCH_THRESHOLD = 0.7
 # ---------------------------------------------------------------------------
 
 
-def _cache_valid(path: str, max_age_hours: float = _CACHE_MAX_AGE_HOURS) -> bool:
-    if not os.path.exists(path):
-        return False
-    age_hours = (time.time() - os.path.getmtime(path)) / 3600
-    return age_hours < max_age_hours
-
-
-# ---------------------------------------------------------------------------
-# Name-matching helper (same algorithm as sanctions_ofac.py)
-# ---------------------------------------------------------------------------
-
-
-def _name_matches(query: str, candidate: str, threshold: float = _MATCH_THRESHOLD) -> float:
-    q_words = set(query.lower().split())
-    c_words = set(candidate.lower().split())
-    if not q_words:
-        return 0.0
-    overlap = len(q_words & c_words)
-    return overlap / len(q_words)
-
-
-# ---------------------------------------------------------------------------
-# Crawler
-# ---------------------------------------------------------------------------
-
-
-@register("sanctions_australia")
 class SanctionsAustraliaCrawler(HttpxCrawler):
     """
     Downloads the DFAT Australia consolidated sanctions CSV, caches it for 6 hours,
@@ -104,7 +78,7 @@ class SanctionsAustraliaCrawler(HttpxCrawler):
     # ------------------------------------------------------------------
 
     async def _get_csv(self) -> str | None:
-        if _cache_valid(_CACHE_PATH):
+        if cache_valid(_CACHE_PATH):
             logger.debug("AUS sanctions: using cached list at %s", _CACHE_PATH)
             try:
                 with open(_CACHE_PATH, encoding="utf-8-sig", errors="replace") as fh:
@@ -144,7 +118,7 @@ class SanctionsAustraliaCrawler(HttpxCrawler):
             for field, value in row.items():
                 if not isinstance(value, str) or not value.strip():
                     continue
-                score = _name_matches(query, value.strip())
+                score = word_overlap(query, value.strip())
                 if score > best_score:
                     best_score = score
                     best_field = field
