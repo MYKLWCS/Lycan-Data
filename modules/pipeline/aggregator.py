@@ -376,8 +376,8 @@ async def aggregate_result(
         written["bankruptcy"] = True
         _handled = True
 
-    # Employment ─────────────────────────────────────────────────────────────
-    if platform in _EMPLOYMENT_PLATFORMS:
+    # Employment (skip if already handled via social embedding)
+    if platform in _EMPLOYMENT_PLATFORMS and not written.get("embedded_employment"):
         await _handle_employment(session, result, person.id)
         written["employment"] = True
         _handled = True
@@ -412,8 +412,8 @@ async def aggregate_result(
         written["news"] = True
         _handled = True
 
-    # Education ───────────────────────────────────────────────────────────────
-    if platform in _EDUCATION_PLATFORMS:
+    # Education (skip if already handled via social embedding)
+    if platform in _EDUCATION_PLATFORMS and not written.get("embedded_education"):
         await _handle_education(session, result, person.id)
         written["education"] = True
         _handled = True

@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -9,8 +10,8 @@ engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     pool_pre_ping=True,
-    pool_size=25,
-    max_overflow=50,
+    pool_size=int(os.environ.get("LYCAN_DB_POOL_SIZE", "50")),
+    max_overflow=int(os.environ.get("LYCAN_DB_MAX_OVERFLOW", "100")),
 )
 
 # Use NullPool for tests (set via env var TEST_MODE=true)

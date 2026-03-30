@@ -126,6 +126,9 @@ class CrawlDispatcher:
             await self._update_job_status(
                 session, job_id, CrawlStatus.FAILED, f"No crawler for: {platform}"
             )
+            await self._emit_progress(
+                person_id, EventType.SCRAPER_FAILED, platform, error="Crawler not in registry"
+            )
             return
 
         await self._update_job_status(session, job_id, CrawlStatus.RUNNING)
@@ -134,9 +137,11 @@ class CrawlDispatcher:
         # Emit scraper_running progress event
         await self._emit_progress(person_id, EventType.SCRAPER_RUNNING, platform)
 
+        _CRAWLER_TIMEOUT = int(os.environ.get("LYCAN_CRAWLER_TIMEOUT", "120"))
+
         try:
             crawler = crawler_cls()
-            result = await crawler.run(identifier)
+            result = await asyncio.wait_for(crawler.run(identifier), timeout=_CRAWLER_TIMEOUT)
 
             duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
 
@@ -213,6 +218,14 @@ class CrawlDispatcher:
             # Check if all jobs for this person are complete
             await self._check_search_complete(session, person_id, started_at)
 
+        except asyncio.TimeoutError:
+            logger.warning("Crawler %s timed out after %ds for %s", platform, _CRAWLER_TIMEOUT, identifier)
+            await self._update_job_status(session, job_id, CrawlStatus.FAILED, f"Timeout after {_CRAWLER_TIMEOUT}s")
+            await self._emit_progress(
+                person_id, EventType.SCRAPER_FAILED, platform, error=f"Timeout after {_CRAWLER_TIMEOUT}s"
+            )
+            await self._check_search_complete(session, person_id, started_at)
+
         except Exception as exc:
             logger.exception("Job %s failed: %s", job_id, exc)
             if retry_count < MAX_RETRIES:
@@ -221,7 +234,6 @@ class CrawlDispatcher:
             await self._emit_progress(
                 person_id, EventType.SCRAPER_FAILED, platform, error=str(exc)
             )
-            # Check if all jobs for this person are complete (even after failure)
             await self._check_search_complete(session, person_id, started_at)
 
     async def _emit_progress(
@@ -308,8 +320,10 @@ class CrawlDispatcher:
             await event_bus.publish(
                 "progress",
                 {
-                    "event_type": "collection_complete",  # Not SEARCH_COMPLETE — that fires from enrichment
+                    "event_type": EventType.DEDUP_RUNNING.value,
                     "search_id": person_id,
+                    "records_processed": 0,
+                    "total_records": 1,
                     "total_scrapers": int(stats["total"] or 0),
                     "succeeded": int(stats["succeeded"] or 0),
                     "failed": int(stats["failed"] or 0),

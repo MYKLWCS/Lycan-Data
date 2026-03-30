@@ -2875,6 +2875,7 @@ const App = {
     activityPane.appendChild(progressContainer);
 
     this._lp = new SearchProgress(personId, progressContainer);
+    this._lp.onDone = () => { this.renderPerson(personId); };
     this._lp.connect();
   },
 
