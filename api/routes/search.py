@@ -91,6 +91,8 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "people_thatsthem",
         "spokeo",
         "peekyou",
+        # Profile photo + linked accounts
+        "gravatar",
     ],
     SeedType.FULL_NAME: [
         # People-search aggregators

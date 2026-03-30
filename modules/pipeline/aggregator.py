@@ -90,6 +90,7 @@ _SOCIAL_PLATFORMS = {
     "username_sherlock", "username_maigret",
     "github_profile", "stackoverflow_profile", "social_mastodon", "social_ghunt", "social_graph", "spotify_public", "snscrape", "instaloader", "interests_extractor",
     "generic_web_scraper",
+    "gravatar",
 }
 
 # Phone enrichment platform keys
