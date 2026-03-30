@@ -87,10 +87,15 @@ _SOCIAL_PLATFORMS = {
     "social_spotify", "social_snscrape", "social_posts_analyzer",
     "peekyou", "about_me", "gravatar", "keybase",
     "truth_social_profile", "vk_profile", "bluesky_profile", "threads_profile",
+    "username_sherlock", "username_maigret",
+    "github_profile", "stackoverflow_profile", "social_mastodon", "social_ghunt", "social_graph", "spotify_public", "snscrape", "instaloader", "interests_extractor",
+    "generic_web_scraper",
 }
 
 # Phone enrichment platform keys
-_PHONE_PLATFORMS = {"phone_carrier", "phone_fonefinder", "phone_truecaller"}
+_PHONE_PLATFORMS = {"phone_carrier", "phone_fonefinder", "phone_truecaller",
+    "phone_numlookup", "phone_phoneinfoga",
+}
 
 # Email breach platform keys
 _EMAIL_BREACH_PLATFORMS = {
@@ -98,6 +103,7 @@ _EMAIL_BREACH_PLATFORMS = {
     "email_holehe",
     "email_leakcheck",
     "email_breach",
+    "email_dehashed", "email_disposable", "email_emailrep", "email_socialscan", "email_mx_validator",
 }
 
 # Sanctions / watchlist platform keys
@@ -106,6 +112,7 @@ _SANCTIONS_PLATFORMS = {
     "sanctions_eu", "sanctions_uk", "sanctions_canada", "sanctions_australia",
     "sanctions_worldbank_debarment", "people_interpol", "people_usmarshals",
     "bis_entity_list", "fara_scraper",
+    "sanctions_fatf", "sanctions_opensanctions", "open_pep_search", "world_check_mirror", "gov_bop",
 }
 
 # Dark-web / paste platform keys
@@ -116,6 +123,7 @@ _DARKWEB_PLATFORMS = {
     "paste_ghostbin",
     "paste_psbdmp",
     "telegram_dark",
+    "cyber_abuseipdb", "cyber_alienvault", "cyber_crt", "cyber_dns", "cyber_greynoise", "cyber_shodan", "cyber_urlscan", "cyber_virustotal", "domain_harvester", "domain_whois", "geo_ip",
 }
 
 # People-search platform keys
@@ -123,16 +131,21 @@ _PEOPLE_SEARCH_PLATFORMS = {
     "whitepages",
     "fastpeoplesearch",
     "truepeoplesearch",
+    "people_thatsthem", "people_zabasearch", "people_familysearch", "people_findagrave", "people_namus", "people_usmarshals", "people_interpol", "people_fbi_wanted", "people_immigration", "people_phonebook", "people_intelx", "radaris", "spokeo", "peekyou", "clustrmaps", "familytreenow",
 }
 
 # Court / criminal record platform keys
-_COURT_PLATFORMS = {"court_courtlistener", "court_state"}
+_COURT_PLATFORMS = {"court_courtlistener", "court_state",
+    "ca_courts", "fl_courts", "txcourts",
+}
 
 # Sex offender registry
 _SEX_OFFENDER_PLATFORMS = {"public_nsopw"}
 
 # Government / voter / ID sources
-_GOVERNMENT_PLATFORMS = {"public_voter", "public_npi", "public_faa"}
+_GOVERNMENT_PLATFORMS = {"public_voter", "public_npi", "public_faa",
+    "gov_epa", "gov_fda", "gov_osha", "gov_uspto_patents", "gov_uspto_trademarks", "gov_gleif", "us_corporate_registry", "ca_courts", "fl_courts", "txcourts",
+}
 
 # Bankruptcy
 _BANKRUPTCY_PLATFORMS = {"bankruptcy_pacer"}
@@ -149,19 +162,24 @@ _PROPERTY_PLATFORMS = {
     "property_trulia", "property_mls", "zillow_deep", "redfin_deep",
     "county_assessor_multi", "deed_recorder", "netronline_public",
     "property_tax_nationwide", "propertyradar_scraper",
+    "attom_gateway", "county_assessor_fl", "county_assessor_tx", "redfin_property", "mortgage_deed", "mortgage_hmda", "google_maps", "geo_openstreetmap",
 }
 
 # Vehicle / craft ownership platforms
 _VEHICLE_PLATFORMS = {
     "vehicle_ownership", "vehicle_vin", "vehicle_plate",
     "faa_aircraft_registry", "marine_vessel",
+    "vehicle_nhtsa", "vehicle_nicb", "vin_decode_enhanced", "geo_adsbexchange",
 }
 
 # Financial / crypto platforms
 _FINANCIAL_PLATFORMS = {
     "crypto_blockchain", "crypto_etherscan", "crypto_bscscan",
     "crypto_polygonscan", "financial_sec", "financial_crunchbase",
-    "icij_offshoreleaks",
+    "icij_offshoreleaks", "company_sec", "gov_propublica",
+    "gov_fec", "gov_usaspending", "gov_sam",
+    "crypto_bitcoin", "crypto_blockchair", "crypto_ethereum", "financial_finra", "financial_worldbank", "gov_fdic", "gov_finra", "gov_nmls", "gov_fred", "gov_worldbank", "gov_grants", "sec_edgar", "sec_insider",
+    "company_companies_house", "company_opencorporates",
 }
 
 # News / adverse-media platforms
@@ -169,6 +187,8 @@ _NEWS_PLATFORMS = {
     "news_search", "news_google", "google_news_rss",
     "adverse_media_search", "gdelt_mentions", "obituary_search",
     "news_wikipedia",
+    "bing_news", "news_archive", "newspapers_archive", "cyber_wayback",
+    "ancestry_hints", "census_records", "geni_public", "vitals_records",
 }
 
 
@@ -869,34 +889,77 @@ async def _handle_people_search(
     results = data.get("results") or []
     now = datetime.now(timezone.utc)
 
-    for r in results[:3]:
+    for r in results[:5]:
         if not isinstance(r, dict):
             continue
-        raw = str(r.get("address", "")).strip()
-        if not raw:
-            continue
 
-        addr = Address(
-            id=uuid.uuid4(),
-            person_id=person_id,
-            street=r.get("street"),
-            city=r.get("city"),
-            state_province=r.get("state"),
-            country=r.get("country", "US"),
-            country_code=r.get("country_code", "US"),
-            meta={"raw_address": raw, "scraped_from": result.platform},
-            last_scraped_at=now,
-            scraped_from=result.platform,
-            source_reliability=result.source_reliability,
-        )
-        apply_quality_to_model(
-            addr,
-            last_scraped_at=now,
-            source_type="default",
-            source_name=result.platform,
-            corroboration_count=1,
-        )
-        session.add(addr)
+        # Crawlers return addresses in multiple formats — handle all
+        raw_addresses = r.get("addresses") or []  # list of strings (FPS, TPS)
+        single_addr = r.get("address")  # single string
+        if single_addr and isinstance(single_addr, str):
+            raw_addresses.append(single_addr)
+        # Also check structured fields
+        if r.get("street"):
+            raw_addresses.append(f"{r.get('street', '')} {r.get('city', '')} {r.get('state', '')}".strip())
+
+        for raw in raw_addresses[:3]:
+            if not isinstance(raw, str) or len(raw.strip()) < 5:
+                continue
+            raw = raw.strip()
+
+            # Parse "123 Main St, Dallas, TX 75001" into components
+            parts = [p.strip() for p in raw.replace(",", " ").split() if p.strip()]
+            city = r.get("city") or ""
+            state = r.get("state") or ""
+            # Try to extract city/state from city_state field
+            city_state = r.get("city_state", "")
+            if city_state and not city:
+                cs_parts = [p.strip() for p in city_state.split(",")]
+                if len(cs_parts) >= 2:
+                    city = cs_parts[0]
+                    state = cs_parts[-1].split()[0] if cs_parts[-1] else ""
+                elif len(cs_parts) == 1:
+                    city = cs_parts[0]
+
+            addr = Address(
+                id=uuid.uuid4(),
+                person_id=person_id,
+                street=raw,
+                city=city,
+                state_province=state,
+                country="US",
+                country_code="US",
+                meta={"raw_address": raw, "scraped_from": result.platform},
+                last_scraped_at=now,
+                scraped_from=result.platform,
+                source_reliability=result.source_reliability,
+            )
+            apply_quality_to_model(
+                addr,
+                last_scraped_at=now,
+                source_type="default",
+                source_name=result.platform,
+                corroboration_count=1,
+            )
+            session.add(addr)
+
+        # Also extract phone numbers from per-result card
+        card_phones = r.get("phone_numbers") or r.get("phones") or []
+        if isinstance(card_phones, str):
+            card_phones = [card_phones]
+        for ph in card_phones[:3]:
+            if not isinstance(ph, str):
+                continue
+            digits = re.sub(r"[^\d]", "", ph)
+            normalized = None
+            if len(digits) == 10:
+                normalized = f"+1{digits}"
+            elif len(digits) == 11 and digits[0] == "1":
+                normalized = f"+{digits}"
+            elif len(digits) >= 7:
+                normalized = f"+{digits}"
+            if normalized:
+                await _safe_upsert_identifier(session, person_id, "phone", ph, normalized)
 
     # Extract phone numbers from people search results
     for key in ("phone", "phones", "phone_number", "phone_numbers", "related_phones"):
@@ -1350,7 +1413,7 @@ async def _handle_vehicle(
             vin=str(item.get("vin") or "")[:17] or None,
             make=str(item.get("make") or "")[:100] or None,
             model=str(item.get("model") or "")[:100] or None,
-            year=item.get("year"),
+            year=int(item["year"]) if item.get("year") and str(item["year"]).isdigit() else None,
             body_style=str(item.get("body_style") or item.get("type") or "")[:50] or None,
             color_exterior=str(item.get("color") or item.get("color_exterior") or "")[:50] or None,
             license_plate=str(item.get("plate") or item.get("license_plate") or "")[:50] or None,
