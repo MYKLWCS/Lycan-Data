@@ -173,13 +173,11 @@ services:
           cpus: "0.5"
     restart: unless-stopped
 
-  # ── FlareSolverr (Cloudflare / JS challenge bypass) ───────────────────────
+  # ── Byparr (Cloudflare bypass — FlareSolverr-compatible API) ──────────────
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
+    image: ghcr.io/thephaseless/byparr:latest
     environment:
       LOG_LEVEL: info
-      LOG_HTML: "false"
-      CAPTCHA_SOLVER: none
       TZ: America/New_York
     ports:
       - "8191:8191"

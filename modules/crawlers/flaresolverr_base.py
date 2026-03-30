@@ -1,15 +1,16 @@
 """
 FlareSolverrCrawler — extends CurlCrawler with Cloudflare JS-challenge bypass.
 
-FlareSolverr is a Docker sidecar (localhost:8191) that spins up headless Chrome
-to solve Cloudflare challenges and return the rendered HTML + cookies.
+Uses Byparr (FlareSolverr-compatible API) as a Docker sidecar (localhost:8191)
+running Camoufox (stealth Firefox) to solve Cloudflare challenges and return
+the rendered HTML + cookies.
 
 Health cache is CLASS-LEVEL so all instances share the same probe result:
-- _fs_healthy = True → positive result cached indefinitely (FlareSolverr stays up)
+- _fs_healthy = True → positive result cached indefinitely
 - _fs_healthy = False → negative result cached for _FS_NEGATIVE_TTL seconds (60s)
   to avoid hammering a down sidecar on every request
 
-Fallback chain: FlareSolverr → CurlCrawler (chrome124) → httpx
+Fallback chain: Byparr → CurlCrawler (chrome latest) → httpx
 """
 
 from __future__ import annotations

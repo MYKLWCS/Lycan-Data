@@ -9,8 +9,8 @@ from bs4 import BeautifulSoup
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.core.result import CrawlerResult
-from shared.tor import TorInstance
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from shared.cf_cookie_cache import get_cf_cookies, set_cf_cookies
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +42,7 @@ class WhitepagesCrawler(PlaywrightCrawler):
     category = CrawlerCategory.PEOPLE
     rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     source_reliability = 0.65
-    requires_tor = True
-    tor_instance = TorInstance.TOR2
+    requires_tor = False
 
     async def scrape(self, identifier: str) -> CrawlerResult:
         first, last, city, state = _parse_name_identifier(identifier)
@@ -64,17 +63,37 @@ class WhitepagesCrawler(PlaywrightCrawler):
         else:
             url = f"https://www.whitepages.com/name/{name_path}"
 
-        # Try FlareSolverr first (bypasses Cloudflare), fall back to Playwright
+        # Try cached CF cookies first, then Byparr, then Playwright
         content = None
+
+        # 1. Try cached CF cookies via curl_cffi (cheapest)
         try:
-            from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
-            fs = FlareSolverrCrawler()
-            if await fs._probe_flaresolverr():
-                resp = await fs.fs_get(url)
+            cookies = await get_cf_cookies("whitepages.com")
+            if cookies:
+                from modules.crawlers.curl_base import CurlCrawler
+                curl = CurlCrawler()
+                resp = await curl.get(url, cookies=cookies)
                 if resp and hasattr(resp, 'text') and len(resp.text) > 1000:
-                    content = resp.text
+                    text_lower = resp.text[:500].lower()
+                    if "access denied" not in text_lower and "blocked" not in text_lower:
+                        content = resp.text
         except Exception:
             pass
+
+        # 2. Try Byparr (FlareSolverr-compatible API)
+        if not content:
+            try:
+                from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
+                fs = FlareSolverrCrawler()
+                if await fs._probe_flaresolverr():
+                    resp = await fs.fs_get(url)
+                    if resp and hasattr(resp, 'text') and len(resp.text) > 1000:
+                        content = resp.text
+                        # Cache the CF cookies for future requests
+                        if hasattr(resp, 'cookies') and resp.cookies:
+                            await set_cf_cookies("whitepages.com", resp.cookies)
+            except Exception:
+                pass
 
         if not content:
             async with self.page(url) as page:

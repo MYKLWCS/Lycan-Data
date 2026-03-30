@@ -16,7 +16,6 @@ from typing import Any
 from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 from modules.crawlers.registry import register
 from modules.crawlers.core.result import CrawlerResult
-from shared.tor import TorInstance
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
@@ -134,8 +133,7 @@ class PeopleZabaSearchCrawler(FlareSolverrCrawler):
     category = CrawlerCategory.PEOPLE
     rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     source_reliability = 0.70
-    requires_tor = True
-    tor_instance = TorInstance.TOR1
+    requires_tor = False
 
     async def scrape(self, identifier: str) -> CrawlerResult:
         name = identifier.strip()

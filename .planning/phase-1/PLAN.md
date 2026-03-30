@@ -119,20 +119,28 @@ Output: Working Byparr sidecar, updated curl_cffi impersonation, CF cookie cache
    """Cache Cloudflare clearance cookies in Garnet (Redis) to avoid re-solving challenges."""
    import json
    import logging
-   from shared.redis_client import redis_client
+   from shared.cache import get_cache
 
    logger = logging.getLogger(__name__)
    CF_COOKIE_TTL = 1800  # 30 minutes — cf_clearance cookies typically last 30 min
 
    async def get_cf_cookies(domain: str) -> dict | None:
        """Retrieve cached CF cookies for a domain. Returns None if expired or missing."""
-       raw = await redis_client.get(f"cf_cookies:{domain}")
-       return json.loads(raw) if raw else None
+       try:
+           r = await get_cache()
+           raw = await r.get(f"cf_cookies:{domain}")
+           return json.loads(raw) if raw else None
+       except Exception:
+           return None
 
    async def set_cf_cookies(domain: str, cookies: dict) -> None:
        """Cache CF cookies for domain with 30-min TTL."""
-       await redis_client.set(f"cf_cookies:{domain}", json.dumps(cookies), ex=CF_COOKIE_TTL)
-       logger.debug("Cached CF cookies for %s (TTL %ds)", domain, CF_COOKIE_TTL)
+       try:
+           r = await get_cache()
+           await r.set(f"cf_cookies:{domain}", json.dumps(cookies), ex=CF_COOKIE_TTL)
+           logger.debug("Cached CF cookies for %s (TTL %ds)", domain, CF_COOKIE_TTL)
+       except Exception:
+           logger.warning("Failed to cache CF cookies for %s", domain)
    ```
 
 2. In whitepages.py:
@@ -411,7 +419,7 @@ type: execute
 wave: 2
 depends_on: [01]
 files_modified:
-  - modules/crawlers/social_github.py
+  - modules/crawlers/github_profile.py
 autonomous: true
 requirements: [DATA-04]
 
@@ -420,11 +428,11 @@ must_haves:
     - "GitHub crawler extracts avatar_url from user profiles and includes it in CrawlerResult"
     - "Social crawlers that find profile photos include photo URL in their result data"
   artifacts:
-    - path: "modules/crawlers/social_github.py"
+    - path: "modules/crawlers/github_profile.py"
       provides: "GitHub avatar extraction"
       contains: "avatar_url"
   key_links:
-    - from: "modules/crawlers/social_github.py"
+    - from: "modules/crawlers/github_profile.py"
       to: "https://api.github.com/users/{username}"
       via: "REST API GET"
       pattern: "api.github.com/users"
@@ -448,7 +456,7 @@ Output: GitHub crawler returns avatar_url, all photo-capable crawlers verified t
 @.planning/ROADMAP.md
 @.planning/phase-1/01-RESEARCH.md
 
-@modules/crawlers/social_github.py
+@modules/crawlers/github_profile.py
 @modules/crawlers/core/result.py
 </context>
 
@@ -456,18 +464,13 @@ Output: GitHub crawler returns avatar_url, all photo-capable crawlers verified t
 
 <task type="auto">
   <name>Task 1: Add avatar extraction to GitHub crawler and audit social photo capture</name>
-  <files>modules/crawlers/social_github.py</files>
+  <files>modules/crawlers/github_profile.py</files>
   <action>
-1. Read modules/crawlers/social_github.py to understand current implementation.
+1. Read modules/crawlers/github_profile.py to understand current implementation.
 
-2. GitHub's public API returns `avatar_url` in the user object at `https://api.github.com/users/{username}`. If the crawler already hits this endpoint:
-   - Ensure `avatar_url` is extracted from the JSON response
-   - Include it in the CrawlerResult data dict as `profile_photo_url`
-   - Example: `data["profile_photo_url"] = user_json.get("avatar_url", "")`
-
-3. If the crawler uses HTML scraping instead of the API:
-   - Add a step to extract the profile image: `img.avatar` selector or `meta[property='og:image']`
-   - Store as `data["profile_photo_url"]`
+2. github_profile.py already extracts `avatar_url` at line 67. Verify it is included in the CrawlerResult data dict.
+   - If `avatar_url` is in the data dict but not named `profile_photo_url`, add an alias: `data["profile_photo_url"] = data.get("avatar_url", "")`
+   - If `avatar_url` is already in data dict, DATA-04 is satisfied for GitHub — just confirm and move on.
 
 4. Verify Gravatar crawler (modules/crawlers/social_gravatar.py or similar):
    - Read it to confirm it already includes the avatar URL in results
@@ -485,7 +488,7 @@ Output: GitHub crawler returns avatar_url, all photo-capable crawlers verified t
 6. If any social crawler does NOT have photo extraction and adding it requires more than 15 lines of changes, note it in the SUMMARY as future work — do not exceed scope.
   </action>
   <verify>
-    <automated>python -c "from modules.crawlers.social_github import *; print('PASS')" && grep -q "profile_photo_url\|avatar_url" modules/crawlers/social_github.py && echo "PHOTO_EXTRACTED" || echo "NEEDS_REVIEW"</automated>
+    <automated>python -c "from modules.crawlers.social_github import *; print('PASS')" && grep -q "profile_photo_url\|avatar_url" modules/crawlers/github_profile.py && echo "PHOTO_EXTRACTED" || echo "NEEDS_REVIEW"</automated>
   </verify>
   <done>GitHub crawler extracts avatar_url and stores as profile_photo_url in CrawlerResult data. Existing social crawlers audited for photo extraction — any gaps documented in SUMMARY.</done>
 </task>
@@ -493,7 +496,7 @@ Output: GitHub crawler returns avatar_url, all photo-capable crawlers verified t
 </tasks>
 
 <verification>
-1. `grep 'profile_photo_url\|avatar_url' modules/crawlers/social_github.py` shows extraction
+1. `grep 'profile_photo_url\|avatar_url' modules/crawlers/github_profile.py` shows extraction
 2. `pytest tests/test_crawlers/test_social.py -x -q --timeout=60` passes
 3. `python -c "from modules.crawlers.social_github import *"` succeeds
 </verification>
@@ -607,8 +610,8 @@ Output: 4 new test files, full suite green, live smoke test confirming bypass wo
 </task>
 
 <task type="auto">
-  <name>Task 2: Run full regression suite</name>
-  <files></files>
+  <name>Task 2: Run full regression suite and fix any assertion mismatches</name>
+  <files>tests/test_crawlers/test_curl_base.py, tests/test_crawlers/test_flaresolverr_base.py, tests/test_crawlers/test_people_search.py</files>
   <action>
 Run the complete test suite to confirm no regressions from all Phase 1 changes:
 ```bash

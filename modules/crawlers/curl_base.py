@@ -1,9 +1,9 @@
 """
-CurlCrawler — extends HttpxCrawler with Chrome 124 TLS fingerprint impersonation.
+CurlCrawler — extends HttpxCrawler with Chrome TLS fingerprint impersonation.
 
-Uses curl_cffi.requests.AsyncSession instead of httpx. Impersonates Chrome 124
-at the TLS handshake level, bypassing TLS fingerprinting by Cloudflare, DataDome,
-Akamai, and similar services that reject Python's default TLS signature.
+Uses curl_cffi.requests.AsyncSession instead of httpx. Impersonates the latest
+Chrome at the TLS handshake level, bypassing TLS fingerprinting by Cloudflare,
+DataDome, Akamai, and similar services that reject Python's default TLS signature.
 
 Drop-in replacement: subclasses only change their parent import from
 HttpxCrawler to CurlCrawler. The scrape() method is unchanged.
@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 class CurlCrawler(HttpxCrawler):
-    """HttpxCrawler variant that impersonates Chrome 124 at the TLS layer."""
+    """HttpxCrawler variant that impersonates latest Chrome at the TLS layer."""
 
-    _IMPERSONATE = "chrome124"
+    _IMPERSONATE = "chrome"
 
     async def get(self, url: str, **kwargs):
-        """GET via curl_cffi AsyncSession with Chrome 124 TLS fingerprint."""
+        """GET via curl_cffi AsyncSession with Chrome TLS fingerprint."""
         try:
             from curl_cffi.requests import AsyncSession
 
@@ -42,7 +42,7 @@ class CurlCrawler(HttpxCrawler):
             return None
 
     async def post(self, url: str, **kwargs):
-        """POST via curl_cffi AsyncSession with Chrome 124 TLS fingerprint."""
+        """POST via curl_cffi AsyncSession with Chrome TLS fingerprint."""
         try:
             from curl_cffi.requests import AsyncSession
 
