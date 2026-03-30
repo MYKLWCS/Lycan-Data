@@ -876,13 +876,31 @@ class AsyncMergeExecutor:
                 if not _SAFE_TABLE_RE.match(table):
                     logger.warning("AsyncMergeExecutor: skipping unsafe table name %r", table)
                     continue
-                stmt = sa_text(f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup")
-                result = await session.execute(
-                    stmt,
-                    {"canonical": canonical_id, "dup": duplicate_id},
-                )
-                if result.rowcount > 0:
-                    tables_updated.append(table)
+
+                if table == "relationships":
+                    # Special handling: relationships has person_a_id and person_b_id
+                    for col in ("person_a_id", "person_b_id"):
+                        stmt = sa_text(
+                            f"UPDATE {table} SET {col} = :canonical WHERE {col} = :dup"
+                        )
+                        result = await session.execute(
+                            stmt, {"canonical": canonical_id, "dup": duplicate_id}
+                        )
+                        if result.rowcount > 0:
+                            tables_updated.append(f"{table}.{col}")
+                else:
+                    stmt = sa_text(f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup")
+                    result = await session.execute(
+                        stmt, {"canonical": canonical_id, "dup": duplicate_id}
+                    )
+                    if result.rowcount > 0:
+                        tables_updated.append(table)
+
+            # Set merged_into before deleting (audit trail + chain following)
+            await session.execute(
+                sa_text("UPDATE persons SET merged_into = :canonical WHERE id = :dup"),
+                {"canonical": canonical_id, "dup": duplicate_id},
+            )
 
             delete_stmt = sa_text("DELETE FROM persons WHERE id = :dup")
             await session.execute(delete_stmt, {"dup": duplicate_id})

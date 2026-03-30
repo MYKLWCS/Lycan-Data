@@ -656,6 +656,27 @@ async def _upsert_social_profile(
         person = await session.get(Person, person_id)
         if person and not person.profile_image_url:
             person.profile_image_url = avatar
+
+    # Store handle/email/phone as Identifiers for cross-search discovery
+    try:
+        data = result.data or {}
+        handle = data.get("handle") or data.get("username") or data.get("screen_name")
+        if handle and isinstance(handle, str) and len(handle) >= 2:
+            await _safe_upsert_identifier(session, person_id, "username", handle, handle.lower().lstrip("@"))
+
+        social_email = data.get("email") or data.get("contact_email")
+        if social_email and isinstance(social_email, str) and "@" in social_email:
+            await _safe_upsert_identifier(session, person_id, "email", social_email, social_email.strip().lower())
+
+        social_phone = data.get("phone") or data.get("phone_number")
+        if social_phone and isinstance(social_phone, str):
+            digits = re.sub(r"[^\d]", "", social_phone)
+            if len(digits) >= 7:
+                norm = f"+1{digits}" if len(digits) == 10 else f"+{digits}"
+                await _safe_upsert_identifier(session, person_id, "phone", social_phone, norm)
+    except Exception:
+        pass
+
     return profile
 
 
@@ -718,6 +739,17 @@ async def _handle_phone_enrichment(
     if ident:
         await persist_burner_assessment(session, ident.id, score)
 
+    # Backfill person name from phone enrichment results
+    data = result.data or {}
+    discovered_name = data.get("owner_name") or data.get("name") or data.get("subscriber_name")
+    if discovered_name and isinstance(discovered_name, str) and len(discovered_name) >= 3:
+        person = await session.get(Person, person_id)
+        if person and not person.full_name:
+            # Validate it looks like a real name (2+ words, all alpha)
+            parts = discovered_name.strip().split()
+            if len(parts) >= 2 and all(p.isalpha() for p in parts):
+                person.full_name = discovered_name.strip()
+
 
 async def _handle_breach_data(
     session: AsyncSession,
@@ -727,6 +759,14 @@ async def _handle_breach_data(
     """Write BreachRecord rows from HIBP-style or Holehe-style results."""
     data = result.data or {}
     count = 0
+
+    # Store the searched email as an Identifier on the person
+    email = result.identifier
+    if email and "@" in email:
+        try:
+            await _safe_upsert_identifier(session, person_id, "email", email, email.strip().lower())
+        except Exception:
+            pass
 
     # HIBP-style: list of breach dicts
     for breach in data.get("breaches") or []:
@@ -942,6 +982,23 @@ async def _handle_people_search(
                 corroboration_count=1,
             )
             session.add(addr)
+
+        # Convert age to approximate DOB
+        age = r.get("age")
+        if age and person_id:
+            try:
+                age_int = int(str(age).strip())
+                if 1 < age_int < 120:
+                    from datetime import date
+                    approx_year = date.today().year - age_int
+                    person = await session.get(Person, person_id)
+                    if person and not person.date_of_birth:
+                        person.date_of_birth = date(approx_year, 1, 1)
+                        if not person.meta:
+                            person.meta = {}
+                        person.meta["dob_approximate"] = True
+            except (ValueError, TypeError):
+                pass
 
         # Also extract phone numbers from per-result card
         card_phones = r.get("phone_numbers") or r.get("phones") or []
