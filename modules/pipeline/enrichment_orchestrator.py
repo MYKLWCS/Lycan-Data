@@ -57,8 +57,9 @@ class EnrichmentOrchestrator:
         """
         try:
             if event_bus.is_connected:
+                from shared.schemas.progress import EventType
                 await event_bus.publish("progress", {
-                    "event_type": "ENRICHMENT_RUNNING",
+                    "event_type": EventType.ENRICHMENT_RUNNING.value,
                     "search_id": str(person_id),
                 })
         except Exception as e:

@@ -51,19 +51,19 @@ class TorManager:
             TorInstance.TOR1: TorEndpoint(
                 name="tor1",
                 socks_url=settings.tor1_socks,
-                control_host="127.0.0.1",
+                control_host=settings.tor1_control_host,
                 control_port=settings.tor1_control_port,
             ),
             TorInstance.TOR2: TorEndpoint(
                 name="tor2",
                 socks_url=settings.tor2_socks,
-                control_host="127.0.0.1",
+                control_host=settings.tor2_control_host,
                 control_port=settings.tor2_control_port,
             ),
             TorInstance.TOR3: TorEndpoint(
                 name="tor3",
                 socks_url=settings.tor3_socks,
-                control_host="127.0.0.1",
+                control_host=settings.tor3_control_host,
                 control_port=settings.tor3_control_port,
             ),
         }

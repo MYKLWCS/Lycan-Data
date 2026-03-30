@@ -148,12 +148,16 @@ class ExactMatchDeduplicator:
 HONORIFICS = frozenset(["mr", "mrs", "ms", "dr", "prof", "rev", "sr", "jr", "ii", "iii"])
 
 
-def normalize_name(name: str) -> str:
-    """Lowercase, strip honorifics, remove punctuation, sort tokens."""
+def _normalize_name_for_dedup(name: str) -> str:
+    """Lowercase, strip honorifics, remove punctuation, sort tokens for dedup comparison."""
     name = name.lower().strip()
     name = re.sub(r"[^\w\s]", "", name)
     tokens = [t for t in name.split() if t not in HONORIFICS]
     return " ".join(sorted(tokens))
+
+
+# Keep public name for backward compat with tests
+normalize_name = _normalize_name_for_dedup
 
 
 def name_similarity(name_a: str, name_b: str) -> float:
@@ -164,7 +168,7 @@ def name_similarity(name_a: str, name_b: str) -> float:
     if not name_a or not name_b:
         return 0.0
 
-    norm_a = normalize_name(name_a)
+    norm_a = _normalize_name_for_dedup(name_a)
     norm_b = normalize_name(name_b)
 
     if not norm_a or not norm_b:

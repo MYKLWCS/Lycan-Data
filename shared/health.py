@@ -26,10 +26,10 @@ async def _check_flaresolverr() -> bool:
         return False
 
 
-async def _check_tor(port: int) -> bool:
+async def _check_tor(socks_url: str) -> bool:
     try:
         async with httpx.AsyncClient(
-            proxies={"all://": f"socks5://127.0.0.1:{port}"}, timeout=10
+            proxies={"all://": socks_url}, timeout=10
         ) as c:
             r = await c.get("https://check.torproject.org/api/ip")
             return r.status_code == 200 and r.json().get("IsTor") is True
@@ -69,9 +69,9 @@ async def _check_postgres() -> bool:
 async def check_bypass_layers() -> dict[str, bool]:
     results = await asyncio.gather(
         _check_flaresolverr(),
-        _check_tor(9050),
-        _check_tor(9052),
-        _check_tor(9054),
+        _check_tor(settings.tor1_socks),
+        _check_tor(settings.tor2_socks),
+        _check_tor(settings.tor3_socks),
         _check_dragonfly(),
         _check_postgres(),
         return_exceptions=False,
