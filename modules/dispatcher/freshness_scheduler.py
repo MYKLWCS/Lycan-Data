@@ -179,7 +179,10 @@ class FreshnessScheduler:
         session.add(fq)
 
         # Dispatch low-priority crawl job
+        from modules.crawlers.registry import get_crawler
         if settings.rescrape_on_staleness and profile.handle:
+            if not get_crawler(profile.platform):
+                return True  # Queued in freshness table but skip unregistered crawler
             await dispatch_job(
                 platform=profile.platform,
                 identifier=profile.handle,

@@ -579,6 +579,25 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
                         person_id = c.id
                         break
 
+        # ── Step 5: Typesense index search (catches timing gaps) ──
+        if person_id is None:
+            try:
+                from modules.search.typesense_indexer import typesense_indexer
+                ts_results = await typesense_indexer.search(norm_val, limit=3)
+                hits = ts_results.get("hits", []) if isinstance(ts_results, dict) else []
+                for hit in hits:
+                    doc = hit.get("document", {})
+                    ts_pid = doc.get("id")
+                    if ts_pid:
+                        # Verify this person still exists and isn't merged
+                        ts_person = await session.get(Person, uuid.UUID(ts_pid))
+                        if ts_person and not ts_person.merged_into:
+                            person_id = ts_person.id
+                            logger.info("Typesense resolved %s to person %s", norm_val, person_id)
+                            break
+            except Exception:
+                pass  # Typesense unavailable, proceed to create new person
+
     if person_id is None:
         # No match found — create new person
         person = Person(

@@ -187,12 +187,17 @@ class GrowthDaemon:
         ident_value = identifier.value
         dispatched = 0
 
+        from modules.crawlers.registry import get_crawler
+
         for platform, accepted_types in PLATFORM_ACCEPTS.items():
             if dispatched >= remaining_budget:
                 break
 
             if ident_type not in accepted_types:
                 continue
+
+            if not get_crawler(platform):
+                continue  # Skip unregistered crawlers
 
             # Check kill switch
             kill_switch = KILL_SWITCHES.get(platform)

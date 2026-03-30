@@ -20,7 +20,7 @@ import logging
 import re
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.routes.search import SEED_PLATFORM_MAP
@@ -162,6 +162,44 @@ class CascadeEnricher:
                 value,
                 len(platforms),
             )
+
+        # ── Cross-person collision detection ──
+        # If we just stored an identifier that also exists on another person, flag for merge
+        try:
+            from modules.enrichers.deduplication import AsyncMergeExecutor
+            for seed_type, value in new_seeds:
+                collision_q = select(Identifier.person_id).where(
+                    Identifier.normalized_value == value.lower().strip(),
+                    Identifier.person_id != pid_uuid,
+                )
+                collisions = (await session.execute(collision_q)).scalars().all()
+                for other_pid in collisions:
+                    if other_pid and other_pid != pid_uuid:
+                        # Auto-merge: keep the person with more data
+                        p1_count = (await session.execute(
+                            select(func.count()).select_from(Identifier).where(
+                                Identifier.person_id == pid_uuid
+                            )
+                        )).scalar() or 0
+                        p2_count = (await session.execute(
+                            select(func.count()).select_from(Identifier).where(
+                                Identifier.person_id == other_pid
+                            )
+                        )).scalar() or 0
+                        canonical = pid_uuid if p1_count >= p2_count else other_pid
+                        duplicate = other_pid if canonical == pid_uuid else pid_uuid
+                        merger = AsyncMergeExecutor()
+                        await merger.execute(
+                            {"canonical_id": str(canonical), "duplicate_id": str(duplicate)},
+                            session,
+                        )
+                        logger.info(
+                            "Cascade: merged person %s into %s (shared identifier %s=%s)",
+                            duplicate, canonical, seed_type.value, value,
+                        )
+                        break  # Only merge once per enrichment cycle
+        except Exception as exc:
+            logger.debug("Cross-person collision check failed: %s", exc)
 
         return jobs_queued
 

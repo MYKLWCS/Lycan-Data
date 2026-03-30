@@ -55,6 +55,30 @@ class EnrichmentOrchestrator:
         Run the full enrichment pipeline for a person.
         Returns a report of what ran, what succeeded, and what failed.
         """
+        import uuid
+        from shared.models.person import Person
+
+        # Skip if person was merged into another
+        try:
+            person = await session.get(
+                Person,
+                uuid.UUID(person_id) if isinstance(person_id, str) else person_id,
+            )
+            if person and person.merged_into:
+                logger.info(
+                    "Skipping enrichment for merged person %s (canonical: %s)",
+                    person_id, person.merged_into,
+                )
+                return EnrichmentReport(
+                    person_id=person_id,
+                    started_at=datetime.now(timezone.utc).isoformat(),
+                    finished_at=datetime.now(timezone.utc).isoformat(),
+                    total_duration_ms=0,
+                    steps=[],
+                )
+        except Exception:
+            pass
+
         from shared.schemas.progress import EventType
         _total_steps = 11
 
