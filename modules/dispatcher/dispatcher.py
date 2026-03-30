@@ -409,4 +409,7 @@ async def dispatch_job(
         "retry_count": 0,
         "depth": depth,
     }
-    await event_bus.enqueue(payload, priority=priority)
+    try:
+        await event_bus.enqueue(payload, priority=priority)
+    except Exception as e:
+        logger.error("Failed to enqueue job %s/%s: %s", platform, identifier, e)

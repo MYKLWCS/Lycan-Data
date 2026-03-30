@@ -61,8 +61,8 @@ class EnrichmentOrchestrator:
                     "event_type": "ENRICHMENT_RUNNING",
                     "search_id": str(person_id),
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Event publish failed: %s", e)
 
         started_at = datetime.now(timezone.utc)
         steps: list[EnrichmentStepResult] = []

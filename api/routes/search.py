@@ -1,3 +1,4 @@
+import logging
 import re
 import uuid
 
@@ -17,6 +18,8 @@ from shared.models.identifier import Identifier
 from shared.models.person import Person
 from shared.schemas.progress import EventType
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 # Seed type → applicable platform crawlers
@@ -34,9 +37,8 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "snapchat",
         "pinterest",
         "discord",
-        "mastodon",
-        "twitch",
-        "steam",
+        "social_twitch",
+        "social_steam",
         # Username sweep
         "username_sherlock",
         "username_maigret",
@@ -64,7 +66,6 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         # Breach & leak databases
         "email_hibp",
         "email_holehe",
-        "email_leakcheck",
         "email_breach",
         # Reputation & validation
         "email_emailrep",
@@ -147,9 +148,6 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "crypto_polygonscan",
     ],
     SeedType.IP_ADDRESS: [
-        "ip_whois",
-        "ip_geolocation",
-        "ip_threatfeed",
         # Threat intelligence
         "cyber_abuseipdb",
         "cyber_shodan",
@@ -531,8 +529,8 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
                     "scrapers": queued,
                 },
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Event publish failed: %s", e)
 
     return SearchResponse(
         person_id=str(person_id),

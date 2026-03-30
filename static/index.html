@@ -1201,6 +1201,126 @@ function _renderIdentityTab(pane, d) {
     });
   }
 
+  // Education History
+  if (d.education_history && d.education_history.length > 0) {
+    const hEdu = div('cc-rail-label'); hEdu.style.cssText='margin:18px 0 10px'; hEdu.textContent='\u{1F393} EDUCATION';
+    pane.appendChild(hEdu);
+    d.education_history.forEach(e => {
+      const row = div('id-row');
+      row.style.cssText='padding:8px 0;border-bottom:1px solid #222;';
+      const valEl = div('id-value');
+      const inst = span(''); inst.style.color='#ccc'; inst.textContent = e.institution || '\u2014';
+      valEl.appendChild(inst);
+      if (e.degree || e.field_of_study) {
+        const detail = span('dim'); detail.style.cssText='margin-left:8px;color:#888;';
+        detail.textContent = [e.degree, e.field_of_study].filter(Boolean).join(' \u2013 ');
+        valEl.appendChild(detail);
+      }
+      const meta = div('id-scraped');
+      if (e.start_date) meta.textContent = fmtDate(e.start_date) + (e.end_date ? ' \u2192 ' + fmtDate(e.end_date) : ' \u2192 present');
+      row.append(valEl, meta);
+      pane.appendChild(row);
+    });
+  }
+
+  // Properties / Real Estate
+  if (d.properties && d.properties.length > 0) {
+    const hProp = div('cc-rail-label'); hProp.style.cssText='margin:18px 0 10px'; hProp.textContent='\u{1F3E0} PROPERTIES';
+    pane.appendChild(hProp);
+    d.properties.forEach(p => {
+      const row = div('id-row');
+      row.style.cssText='padding:8px 0;border-bottom:1px solid #222;';
+      const valEl = div('id-value');
+      const addr = span(''); addr.style.color='#ccc';
+      addr.textContent = [p.address, p.city, p.state].filter(Boolean).join(', ') || '\u2014';
+      valEl.appendChild(addr);
+      if (p.property_type) {
+        const ptype = span('dim'); ptype.style.cssText='margin-left:8px;color:#888;';
+        ptype.textContent = p.property_type;
+        valEl.appendChild(ptype);
+      }
+      const meta = div('id-scraped');
+      const parts = [];
+      if (p.estimated_value) parts.push('$' + Number(p.estimated_value).toLocaleString());
+      if (p.year_built) parts.push('Built ' + p.year_built);
+      meta.textContent = parts.join(' \u00B7 ');
+      row.append(valEl, meta);
+      pane.appendChild(row);
+    });
+  }
+
+  // Vehicles
+  if (d.vehicles && d.vehicles.length > 0) {
+    const hVeh = div('cc-rail-label'); hVeh.style.cssText='margin:18px 0 10px'; hVeh.textContent='\u{1F697} VEHICLES';
+    pane.appendChild(hVeh);
+    d.vehicles.forEach(v => {
+      const row = div('id-row');
+      row.style.cssText='padding:8px 0;border-bottom:1px solid #222;';
+      const valEl = div('id-value');
+      const desc = span(''); desc.style.color='#ccc';
+      desc.textContent = [v.year, v.make, v.model].filter(Boolean).join(' ') || '\u2014';
+      valEl.appendChild(desc);
+      if (v.vin) {
+        const vinEl = span('dim'); vinEl.style.cssText='margin-left:8px;color:#888;';
+        vinEl.textContent = 'VIN: ' + v.vin;
+        valEl.appendChild(vinEl);
+      }
+      const meta = div('id-scraped');
+      if (v.plate_number) meta.textContent = v.plate_number + (v.plate_state ? ' (' + v.plate_state + ')' : '');
+      row.append(valEl, meta);
+      pane.appendChild(row);
+    });
+  }
+
+  // Professional Licenses
+  const licenses = d.professional_licenses || d.licenses;
+  if (licenses && licenses.length > 0) {
+    const hLic = div('cc-rail-label'); hLic.style.cssText='margin:18px 0 10px'; hLic.textContent='\u{1F4CB} LICENSES';
+    pane.appendChild(hLic);
+    licenses.forEach(l => {
+      const row = div('id-row');
+      row.style.cssText='padding:8px 0;border-bottom:1px solid #222;';
+      const badge = div('id-type-badge', l.status || 'unknown');
+      const valEl = div('id-value');
+      const typeEl = span(''); typeEl.style.color='#ccc';
+      typeEl.textContent = l.license_type || '\u2014';
+      valEl.appendChild(typeEl);
+      if (l.license_number) {
+        const numEl = span('dim'); numEl.style.cssText='margin-left:8px;color:#888;';
+        numEl.textContent = '#' + l.license_number;
+        valEl.appendChild(numEl);
+      }
+      row.append(badge, valEl);
+      pane.appendChild(row);
+    });
+  }
+
+  // Wealth Assessments
+  if (d.wealth_assessments && d.wealth_assessments.length > 0) {
+    const hWealth = div('cc-rail-label'); hWealth.style.cssText='margin:18px 0 10px'; hWealth.textContent='\u{1F4B0} WEALTH';
+    pane.appendChild(hWealth);
+    d.wealth_assessments.forEach(w => {
+      const row = div('id-row');
+      row.style.cssText='padding:8px 0;border-bottom:1px solid #222;';
+      const valEl = div('id-value');
+      if (w.estimated_net_worth) {
+        const nw = span(''); nw.style.cssText='color:#00d46a;font-weight:600;';
+        nw.textContent = '$' + Number(w.estimated_net_worth).toLocaleString();
+        valEl.appendChild(nw);
+      }
+      if (w.income_bracket) {
+        const ib = span('dim'); ib.style.cssText='margin-left:8px;color:#888;';
+        ib.textContent = w.income_bracket;
+        valEl.appendChild(ib);
+      }
+      if (!w.estimated_net_worth && !w.income_bracket) {
+        valEl.textContent = '\u2014';
+      }
+      row.append(valEl);
+      pane.appendChild(row);
+    });
+  }
+
   if (d.aliases && d.aliases.length > 0) {
     const h5 = div('cc-rail-label'); h5.style.cssText='margin:18px 0 10px'; h5.textContent='ALIASES';
     pane.appendChild(h5);

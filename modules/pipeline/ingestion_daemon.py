@@ -91,8 +91,8 @@ class IngestionDaemon:
                             "event_type": "DEDUP_RUNNING",
                             "search_id": str(person_id),
                         })
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Event publish failed: %s", e)
 
                 # Push to Index Queue
                 pid = written.get("person_id")
