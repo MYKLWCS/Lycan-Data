@@ -133,7 +133,6 @@ _PEOPLE_SEARCH_PLATFORMS = {
     "fastpeoplesearch",
     "truepeoplesearch",
     "people_thatsthem", "people_zabasearch", "people_familysearch", "people_findagrave", "people_namus", "people_usmarshals", "people_interpol", "people_fbi_wanted", "people_immigration", "people_phonebook", "people_intelx", "radaris", "spokeo", "peekyou", "clustrmaps", "familytreenow",
-    "wikidata_lookup", "open_library",
 }
 
 # Court / criminal record platform keys
@@ -418,6 +417,68 @@ async def aggregate_result(
     if platform in _EDUCATION_PLATFORMS and not written.get("embedded_education"):
         await _handle_education(session, result, person.id)
         written["education"] = True
+        _handled = True
+
+    # Wikidata/Open Library — structured biographical data ───────────────
+    if platform in ("wikidata_lookup", "open_library"):
+        data = result.data or {}
+        person_obj = await session.get(Person, person.id)
+        if person_obj:
+            # DOB from Wikidata
+            dob_raw = data.get("date_of_birth", "")
+            if dob_raw and not person_obj.date_of_birth:
+                try:
+                    from dateutil import parser as _dp
+                    # Wikidata format: "+1971-06-28T00:00:00Z"
+                    dob_str = dob_raw.lstrip("+").split("T")[0]
+                    person_obj.date_of_birth = _dp.parse(dob_str).date()
+                except Exception:
+                    pass
+
+            # Profile image from Wikidata
+            img = data.get("profile_image_url")
+            if img and isinstance(img, str) and not person_obj.profile_image_url:
+                person_obj.profile_image_url = img
+
+            # Twitter/Instagram/LinkedIn as identifiers
+            for field, id_type in [
+                ("twitter_username", "username"), ("instagram_username", "username"),
+                ("linkedin_id", "username"), ("github_username", "username"),
+            ]:
+                val = data.get(field)
+                if isinstance(val, list):
+                    val = val[0] if val else None
+                if val and isinstance(val, str):
+                    try:
+                        await _safe_upsert_identifier(session, person.id, id_type, val, val.lower())
+                    except Exception:
+                        pass
+
+            # Store spouse/child/sibling QIDs as relationships
+            try:
+                from shared.models.relationship import Relationship
+                rel_map = {
+                    "spouse": "spouse_of", "child": "parent_of",
+                    "father": "child_of", "mother": "child_of", "sibling": "sibling_of",
+                }
+                for field, rel_type in rel_map.items():
+                    val = data.get(field)
+                    if not val:
+                        continue
+                    if isinstance(val, str):
+                        val = [val]
+                    for qid in val[:5]:
+                        if not isinstance(qid, str) or not qid.startswith("Q"):
+                            continue
+                        # Store QID as a placeholder — person may not exist yet
+                        if not person_obj.meta:
+                            person_obj.meta = {}
+                        wikidata_rels = person_obj.meta.get("wikidata_relationships", [])
+                        wikidata_rels.append({"qid": qid, "rel_type": rel_type, "field": field})
+                        person_obj.meta["wikidata_relationships"] = wikidata_rels
+            except Exception:
+                pass
+
         _handled = True
 
     if not _handled:

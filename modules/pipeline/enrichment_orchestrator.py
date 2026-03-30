@@ -541,9 +541,11 @@ class EnrichmentOrchestrator:
 
         from shared.models.address import Address
         from shared.models.criminal import CriminalRecord
+        from shared.models.compliance_ext import AdverseMedia
         from shared.models.employment import EmploymentHistory
         from shared.models.identifier import Identifier
         from shared.models.person import Person
+        from shared.models.professional import CorporateDirectorship
         from shared.models.property import Property
         from shared.models.relationship import Relationship
         from shared.models.social_profile import SocialProfile
@@ -658,15 +660,35 @@ class EnrichmentOrchestrator:
         ).scalar() or 0
         relationship_count = min(100.0, rel_count * 20)
 
-        # Weighted composite
+        # 8. News/Media coverage (0-100)
+        adverse_count = (
+            await session.execute(
+                select(func.count()).select_from(AdverseMedia).where(AdverseMedia.person_id == pid)
+            )
+        ).scalar() or 0
+        media_coverage = min(100.0, adverse_count * 5)  # 20+ articles = 100
+
+        # 9. Corporate/Business records (0-100)
+        corp_count = (
+            await session.execute(
+                select(func.count()).select_from(CorporateDirectorship).where(
+                    CorporateDirectorship.person_id == pid
+                )
+            )
+        ).scalar() or 0
+        corporate_depth = min(100.0, corp_count * 20)  # 5+ directorships = 100
+
+        # Weighted composite — OSINT-calibrated
         enrichment_score = round(
-            identity_completeness * 0.25
-            + social_coverage * 0.30
-            + employment_depth * 0.12
-            + financial_depth * 0.10
-            + legal_records * 0.10
-            + property_records * 0.07
-            + relationship_count * 0.06,
+            identity_completeness * 0.20
+            + social_coverage * 0.20
+            + employment_depth * 0.08
+            + financial_depth * 0.08
+            + legal_records * 0.08
+            + property_records * 0.08
+            + relationship_count * 0.05
+            + media_coverage * 0.13
+            + corporate_depth * 0.10,
             2,
         )
 
