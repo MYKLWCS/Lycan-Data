@@ -497,7 +497,6 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
         person_id = existing_ident.person_id
     else:
         # ── Cross-match: check if ANY existing person has this identifier ──
-        # Search across ALL identifier types (email found by crawl, phone from pivot, etc.)
         cross_q = (
             select(Identifier.person_id)
             .where(Identifier.normalized_value == norm_val)
@@ -507,22 +506,40 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
 
         if cross_match:
             person_id = cross_match
-        elif seed_type == SeedType.FULL_NAME:
-            # For name searches, also check Person.full_name directly
+
+        # ── Name-based matching for ALL seed types ──
+        if person_id is None:
             from rapidfuzz import fuzz as _fuzz
-            name_q = (
-                select(Person)
-                .where(
-                    Person.full_name.ilike(f"%{norm_val}%"),
-                    Person.merged_into.is_(None),
+
+            # Extract potential name from the search value
+            name_to_match = None
+            if seed_type == SeedType.FULL_NAME:
+                name_to_match = norm_val
+            elif seed_type == SeedType.EMAIL:
+                # Extract name from email: "michael.wolf@gmail.com" → "michael wolf"
+                local = norm_val.split("@")[0] if "@" in norm_val else ""
+                name_to_match = local.replace(".", " ").replace("_", " ").replace("-", " ").strip()
+                # Only use if it looks like a name (2+ parts, all alpha)
+                parts = name_to_match.split()
+                if len(parts) < 2 or not all(p.isalpha() for p in parts):
+                    name_to_match = None
+
+            if name_to_match and len(name_to_match) >= 4:
+                name_q = (
+                    select(Person)
+                    .where(
+                        Person.full_name.isnot(None),
+                        Person.merged_into.is_(None),
+                    )
+                    .limit(50)
                 )
-                .limit(10)
-            )
-            candidates = (await session.execute(name_q)).scalars().all()
-            for c in candidates:
-                if c.full_name and _fuzz.token_sort_ratio(norm_val, c.full_name.lower()) >= 85:
-                    person_id = c.id
-                    break
+                candidates = (await session.execute(name_q)).scalars().all()
+                for c in candidates:
+                    if c.full_name and _fuzz.token_sort_ratio(
+                        name_to_match, c.full_name.lower()
+                    ) >= 85:
+                        person_id = c.id
+                        break
 
     if person_id is None:
         # No match found — create new person

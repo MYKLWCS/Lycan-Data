@@ -1027,8 +1027,8 @@ async def get_family_tree(
     snapshot = result.scalar_one_or_none()
     tree = snapshot.tree_json if snapshot else None
 
-    # Fallback: build tree from relationships if no snapshot
-    if not tree or not tree.get("nodes"):
+    # Fallback: build tree from relationships if no snapshot at all
+    if tree is None:
         from shared.models.relationship import Relationship
 
         person = await session.get(Person, uid)
