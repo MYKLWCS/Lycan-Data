@@ -991,6 +991,48 @@ async def _handle_people_search(
                 if isinstance(em, str) and "@" in em:
                     await _safe_upsert_identifier(session, person_id, "email", em, em.strip().lower())
 
+    # Extract relatives/associated people
+    for r in results[:5]:
+        if not isinstance(r, dict):
+            continue
+        relatives = r.get("relatives") or r.get("associated_people") or r.get("family") or []
+        if isinstance(relatives, str):
+            relatives = [rel.strip() for rel in relatives.split(",") if rel.strip()]
+        for rel_name in relatives[:10]:
+            if not isinstance(rel_name, str) or len(rel_name.strip()) < 3:
+                continue
+            rel_name = rel_name.strip()
+            # Skip if it's just a descriptor like "son" or "daughter"
+            if len(rel_name.split()) < 2:
+                continue
+            try:
+                from shared.models.relationship import Relationship
+                # Create or find the relative person
+                rel_person = await _get_or_create_person(session, None,
+                    CrawlerResult(platform=result.platform, identifier=rel_name, found=True, data={"full_name": rel_name}))
+                if rel_person and rel_person.id != person_id:
+                    # Check for existing relationship
+                    from sqlalchemy import or_, and_
+                    existing = (await session.execute(
+                        select(Relationship.id).where(
+                            or_(
+                                and_(Relationship.person_a_id == person_id, Relationship.person_b_id == rel_person.id),
+                                and_(Relationship.person_a_id == rel_person.id, Relationship.person_b_id == person_id),
+                            )
+                        ).limit(1)
+                    )).scalar_one_or_none()
+                    if not existing:
+                        session.add(Relationship(
+                            id=uuid.uuid4(),
+                            person_a_id=person_id,
+                            person_b_id=rel_person.id,
+                            relationship_type="associate",
+                            confidence_score=0.5,
+                            source=result.platform,
+                        ))
+            except Exception as exc:
+                logger.debug("Relative extraction failed for %s: %s", rel_name, exc)
+
 
 async def _handle_court_records(
     session: AsyncSession,

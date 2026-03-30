@@ -1025,19 +1025,64 @@ async def get_family_tree(
         .limit(1)
     )
     snapshot = result.scalar_one_or_none()
-    if not snapshot:
+    tree = snapshot.tree_json if snapshot else None
+
+    # Fallback: build tree from relationships if no snapshot
+    if not tree or not tree.get("nodes"):
+        from shared.models.relationship import Relationship
+
+        person = await session.get(Person, uid)
+        if not person:
+            return {
+                "status": "not_built",
+                "message": "POST /persons/{id}/family-tree/build to start",
+                "tree_json": {"nodes": {}, "edges": []},
+                "members": [],
+            }
+
+        rels = (await session.execute(
+            select(Relationship).where(
+                (Relationship.person_a_id == uid) | (Relationship.person_b_id == uid)
+            )
+        )).scalars().all()
+
+        nodes = {str(uid): {"person_id": str(uid), "full_name": person.full_name}}
+        edges = []
+        for r in rels:
+            other_id = r.person_b_id if r.person_a_id == uid else r.person_a_id
+            other = await session.get(Person, other_id)
+            nodes[str(other_id)] = {
+                "person_id": str(other_id),
+                "full_name": other.full_name if other else "Unknown",
+            }
+            edges.append({
+                "source": str(r.person_a_id),
+                "target": str(r.person_b_id),
+                "relationship_type": r.relationship_type,
+                "confidence": r.confidence_score,
+            })
+        tree = {"nodes": nodes, "edges": edges, "node_count": len(nodes), "edge_count": len(edges)}
+
+    if not tree or (not tree.get("nodes") and not snapshot):
         return {
             "status": "not_built",
             "message": "POST /persons/{id}/family-tree/build to start",
         }
+
+    members = [
+        {"person_id": v["person_id"], "full_name": v["full_name"]}
+        for v in (tree.get("nodes") or {}).values()
+    ]
+
     return {
-        "root_person_id": str(snapshot.root_person_id),
-        "tree_json": snapshot.tree_json,
-        "depth_ancestors": snapshot.depth_ancestors,
-        "depth_descendants": snapshot.depth_descendants,
-        "source_count": snapshot.source_count,
-        "built_at": snapshot.built_at.isoformat() if snapshot.built_at else None,
-        "is_stale": snapshot.is_stale,
+        "root_person_id": str(snapshot.root_person_id) if snapshot else str(uid),
+        "tree_json": tree,
+        "depth_ancestors": snapshot.depth_ancestors if snapshot else depth_ancestors,
+        "depth_descendants": snapshot.depth_descendants if snapshot else depth_descendants,
+        "source_count": snapshot.source_count if snapshot else len(tree.get("edges", [])),
+        "built_at": snapshot.built_at.isoformat() if snapshot and snapshot.built_at else None,
+        "is_stale": snapshot.is_stale if snapshot else False,
+        "members": members,
     }
 
 

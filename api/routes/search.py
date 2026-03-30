@@ -61,6 +61,12 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "telegram",
         # Phone OSINT
         "phone_phoneinfoga",
+        # Reverse phone lookup
+        "whitepages",
+        "fastpeoplesearch",
+        "truepeoplesearch",
+        "people_thatsthem",
+        "spokeo",
     ],
     SeedType.EMAIL: [
         # Breach & leak databases
@@ -79,6 +85,12 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         # Email OSINT
         "email_socialscan",
         "email_dehashed",
+        # Reverse email lookup
+        "whitepages",
+        "truepeoplesearch",
+        "people_thatsthem",
+        "spokeo",
+        "peekyou",
     ],
     SeedType.FULL_NAME: [
         # People-search aggregators
@@ -127,6 +139,28 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         # People OSINT
         "people_phonebook",
         "people_intelx",
+        # People-search extended
+        "people_zabasearch",
+        "people_familysearch",
+        "people_findagrave",
+        "radaris",
+        "spokeo",
+        "peekyou",
+        "familytreenow",
+        # Genealogy & vital records
+        "ancestry_hints",
+        "census_records",
+        "vitals_records",
+        "geni_public",
+        "newspapers_archive",
+        # Law enforcement extended
+        "people_fbi_wanted",
+        # Public records & social
+        "public_voter",
+        "linkedin",
+        "facebook",
+        # Property extended
+        "property_county",
     ],
     SeedType.DOMAIN: [
         "domain_whois",
@@ -180,6 +214,12 @@ def _auto_detect_type(value: str) -> SeedType:
     value_clean = value.strip()
     value_lower = value_clean.lower()
 
+    # IP address — check BEFORE phone (phone regex matches dotted octets)
+    if re.match(r"^(\d{1,3}\.){3}\d{1,3}$", value_lower) or re.match(
+        r"^[0-9a-fA-F:]+:[0-9a-fA-F:]+$", value_lower
+    ):
+        return SeedType.IP_ADDRESS
+
     if re.match(r"^\+?\d[\d\s\-().]{7,15}$", value_lower):
         return SeedType.PHONE
 
@@ -199,12 +239,6 @@ def _auto_detect_type(value: str) -> SeedType:
     # Generic long hex hash (Monero, etc.)
     if re.match(r"^[a-f0-9]{64}$", value_lower):
         return SeedType.CRYPTO_WALLET
-
-    # IPv4 / IPv6
-    if re.match(r"^(\d{1,3}\.){3}\d{1,3}$", value_lower) or re.match(
-        r"^[0-9a-fA-F:]+:[0-9a-fA-F:]+$", value_lower
-    ):
-        return SeedType.IP_ADDRESS
 
     # Domain (has a dot, no spaces)
     if (
