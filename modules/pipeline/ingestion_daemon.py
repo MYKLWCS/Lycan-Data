@@ -24,6 +24,22 @@ logger = logging.getLogger(__name__)
 _orchestrator = EnrichmentOrchestrator()
 
 
+async def _all_jobs_terminal(person_id: str, session) -> bool:
+    """Return True if all crawl jobs for this person are in terminal state."""
+    try:
+        from sqlalchemy import func, select
+        from shared.models.crawl import CrawlJob
+        pending = (await session.execute(
+            select(func.count()).select_from(CrawlJob).where(
+                CrawlJob.person_id == person_id,
+                CrawlJob.status.in_(["pending", "running"]),
+            )
+        )).scalar() or 0
+        return pending == 0
+    except Exception:
+        return True  # Fail open — allow enrichment if check fails
+
+
 class IngestionDaemon:
     """Consumes raw data payloads and writes to DB."""
 
@@ -114,10 +130,12 @@ class IngestionDaemon:
                         except Exception as pivot_exc:
                             logger.warning("Pivot failed for %s: %s", pid, pivot_exc)
 
-                    # Auto-enrich: compute risk scores, AML, burner, etc.
+                    # Auto-enrich ONLY when all crawlers for this person are done
                     try:
-                        async with AsyncSessionLocal() as enrich_session:
-                            await _orchestrator.enrich_person(pid, enrich_session)
+                        all_done = await _all_jobs_terminal(pid, session)
+                        if all_done:
+                            async with AsyncSessionLocal() as enrich_session:
+                                await _orchestrator.enrich_person(pid, enrich_session)
                     except Exception as enrich_exc:
                         logger.warning("Auto-enrichment failed for %s: %s", pid, enrich_exc)
 

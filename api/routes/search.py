@@ -483,7 +483,8 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
             )
 
     # ── Check for existing identifier (exact match) ──────────────────────────
-    norm_val = req.value.strip().lower()
+    from shared.utils import normalize_identifier
+    norm_val = normalize_identifier(req.value, seed_type.value)
     q = (
         select(Identifier)
         .where(Identifier.type == seed_type.value, Identifier.normalized_value == norm_val)

@@ -9,6 +9,34 @@ def normalize_name(name: str) -> str:
     return " ".join(name.lower().split())
 
 
+def normalize_identifier(value: str, id_type: str) -> str:
+    """Canonical normaliser for any identifier type. All pipeline code should use this."""
+    if not value:
+        return ""
+    value = value.strip()
+    if id_type == "phone":
+        result = normalize_phone(value)
+        if result:
+            return result
+        # Fallback: strip non-digits, add + prefix
+        import re
+        digits = re.sub(r"[^\d]", "", value)
+        if len(digits) == 10:
+            return f"+1{digits}"
+        if len(digits) >= 7:
+            return f"+{digits}"
+        return value.lower()
+    elif id_type == "email":
+        result = normalize_email(value)
+        return result if result else value.strip().lower()
+    elif id_type in ("username", "handle"):
+        return normalize_handle(value)
+    elif id_type == "full_name":
+        return normalize_name(value)
+    else:
+        return value.strip().lower()
+
+
 __all__ = [
     "normalize_phone",
     "get_line_type",
@@ -26,4 +54,5 @@ __all__ = [
     "log_scale",
     "tier_from_score",
     "normalize_name",
+    "normalize_identifier",
 ]
