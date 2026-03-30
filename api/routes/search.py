@@ -562,10 +562,27 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
                 # Extract name from email: "michael.wolf@gmail.com" → "michael wolf"
                 local = norm_val.split("@")[0] if "@" in norm_val else ""
                 name_to_match = local.replace(".", " ").replace("_", " ").replace("-", " ").strip()
-                # Only use if it looks like a name (2+ parts, all alpha)
                 parts = name_to_match.split()
-                if len(parts) < 2 or not all(p.isalpha() for p in parts):
+                if not all(p.isalpha() for p in parts):
                     name_to_match = None
+                # Single-word email local (e.g., "wolf@company.com") — try matching as last name
+                elif len(parts) == 1 and len(parts[0]) >= 3:
+                    # Search for persons whose name ENDS with this word
+                    single_q = (
+                        select(Person)
+                        .where(
+                            Person.full_name.ilike(f"% {parts[0]}"),
+                            Person.merged_into.is_(None),
+                        )
+                        .limit(5)
+                    )
+                    single_matches = (await session.execute(single_q)).scalars().all()
+                    if len(single_matches) == 1:
+                        # Unique match — link to this person
+                        person_id = single_matches[0].id
+                        name_to_match = None  # Skip further matching
+                    elif not single_matches:
+                        name_to_match = None  # No match on single word
 
             if name_to_match and len(name_to_match) >= 4:
                 name_q = (

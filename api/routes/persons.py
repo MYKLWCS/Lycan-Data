@@ -1153,6 +1153,60 @@ async def get_family_tree(
     }
 
 
+@router.post("/{person_id}/link-identifier")
+async def link_identifier(
+    person_id: str,
+    identifier_type: str = Query(..., description="phone, email, username, etc."),
+    value: str = Query(..., description="The identifier value"),
+    session: AsyncSession = DbDep,
+):
+    """Manually link an identifier to a person. Also merges if the identifier exists on another person."""
+    uid = _parse_uuid(person_id)
+    person = await session.get(Person, uid)
+    if not person:
+        raise HTTPException(404, "Person not found")
+
+    from shared.utils import normalize_identifier
+    norm = normalize_identifier(value, identifier_type)
+
+    # Check if this identifier already exists on another person
+    existing = (await session.execute(
+        select(Identifier).where(
+            Identifier.normalized_value == norm,
+            Identifier.type == identifier_type,
+        ).limit(1)
+    )).scalar_one_or_none()
+
+    if existing and existing.person_id and existing.person_id != uid:
+        # Merge the other person into this one
+        from modules.enrichers.deduplication import AsyncMergeExecutor
+        other_pid = existing.person_id
+        merger = AsyncMergeExecutor()
+        await merger.execute(
+            {"canonical_id": str(uid), "duplicate_id": str(other_pid)},
+            session,
+        )
+        return {"linked": True, "merged_person": str(other_pid), "identifier": norm}
+
+    if existing and existing.person_id == uid:
+        return {"linked": True, "already_exists": True, "identifier": norm}
+
+    # Create new identifier
+    new_ident = Identifier(
+        id=uuid.uuid4(),
+        person_id=uid,
+        type=identifier_type,
+        value=value,
+        normalized_value=norm,
+        confidence=1.0,
+        is_primary=False,
+        meta={"source": "manual_link"},
+    )
+    session.add(new_ident)
+    await session.commit()
+    return {"linked": True, "identifier": norm, "type": identifier_type}
+
+
 @router.post("/{person_id}/family-tree/build")
 async def build_family_tree(person_id: str, session: AsyncSession = DbDep):
     """Trigger full family tree rebuild."""

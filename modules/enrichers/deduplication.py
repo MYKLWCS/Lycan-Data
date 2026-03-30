@@ -369,8 +369,8 @@ def merge_persons(canonical_id: str, duplicate_id: str) -> dict[str, Any]:
             "identifiers",
             "social_profiles",
             "addresses",
-            "employment_histories",
-            "educations",
+            "employment_history",
+            "education",
             "breach_records",
             "media_assets",
             "watchlist_matches",
@@ -816,8 +816,8 @@ class AsyncMergeExecutor:
         "identifiers",
         "social_profiles",
         "addresses",
-        "employment_histories",
-        "educations",
+        "employment_history",
+        "education",
         "breach_records",
         "media_assets",
         "watchlist_matches",
@@ -904,24 +904,47 @@ class AsyncMergeExecutor:
                     logger.warning("AsyncMergeExecutor: skipping unsafe table name %r", table)
                     continue
 
-                if table == "relationships":
-                    # Special handling: relationships has person_a_id and person_b_id
-                    for col in ("person_a_id", "person_b_id"):
+                try:
+                    if table == "relationships":
+                        for col in ("person_a_id", "person_b_id"):
+                            stmt = sa_text(
+                                f"UPDATE {table} SET {col} = :canonical WHERE {col} = :dup"
+                            )
+                            result = await session.execute(
+                                stmt, {"canonical": canonical_id, "dup": duplicate_id}
+                            )
+                            if result.rowcount > 0:
+                                tables_updated.append(f"{table}.{col}")
+                    elif table == "identifiers":
+                        # Handle unique constraint conflicts: skip duplicates
                         stmt = sa_text(
-                            f"UPDATE {table} SET {col} = :canonical WHERE {col} = :dup"
+                            "UPDATE identifiers SET person_id = :canonical "
+                            "WHERE person_id = :dup "
+                            "AND NOT EXISTS ("
+                            "  SELECT 1 FROM identifiers i2 "
+                            "  WHERE i2.person_id = :canonical "
+                            "  AND i2.type = identifiers.type "
+                            "  AND i2.normalized_value = identifiers.normalized_value"
+                            ")"
                         )
                         result = await session.execute(
                             stmt, {"canonical": canonical_id, "dup": duplicate_id}
                         )
-                        if result.rowcount > 0:
-                            tables_updated.append(f"{table}.{col}")
-                else:
-                    stmt = sa_text(f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup")
-                    result = await session.execute(
-                        stmt, {"canonical": canonical_id, "dup": duplicate_id}
-                    )
-                    if result.rowcount > 0:
+                        # Delete remaining duplicates that couldn't be moved
+                        await session.execute(
+                            sa_text("DELETE FROM identifiers WHERE person_id = :dup"),
+                            {"dup": duplicate_id},
+                        )
                         tables_updated.append(table)
+                    else:
+                        stmt = sa_text(f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup")
+                        result = await session.execute(
+                            stmt, {"canonical": canonical_id, "dup": duplicate_id}
+                        )
+                        if result.rowcount > 0:
+                            tables_updated.append(table)
+                except Exception as table_exc:
+                    logger.debug("Merge: skipping table %s: %s", table, table_exc)
 
             # Set merged_into before deleting (audit trail + chain following)
             await session.execute(
