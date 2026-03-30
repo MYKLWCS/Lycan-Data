@@ -7,8 +7,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _resolve_legacy_aliases(self) -> "Settings":
-        # DRAGONFLY_URL overrides CACHE_URL for backward compat
-        if self.dragonfly_url:
+        import os
+        # Only use DRAGONFLY_URL if CACHE_URL wasn't explicitly set via env
+        if self.dragonfly_url and not os.environ.get("CACHE_URL"):
             self.cache_url = self.dragonfly_url
         return self
 
