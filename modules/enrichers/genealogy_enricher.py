@@ -139,9 +139,32 @@ class GenealogyEnricher:
                 )
                 queue.append((canonical.id, next_gen))
 
+        # Build edges from relationships between visited nodes
+        await session.flush()
+        from shared.models.relationship import Relationship
+        edges = []
+        if visited:
+            rel_result = await session.execute(
+                select(Relationship).where(
+                    (Relationship.person_a_id.in_(visited)) | (Relationship.person_b_id.in_(visited))
+                )
+            )
+            for r in rel_result.scalars().all():
+                edges.append({
+                    "source": str(r.person_a_id),
+                    "target": str(r.person_b_id),
+                    "rel_type": r.relationship_type,
+                    "confidence": r.confidence_score,
+                })
+
         snapshot = FamilyTreeSnapshot(
             root_person_id=seed_person_id,
-            tree_json={"nodes": [str(pid) for pid in visited]},
+            tree_json={
+                "nodes": [str(pid) for pid in visited],
+                "edges": edges,
+                "node_count": len(visited),
+                "edge_count": len(edges),
+            },
             depth_ancestors=8,
             depth_descendants=5,
             source_count=source_count,

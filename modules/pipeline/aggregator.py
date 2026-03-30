@@ -1384,6 +1384,19 @@ async def _handle_behavioural(
         session.add(bp)
 
 
+def _parse_date_field(item: dict, *keys: str):
+    """Try multiple dict keys to extract a date, return datetime or None."""
+    from dateutil import parser as _dp
+    for k in keys:
+        v = item.get(k)
+        if v and isinstance(v, str):
+            try:
+                return _dp.parse(v)
+            except (ValueError, OverflowError):
+                pass
+    return None
+
+
 async def _handle_employment(
     session: AsyncSession,
     result: CrawlerResult,
@@ -1408,6 +1421,8 @@ async def _handle_employment(
             industry=str(item.get("industry") or "")[:255] or None,
             is_current=bool(item.get("is_current") or item.get("current")),
             location=str(item.get("location") or "")[:255] or None,
+            started_at=_parse_date_field(item, "start_date", "started_at", "date_started", "from"),
+            ended_at=_parse_date_field(item, "end_date", "ended_at", "date_ended", "to"),
             meta={"raw": item, "source_platform": result.platform},
         )
         apply_quality_to_model(

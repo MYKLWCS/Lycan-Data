@@ -116,6 +116,17 @@ class CascadeEnricher:
                 if val and isinstance(val, str):
                     new_seeds.extend(self._check_seed(SeedType.LINKEDIN_URL, val.strip(), known))
 
+        # ── 2b. Mine Identifier table for unsearched entries ──────────────
+        for ident in existing_ids:
+            if ident.already_searched:
+                continue
+            if ident.type in ("email", "phone", "username") and ident.normalized_value:
+                seed_map = {"email": SeedType.EMAIL, "phone": SeedType.PHONE, "username": SeedType.USERNAME}
+                st = seed_map.get(ident.type)
+                if st:
+                    new_seeds.extend(self._check_seed(st, ident.normalized_value, known))
+                    ident.already_searched = True
+
         if not new_seeds:
             return 0
 
