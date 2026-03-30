@@ -52,10 +52,16 @@ _ALERT_SEVERITIES = {"critical", "high"}
 class AdverseMediaEnricher:
     """Continuously checks persons for adverse media coverage."""
 
+    def __init__(self) -> None:
+        self._running = True
+
+    async def stop(self) -> None:
+        self._running = False
+
     async def start(self) -> None:
         """Entry point — runs forever with 1-hour sleep between batches."""
         logger.info("AdverseMediaEnricher started (interval=%ds)", _SLEEP_INTERVAL)
-        while True:
+        while self._running:
             try:
                 await self._process_pending()
             except Exception as exc:

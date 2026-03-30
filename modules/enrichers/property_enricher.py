@@ -43,10 +43,16 @@ _STALE_THRESHOLD_HOURS = 48  # re-enrich after 48 hours
 class PropertyEnricher:
     """Continuously enriches persons with real-property and asset data."""
 
+    def __init__(self) -> None:
+        self._running = True
+
+    async def stop(self) -> None:
+        self._running = False
+
     async def start(self) -> None:
         """Entry point — runs forever, sleeping between batches."""
         logger.info("PropertyEnricher started (interval=%ds)", _SLEEP_INTERVAL)
-        while True:
+        while self._running:
             try:
                 await self._process_pending()
             except Exception as exc:

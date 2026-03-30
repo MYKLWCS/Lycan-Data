@@ -24,7 +24,7 @@ class AuditDaemon:
     def __init__(self) -> None:
         self._running = False
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         self._running = False
 
     async def start(self) -> None:

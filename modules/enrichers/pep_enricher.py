@@ -43,10 +43,16 @@ _LEVEL_RANK: dict[str, int] = {
 class PepEnricher:
     """Continuously checks persons against PEP databases."""
 
+    def __init__(self) -> None:
+        self._running = True
+
+    async def stop(self) -> None:
+        self._running = False
+
     async def start(self) -> None:
         """Entry point — runs forever with 2-hour sleep between batches."""
         logger.info("PepEnricher started (interval=%ds)", _SLEEP_INTERVAL)
-        while True:
+        while self._running:
             try:
                 await self._process_pending()
             except Exception as exc:

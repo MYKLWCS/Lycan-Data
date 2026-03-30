@@ -254,7 +254,7 @@ class CommercialTaggerDaemon:
         self._last_run_at: datetime = datetime.min.replace(tzinfo=timezone.utc)
         self._engine = CommercialTagsEngine()
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         self._running = False
 
     async def start(self) -> None:

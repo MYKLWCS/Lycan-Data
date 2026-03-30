@@ -87,6 +87,7 @@ async def main(
     logger.info(f"Tor circuits: {active_tor}/3 active")
 
     tasks = []
+    daemons = []
 
     # Dispatcher workers (Crawlers)
     for i in range(workers):
@@ -120,11 +121,13 @@ async def main(
     # Auto-dedup daemon
     dedup_daemon = AutoDedupDaemon()
     tasks.append(asyncio.create_task(dedup_daemon.start(), name="auto-dedup-daemon"))
+    daemons.append(dedup_daemon)
     logger.info("Started auto-dedup daemon")
 
     # Pending job recovery daemon
     recovery = PendingJobRecovery()
     tasks.append(asyncio.create_task(recovery.start(), name="pending-recovery"))
+    daemons.append(recovery)
     logger.info("Started pending job recovery daemon")
 
     # Commercial tagger daemon
@@ -133,6 +136,7 @@ async def main(
 
         ct = CommercialTaggerDaemon()
         tasks.append(asyncio.create_task(ct.start(), name="commercial-tagger"))
+        daemons.append(ct)
         logger.info("Started commercial tagger daemon")
 
     # Audit daemon (hourly platform health snapshots)
@@ -141,6 +145,7 @@ async def main(
 
         ad = AuditDaemon()
         tasks.append(asyncio.create_task(ad.start(), name="audit-daemon"))
+        daemons.append(ad)
         logger.info("Started audit daemon")
 
     # Genealogy enricher daemon
@@ -149,6 +154,7 @@ async def main(
 
         ge = GenealogyEnricher()
         tasks.append(asyncio.create_task(ge.start(), name="genealogy-enricher"))
+        daemons.append(ge)
         logger.info("Started genealogy enricher daemon")
 
     # Property enricher (properties, aircraft, vessels, net worth)
@@ -157,6 +163,7 @@ async def main(
 
         pe = PropertyEnricher()
         tasks.append(asyncio.create_task(pe.start(), name="property-enricher"))
+        daemons.append(pe)
         logger.info("Started property enricher daemon")
 
     # PEP classifier daemon
@@ -165,6 +172,7 @@ async def main(
 
         pep = PepEnricher()
         tasks.append(asyncio.create_task(pep.start(), name="pep-enricher"))
+        daemons.append(pep)
         logger.info("Started PEP enricher daemon")
 
     # Adverse media monitor
@@ -173,6 +181,7 @@ async def main(
 
         ame = AdverseMediaEnricher()
         tasks.append(asyncio.create_task(ame.start(), name="adverse-media-enricher"))
+        daemons.append(ame)
         logger.info("Started adverse media enricher daemon")
 
     logger.info(
@@ -200,6 +209,13 @@ async def main(
         loop.add_signal_handler(sig, _shutdown)
 
     await stop_event.wait()
+
+    # Signal all daemons to stop their run loops gracefully
+    for daemon in daemons:
+        try:
+            await daemon.stop()
+        except Exception:
+            pass
 
     for task in tasks:
         task.cancel()

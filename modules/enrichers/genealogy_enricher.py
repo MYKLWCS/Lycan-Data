@@ -63,10 +63,16 @@ def compute_confidence(source_count: int, has_gov_record: bool = False) -> float
 class GenealogyEnricher:
     """Continuously enriches persons with genealogy data via BFS crawling."""
 
+    def __init__(self) -> None:
+        self._running = True
+
+    async def stop(self) -> None:
+        self._running = False
+
     async def start(self) -> None:
         """Entry point — runs forever, sleeping between batches."""
         logger.info("GenealogyEnricher started (interval=%ds)", _SLEEP_INTERVAL)
-        while True:
+        while self._running:
             try:
                 await self._process_pending()
             except Exception as exc:
@@ -173,6 +179,13 @@ class GenealogyEnricher:
         )
         session.add(snapshot)
         await session.commit()
+
+        # Clear the flag so we don't reprocess
+        person = await session.get(Person, seed_person_id)
+        if person and person.meta:
+            person.meta["needs_genealogy"] = "false"
+            await session.flush()
+
         return snapshot
 
     def _parse_relatives(self, results: list[dict]) -> list[dict]:

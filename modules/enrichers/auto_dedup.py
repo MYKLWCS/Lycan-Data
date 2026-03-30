@@ -35,10 +35,16 @@ SLEEP_INTERVAL_SECONDS = 600  # 10 minutes
 class AutoDedupDaemon:
     """Continuously deduplicates recently-updated person records."""
 
+    def __init__(self) -> None:
+        self._running = True
+
+    async def stop(self) -> None:
+        self._running = False
+
     async def start(self) -> None:
         """Entry point — runs forever, sleeping between batches."""
         logger.info("AutoDedupDaemon started (interval=%ds)", SLEEP_INTERVAL_SECONDS)
-        while True:
+        while self._running:
             try:
                 async with AsyncSessionFactory() as session:
                     await self._run_batch(session)
