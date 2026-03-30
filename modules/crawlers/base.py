@@ -209,12 +209,28 @@ class BaseCrawler(ABC):
         return proxy
 
     def get_proxy(self) -> str | None:
-        """Sync fallback -- returns Tor proxy or proxy_override."""
-        if not self.requires_tor:
-            return None
+        """Returns best available proxy: residential > tor > direct."""
         if settings.proxy_override:
             return settings.proxy_override
-        return tor_manager.get_proxy(self.tor_instance) or None
+
+        # Residential proxies — best for Cloudflare-protected sites
+        proxy_tier = getattr(self, "proxy_tier", settings.default_proxy_tier)
+        if proxy_tier == "residential" and settings.residential_proxies:
+            proxies = [p.strip() for p in settings.residential_proxies.split(",") if p.strip()]
+            if proxies:
+                return random.choice(proxies)
+
+        # Datacenter proxies
+        if proxy_tier == "datacenter" and settings.datacenter_proxies:
+            proxies = [p.strip() for p in settings.datacenter_proxies.split(",") if p.strip()]
+            if proxies:
+                return random.choice(proxies)
+
+        # Tor proxy
+        if self.requires_tor:
+            return tor_manager.get_proxy(self.tor_instance) or None
+
+        return None
 
     async def rotate_circuit(self) -> None:
         """Request new Tor circuit on block/ban detection."""

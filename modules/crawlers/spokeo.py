@@ -34,7 +34,8 @@ class SpokeoCrawler(HttpxCrawler):
     rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     SOURCE_RELIABILITY = 0.60
     source_reliability = SOURCE_RELIABILITY
-    requires_tor = False  # FlareSolverr handles bypass
+    requires_tor = False
+    proxy_tier = "residential"  # FlareSolverr handles bypass
 
     async def scrape(self, identifier: str) -> CrawlerResult:
         name = identifier.strip()
