@@ -1,7 +1,7 @@
 """Tests for SystemAudit model — Task 1 of Phase 6."""
 
 import uuid
-from datetime import timezone, datetime, timezone
+from datetime import timezone, datetime
 
 import pytest
 

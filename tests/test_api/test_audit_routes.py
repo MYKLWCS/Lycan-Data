@@ -5,7 +5,7 @@ Tests verify routing, response shape, and status codes.
 """
 
 import uuid
-from datetime import timezone, datetime, timezone
+from datetime import timezone, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

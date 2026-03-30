@@ -1,4 +1,4 @@
-from datetime import timezone, datetime, timezone
+from datetime import timezone, datetime
 
 import pytest
 

@@ -1178,14 +1178,21 @@ async def link_identifier(
     )).scalar_one_or_none()
 
     if existing and existing.person_id and existing.person_id != uid:
-        # Merge the other person into this one
-        from modules.enrichers.deduplication import AsyncMergeExecutor
+        # Move identifier directly (merge executor has session issues)
         other_pid = existing.person_id
-        merger = AsyncMergeExecutor()
-        await merger.execute(
-            {"canonical_id": str(uid), "duplicate_id": str(other_pid)},
-            session,
+        existing.person_id = uid
+        # Move ALL identifiers from the other person
+        from sqlalchemy import update
+        await session.execute(
+            update(Identifier)
+            .where(Identifier.person_id == other_pid)
+            .values(person_id=uid)
         )
+        # Mark other person as merged
+        other_person = await session.get(Person, other_pid)
+        if other_person:
+            other_person.merged_into = uid
+        await session.commit()
         return {"linked": True, "merged_person": str(other_pid), "identifier": norm}
 
     if existing and existing.person_id == uid:

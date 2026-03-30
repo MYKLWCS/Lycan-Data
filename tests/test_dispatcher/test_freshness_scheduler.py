@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import timezone, datetime, timezone
+from datetime import timezone, datetime
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest

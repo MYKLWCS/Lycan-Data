@@ -4,7 +4,7 @@ Requires: postgres (localhost:5432) and dragonfly (localhost:6379) running.
 """
 
 import uuid
-from datetime import timezone, datetime, timezone
+from datetime import timezone, datetime
 
 import pytest
 from sqlalchemy import select, text
