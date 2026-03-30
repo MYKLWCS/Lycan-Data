@@ -7,6 +7,13 @@
 ## Phase 1: Data Access & Cloudflare Bypass
 **Goal:** Make people-search crawlers return actual data
 **Requirements:** DATA-01, DATA-02, DATA-03, DATA-04
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-data-access-01-PLAN.md — Infrastructure: Byparr replacement, curl_cffi upgrade, Tor removal, CF cookie cache
+- [ ] 01-data-access-02-PLAN.md — New crawlers: IDCrawl and FreePeopleSearch for phone/address discovery
+- [ ] 01-data-access-03-PLAN.md — Profile photos: GitHub avatar extraction, social crawler photo audit
+- [ ] 01-data-access-04-PLAN.md — Testing and validation: new test files, full regression, live smoke test
 
 **Success Criteria:**
 1. WhitePages/FastPeopleSearch/TruePeopleSearch return person cards (not Cloudflare blocks)
