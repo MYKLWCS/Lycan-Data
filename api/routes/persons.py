@@ -1046,21 +1046,67 @@ async def get_family_tree(
             )
         )).scalars().all()
 
-        nodes = {str(uid): {"person_id": str(uid), "full_name": person.full_name}}
+        # Inverse relationship mapping for correct generation direction
+        _INVERSE_REL = {
+            "parent_of": "child_of", "child_of": "parent_of",
+            "grandparent_of": "grandchild_of", "grandchild_of": "grandparent_of",
+            "spouse_of": "spouse_of", "sibling_of": "sibling_of",
+            "associate": "associate", "co-location": "co-location",
+            "shared_identifier": "shared_identifier",
+        }
+        # Generation delta: positive = older generation, negative = younger
+        _GEN_DELTA = {
+            "parent_of": -1, "child_of": 1,
+            "grandparent_of": -2, "grandchild_of": 2,
+            "spouse_of": 0, "sibling_of": 0,
+        }
+
+        nodes = {str(uid): {"person_id": str(uid), "full_name": person.full_name, "generation": 0}}
         edges = []
-        for r in rels:
-            other_id = r.person_b_id if r.person_a_id == uid else r.person_a_id
-            other = await session.get(Person, other_id)
-            nodes[str(other_id)] = {
-                "person_id": str(other_id),
-                "full_name": other.full_name if other else "Unknown",
-            }
-            edges.append({
-                "source": str(r.person_a_id),
-                "target": str(r.person_b_id),
-                "relationship_type": r.relationship_type,
-                "confidence": r.confidence_score,
-            })
+
+        # BFS to compute generations
+        from collections import deque
+        visited = {uid}
+        queue = deque([(uid, 0)])
+
+        while queue:
+            current_id, current_gen = queue.popleft()
+            for r in rels:
+                if r.person_a_id == current_id:
+                    other_id = r.person_b_id
+                    rel_type = r.relationship_type or "associate"
+                elif r.person_b_id == current_id:
+                    other_id = r.person_a_id
+                    rel_type = _INVERSE_REL.get(r.relationship_type or "", r.relationship_type or "associate")
+                else:
+                    continue
+
+                if other_id in visited:
+                    continue
+                visited.add(other_id)
+
+                gen_delta = _GEN_DELTA.get(rel_type, 0)
+                other_gen = current_gen + gen_delta
+
+                other = await session.get(Person, other_id)
+                nodes[str(other_id)] = {
+                    "person_id": str(other_id),
+                    "full_name": other.full_name if other else "Unknown",
+                    "generation": other_gen,
+                    "date_of_birth": str(other.date_of_birth) if other and other.date_of_birth else None,
+                }
+
+                edges.append({
+                    "source": str(r.person_a_id),
+                    "target": str(r.person_b_id),
+                    "person_a_id": str(r.person_a_id),
+                    "person_b_id": str(r.person_b_id),
+                    "relationship_type": r.relationship_type,
+                    "confidence": r.confidence_score,
+                })
+
+                queue.append((other_id, other_gen))
+
         tree = {"nodes": nodes, "edges": edges, "node_count": len(nodes), "edge_count": len(edges)}
 
     if not tree or (not tree.get("nodes") and not snapshot):
