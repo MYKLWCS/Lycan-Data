@@ -55,15 +55,22 @@ class EnrichmentOrchestrator:
         Run the full enrichment pipeline for a person.
         Returns a report of what ran, what succeeded, and what failed.
         """
-        try:
-            if event_bus.is_connected:
-                from shared.schemas.progress import EventType
-                await event_bus.publish("progress", {
-                    "event_type": EventType.ENRICHMENT_RUNNING.value,
-                    "search_id": str(person_id),
-                })
-        except Exception as e:
-            logger.debug("Event publish failed: %s", e)
+        from shared.schemas.progress import EventType
+        _total_steps = 11
+
+        async def _emit_enrichment_progress(step_num: int):
+            try:
+                if event_bus.is_connected:
+                    await event_bus.publish("progress", {
+                        "event_type": EventType.ENRICHMENT_RUNNING.value,
+                        "search_id": str(person_id),
+                        "records_processed": step_num,
+                        "total_records": _total_steps,
+                    })
+            except Exception:
+                pass
+
+        await _emit_enrichment_progress(0)
 
         started_at = datetime.now(timezone.utc)
         steps: list[EnrichmentStepResult] = []
@@ -76,6 +83,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(1)
 
         # ── Step 2: Marketing Tags ────────────────────────────────────────────
         steps.append(
@@ -85,6 +93,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(2)
 
         # ── Step 3: Deduplication scoring ─────────────────────────────────────
         steps.append(
@@ -94,6 +103,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(3)
 
         # ── Step 4: Burner assessment ─────────────────────────────────────────
         steps.append(
@@ -103,6 +113,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(4)
 
         # ── Step 5: Relationship score ────────────────────────────────────────
         steps.append(
@@ -112,6 +123,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(5)
 
         # ── Step 6: Update coverage score ─────────────────────────────────────
         steps.append(
@@ -121,6 +133,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(6)
 
         # ── Step 7: Location inference ─────────────────────────────────────────
         steps.append(
@@ -130,6 +143,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(7)
 
         # ── Step 8: Cross-seed cascade enricher ───────────────────────────────
         steps.append(
@@ -139,6 +153,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(8)
 
         # ── Step 9: Entity resolution (4-pass dedup + verification) ───────
         steps.append(
@@ -148,6 +163,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(9)
 
         # ── Step 10: Cross-person entity resolution ─────────────────────
         steps.append(
@@ -157,6 +173,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(10)
 
         # ── Step 11: Enrichment score (spec formula) ───────────────────────
         steps.append(
@@ -166,6 +183,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
+        await _emit_enrichment_progress(11)
 
         finished_at = datetime.now(timezone.utc)
         total_ms = (finished_at - started_at).total_seconds() * 1000
@@ -180,6 +198,17 @@ class EnrichmentOrchestrator:
 
         # Publish completion event
         await self._publish_completion(person_id, report)
+
+        # Signal SEARCH_COMPLETE so progress bar reaches 100%
+        try:
+            if event_bus.is_connected:
+                await event_bus.publish("progress", {
+                    "event_type": EventType.SEARCH_COMPLETE.value,
+                    "search_id": str(person_id),
+                    "results_found": report.ok_count,
+                })
+        except Exception:
+            pass
 
         return report
 

@@ -91,6 +91,8 @@ class IngestionDaemon:
                         await event_bus.publish("progress", {
                             "event_type": EventType.DEDUP_RUNNING.value,
                             "search_id": str(person_id),
+                            "records_processed": 1,
+                            "total_records": 1,
                         })
                 except Exception as e:
                     logger.debug("Event publish failed: %s", e)

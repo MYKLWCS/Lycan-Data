@@ -308,7 +308,7 @@ class CrawlDispatcher:
             await event_bus.publish(
                 "progress",
                 {
-                    "event_type": EventType.SEARCH_COMPLETE,
+                    "event_type": "collection_complete",  # Not SEARCH_COMPLETE — that fires from enrichment
                     "search_id": person_id,
                     "total_scrapers": int(stats["total"] or 0),
                     "succeeded": int(stats["succeeded"] or 0),

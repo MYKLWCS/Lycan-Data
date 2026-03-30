@@ -1038,6 +1038,10 @@ class SearchProgress {
       this._phaseEl.textContent = 'COMPLETE';
       this._phaseEl.style.color = 'var(--green)';
       this.disconnect();
+      // Auto-refresh person data after enrichment completes
+      if (this.personId && this.onDone) {
+        this.onDone();
+      }
     }
   }
 }
