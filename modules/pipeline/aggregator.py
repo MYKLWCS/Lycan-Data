@@ -1151,6 +1151,15 @@ async def _handle_people_search(
                             confidence_score=0.5,
                             source=result.platform,
                         ))
+                        # Flag person for genealogy tree building
+                        try:
+                            p = await session.get(Person, person_id)
+                            if p:
+                                if not p.meta:
+                                    p.meta = {}
+                                p.meta["needs_genealogy"] = "true"
+                        except Exception:
+                            pass
             except Exception as exc:
                 logger.debug("Relative extraction failed for %s: %s", rel_name, exc)
 

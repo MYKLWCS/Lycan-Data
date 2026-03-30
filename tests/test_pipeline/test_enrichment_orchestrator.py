@@ -66,7 +66,7 @@ async def test_enrich_person_returns_report_with_five_steps():
 
     assert isinstance(report, EnrichmentReport)
     assert report.person_id == "person-123"
-    assert len(report.steps) == 11
+    assert len(report.steps) == 12
     enricher_names = [s.enricher for s in report.steps]
     assert "financial_aml" in enricher_names
     assert "marketing_tags" in enricher_names
@@ -101,7 +101,7 @@ async def test_enrich_person_all_ok():
     ):
         report = await orchestrator.enrich_person("abc", session)
 
-    assert report.ok_count == 11
+    assert report.ok_count == 12
     assert report.error_count == 0
 
 
@@ -131,9 +131,9 @@ async def test_failing_enricher_does_not_abort_pipeline():
     ):
         report = await orchestrator.enrich_person("xyz", session)
 
-    assert len(report.steps) == 11
+    assert len(report.steps) == 12
     assert report.error_count == 1
-    assert report.ok_count == 10
+    assert report.ok_count == 11
     failed_step = next(s for s in report.steps if s.enricher == "financial_aml")
     assert failed_step.status == "error"
     assert "injected failure" in failed_step.detail

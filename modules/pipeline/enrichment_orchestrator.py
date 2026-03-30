@@ -80,7 +80,7 @@ class EnrichmentOrchestrator:
             pass
 
         from shared.schemas.progress import EventType
-        _total_steps = 11
+        _total_steps = 12
 
         async def _emit_enrichment_progress(step_num: int):
             try:
@@ -199,7 +199,17 @@ class EnrichmentOrchestrator:
         )
         await _emit_enrichment_progress(10)
 
-        # ── Step 11: Enrichment score (spec formula) ───────────────────────
+        # ── Step 11: Genealogy / family tree ─────────────────────────────
+        steps.append(
+            await self._run_step(
+                enricher="genealogy",
+                coro=self._run_genealogy(person_id, session),
+                person_id=person_id,
+            )
+        )
+        await _emit_enrichment_progress(11)
+
+        # ── Step 12: Enrichment score (spec formula) ───────────────────────
         steps.append(
             await self._run_step(
                 enricher="enrichment_score",
@@ -207,7 +217,7 @@ class EnrichmentOrchestrator:
                 person_id=person_id,
             )
         )
-        await _emit_enrichment_progress(11)
+        await _emit_enrichment_progress(12)
 
         finished_at = datetime.now(timezone.utc)
         total_ms = (finished_at - started_at).total_seconds() * 1000
@@ -520,6 +530,45 @@ class EnrichmentOrchestrator:
             await pipeline.resolve_cross_person(person_id, session)
         except Exception as exc:
             logger.warning("Cross-person resolution failed for %s: %s", person_id, exc)
+
+    async def _run_genealogy(self, person_id: str, session: AsyncSession) -> None:
+        """Build family tree if relationships exist and no fresh snapshot."""
+        try:
+            import uuid
+            from shared.models.family_tree import FamilyTreeSnapshot
+            from shared.models.relationship import Relationship
+            from sqlalchemy import select, func
+
+            pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
+
+            # Check if fresh snapshot exists
+            existing = (await session.execute(
+                select(FamilyTreeSnapshot).where(
+                    FamilyTreeSnapshot.root_person_id == pid,
+                    FamilyTreeSnapshot.is_stale.is_(False),
+                ).limit(1)
+            )).scalar_one_or_none()
+
+            if existing:
+                return  # Fresh snapshot already exists
+
+            # Check if person has any relationships
+            rel_count = (await session.execute(
+                select(func.count()).select_from(Relationship).where(
+                    (Relationship.person_a_id == pid) | (Relationship.person_b_id == pid)
+                )
+            )).scalar() or 0
+
+            if rel_count == 0:
+                return  # No relationships to build tree from
+
+            # Build tree inline
+            from modules.enrichers.genealogy_enricher import GenealogyEnricher
+            enricher = GenealogyEnricher()
+            await enricher.build_tree(pid, session)
+            logger.info("Built family tree for %s (%d relationships)", person_id, rel_count)
+        except Exception as exc:
+            logger.debug("Genealogy enrichment failed for %s: %s", person_id, exc)
 
     async def _compute_enrichment_score(self, person_id: str, session: AsyncSession) -> None:
         """

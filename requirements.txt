@@ -49,3 +49,7 @@ debugpy==1.8.20
 typesense==0.21.0
 slowapi==0.1.9
 rapidfuzz>=3.0
+patchright>=1.49
+curl-cffi>=0.14
+playwright>=1.49
+spacy>=3.7

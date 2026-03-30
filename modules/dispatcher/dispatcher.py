@@ -423,6 +423,10 @@ async def dispatch_job(
         "retry_count": 0,
         "depth": depth,
     }
+    if not event_bus.is_connected:
+        logger.error("EventBus not connected — job %s/%s NOT enqueued", platform, identifier)
+        return
+
     try:
         await event_bus.enqueue(payload, priority=priority)
     except Exception as e:
