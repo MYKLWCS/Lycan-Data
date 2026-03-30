@@ -461,7 +461,7 @@ async def aggregate_result(
 
 
 from rapidfuzz import fuzz as _fuzz
-from shared.utils import normalize_name as _normalize_name
+from shared.utils import normalize_identifier, normalize_name as _normalize_name
 
 
 async def _get_or_create_person(
@@ -709,18 +709,19 @@ async def _handle_phone_enrichment(
             person_id=person_id,
             id_type=IdentifierType.PHONE.value,
             raw_value=result.identifier,
-            normalized_value=result.identifier.strip(),
+            normalized_value=normalize_identifier(result.identifier, "phone"),
             confidence=0.9,
         )
         await session.flush()
         # Re-fetch the identifier row (may have existed via concurrent insert)
+        _phone_norm = normalize_identifier(result.identifier, "phone")
         ident = (
             await session.execute(
                 select(Identifier)
                 .where(
                     Identifier.person_id == person_id,
                     Identifier.type == IdentifierType.PHONE.value,
-                    Identifier.normalized_value == result.identifier.strip(),
+                    Identifier.normalized_value == _phone_norm,
                 )
                 .limit(1)
             )

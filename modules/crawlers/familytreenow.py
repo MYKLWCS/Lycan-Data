@@ -64,10 +64,12 @@ class FamilyTreeNowCrawler(HttpxCrawler):
                 }
             )
 
+        # Only found=True when we have at least one result with a name
+        has_data = any(p.get("name") for p in persons)
         return CrawlerResult(
             platform=self.platform,
             identifier=identifier,
-            found=True,
+            found=has_data,
             data={"persons": persons, "result_count": len(persons)},
             profile_url=url,
             source_reliability=self.SOURCE_RELIABILITY,

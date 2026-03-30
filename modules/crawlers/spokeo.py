@@ -77,10 +77,11 @@ class SpokeoCrawler(HttpxCrawler):
                 }
             )
 
+        has_data = any(r.get("name") for r in results)
         return CrawlerResult(
             platform=self.platform,
             identifier=identifier,
-            found=True,
+            found=has_data,
             data={"results": results, "count": len(results)},
             profile_url=target_url,
             source_reliability=self.SOURCE_RELIABILITY,

@@ -1455,7 +1455,7 @@ function _renderRiskTab(pane, d, p) {
       const row = div('id-row');
       const badge = div('id-type-badge');
       badge.style.cssText='background:var(--red-lo);color:var(--red);border-color:var(--red)'; badge.textContent='SANCTIONS';
-      const valEl = div('id-value'); valEl.textContent=w.list_name+': '+w.match_name;
+      const valEl = div('id-value'); valEl.textContent=(w.list_name||'Unknown list')+': '+(w.match_name||'Unknown match');
       row.append(badge, valEl, div('id-conf', Math.round((w.match_score||0)*100)+'%'));
       pane.appendChild(row);
     });
