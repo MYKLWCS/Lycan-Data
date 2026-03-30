@@ -103,7 +103,8 @@ class IngestionDaemon:
                     # Pivot: extract email/phone/name from result and queue new searches
                     if data and found:
                         try:
-                            n = await pivot_from_result(pid, platform, data)
+                            job_depth = payload.get("depth", 0)
+                            n = await pivot_from_result(pid, platform, data, depth=job_depth)
                             if n:
                                 logger.info(
                                     "Pivot queued %d new jobs from %s/%s", n, platform, identifier

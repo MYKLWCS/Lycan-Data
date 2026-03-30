@@ -158,6 +158,7 @@ async def pivot_from_result(
     person_id: str,
     platform: str,
     data: dict[str, Any],
+    depth: int = 0,
 ) -> int:
     """
     Inspect crawler result data, extract new identifiers, and queue searches.
@@ -212,6 +213,7 @@ async def pivot_from_result(
                     identifier=value,
                     person_id=person_id,
                     priority="normal",
+                    depth=depth + 1,
                 )
                 queued_for_this += 1
                 jobs_queued += 1

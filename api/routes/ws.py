@@ -179,7 +179,35 @@ async def search_progress(person_id: str, request: Request, token: str | None = 
             yield f"data: {json.dumps({'event_type': 'error', 'detail': 'event bus unavailable'})}\n\n"
             return
 
-        aggregator = ProgressAggregator(search_id=person_id)
+        # Recover scraper count from DB to avoid SEARCH_STARTED race condition
+        scraper_count = 1
+        scraper_names = []
+        try:
+            from shared.db import AsyncSessionLocal
+            from shared.models.crawl import CrawlJob
+            from sqlalchemy import select, func
+            import uuid as _uuid
+
+            async with AsyncSessionLocal() as _session:
+                _cnt = await _session.execute(
+                    select(func.count()).select_from(CrawlJob).where(
+                        CrawlJob.person_id == _uuid.UUID(person_id)
+                    )
+                )
+                scraper_count = max(_cnt.scalar() or 1, 1)
+                _names = await _session.execute(
+                    select(CrawlJob.platform).where(
+                        CrawlJob.person_id == _uuid.UUID(person_id)
+                    )
+                )
+                scraper_names = [r[0] for r in _names.all()]
+        except Exception:
+            pass
+
+        aggregator = ProgressAggregator(search_id=person_id, scraper_count=scraper_count)
+        for _name in scraper_names:
+            aggregator.scraper_statuses[_name] = "queued"
+
         queue: asyncio.Queue = asyncio.Queue()
 
         async def _forward(message: dict) -> None:
@@ -191,7 +219,7 @@ async def search_progress(person_id: str, request: Request, token: str | None = 
             name=f"progress-sse-{person_id}",
         )
 
-        # Emit initial state immediately so the client has something to render
+        # Emit initial state with correct scraper count
         initial = aggregator.to_state()
         yield f"data: {initial.model_dump_json()}\n\n"
 

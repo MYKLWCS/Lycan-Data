@@ -75,8 +75,19 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Platforms that represent a social media profile
-_SOCIAL_PLATFORMS = {p.value for p in Platform}
+# Platforms that represent a social media profile (explicit list, not enum)
+_SOCIAL_PLATFORMS = {
+    "instagram", "facebook", "twitter", "linkedin", "tiktok", "snapchat",
+    "reddit", "pinterest", "youtube", "github", "gitlab", "discord",
+    "telegram", "whatsapp", "signal", "viber", "xing", "medium",
+    "twitch", "steam", "spotify", "mastodon", "threads", "bluesky",
+    "tumblr", "quora", "stackoverflow", "onlyfans", "irc",
+    "social_twitter", "social_instagram", "social_facebook", "social_linkedin",
+    "social_tiktok", "social_snapchat", "social_steam", "social_twitch",
+    "social_spotify", "social_snscrape", "social_posts_analyzer",
+    "peekyou", "about_me", "gravatar", "keybase",
+    "truth_social_profile", "vk_profile", "bluesky_profile", "threads_profile",
+}
 
 # Phone enrichment platform keys
 _PHONE_PLATFORMS = {"phone_carrier", "phone_fonefinder", "phone_truecaller"}
