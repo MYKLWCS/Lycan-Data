@@ -133,7 +133,7 @@ class NewsSearchCrawler(CurlCrawler):
 
         return self._result(
             identifier=identifier,
-            found=True,
+            found=bool(articles),
             articles=articles,
             query=query,
             article_count=len(articles),

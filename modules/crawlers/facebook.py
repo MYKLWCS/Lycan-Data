@@ -42,7 +42,7 @@ class FacebookCrawler(PlaywrightCrawler):
         return CrawlerResult(
             platform=self.platform,
             identifier=handle,
-            found=True,
+            found=bool(data.get("display_name") or data.get("handle")),
             data=data,
             profile_url=url,
             source_reliability=self.source_reliability,

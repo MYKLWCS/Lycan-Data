@@ -163,6 +163,9 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "facebook",
         # Property extended
         "property_county",
+        # Structured biographical data (free, no key)
+        "wikidata_lookup",
+        "open_library",
     ],
     SeedType.DOMAIN: [
         "domain_whois",

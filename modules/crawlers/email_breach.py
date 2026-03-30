@@ -56,7 +56,7 @@ class EmailBreachCrawler(CurlCrawler):
 
         return self._result(
             identifier=email,
-            found=True,  # we always attempted a check
+            found=bool(results),
             breaches=results,
             breach_count=len(results),
             email=email,

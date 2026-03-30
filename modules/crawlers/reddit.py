@@ -24,7 +24,7 @@ class RedditCrawler(HttpxCrawler):
     platform = "reddit"
     category = CrawlerCategory.SOCIAL_MEDIA
     rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=1.0)
-    source_reliability = SOURCE_RELIABILITY.get("twitter", 0.55)  # similar reliability
+    source_reliability = SOURCE_RELIABILITY.get("reddit", 0.55)
     requires_tor = True
 
     async def scrape(self, identifier: str) -> CrawlerResult:

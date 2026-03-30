@@ -27,6 +27,7 @@ from api.routes.search import SEED_PLATFORM_MAP
 from modules.dispatcher.dispatcher import dispatch_job
 from shared.constants import SeedType
 from shared.models.identifier import Identifier
+from shared.models.person import Person
 from shared.models.social_profile import SocialProfile
 
 logger = logging.getLogger(__name__)
@@ -188,6 +189,27 @@ class CascadeEnricher:
                         )).scalar() or 0
                         canonical = pid_uuid if p1_count >= p2_count else other_pid
                         duplicate = other_pid if canonical == pid_uuid else pid_uuid
+
+                        # Follow merged_into chain to find true canonical
+                        for _ in range(10):  # max hops
+                            canon_person = await session.get(Person, canonical)
+                            if canon_person and canon_person.merged_into:
+                                canonical = canon_person.merged_into
+                            else:
+                                break
+
+                        dup_person = await session.get(Person, duplicate)
+                        if dup_person and dup_person.merged_into:
+                            for _ in range(10):
+                                if dup_person.merged_into:
+                                    duplicate = dup_person.merged_into
+                                    dup_person = await session.get(Person, duplicate)
+                                else:
+                                    break
+
+                        if canonical == duplicate:
+                            continue  # Same person after chain resolution
+
                         merger = AsyncMergeExecutor()
                         await merger.execute(
                             {"canonical_id": str(canonical), "duplicate_id": str(duplicate)},
