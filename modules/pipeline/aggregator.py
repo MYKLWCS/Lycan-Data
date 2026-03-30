@@ -9,7 +9,7 @@ import hashlib
 import logging
 import re
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -21,81 +21,102 @@ from shared.constants import (
     AlertSeverity,
     AlertType,
     IdentifierType,
-    Platform,
 )
 from shared.data_quality import apply_quality_to_model
 from shared.models.address import Address
 from shared.models.alert import Alert
 from shared.models.behavioural import BehaviouralProfile
 from shared.models.breach import BreachRecord
+from shared.models.compliance_ext import AdverseMedia
 from shared.models.criminal import CriminalRecord
-from shared.models.darkweb import DarkwebMention
+from shared.models.darkweb import CryptoWallet, DarkwebMention
+from shared.models.education import Education
+
+# Required model imports — fail fast if missing
+from shared.models.employment import EmploymentHistory
 from shared.models.identifier import Identifier
 from shared.models.identifier_history import IdentifierHistory
 from shared.models.identity_document import CreditProfile
 from shared.models.person import Person
+from shared.models.professional import CorporateDirectorship, ProfessionalLicense
+from shared.models.property import Property
 from shared.models.social_profile import SocialProfile
+from shared.models.vehicle import Vehicle
 from shared.models.watchlist import WatchlistMatch
-
-try:
-    from shared.models.employment import EmploymentHistory
-except ImportError:
-    EmploymentHistory = None  # type: ignore[assignment,misc]
-
-try:
-    from shared.models.education import Education
-except ImportError:
-    Education = None  # type: ignore[assignment,misc]
-
-try:
-    from shared.models.property import Property
-except ImportError:
-    Property = None  # type: ignore[assignment,misc]
-
-try:
-    from shared.models.vehicle import Vehicle
-except ImportError:
-    Vehicle = None  # type: ignore[assignment,misc]
-
-try:
-    from shared.models.darkweb import CryptoWallet
-except ImportError:
-    CryptoWallet = None  # type: ignore[assignment,misc]
-
-try:
-    from shared.models.professional import ProfessionalLicense, CorporateDirectorship
-except ImportError:
-    ProfessionalLicense = None  # type: ignore[assignment,misc]
-    CorporateDirectorship = None  # type: ignore[assignment,misc]
-
-try:
-    from shared.models.compliance_ext import AdverseMedia
-except ImportError:
-    AdverseMedia = None  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 
 # Platforms that represent a social media profile (explicit list, not enum)
 _SOCIAL_PLATFORMS = {
-    "instagram", "facebook", "twitter", "linkedin", "tiktok", "snapchat",
-    "reddit", "pinterest", "youtube", "github", "gitlab", "discord",
-    "telegram", "whatsapp", "signal", "viber", "xing", "medium",
-    "twitch", "steam", "spotify", "mastodon", "threads", "bluesky",
-    "tumblr", "quora", "stackoverflow", "onlyfans", "irc",
-    "social_twitter", "social_instagram", "social_facebook", "social_linkedin",
-    "social_tiktok", "social_snapchat", "social_steam", "social_twitch",
-    "social_spotify", "social_snscrape", "social_posts_analyzer",
-    "peekyou", "about_me", "gravatar", "keybase",
-    "truth_social_profile", "vk_profile", "bluesky_profile", "threads_profile",
-    "username_sherlock", "username_maigret",
-    "github_profile", "stackoverflow_profile", "social_mastodon", "social_ghunt", "social_graph", "spotify_public", "snscrape", "instaloader", "interests_extractor",
-    "generic_web_scraper",
+    "instagram",
+    "facebook",
+    "twitter",
+    "linkedin",
+    "tiktok",
+    "snapchat",
+    "reddit",
+    "pinterest",
+    "youtube",
+    "github",
+    "gitlab",
+    "discord",
+    "telegram",
+    "whatsapp",
+    "signal",
+    "viber",
+    "xing",
+    "medium",
+    "twitch",
+    "steam",
+    "spotify",
+    "mastodon",
+    "threads",
+    "bluesky",
+    "tumblr",
+    "quora",
+    "stackoverflow",
+    "onlyfans",
+    "irc",
+    "social_twitter",
+    "social_instagram",
+    "social_facebook",
+    "social_linkedin",
+    "social_tiktok",
+    "social_snapchat",
+    "social_steam",
+    "social_twitch",
+    "social_spotify",
+    "social_snscrape",
+    "social_posts_analyzer",
+    "peekyou",
+    "about_me",
     "gravatar",
+    "keybase",
+    "truth_social_profile",
+    "vk_profile",
+    "bluesky_profile",
+    "threads_profile",
+    "username_sherlock",
+    "username_maigret",
+    "github_profile",
+    "stackoverflow_profile",
+    "social_mastodon",
+    "social_ghunt",
+    "social_graph",
+    "spotify_public",
+    "snscrape",
+    "instaloader",
+    "interests_extractor",
+    "generic_web_scraper",
 }
 
 # Phone enrichment platform keys
-_PHONE_PLATFORMS = {"phone_carrier", "phone_fonefinder", "phone_truecaller",
-    "phone_numlookup", "phone_phoneinfoga",
+_PHONE_PLATFORMS = {
+    "phone_carrier",
+    "phone_fonefinder",
+    "phone_truecaller",
+    "phone_numlookup",
+    "phone_phoneinfoga",
 }
 
 # Email breach platform keys
@@ -104,16 +125,32 @@ _EMAIL_BREACH_PLATFORMS = {
     "email_holehe",
     "email_leakcheck",
     "email_breach",
-    "email_dehashed", "email_disposable", "email_emailrep", "email_socialscan", "email_mx_validator",
+    "email_dehashed",
+    "email_disposable",
+    "email_emailrep",
+    "email_socialscan",
+    "email_mx_validator",
 }
 
 # Sanctions / watchlist platform keys
 _SANCTIONS_PLATFORMS = {
-    "sanctions_ofac", "sanctions_un", "sanctions_fbi",
-    "sanctions_eu", "sanctions_uk", "sanctions_canada", "sanctions_australia",
-    "sanctions_worldbank_debarment", "people_interpol", "people_usmarshals",
-    "bis_entity_list", "fara_scraper",
-    "sanctions_fatf", "sanctions_opensanctions", "open_pep_search", "world_check_mirror", "gov_bop",
+    "sanctions_ofac",
+    "sanctions_un",
+    "sanctions_fbi",
+    "sanctions_eu",
+    "sanctions_uk",
+    "sanctions_canada",
+    "sanctions_australia",
+    "sanctions_worldbank_debarment",
+    "people_interpol",
+    "people_usmarshals",
+    "bis_entity_list",
+    "fara_scraper",
+    "sanctions_fatf",
+    "sanctions_opensanctions",
+    "open_pep_search",
+    "world_check_mirror",
+    "gov_bop",
 }
 
 # Dark-web / paste platform keys
@@ -124,7 +161,17 @@ _DARKWEB_PLATFORMS = {
     "paste_ghostbin",
     "paste_psbdmp",
     "telegram_dark",
-    "cyber_abuseipdb", "cyber_alienvault", "cyber_crt", "cyber_dns", "cyber_greynoise", "cyber_shodan", "cyber_urlscan", "cyber_virustotal", "domain_harvester", "domain_whois", "geo_ip",
+    "cyber_abuseipdb",
+    "cyber_alienvault",
+    "cyber_crt",
+    "cyber_dns",
+    "cyber_greynoise",
+    "cyber_shodan",
+    "cyber_urlscan",
+    "cyber_virustotal",
+    "domain_harvester",
+    "domain_whois",
+    "geo_ip",
 }
 
 # People-search platform keys
@@ -132,21 +179,52 @@ _PEOPLE_SEARCH_PLATFORMS = {
     "whitepages",
     "fastpeoplesearch",
     "truepeoplesearch",
-    "people_thatsthem", "people_zabasearch", "people_familysearch", "people_findagrave", "people_namus", "people_usmarshals", "people_interpol", "people_fbi_wanted", "people_immigration", "people_phonebook", "people_intelx", "radaris", "spokeo", "peekyou", "clustrmaps", "familytreenow",
+    "people_thatsthem",
+    "people_zabasearch",
+    "people_familysearch",
+    "people_findagrave",
+    "people_namus",
+    "people_usmarshals",
+    "people_interpol",
+    "people_fbi_wanted",
+    "people_immigration",
+    "people_phonebook",
+    "people_intelx",
+    "radaris",
+    "spokeo",
+    "peekyou",
+    "clustrmaps",
+    "familytreenow",
     "google_people_search",
 }
 
 # Court / criminal record platform keys
-_COURT_PLATFORMS = {"court_courtlistener", "court_state",
-    "ca_courts", "fl_courts", "txcourts",
+_COURT_PLATFORMS = {
+    "court_courtlistener",
+    "court_state",
+    "ca_courts",
+    "fl_courts",
+    "txcourts",
 }
 
 # Sex offender registry
 _SEX_OFFENDER_PLATFORMS = {"public_nsopw"}
 
 # Government / voter / ID sources
-_GOVERNMENT_PLATFORMS = {"public_voter", "public_npi", "public_faa",
-    "gov_epa", "gov_fda", "gov_osha", "gov_uspto_patents", "gov_uspto_trademarks", "gov_gleif", "us_corporate_registry", "ca_courts", "fl_courts", "txcourts",
+_GOVERNMENT_PLATFORMS = {
+    "public_voter",
+    "public_npi",
+    "public_faa",
+    "gov_epa",
+    "gov_fda",
+    "gov_osha",
+    "gov_uspto_patents",
+    "gov_uspto_trademarks",
+    "gov_gleif",
+    "us_corporate_registry",
+    "ca_courts",
+    "fl_courts",
+    "txcourts",
 }
 
 # Bankruptcy
@@ -160,37 +238,90 @@ _EDUCATION_PLATFORMS = {"linkedin", "classmates"}
 
 # Property / real-estate platforms
 _PROPERTY_PLATFORMS = {
-    "property_zillow", "property_redfin", "property_county", "property_realtor",
-    "property_trulia", "property_mls", "zillow_deep", "redfin_deep",
-    "county_assessor_multi", "deed_recorder", "netronline_public",
-    "property_tax_nationwide", "propertyradar_scraper",
-    "attom_gateway", "county_assessor_fl", "county_assessor_tx", "redfin_property", "mortgage_deed", "mortgage_hmda", "google_maps", "geo_openstreetmap",
+    "property_zillow",
+    "property_redfin",
+    "property_county",
+    "property_realtor",
+    "property_trulia",
+    "property_mls",
+    "zillow_deep",
+    "redfin_deep",
+    "county_assessor_multi",
+    "deed_recorder",
+    "netronline_public",
+    "property_tax_nationwide",
+    "propertyradar_scraper",
+    "attom_gateway",
+    "county_assessor_fl",
+    "county_assessor_tx",
+    "redfin_property",
+    "mortgage_deed",
+    "mortgage_hmda",
+    "google_maps",
+    "geo_openstreetmap",
 }
 
 # Vehicle / craft ownership platforms
 _VEHICLE_PLATFORMS = {
-    "vehicle_ownership", "vehicle_vin", "vehicle_plate",
-    "faa_aircraft_registry", "marine_vessel",
-    "vehicle_nhtsa", "vehicle_nicb", "vin_decode_enhanced", "geo_adsbexchange",
+    "vehicle_ownership",
+    "vehicle_vin",
+    "vehicle_plate",
+    "faa_aircraft_registry",
+    "marine_vessel",
+    "vehicle_nhtsa",
+    "vehicle_nicb",
+    "vin_decode_enhanced",
+    "geo_adsbexchange",
 }
 
 # Financial / crypto platforms
 _FINANCIAL_PLATFORMS = {
-    "crypto_blockchain", "crypto_etherscan", "crypto_bscscan",
-    "crypto_polygonscan", "financial_sec", "financial_crunchbase",
-    "icij_offshoreleaks", "company_sec", "gov_propublica",
-    "gov_fec", "gov_usaspending", "gov_sam",
-    "crypto_bitcoin", "crypto_blockchair", "crypto_ethereum", "financial_finra", "financial_worldbank", "gov_fdic", "gov_finra", "gov_nmls", "gov_fred", "gov_worldbank", "gov_grants", "sec_edgar", "sec_insider",
-    "company_companies_house", "company_opencorporates",
+    "crypto_blockchain",
+    "crypto_etherscan",
+    "crypto_bscscan",
+    "crypto_polygonscan",
+    "financial_sec",
+    "financial_crunchbase",
+    "icij_offshoreleaks",
+    "company_sec",
+    "gov_propublica",
+    "gov_fec",
+    "gov_usaspending",
+    "gov_sam",
+    "crypto_bitcoin",
+    "crypto_blockchair",
+    "crypto_ethereum",
+    "financial_finra",
+    "financial_worldbank",
+    "gov_fdic",
+    "gov_finra",
+    "gov_nmls",
+    "gov_fred",
+    "gov_worldbank",
+    "gov_grants",
+    "sec_edgar",
+    "sec_insider",
+    "company_companies_house",
+    "company_opencorporates",
 }
 
 # News / adverse-media platforms
 _NEWS_PLATFORMS = {
-    "news_search", "news_google", "google_news_rss",
-    "adverse_media_search", "gdelt_mentions", "obituary_search",
+    "news_search",
+    "news_google",
+    "google_news_rss",
+    "adverse_media_search",
+    "gdelt_mentions",
+    "obituary_search",
     "news_wikipedia",
-    "bing_news", "news_archive", "newspapers_archive", "cyber_wayback",
-    "ancestry_hints", "census_records", "geni_public", "vitals_records",
+    "bing_news",
+    "news_archive",
+    "newspapers_archive",
+    "cyber_wayback",
+    "ancestry_hints",
+    "census_records",
+    "geni_public",
+    "vitals_records",
 }
 
 
@@ -430,6 +561,7 @@ async def aggregate_result(
             if dob_raw and not person_obj.date_of_birth:
                 try:
                     from dateutil import parser as _dp
+
                     # Wikidata format: "+1971-06-28T00:00:00Z"
                     dob_str = dob_raw.lstrip("+").split("T")[0]
                     person_obj.date_of_birth = _dp.parse(dob_str).date()
@@ -443,8 +575,10 @@ async def aggregate_result(
 
             # Twitter/Instagram/LinkedIn as identifiers
             for field, id_type in [
-                ("twitter_username", "username"), ("instagram_username", "username"),
-                ("linkedin_id", "username"), ("github_username", "username"),
+                ("twitter_username", "username"),
+                ("instagram_username", "username"),
+                ("linkedin_id", "username"),
+                ("github_username", "username"),
             ]:
                 val = data.get(field)
                 if isinstance(val, list):
@@ -457,10 +591,12 @@ async def aggregate_result(
 
             # Store spouse/child/sibling QIDs as relationships
             try:
-                from shared.models.relationship import Relationship
                 rel_map = {
-                    "spouse": "spouse_of", "child": "parent_of",
-                    "father": "child_of", "mother": "child_of", "sibling": "sibling_of",
+                    "spouse": "spouse_of",
+                    "child": "parent_of",
+                    "father": "child_of",
+                    "mother": "child_of",
+                    "sibling": "sibling_of",
                 }
                 for field, rel_type in rel_map.items():
                     val = data.get(field)
@@ -485,7 +621,9 @@ async def aggregate_result(
     if not _handled:
         logger.warning(
             "Unhandled platform %s for person %s — data keys: %s",
-            platform, person.id, list((result.data or {}).keys()),
+            platform,
+            person.id,
+            list((result.data or {}).keys()),
         )
 
     # Identifier history ───────────────────────────────────────────────────────
@@ -525,7 +663,9 @@ async def aggregate_result(
 
 
 from rapidfuzz import fuzz as _fuzz
-from shared.utils import normalize_identifier, normalize_name as _normalize_name
+
+from shared.utils import normalize_identifier
+from shared.utils import normalize_name as _normalize_name
 
 
 async def _get_or_create_person(
@@ -557,7 +697,9 @@ async def _get_or_create_person(
         result.identifier if result.identifier and "@" in result.identifier else None
     )
     phone = data.get("phone") or (
-        result.identifier if result.identifier and _looks_like_phone_number(result.identifier) else None
+        result.identifier
+        if result.identifier and _looks_like_phone_number(result.identifier)
+        else None
     )
 
     if email:
@@ -578,6 +720,7 @@ async def _get_or_create_person(
 
     if phone:
         import re as _re_phone
+
         digits = _re_phone.sub(r"\D", "", phone)
         normalized_phone = f"+{digits}"
         ident_match = (
@@ -596,9 +739,7 @@ async def _get_or_create_person(
                 return p
 
     # Try to find by normalized full_name if result carries one
-    full_name = (
-        data.get("name") or data.get("full_name") or data.get("display_name")
-    )
+    full_name = data.get("name") or data.get("full_name") or data.get("display_name")
     if full_name:
         norm = _normalize_name(full_name)
         # Exact normalized name match
@@ -610,14 +751,18 @@ async def _get_or_create_person(
 
         # Fuzzy name match: prefix-blocked to reduce comparison set
         candidates = (
-            await session.execute(
-                select(Person)
-                .where(Person.full_name.isnot(None))
-                .where(Person.full_name.ilike(f"{norm[:3]}%"))
-                .order_by(Person.created_at.desc())
-                .limit(200)
+            (
+                await session.execute(
+                    select(Person)
+                    .where(Person.full_name.isnot(None))
+                    .where(Person.full_name.ilike(f"{norm[:3]}%"))
+                    .order_by(Person.created_at.desc())
+                    .limit(200)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         for candidate in candidates:
             score = _fuzz.token_sort_ratio(norm, candidate.full_name or "")
@@ -652,7 +797,7 @@ async def _upsert_social_profile(
         )
     ).scalar_one_or_none()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if existing:
         # Update mutable fields — never overwrite with None
@@ -674,8 +819,10 @@ async def _upsert_social_profile(
         )
         # Capture profile image for Person if available
         avatar = (
-            data.get("profile_image_url") or data.get("avatar_url")
-            or data.get("profile_photo") or data.get("photo_url")
+            data.get("profile_image_url")
+            or data.get("avatar_url")
+            or data.get("profile_photo")
+            or data.get("photo_url")
         )
         if avatar and isinstance(avatar, str) and avatar.startswith("http"):
             person = await session.get(Person, person_id)
@@ -713,8 +860,10 @@ async def _upsert_social_profile(
     await session.flush()
     # Capture profile image for Person if available
     avatar = (
-        data.get("profile_image_url") or data.get("avatar_url")
-        or data.get("profile_photo") or data.get("photo_url")
+        data.get("profile_image_url")
+        or data.get("avatar_url")
+        or data.get("profile_photo")
+        or data.get("photo_url")
     )
     if avatar and isinstance(avatar, str) and avatar.startswith("http"):
         person = await session.get(Person, person_id)
@@ -726,11 +875,15 @@ async def _upsert_social_profile(
         data = result.data or {}
         handle = data.get("handle") or data.get("username") or data.get("screen_name")
         if handle and isinstance(handle, str) and len(handle) >= 2:
-            await _safe_upsert_identifier(session, person_id, "username", handle, handle.lower().lstrip("@"))
+            await _safe_upsert_identifier(
+                session, person_id, "username", handle, handle.lower().lstrip("@")
+            )
 
         social_email = data.get("email") or data.get("contact_email")
         if social_email and isinstance(social_email, str) and "@" in social_email:
-            await _safe_upsert_identifier(session, person_id, "email", social_email, social_email.strip().lower())
+            await _safe_upsert_identifier(
+                session, person_id, "email", social_email, social_email.strip().lower()
+            )
 
         social_phone = data.get("phone") or data.get("phone_number")
         if social_phone and isinstance(social_phone, str):
@@ -992,7 +1145,7 @@ async def _handle_people_search(
     """Write Address rows from people-search results (up to 3 per scrape)."""
     data = result.data or {}
     results = data.get("results") or []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for r in results[:5]:
         if not isinstance(r, dict):
@@ -1005,7 +1158,9 @@ async def _handle_people_search(
             raw_addresses.append(single_addr)
         # Also check structured fields
         if r.get("street"):
-            raw_addresses.append(f"{r.get('street', '')} {r.get('city', '')} {r.get('state', '')}".strip())
+            raw_addresses.append(
+                f"{r.get('street', '')} {r.get('city', '')} {r.get('state', '')}".strip()
+            )
 
         for raw in raw_addresses[:3]:
             if not isinstance(raw, str) or len(raw.strip()) < 5:
@@ -1055,6 +1210,7 @@ async def _handle_people_search(
                 age_int = int(str(age).strip())
                 if 1 < age_int < 120:
                     from datetime import date
+
                     approx_year = date.today().year - age_int
                     person = await session.get(Person, person_id)
                     if person and not person.date_of_birth:
@@ -1089,7 +1245,7 @@ async def _handle_people_search(
         if phones:
             if isinstance(phones, str):
                 phones = [phones]
-            for ph in (phones if isinstance(phones, list) else []):
+            for ph in phones if isinstance(phones, list) else []:
                 if not isinstance(ph, str):
                     continue
                 digits = re.sub(r"[^\d]", "", ph)
@@ -1109,9 +1265,11 @@ async def _handle_people_search(
         if emails:
             if isinstance(emails, str):
                 emails = [emails]
-            for em in (emails if isinstance(emails, list) else []):
+            for em in emails if isinstance(emails, list) else []:
                 if isinstance(em, str) and "@" in em:
-                    await _safe_upsert_identifier(session, person_id, "email", em, em.strip().lower())
+                    await _safe_upsert_identifier(
+                        session, person_id, "email", em, em.strip().lower()
+                    )
 
     # Extract relatives/associated people
     for r in results[:5]:
@@ -1129,29 +1287,51 @@ async def _handle_people_search(
                 continue
             try:
                 from shared.models.relationship import Relationship
+
                 # Create or find the relative person
-                rel_person = await _get_or_create_person(session, None,
-                    CrawlerResult(platform=result.platform, identifier=rel_name, found=True, data={"full_name": rel_name}))
+                rel_person = await _get_or_create_person(
+                    session,
+                    None,
+                    CrawlerResult(
+                        platform=result.platform,
+                        identifier=rel_name,
+                        found=True,
+                        data={"full_name": rel_name},
+                    ),
+                )
                 if rel_person and rel_person.id != person_id:
                     # Check for existing relationship
-                    from sqlalchemy import or_, and_
-                    existing = (await session.execute(
-                        select(Relationship.id).where(
-                            or_(
-                                and_(Relationship.person_a_id == person_id, Relationship.person_b_id == rel_person.id),
-                                and_(Relationship.person_a_id == rel_person.id, Relationship.person_b_id == person_id),
+                    from sqlalchemy import and_, or_
+
+                    existing = (
+                        await session.execute(
+                            select(Relationship.id)
+                            .where(
+                                or_(
+                                    and_(
+                                        Relationship.person_a_id == person_id,
+                                        Relationship.person_b_id == rel_person.id,
+                                    ),
+                                    and_(
+                                        Relationship.person_a_id == rel_person.id,
+                                        Relationship.person_b_id == person_id,
+                                    ),
+                                )
                             )
-                        ).limit(1)
-                    )).scalar_one_or_none()
+                            .limit(1)
+                        )
+                    ).scalar_one_or_none()
                     if not existing:
-                        session.add(Relationship(
-                            id=uuid.uuid4(),
-                            person_a_id=person_id,
-                            person_b_id=rel_person.id,
-                            relationship_type="associate",
-                            confidence_score=0.5,
-                            source=result.platform,
-                        ))
+                        session.add(
+                            Relationship(
+                                id=uuid.uuid4(),
+                                person_a_id=person_id,
+                                person_b_id=rel_person.id,
+                                relationship_type="associate",
+                                confidence_score=0.5,
+                                source=result.platform,
+                            )
+                        )
                         # Flag person for genealogy tree building
                         try:
                             p = await session.get(Person, person_id)
@@ -1330,7 +1510,7 @@ async def _record_identifier_history(
     if not result.identifier:
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Determine type from platform context
     platform = (result.platform or "").lower()
@@ -1427,7 +1607,7 @@ async def _handle_behavioural(
         existing.financial_distress_score = max(existing.financial_distress_score or 0.0, financial)
         existing.drug_signal_score = max(existing.drug_signal_score or 0.0, substance)
         existing.violence_score = max(existing.violence_score or 0.0, aggression)
-        existing.last_assessed_at = datetime.now(timezone.utc)
+        existing.last_assessed_at = datetime.now(UTC)
         if "ocean_openness" in data:
             existing.meta = existing.meta or {}
             existing.meta["ocean_openness"] = data["ocean_openness"]
@@ -1452,7 +1632,7 @@ async def _handle_behavioural(
             drug_signal_score=substance,
             violence_score=aggression,
             criminal_signal_score=0.0,
-            last_assessed_at=datetime.now(timezone.utc),
+            last_assessed_at=datetime.now(UTC),
             meta=meta,
         )
         session.add(bp)
@@ -1461,6 +1641,7 @@ async def _handle_behavioural(
 def _parse_date_field(item: dict, *keys: str):
     """Try multiple dict keys to extract a date, return datetime or None."""
     from dateutil import parser as _dp
+
     for k in keys:
         v = item.get(k)
         if v and isinstance(v, str):
@@ -1483,15 +1664,21 @@ async def _handle_employment(
     items = data.get("employment") or data.get("work_history") or data.get("jobs") or []
     if isinstance(items, dict):
         items = [items]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for item in items:
         if not isinstance(item, dict):
             continue
         obj = EmploymentHistory(
             id=uuid.uuid4(),
             person_id=person_id,
-            employer_name=str(item.get("company") or item.get("employer") or item.get("employer_name") or "")[:500] or None,
-            job_title=str(item.get("title") or item.get("job_title") or item.get("position") or "")[:500] or None,
+            employer_name=str(
+                item.get("company") or item.get("employer") or item.get("employer_name") or ""
+            )[:500]
+            or None,
+            job_title=str(item.get("title") or item.get("job_title") or item.get("position") or "")[
+                :500
+            ]
+            or None,
             industry=str(item.get("industry") or "")[:255] or None,
             is_current=bool(item.get("is_current") or item.get("current")),
             location=str(item.get("location") or "")[:255] or None,
@@ -1500,8 +1687,11 @@ async def _handle_employment(
             meta={"raw": item, "source_platform": result.platform},
         )
         apply_quality_to_model(
-            obj, last_scraped_at=now, source_type="employment",
-            source_name=result.platform, corroboration_count=1,
+            obj,
+            last_scraped_at=now,
+            source_type="employment",
+            source_name=result.platform,
+            corroboration_count=1,
         )
         session.add(obj)
 
@@ -1518,23 +1708,32 @@ async def _handle_education(
     items = data.get("education") or data.get("schools") or []
     if isinstance(items, dict):
         items = [items]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for item in items:
         if not isinstance(item, dict):
             continue
         obj = Education(
             id=uuid.uuid4(),
             person_id=person_id,
-            institution=str(item.get("school") or item.get("institution") or item.get("university") or "")[:500] or None,
+            institution=str(
+                item.get("school") or item.get("institution") or item.get("university") or ""
+            )[:500]
+            or None,
             degree=str(item.get("degree") or "")[:255] or None,
-            field_of_study=str(item.get("field_of_study") or item.get("major") or item.get("field") or "")[:255] or None,
+            field_of_study=str(
+                item.get("field_of_study") or item.get("major") or item.get("field") or ""
+            )[:255]
+            or None,
             is_completed=bool(item.get("is_completed", True)),
             tier=str(item.get("tier") or "")[:50] or None,
             meta={"raw": item, "source_platform": result.platform},
         )
         apply_quality_to_model(
-            obj, last_scraped_at=now, source_type="education",
-            source_name=result.platform, corroboration_count=1,
+            obj,
+            last_scraped_at=now,
+            source_type="education",
+            source_name=result.platform,
+            corroboration_count=1,
         )
         session.add(obj)
 
@@ -1551,14 +1750,15 @@ async def _handle_property(
     items = data.get("properties") or data.get("results") or data.get("parcels") or []
     if isinstance(items, dict):
         items = [items]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for item in items:
         if not isinstance(item, dict):
             continue
         obj = Property(
             id=uuid.uuid4(),
             person_id=person_id,
-            street_address=str(item.get("address") or item.get("street_address") or "")[:500] or None,
+            street_address=str(item.get("address") or item.get("street_address") or "")[:500]
+            or None,
             city=str(item.get("city") or "")[:255] or None,
             state=str(item.get("state") or "")[:100] or None,
             zip_code=str(item.get("zip") or item.get("zip_code") or "")[:20] or None,
@@ -1573,8 +1773,11 @@ async def _handle_property(
             meta={"raw": item, "source_platform": result.platform},
         )
         apply_quality_to_model(
-            obj, last_scraped_at=now, source_type="property_record",
-            source_name=result.platform, corroboration_count=1,
+            obj,
+            last_scraped_at=now,
+            source_type="property_record",
+            source_name=result.platform,
+            corroboration_count=1,
         )
         session.add(obj)
 
@@ -1591,7 +1794,7 @@ async def _handle_vehicle(
     items = data.get("vehicles") or data.get("results") or []
     if isinstance(items, dict):
         items = [items]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for item in items:
         if not isinstance(item, dict):
             continue
@@ -1610,8 +1813,11 @@ async def _handle_vehicle(
             meta={"raw": item, "source_platform": result.platform},
         )
         apply_quality_to_model(
-            obj, last_scraped_at=now, source_type="vehicle_record",
-            source_name=result.platform, corroboration_count=1,
+            obj,
+            last_scraped_at=now,
+            source_type="vehicle_record",
+            source_name=result.platform,
+            corroboration_count=1,
         )
         session.add(obj)
 
@@ -1652,16 +1858,20 @@ async def _handle_financial(
         filings = data.get("filings") or data.get("directorships") or data.get("officers") or []
         if isinstance(filings, dict):
             filings = [filings]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for f in filings:
             if not isinstance(f, dict):
                 continue
             obj = CorporateDirectorship(
                 id=uuid.uuid4(),
                 person_id=person_id,
-                company_name=str(f.get("company") or f.get("company_name") or f.get("entity") or "")[:500] or None,
+                company_name=str(
+                    f.get("company") or f.get("company_name") or f.get("entity") or ""
+                )[:500]
+                or None,
                 company_registration=str(f.get("cik") or f.get("registration") or "")[:200] or None,
-                company_jurisdiction=str(f.get("jurisdiction") or f.get("state") or "")[:255] or None,
+                company_jurisdiction=str(f.get("jurisdiction") or f.get("state") or "")[:255]
+                or None,
                 role=str(f.get("role") or f.get("title") or f.get("position") or "")[:200] or None,
                 is_executive=bool(f.get("is_executive")),
                 is_board_member=bool(f.get("is_board_member")),
@@ -1669,8 +1879,11 @@ async def _handle_financial(
                 meta={"raw": f, "source_platform": result.platform},
             )
             apply_quality_to_model(
-                obj, last_scraped_at=now, source_type="financial_record",
-                source_name=result.platform, corroboration_count=1,
+                obj,
+                last_scraped_at=now,
+                source_type="financial_record",
+                source_name=result.platform,
+                corroboration_count=1,
             )
             session.add(obj)
 
@@ -1684,10 +1897,16 @@ async def _handle_news(
     if AdverseMedia is None:
         return
     data = result.data or {}
-    items = data.get("articles") or data.get("results") or data.get("news") or data.get("mentions") or []
+    items = (
+        data.get("articles")
+        or data.get("results")
+        or data.get("news")
+        or data.get("mentions")
+        or []
+    )
     if isinstance(items, dict):
         items = [items]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for item in items[:50]:  # cap at 50 articles per crawl
         if not isinstance(item, dict):
             continue
@@ -1699,6 +1918,7 @@ async def _handle_news(
         if raw_date:
             try:
                 from datetime import date as _date
+
                 pub_date = _date.fromisoformat(str(raw_date)[:10])
             except (ValueError, TypeError):
                 pass
@@ -1707,11 +1927,17 @@ async def _handle_news(
             id=uuid.uuid4(),
             person_id=person_id,
             headline=str(item.get("title") or item.get("headline") or "")[:2000] or None,
-            summary=str(item.get("snippet") or item.get("summary") or item.get("description") or "")[:5000] or None,
+            summary=str(
+                item.get("snippet") or item.get("summary") or item.get("description") or ""
+            )[:5000]
+            or None,
             url=url,
             url_hash=url_hash,
             publication_date=pub_date,
-            source_name=str(item.get("source") or item.get("source_name") or item.get("publisher") or "")[:255] or None,
+            source_name=str(
+                item.get("source") or item.get("source_name") or item.get("publisher") or ""
+            )[:255]
+            or None,
             language=str(item.get("language") or "en")[:20],
             category=str(item.get("category") or "")[:100] or None,
             severity="medium",
@@ -1719,8 +1945,11 @@ async def _handle_news(
             meta={"raw": item, "source_platform": result.platform},
         )
         apply_quality_to_model(
-            obj, last_scraped_at=now, source_type="news_article",
-            source_name=result.platform, corroboration_count=1,
+            obj,
+            last_scraped_at=now,
+            source_type="news_article",
+            source_name=result.platform,
+            corroboration_count=1,
         )
         session.add(obj)
 
@@ -1732,7 +1961,7 @@ async def _handle_government(
 ) -> None:
     """Persist voter registration addresses and professional licenses from gov sources."""
     data = result.data or {}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Voter registration -> Address rows
     addresses = data.get("addresses") or data.get("voter_addresses") or []
@@ -1758,8 +1987,11 @@ async def _handle_government(
             source_reliability=result.source_reliability,
         )
         apply_quality_to_model(
-            addr, last_scraped_at=now, source_type="government_record",
-            source_name=result.platform, corroboration_count=1,
+            addr,
+            last_scraped_at=now,
+            source_type="government_record",
+            source_name=result.platform,
+            corroboration_count=1,
         )
         session.add(addr)
 
@@ -1775,7 +2007,8 @@ async def _handle_government(
                 id=uuid.uuid4(),
                 person_id=person_id,
                 license_type=str(lic.get("type") or lic.get("license_type") or "")[:200] or None,
-                license_number=str(lic.get("number") or lic.get("license_number") or "")[:200] or None,
+                license_number=str(lic.get("number") or lic.get("license_number") or "")[:200]
+                or None,
                 issuing_body=str(lic.get("issuing_body") or lic.get("board") or "")[:500] or None,
                 issuing_state=str(lic.get("state") or lic.get("issuing_state") or "")[:100] or None,
                 is_active=bool(lic.get("is_active", True)),
@@ -1784,8 +2017,11 @@ async def _handle_government(
                 meta={"raw": lic, "source_platform": result.platform},
             )
             apply_quality_to_model(
-                obj, last_scraped_at=now, source_type="government_record",
-                source_name=result.platform, corroboration_count=1,
+                obj,
+                last_scraped_at=now,
+                source_type="government_record",
+                source_name=result.platform,
+                corroboration_count=1,
             )
             session.add(obj)
 

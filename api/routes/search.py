@@ -2,6 +2,12 @@ import logging
 import re
 import uuid
 
+
+def _escape_like(value: str) -> str:
+    """Escape SQL LIKE wildcards in user input."""
+    return value.replace("%", r"\%").replace("_", r"\_")
+
+
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select
@@ -321,9 +327,7 @@ class SearchRequest(BaseModel):
         v = re.sub(r"[$`\\]", "", v)
         # Allow chars needed for: names, emails, phones, crypto addresses,
         # IPs, domains, usernames
-        allowed = re.compile(
-            r"[^a-zA-Z0-9\s\-\'.@+_:./()#]"
-        )
+        allowed = re.compile(r"[^a-zA-Z0-9\s\-\'.@+_:./()#]")
         v = allowed.sub("", v)
         v = v.strip()
         if not v:
@@ -396,7 +400,7 @@ async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePe
             selectinload(Person.identifiers),
             selectinload(Person.social_profiles),
         )
-        .where(Person.full_name.ilike(f"%{norm}%"))
+        .where(Person.full_name.ilike(f"%{_escape_like(norm)}%"))
         .where(Person.merged_into.is_(None))
         .limit(20)
     )
@@ -432,23 +436,13 @@ async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePe
             location = ", ".join(parts) if parts else None
 
         # Social platforms — unique active platform names
-        social_platforms = sorted(
-            {sp.platform for sp in p.social_profiles if sp.is_active}
-        )
+        social_platforms = sorted({sp.platform for sp in p.social_profiles if sp.is_active})
 
         # Masked emails (max 3)
-        emails = [
-            _mask_email(ident.value)
-            for ident in p.identifiers
-            if ident.type == "email"
-        ][:3]
+        emails = [_mask_email(ident.value) for ident in p.identifiers if ident.type == "email"][:3]
 
         # Masked phones (max 2)
-        phones = [
-            _mask_phone(ident.value)
-            for ident in p.identifiers
-            if ident.type == "phone"
-        ][:2]
+        phones = [_mask_phone(ident.value) for ident in p.identifiers if ident.type == "phone"][:2]
 
         candidates.append(
             CandidatePerson(
@@ -458,10 +452,14 @@ async def _get_candidates(value: str, session: AsyncSession) -> list[CandidatePe
                 nationality=p.nationality,
                 identifier_count=ident_count,
                 risk_score=p.default_risk_score,
-                profile_image_url=p.profile_image_url if isinstance(p.profile_image_url, str) else None,
+                profile_image_url=p.profile_image_url
+                if isinstance(p.profile_image_url, str)
+                else None,
                 location=location,
                 social_platforms=social_platforms,
-                enrichment_score=float(p.enrichment_score) if isinstance(p.enrichment_score, (int, float)) else None,
+                enrichment_score=float(p.enrichment_score)
+                if isinstance(p.enrichment_score, (int, float))
+                else None,
                 emails=emails,
                 phones=phones,
             )
@@ -490,6 +488,7 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
 
     # ── Check for existing identifier (exact match) ──────────────────────────
     from shared.utils import normalize_identifier
+
     norm_val = normalize_identifier(req.value, seed_type.value)
     q = (
         select(Identifier)
@@ -507,6 +506,7 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
         matched_person = await session.get(Person, person_id)
         if matched_person and not matched_person.full_name:
             from rapidfuzz import fuzz as _fuzz2
+
             # Try to extract a name from the search value
             merge_name = None
             if seed_type == SeedType.FULL_NAME:
@@ -521,30 +521,42 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
             if merge_name and len(merge_name) >= 4:
                 named_q = (
                     select(Person)
-                    .where(Person.full_name.isnot(None), Person.merged_into.is_(None), Person.id != person_id)
+                    .where(
+                        Person.full_name.isnot(None),
+                        Person.merged_into.is_(None),
+                        Person.id != person_id,
+                    )
                     .limit(50)
                 )
                 named_persons = (await session.execute(named_q)).scalars().all()
                 for np in named_persons:
-                    if np.full_name and _fuzz2.token_sort_ratio(merge_name, np.full_name.lower()) >= 85:
+                    if (
+                        np.full_name
+                        and _fuzz2.token_sort_ratio(merge_name, np.full_name.lower()) >= 85
+                    ):
                         # Merge: move all identifiers from nameless person to named person
                         from sqlalchemy import update
+
                         await session.execute(
-                            update(Identifier).where(Identifier.person_id == person_id).values(person_id=np.id)
+                            update(Identifier)
+                            .where(Identifier.person_id == person_id)
+                            .values(person_id=np.id)
                         )
                         matched_person.merged_into = np.id
                         person_id = np.id
-                        logger.info("Merged nameless person %s into named person %s (%s)",
-                                   existing_ident.person_id, np.id, np.full_name)
+                        logger.info(
+                            "Merged nameless person %s into named person %s (%s)",
+                            existing_ident.person_id,
+                            np.id,
+                            np.full_name,
+                        )
                         await session.flush()
                         break
 
     else:
         # ── Cross-match: check if ANY existing person has this identifier ──
         cross_q = (
-            select(Identifier.person_id)
-            .where(Identifier.normalized_value == norm_val)
-            .limit(1)
+            select(Identifier.person_id).where(Identifier.normalized_value == norm_val).limit(1)
         )
         cross_match = (await session.execute(cross_q)).scalar_one_or_none()
 
@@ -572,7 +584,7 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
                     single_q = (
                         select(Person)
                         .where(
-                            Person.full_name.ilike(f"% {parts[0]}"),
+                            Person.full_name.ilike(f"% {_escape_like(parts[0])}"),
                             Person.merged_into.is_(None),
                         )
                         .limit(5)
@@ -596,9 +608,10 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
                 )
                 candidates = (await session.execute(name_q)).scalars().all()
                 for c in candidates:
-                    if c.full_name and _fuzz.token_sort_ratio(
-                        name_to_match, c.full_name.lower()
-                    ) >= 85:
+                    if (
+                        c.full_name
+                        and _fuzz.token_sort_ratio(name_to_match, c.full_name.lower()) >= 85
+                    ):
                         person_id = c.id
                         break
 
@@ -606,6 +619,7 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
         if person_id is None:
             try:
                 from modules.search.typesense_indexer import typesense_indexer
+
                 ts_results = await typesense_indexer.search(norm_val, limit=3)
                 hits = ts_results.get("hits", []) if isinstance(ts_results, dict) else []
                 for hit in hits:

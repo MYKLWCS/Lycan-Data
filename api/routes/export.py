@@ -36,18 +36,22 @@ async def export_person_json(person_id: uuid.UUID, db: AsyncSession = DbDep):
         "person": {
             "id": str(person.id),
             "full_name": person.full_name,
-            "dob": str(person.dob) if person.dob else None,
+            "date_of_birth": str(person.date_of_birth) if person.date_of_birth else None,
             "nationality": person.nationality,
-            "risk_score": person.risk_score,
+            "default_risk_score": person.default_risk_score,
+            "enrichment_score": person.enrichment_score,
             "meta": person.meta,
         },
-        "aliases": [{"name": a.full_name, "confidence": a.confidence} for a in aliases],
+        "aliases": [
+            {"alias": a.alias, "alias_type": a.alias_type, "confidence": a.confidence}
+            for a in aliases
+        ],
         "identifiers": [
-            {"type": i.identifier_type, "value": i.value, "platform": i.platform}
+            {"type": i.type, "value": i.value, "normalized_value": i.normalized_value}
             for i in identifiers
         ],
         "social_profiles": [
-            {"platform": s.platform, "username": s.username, "url": s.profile_url} for s in socials
+            {"platform": s.platform, "handle": s.handle, "url": s.url} for s in socials
         ],
     }
     content = json.dumps(payload, indent=2, default=str)
@@ -73,9 +77,9 @@ async def export_person_csv(person_id: uuid.UUID, db: AsyncSession = DbDep):
     writer = csv.writer(output)
     writer.writerow(["type", "value", "platform", "confidence"])
     for i in identifiers:
-        writer.writerow(["identifier", i.value, i.platform or "", ""])
+        writer.writerow(["identifier", i.value, i.type or "", i.confidence or ""])
     for s in socials:
-        writer.writerow(["social", s.username or "", s.platform, s.follower_count or ""])
+        writer.writerow(["social", s.handle or "", s.platform, s.follower_count or ""])
     output.seek(0)
     return StreamingResponse(
         io.BytesIO(output.read().encode()),

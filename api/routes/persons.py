@@ -3,7 +3,14 @@ Persons API — CRUD, reporting, deduplication, and merge endpoints.
 """
 
 import uuid
-from datetime import timezone
+
+
+def _escape_like(value: str) -> str:
+    """Escape SQL LIKE wildcards in user input."""
+    return value.replace("%", r"\%").replace("_", r"\_")
+
+
+from datetime import UTC
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -128,17 +135,17 @@ async def list_persons(
 
     # Name search
     if q:
-        base_q = base_q.where(Person.full_name.ilike(f"%{q}%"))
+        base_q = base_q.where(Person.full_name.ilike(f"%{_escape_like(q)}%"))
 
     # Region filter — join to addresses
     if city or state or country:
         addr_sub = select(Address.person_id).distinct()
         if city:
-            addr_sub = addr_sub.where(Address.city.ilike(f"%{city}%"))
+            addr_sub = addr_sub.where(Address.city.ilike(f"%{_escape_like(city)}%"))
         if state:
-            addr_sub = addr_sub.where(Address.state_province.ilike(f"%{state}%"))
+            addr_sub = addr_sub.where(Address.state_province.ilike(f"%{_escape_like(state)}%"))
         if country:
-            addr_sub = addr_sub.where(Address.country.ilike(f"%{country}%"))
+            addr_sub = addr_sub.where(Address.country.ilike(f"%{_escape_like(country)}%"))
         base_q = base_q.where(Person.id.in_(addr_sub))
 
     # Total count
@@ -623,7 +630,7 @@ async def delete_person(person_id: str, session: AsyncSession = DbDep):
     p = await _require_person(session, uid)
 
     if hasattr(p, "deleted_at"):
-        p.deleted_at = datetime.now(timezone.utc)
+        p.deleted_at = datetime.now(UTC)
         await session.commit()
         return {"message": "Person soft-deleted", "person_id": person_id}
     else:
@@ -1040,25 +1047,38 @@ async def get_family_tree(
                 "members": [],
             }
 
-        rels = (await session.execute(
-            select(Relationship).where(
-                (Relationship.person_a_id == uid) | (Relationship.person_b_id == uid)
+        rels = (
+            (
+                await session.execute(
+                    select(Relationship).where(
+                        (Relationship.person_a_id == uid) | (Relationship.person_b_id == uid)
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         # Inverse relationship mapping for correct generation direction
         _INVERSE_REL = {
-            "parent_of": "child_of", "child_of": "parent_of",
-            "grandparent_of": "grandchild_of", "grandchild_of": "grandparent_of",
-            "spouse_of": "spouse_of", "sibling_of": "sibling_of",
-            "associate": "associate", "co-location": "co-location",
+            "parent_of": "child_of",
+            "child_of": "parent_of",
+            "grandparent_of": "grandchild_of",
+            "grandchild_of": "grandparent_of",
+            "spouse_of": "spouse_of",
+            "sibling_of": "sibling_of",
+            "associate": "associate",
+            "co-location": "co-location",
             "shared_identifier": "shared_identifier",
         }
         # Generation delta: positive = older generation, negative = younger
         _GEN_DELTA = {
-            "parent_of": -1, "child_of": 1,
-            "grandparent_of": -2, "grandchild_of": 2,
-            "spouse_of": 0, "sibling_of": 0,
+            "parent_of": -1,
+            "child_of": 1,
+            "grandparent_of": -2,
+            "grandchild_of": 2,
+            "spouse_of": 0,
+            "sibling_of": 0,
         }
 
         nodes = {str(uid): {"person_id": str(uid), "full_name": person.full_name, "generation": 0}}
@@ -1066,6 +1086,7 @@ async def get_family_tree(
 
         # BFS to compute generations
         from collections import deque
+
         visited = {uid}
         queue = deque([(uid, 0)])
 
@@ -1077,7 +1098,9 @@ async def get_family_tree(
                     rel_type = r.relationship_type or "associate"
                 elif r.person_b_id == current_id:
                     other_id = r.person_a_id
-                    rel_type = _INVERSE_REL.get(r.relationship_type or "", r.relationship_type or "associate")
+                    rel_type = _INVERSE_REL.get(
+                        r.relationship_type or "", r.relationship_type or "associate"
+                    )
                 else:
                     continue
 
@@ -1093,17 +1116,21 @@ async def get_family_tree(
                     "person_id": str(other_id),
                     "full_name": other.full_name if other else "Unknown",
                     "generation": other_gen,
-                    "date_of_birth": str(other.date_of_birth) if other and other.date_of_birth else None,
+                    "date_of_birth": str(other.date_of_birth)
+                    if other and other.date_of_birth
+                    else None,
                 }
 
-                edges.append({
-                    "source": str(r.person_a_id),
-                    "target": str(r.person_b_id),
-                    "person_a_id": str(r.person_a_id),
-                    "person_b_id": str(r.person_b_id),
-                    "relationship_type": r.relationship_type,
-                    "confidence": r.confidence_score,
-                })
+                edges.append(
+                    {
+                        "source": str(r.person_a_id),
+                        "target": str(r.person_b_id),
+                        "person_a_id": str(r.person_a_id),
+                        "person_b_id": str(r.person_b_id),
+                        "relationship_type": r.relationship_type,
+                        "confidence": r.confidence_score,
+                    }
+                )
 
                 queue.append((other_id, other_gen))
 
@@ -1167,15 +1194,20 @@ async def link_identifier(
         raise HTTPException(404, "Person not found")
 
     from shared.utils import normalize_identifier
+
     norm = normalize_identifier(value, identifier_type)
 
     # Check if this identifier already exists on another person
-    existing = (await session.execute(
-        select(Identifier).where(
-            Identifier.normalized_value == norm,
-            Identifier.type == identifier_type,
-        ).limit(1)
-    )).scalar_one_or_none()
+    existing = (
+        await session.execute(
+            select(Identifier)
+            .where(
+                Identifier.normalized_value == norm,
+                Identifier.type == identifier_type,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     if existing and existing.person_id and existing.person_id != uid:
         # Move identifier directly (merge executor has session issues)
@@ -1183,10 +1215,9 @@ async def link_identifier(
         existing.person_id = uid
         # Move ALL identifiers from the other person
         from sqlalchemy import update
+
         await session.execute(
-            update(Identifier)
-            .where(Identifier.person_id == other_pid)
-            .values(person_id=uid)
+            update(Identifier).where(Identifier.person_id == other_pid).values(person_id=uid)
         )
         # Mark other person as merged
         other_person = await session.get(Person, other_pid)
