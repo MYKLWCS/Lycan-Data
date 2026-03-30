@@ -1069,10 +1069,31 @@ async def get_family_tree(
             "message": "POST /persons/{id}/family-tree/build to start",
         }
 
-    members = [
-        {"person_id": v["person_id"], "full_name": v["full_name"]}
-        for v in (tree.get("nodes") or {}).values()
-    ]
+    # Normalize nodes: enricher stores list of UUIDs, fallback stores keyed dict
+    raw_nodes = tree.get("nodes") or {}
+    if isinstance(raw_nodes, list):
+        # Convert UUID list to keyed dict with person details
+        node_dict = {}
+        for node_id in raw_nodes:
+            pid = node_id if isinstance(node_id, str) else str(node_id)
+            try:
+                p = await session.get(Person, uuid.UUID(pid))
+                node_dict[pid] = {
+                    "person_id": pid,
+                    "full_name": p.full_name if p else "Unknown",
+                    "date_of_birth": str(p.date_of_birth) if p and p.date_of_birth else None,
+                }
+            except Exception:
+                node_dict[pid] = {"person_id": pid, "full_name": "Unknown"}
+        tree["nodes"] = node_dict
+        raw_nodes = node_dict
+
+    members = []
+    if isinstance(raw_nodes, dict):
+        members = [
+            {"person_id": v.get("person_id", k), "full_name": v.get("full_name", "Unknown")}
+            for k, v in raw_nodes.items()
+        ]
 
     return {
         "root_person_id": str(snapshot.root_person_id) if snapshot else str(uid),
