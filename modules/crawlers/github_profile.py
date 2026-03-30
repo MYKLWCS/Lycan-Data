@@ -65,13 +65,20 @@ class GitHubProfileCrawler(HttpxCrawler):
                 "followers": u.get("followers"),
                 "url": u.get("html_url"),
                 "avatar_url": u.get("avatar_url"),
+                "profile_photo_url": u.get("avatar_url"),
             }
             for u in items[:5]
         ]
+        # Top result photo for easy access
+        top_photo = profiles[0].get("profile_photo_url") if profiles else None
         return CrawlerResult(
             platform=self.platform,
             identifier=identifier,
             found=True,
-            data={"profiles": profiles, "total_count": payload.get("total_count", len(profiles))},
+            data={
+                "profiles": profiles,
+                "total_count": payload.get("total_count", len(profiles)),
+                "profile_photo_url": top_photo,
+            },
             source_reliability=self.SOURCE_RELIABILITY,
         )
