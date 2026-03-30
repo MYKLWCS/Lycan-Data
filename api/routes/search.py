@@ -495,6 +495,43 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
 
     if existing_ident and existing_ident.person_id:
         person_id = existing_ident.person_id
+
+        # If the matched person has no name, try to find a named person to merge with
+        matched_person = await session.get(Person, person_id)
+        if matched_person and not matched_person.full_name:
+            from rapidfuzz import fuzz as _fuzz2
+            # Try to extract a name from the search value
+            merge_name = None
+            if seed_type == SeedType.FULL_NAME:
+                merge_name = norm_val
+            elif seed_type == SeedType.EMAIL and "@" in norm_val:
+                local = norm_val.split("@")[0]
+                merge_name = local.replace(".", " ").replace("_", " ").replace("-", " ").strip()
+                parts = merge_name.split()
+                if len(parts) < 2 or not all(p.isalpha() for p in parts):
+                    merge_name = None
+
+            if merge_name and len(merge_name) >= 4:
+                named_q = (
+                    select(Person)
+                    .where(Person.full_name.isnot(None), Person.merged_into.is_(None), Person.id != person_id)
+                    .limit(50)
+                )
+                named_persons = (await session.execute(named_q)).scalars().all()
+                for np in named_persons:
+                    if np.full_name and _fuzz2.token_sort_ratio(merge_name, np.full_name.lower()) >= 85:
+                        # Merge: move all identifiers from nameless person to named person
+                        from sqlalchemy import update
+                        await session.execute(
+                            update(Identifier).where(Identifier.person_id == person_id).values(person_id=np.id)
+                        )
+                        matched_person.merged_into = np.id
+                        person_id = np.id
+                        logger.info("Merged nameless person %s into named person %s (%s)",
+                                   existing_ident.person_id, np.id, np.full_name)
+                        await session.flush()
+                        break
+
     else:
         # ── Cross-match: check if ANY existing person has this identifier ──
         cross_q = (
