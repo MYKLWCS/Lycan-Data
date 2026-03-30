@@ -165,6 +165,7 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "property_county",
         # Structured biographical data (free, no key)
         "wikidata_lookup",
+        "google_people_search",
         "open_library",
     ],
     SeedType.DOMAIN: [

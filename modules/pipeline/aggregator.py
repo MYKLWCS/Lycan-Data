@@ -133,6 +133,7 @@ _PEOPLE_SEARCH_PLATFORMS = {
     "fastpeoplesearch",
     "truepeoplesearch",
     "people_thatsthem", "people_zabasearch", "people_familysearch", "people_findagrave", "people_namus", "people_usmarshals", "people_interpol", "people_fbi_wanted", "people_immigration", "people_phonebook", "people_intelx", "radaris", "spokeo", "peekyou", "clustrmaps", "familytreenow",
+    "google_people_search",
 }
 
 # Court / criminal record platform keys
