@@ -327,6 +327,79 @@ class EnrichmentOrchestrator:
         if score > person.relationship_score:
             person.relationship_score = score
             await session.flush()
+
+        # ── Infer relationships from shared addresses/identifiers ──
+        try:
+            from shared.models.relationship import Relationship
+
+            # Find other persons sharing the same address
+            if addr_count > 0:
+                shared_addr = await session.execute(
+                    select(Address.person_id)
+                    .where(
+                        Address.street.in_(
+                            select(Address.street).where(Address.person_id == pid)
+                        ),
+                        Address.person_id != pid,
+                        Address.person_id.isnot(None),
+                    )
+                    .distinct()
+                    .limit(20)
+                )
+                for (other_pid,) in shared_addr.all():
+                    # Check if relationship already exists
+                    existing_rel = (await session.execute(
+                        select(Relationship.id).where(
+                            ((Relationship.person_a_id == pid) & (Relationship.person_b_id == other_pid)) |
+                            ((Relationship.person_a_id == other_pid) & (Relationship.person_b_id == pid))
+                        ).limit(1)
+                    )).scalar_one_or_none()
+                    if not existing_rel:
+                        session.add(Relationship(
+                            id=uuid.uuid4(),
+                            person_a_id=pid,
+                            person_b_id=other_pid,
+                            relationship_type="co-location",
+                            confidence_score=0.6,
+                            source="address_match",
+                        ))
+
+            # Find other persons sharing identifiers (email, phone)
+            shared_idents = await session.execute(
+                select(Identifier.person_id)
+                .where(
+                    Identifier.normalized_value.in_(
+                        select(Identifier.normalized_value).where(
+                            Identifier.person_id == pid,
+                            Identifier.type.in_(["email", "phone"]),
+                        )
+                    ),
+                    Identifier.person_id != pid,
+                    Identifier.person_id.isnot(None),
+                )
+                .distinct()
+                .limit(20)
+            )
+            for (other_pid,) in shared_idents.all():
+                existing_rel = (await session.execute(
+                    select(Relationship.id).where(
+                        ((Relationship.person_a_id == pid) & (Relationship.person_b_id == other_pid)) |
+                        ((Relationship.person_a_id == other_pid) & (Relationship.person_b_id == pid))
+                    ).limit(1)
+                )).scalar_one_or_none()
+                if not existing_rel:
+                    session.add(Relationship(
+                        id=uuid.uuid4(),
+                        person_a_id=pid,
+                        person_b_id=other_pid,
+                        relationship_type="shared_identifier",
+                        confidence_score=0.8,
+                        source="identifier_match",
+                    ))
+
+            await session.flush()
+        except Exception as exc:
+            logger.debug("Relationship inference failed: %s", exc)
             await session.commit()
 
     async def _update_coverage(self, person_id: str, session: AsyncSession) -> None:

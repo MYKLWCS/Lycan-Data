@@ -448,7 +448,7 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
                 candidates=candidates,
             )
 
-    # ── Check for existing identifier ────────────────────────────────────────
+    # ── Check for existing identifier (exact match) ──────────────────────────
     norm_val = req.value.strip().lower()
     q = (
         select(Identifier)
@@ -457,10 +457,41 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
     )
     existing_ident = (await session.execute(q)).scalar_one_or_none()
 
+    person_id = None
+
     if existing_ident and existing_ident.person_id:
         person_id = existing_ident.person_id
     else:
-        # Create person record — set full_name when searching by name
+        # ── Cross-match: check if ANY existing person has this identifier ──
+        # Search across ALL identifier types (email found by crawl, phone from pivot, etc.)
+        cross_q = (
+            select(Identifier.person_id)
+            .where(Identifier.normalized_value == norm_val)
+            .limit(1)
+        )
+        cross_match = (await session.execute(cross_q)).scalar_one_or_none()
+
+        if cross_match:
+            person_id = cross_match
+        elif seed_type == SeedType.FULL_NAME:
+            # For name searches, also check Person.full_name directly
+            from rapidfuzz import fuzz as _fuzz
+            name_q = (
+                select(Person)
+                .where(
+                    Person.full_name.ilike(f"%{norm_val}%"),
+                    Person.merged_into.is_(None),
+                )
+                .limit(10)
+            )
+            candidates = (await session.execute(name_q)).scalars().all()
+            for c in candidates:
+                if c.full_name and _fuzz.token_sort_ratio(norm_val, c.full_name.lower()) >= 85:
+                    person_id = c.id
+                    break
+
+    if person_id is None:
+        # No match found — create new person
         person = Person(
             id=uuid.uuid4(),
             full_name=req.value.strip() if seed_type == SeedType.FULL_NAME else None,
@@ -469,21 +500,19 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
         await session.flush()
         person_id = person.id
 
-        if not existing_ident:
-            # Create seed identifier
-            ident = Identifier(
-                id=uuid.uuid4(),
-                person_id=person_id,
-                type=seed_type.value,
-                value=req.value,
-                normalized_value=norm_val,
-                confidence=1.0,
-                is_primary=True,
-                meta={"context": req.context, "max_depth": req.max_depth},
-            )
-            session.add(ident)
-        else:
-            existing_ident.person_id = person_id
+    if not existing_ident:
+        # Create seed identifier linked to the person
+        ident = Identifier(
+            id=uuid.uuid4(),
+            person_id=person_id,
+            type=seed_type.value,
+            value=req.value,
+            normalized_value=norm_val,
+            confidence=1.0,
+            is_primary=True,
+            meta={"context": req.context, "max_depth": req.max_depth},
+        )
+        session.add(ident)
 
     await session.commit()
 

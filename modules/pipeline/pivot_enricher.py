@@ -203,6 +203,22 @@ async def pivot_from_result(
             if existing:
                 continue
 
+            # Store the discovered identifier on the person
+            new_ident = Identifier(
+                id=uuid.uuid4(),
+                person_id=pid,
+                type=id_type,
+                value=value,
+                normalized_value=norm,
+                confidence=0.8,
+                meta={"discovered_from": platform, "pivot": True},
+            )
+            session.add(new_ident)
+            try:
+                await session.flush()
+            except Exception:
+                await session.rollback()
+
             platforms = _PIVOT_PLATFORMS.get(id_type, [])
             queued_for_this = 0
             for platform_name in platforms:
