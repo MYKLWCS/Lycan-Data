@@ -131,7 +131,7 @@ async def test_spokeo_found():
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
         "solution": {
-            "response": "<html><div class='name-age'>John Doe, 45</div><div class='address'>123 Main St, Dallas TX</div></html>",
+            "response": "<html><div class='name-age'><h3 class='name'>John Doe</h3><div class='address'>123 Main St, Dallas TX</div></div></html>",
             "status": 200,
         }
     }
