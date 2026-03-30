@@ -101,7 +101,7 @@ class EmailHoleheCrawler(BaseCrawler):
 
         return self._result(
             identifier,
-            found=True,
+            found=bool(found_on),
             email=email,
             found_on=found_on,
             checked_count=checked_count,

@@ -31,6 +31,9 @@ class IdentifierType(StrEnum):
     COMPANY_REG = "company_reg"
     VEHICLE_REG = "vehicle_reg"
     IMEI = "imei"
+    SSN = "ssn"
+    EIN = "ein"
+    DRIVERS_LICENSE = "drivers_license"
 
 
 class RelType(StrEnum):

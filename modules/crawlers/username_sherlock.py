@@ -101,7 +101,7 @@ class UsernameSherlockCrawler(BaseCrawler):
 
         return self._result(
             identifier,
-            found=True,
+            found=bool(found_on),
             username=username,
             found_on=found_on,
             site_count=len(found_on),

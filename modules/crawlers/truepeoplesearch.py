@@ -130,6 +130,15 @@ def _extract_tps_card(card) -> dict | None:
                 el.get_text(strip=True) for el in phone_els if el.get_text(strip=True)
             ]
 
+        # Email addresses
+        email_els = card.find_all(class_=lambda c: c and "email" in c.lower() if c else False)
+        if not email_els:
+            # Fallback: look for mailto links
+            email_links = card.find_all("a", href=lambda h: h and h.startswith("mailto:"))
+            data["emails"] = [a.get("href", "").replace("mailto:", "") for a in email_links]
+        else:
+            data["emails"] = [el.get_text(strip=True) for el in email_els if el.get_text(strip=True)]
+
         # Relatives
         rel_el = card.find(class_=lambda c: c and "relative" in c.lower() if c else False)
         if rel_el:
