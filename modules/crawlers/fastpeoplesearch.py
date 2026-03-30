@@ -45,22 +45,35 @@ class FastPeopleSearchCrawler(PlaywrightCrawler):
         else:
             url = f"https://www.fastpeoplesearch.com/name/{name_path}"
 
-        async with self.page(url) as page:
-            # Human-like delay before scraping
-            await page.wait_for_timeout(random.randint(2000, 4000))
+        # Try FlareSolverr first (bypasses Cloudflare), fall back to Playwright
+        content = None
+        try:
+            from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
+            fs = FlareSolverrCrawler()
+            if await fs._probe_flaresolverr():
+                resp = await fs.fs_get(url)
+                if resp and hasattr(resp, 'text') and len(resp.text) > 1000:
+                    content = resp.text
+                    logger.debug("FlareSolverr returned %d bytes for %s", len(content), url)
+        except Exception as exc:
+            logger.debug("FlareSolverr unavailable for %s: %s", url, exc)
 
-            title = await page.title()
-            if any(s in title.lower() for s in ("access denied", "blocked", "403")):
-                await self.rotate_circuit()
-                return CrawlerResult(
-                    platform=self.platform,
-                    identifier=identifier,
-                    found=False,
-                    error="bot_block: page title indicates block",
-                    source_reliability=self.source_reliability,
-                )
+        if not content:
+            async with self.page(url) as page:
+                await page.wait_for_timeout(random.randint(2000, 4000))
 
-            content = await page.content()
+                title = await page.title()
+                if any(s in title.lower() for s in ("access denied", "blocked", "403")):
+                    await self.rotate_circuit()
+                    return CrawlerResult(
+                        platform=self.platform,
+                        identifier=identifier,
+                        found=False,
+                        error="bot_block: page title indicates block",
+                        source_reliability=self.source_reliability,
+                    )
+
+                content = await page.content()
 
         soup = BeautifulSoup(content, "html.parser")
 
