@@ -7,7 +7,7 @@ Each enricher is independent — failures are logged and don't block subsequent 
 
 import logging
 from dataclasses import dataclass, field
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,6 +56,7 @@ class EnrichmentOrchestrator:
         Returns a report of what ran, what succeeded, and what failed.
         """
         import uuid
+
         from shared.models.person import Person
 
         # Skip if person was merged into another
@@ -67,36 +68,46 @@ class EnrichmentOrchestrator:
             if person and person.merged_into:
                 logger.info(
                     "Skipping enrichment for merged person %s (canonical: %s)",
-                    person_id, person.merged_into,
+                    person_id,
+                    person.merged_into,
                 )
                 return EnrichmentReport(
                     person_id=person_id,
-                    started_at=datetime.now(timezone.utc).isoformat(),
-                    finished_at=datetime.now(timezone.utc).isoformat(),
+                    started_at=datetime.now(UTC).isoformat(),
+                    finished_at=datetime.now(UTC).isoformat(),
                     total_duration_ms=0,
                     steps=[],
                 )
         except Exception:
-            pass
+            logger.debug("Merged-person precheck failed for %s", person_id, exc_info=True)
 
         from shared.schemas.progress import EventType
+
         _total_steps = 12
 
         async def _emit_enrichment_progress(step_num: int):
             try:
                 if event_bus.is_connected:
-                    await event_bus.publish("progress", {
-                        "event_type": EventType.ENRICHMENT_RUNNING.value,
-                        "search_id": str(person_id),
-                        "records_processed": step_num,
-                        "total_records": _total_steps,
-                    })
+                    await event_bus.publish(
+                        "progress",
+                        {
+                            "event_type": EventType.ENRICHMENT_RUNNING.value,
+                            "search_id": str(person_id),
+                            "records_processed": step_num,
+                            "total_records": _total_steps,
+                        },
+                    )
             except Exception:
-                pass
+                logger.debug(
+                    "Progress publish failed during enrichment step %s for %s",
+                    step_num,
+                    person_id,
+                    exc_info=True,
+                )
 
         await _emit_enrichment_progress(0)
 
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
         steps: list[EnrichmentStepResult] = []
 
         # ── Step 1: Financial / AML ───────────────────────────────────────────
@@ -219,7 +230,7 @@ class EnrichmentOrchestrator:
         )
         await _emit_enrichment_progress(12)
 
-        finished_at = datetime.now(timezone.utc)
+        finished_at = datetime.now(UTC)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
         report = EnrichmentReport(
@@ -236,29 +247,32 @@ class EnrichmentOrchestrator:
         # Signal SEARCH_COMPLETE so progress bar reaches 100%
         try:
             if event_bus.is_connected:
-                await event_bus.publish("progress", {
-                    "event_type": EventType.SEARCH_COMPLETE.value,
-                    "search_id": str(person_id),
-                    "results_found": report.ok_count,
-                })
+                await event_bus.publish(
+                    "progress",
+                    {
+                        "event_type": EventType.SEARCH_COMPLETE.value,
+                        "search_id": str(person_id),
+                        "results_found": report.ok_count,
+                    },
+                )
         except Exception:
-            pass
+            logger.debug("SEARCH_COMPLETE publish failed for %s", person_id, exc_info=True)
 
         return report
 
     async def _run_step(self, enricher: str, coro, person_id: str = "") -> EnrichmentStepResult:
         """Run a single enricher coroutine, catching all exceptions."""
-        t0 = datetime.now(timezone.utc)
+        t0 = datetime.now(UTC)
         try:
             await coro
-            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
             return EnrichmentStepResult(
                 enricher=enricher,
                 status="ok",
                 duration_ms=round(duration, 2),
             )
         except Exception as exc:
-            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
             logger.exception("Enricher %r failed for person_id=%s", enricher, person_id)
             return EnrichmentStepResult(
                 enricher=enricher,
@@ -371,9 +385,7 @@ class EnrichmentOrchestrator:
                 shared_addr = await session.execute(
                     select(Address.person_id)
                     .where(
-                        Address.street.in_(
-                            select(Address.street).where(Address.person_id == pid)
-                        ),
+                        Address.street.in_(select(Address.street).where(Address.person_id == pid)),
                         Address.person_id != pid,
                         Address.person_id.isnot(None),
                     )
@@ -382,21 +394,33 @@ class EnrichmentOrchestrator:
                 )
                 for (other_pid,) in shared_addr.all():
                     # Check if relationship already exists
-                    existing_rel = (await session.execute(
-                        select(Relationship.id).where(
-                            ((Relationship.person_a_id == pid) & (Relationship.person_b_id == other_pid)) |
-                            ((Relationship.person_a_id == other_pid) & (Relationship.person_b_id == pid))
-                        ).limit(1)
-                    )).scalar_one_or_none()
+                    existing_rel = (
+                        await session.execute(
+                            select(Relationship.id)
+                            .where(
+                                (
+                                    (Relationship.person_a_id == pid)
+                                    & (Relationship.person_b_id == other_pid)
+                                )
+                                | (
+                                    (Relationship.person_a_id == other_pid)
+                                    & (Relationship.person_b_id == pid)
+                                )
+                            )
+                            .limit(1)
+                        )
+                    ).scalar_one_or_none()
                     if not existing_rel:
-                        session.add(Relationship(
-                            id=uuid.uuid4(),
-                            person_a_id=pid,
-                            person_b_id=other_pid,
-                            relationship_type="co-location",
-                            confidence_score=0.6,
-                            source="address_match",
-                        ))
+                        session.add(
+                            Relationship(
+                                id=uuid.uuid4(),
+                                person_a_id=pid,
+                                person_b_id=other_pid,
+                                relationship_type="co-location",
+                                confidence_score=0.6,
+                                source="address_match",
+                            )
+                        )
 
             # Find other persons sharing identifiers (email, phone)
             shared_idents = await session.execute(
@@ -415,21 +439,33 @@ class EnrichmentOrchestrator:
                 .limit(20)
             )
             for (other_pid,) in shared_idents.all():
-                existing_rel = (await session.execute(
-                    select(Relationship.id).where(
-                        ((Relationship.person_a_id == pid) & (Relationship.person_b_id == other_pid)) |
-                        ((Relationship.person_a_id == other_pid) & (Relationship.person_b_id == pid))
-                    ).limit(1)
-                )).scalar_one_or_none()
+                existing_rel = (
+                    await session.execute(
+                        select(Relationship.id)
+                        .where(
+                            (
+                                (Relationship.person_a_id == pid)
+                                & (Relationship.person_b_id == other_pid)
+                            )
+                            | (
+                                (Relationship.person_a_id == other_pid)
+                                & (Relationship.person_b_id == pid)
+                            )
+                        )
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
                 if not existing_rel:
-                    session.add(Relationship(
-                        id=uuid.uuid4(),
-                        person_a_id=pid,
-                        person_b_id=other_pid,
-                        relationship_type="shared_identifier",
-                        confidence_score=0.8,
-                        source="identifier_match",
-                    ))
+                    session.add(
+                        Relationship(
+                            id=uuid.uuid4(),
+                            person_a_id=pid,
+                            person_b_id=other_pid,
+                            relationship_type="shared_identifier",
+                            confidence_score=0.8,
+                            source="identifier_match",
+                        )
+                    )
 
             await session.flush()
         except Exception as exc:
@@ -535,35 +571,44 @@ class EnrichmentOrchestrator:
         """Build family tree if relationships exist and no fresh snapshot."""
         try:
             import uuid
+
+            from sqlalchemy import func, select
+
             from shared.models.family_tree import FamilyTreeSnapshot
             from shared.models.relationship import Relationship
-            from sqlalchemy import select, func
 
             pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
 
             # Check if fresh snapshot exists
-            existing = (await session.execute(
-                select(FamilyTreeSnapshot).where(
-                    FamilyTreeSnapshot.root_person_id == pid,
-                    FamilyTreeSnapshot.is_stale.is_(False),
-                ).limit(1)
-            )).scalar_one_or_none()
+            existing = (
+                await session.execute(
+                    select(FamilyTreeSnapshot)
+                    .where(
+                        FamilyTreeSnapshot.root_person_id == pid,
+                        FamilyTreeSnapshot.is_stale.is_(False),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
 
             if existing:
                 return  # Fresh snapshot already exists
 
             # Check if person has any relationships
-            rel_count = (await session.execute(
-                select(func.count()).select_from(Relationship).where(
-                    (Relationship.person_a_id == pid) | (Relationship.person_b_id == pid)
+            rel_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(Relationship)
+                    .where((Relationship.person_a_id == pid) | (Relationship.person_b_id == pid))
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
             if rel_count == 0:
                 return  # No relationships to build tree from
 
             # Build tree inline
             from modules.enrichers.genealogy_enricher import GenealogyEnricher
+
             enricher = GenealogyEnricher()
             await enricher.build_tree(pid, session)
             logger.info("Built family tree for %s (%d relationships)", person_id, rel_count)
@@ -589,16 +634,14 @@ class EnrichmentOrchestrator:
         from sqlalchemy import func, select
 
         from shared.models.address import Address
-        from shared.models.criminal import CriminalRecord
         from shared.models.compliance_ext import AdverseMedia
+        from shared.models.criminal import CriminalRecord
         from shared.models.employment import EmploymentHistory
-        from shared.models.identifier import Identifier
         from shared.models.person import Person
         from shared.models.professional import CorporateDirectorship
         from shared.models.property import Property
         from shared.models.relationship import Relationship
         from shared.models.social_profile import SocialProfile
-        from shared.models.wealth import WealthAssessment
 
         pid = uuid.UUID(person_id) if isinstance(person_id, str) else person_id
         person = await session.get(Person, pid)
@@ -607,12 +650,16 @@ class EnrichmentOrchestrator:
 
         # 1. Identity completeness (0-100): name, DOB, SSN-last4 proxy, photo
         # Name alone = 50 (weight 2), DOB = 25, national_id/ssn = 12.5, photo = 12.5
-        identity_fields = sum([
-            2 if person.full_name else 0,
-            1 if person.date_of_birth else 0,
-            0.5 if getattr(person, 'national_id', None) or getattr(person, 'ssn_last4', None) else 0,
-            0.5 if person.profile_image_url else 0,
-        ])
+        identity_fields = sum(
+            [
+                2 if person.full_name else 0,
+                1 if person.date_of_birth else 0,
+                0.5
+                if getattr(person, "national_id", None) or getattr(person, "ssn_last4", None)
+                else 0,
+                0.5 if person.profile_image_url else 0,
+            ]
+        )
         identity_completeness = min(100, identity_fields * 25)
 
         # 2. Financial depth (0-100): credit score, income estimate, property
@@ -634,9 +681,9 @@ class EnrichmentOrchestrator:
         # 3. Employment depth (0-100): employer, title, history
         emp_rows = (
             await session.execute(
-                select(func.count()).select_from(EmploymentHistory).where(
-                    EmploymentHistory.person_id == pid
-                )
+                select(func.count())
+                .select_from(EmploymentHistory)
+                .where(EmploymentHistory.person_id == pid)
             )
         ).scalar() or 0
         emp_fields = 0
@@ -651,9 +698,9 @@ class EnrichmentOrchestrator:
         # 4. Social coverage (0-100): platforms found, follower counts
         social_count = (
             await session.execute(
-                select(func.count()).select_from(SocialProfile).where(
-                    SocialProfile.person_id == pid
-                )
+                select(func.count())
+                .select_from(SocialProfile)
+                .where(SocialProfile.person_id == pid)
             )
         ).scalar() or 0
         # Score based on coverage with diminishing returns curve
@@ -673,9 +720,9 @@ class EnrichmentOrchestrator:
         legal_max = 4
         criminal_count = (
             await session.execute(
-                select(func.count()).select_from(CriminalRecord).where(
-                    CriminalRecord.person_id == pid
-                )
+                select(func.count())
+                .select_from(CriminalRecord)
+                .where(CriminalRecord.person_id == pid)
             )
         ).scalar() or 0
         if criminal_count > 0:
@@ -702,9 +749,9 @@ class EnrichmentOrchestrator:
         # 7. Relationship count (0-100): family, associates, professional
         rel_count = (
             await session.execute(
-                select(func.count()).select_from(Relationship).where(
-                    (Relationship.person_a_id == pid) | (Relationship.person_b_id == pid)
-                )
+                select(func.count())
+                .select_from(Relationship)
+                .where((Relationship.person_a_id == pid) | (Relationship.person_b_id == pid))
             )
         ).scalar() or 0
         relationship_count = min(100.0, rel_count * 20)
@@ -720,9 +767,9 @@ class EnrichmentOrchestrator:
         # 9. Corporate/Business records (0-100)
         corp_count = (
             await session.execute(
-                select(func.count()).select_from(CorporateDirectorship).where(
-                    CorporateDirectorship.person_id == pid
-                )
+                select(func.count())
+                .select_from(CorporateDirectorship)
+                .where(CorporateDirectorship.person_id == pid)
             )
         ).scalar() or 0
         corporate_depth = min(100.0, corp_count * 20)  # 5+ directorships = 100

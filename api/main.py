@@ -79,15 +79,14 @@ async def lifespan(app: FastAPI):
 
         await tor_manager.connect_all()
     except Exception:
-        pass
+        _log.warning("Tor manager startup skipped", exc_info=True)
     try:
         from modules.search.typesense_indexer import typesense_indexer as meili_indexer
 
         await meili_indexer.setup_index()
         _log.info("Typesense collections initialized")
     except Exception:
-        _log.warning("Typesense setup skipped (not available)")
-        pass
+        _log.warning("Typesense setup skipped (not available)", exc_info=True)
     # Verify socksio for Tor proxy support
     try:
         import socksio  # noqa: F401
@@ -169,7 +168,7 @@ async def lifespan(app: FastAPI):
     try:
         await event_bus.disconnect()
     except Exception:
-        pass
+        _log.warning("EventBus shutdown raised an exception", exc_info=True)
 
 
 app = FastAPI(

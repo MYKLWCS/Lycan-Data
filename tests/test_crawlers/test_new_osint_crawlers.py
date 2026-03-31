@@ -7,7 +7,7 @@ Covers:
 - PhoneInfogaCrawler: BaseCrawler subclass, platform attribute, graceful no-binary path
 - PhonebookCrawler: CurlCrawler subclass, platform attribute
 - IntelXCrawler: CurlCrawler subclass, platform attribute, no API key returns error result
-- DeHashedCrawler: CurlCrawler subclass, platform attribute, no API key returns error result
+- DeHashedCrawler: CurlCrawler subclass, platform attribute, disabled free-only result
 """
 
 from __future__ import annotations
@@ -228,14 +228,10 @@ async def test_intelx_no_api_key_returns_error():
 
 
 @pytest.mark.asyncio
-async def test_dehashed_no_credentials_returns_error():
-    """DeHashedCrawler returns an error result when credentials are not set."""
-    from unittest.mock import patch
-
+async def test_dehashed_returns_disabled_error():
+    """DeHashedCrawler stays registered but is disabled in the free-only runtime."""
     from modules.crawlers.email_dehashed import DeHashedCrawler
 
-    with patch.dict("os.environ", {}, clear=True):
-        result = await DeHashedCrawler().scrape("john.doe@example.com")
-
+    result = await DeHashedCrawler().scrape("john.doe@example.com")
     assert result.found is False
-    assert "DEHASHED" in result.error
+    assert result.error == "dehashed_disabled_free_only_runtime"

@@ -1,4 +1,5 @@
 """Simple Redis/Garnet result cache."""
+
 import json
 import logging
 from typing import Any
@@ -24,6 +25,7 @@ async def cache_get(key: str) -> Any | None:
         raw = await r.get(key)
         return json.loads(raw) if raw else None
     except Exception:
+        logger.debug("Cache get failed for key %s", key, exc_info=True)
         return None
 
 
@@ -32,4 +34,4 @@ async def cache_set(key: str, value: Any, ttl: int = 3600) -> None:
         r = await get_cache()
         await r.set(key, json.dumps(value, default=str), ex=ttl)
     except Exception:
-        pass
+        logger.debug("Cache set failed for key %s", key, exc_info=True)

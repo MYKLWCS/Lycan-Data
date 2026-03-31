@@ -5,11 +5,11 @@ import re
 
 import httpx
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.constants import SOURCE_RELIABILITY
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -98,5 +98,5 @@ class FacebookCrawler(PlaywrightCrawler):
                             source_reliability=self.source_reliability,
                         )
         except Exception:
-            pass
+            logger.debug("Facebook Graph metadata probe failed for %s", handle, exc_info=True)
         return self._result(handle, found=False, handle=handle, error="login_wall")

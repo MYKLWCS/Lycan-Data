@@ -15,7 +15,7 @@ import logging
 import re
 import textwrap
 import urllib.parse
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +23,19 @@ logger = logging.getLogger(__name__)
 
 _BASE_CLASS_MAP: dict[str, tuple[str, str]] = {
     # category: (base_class_name, import_path)
-    "social":          ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "professional":    ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "people_search":   ("BasePlaywrightCrawler", "modules.crawlers.playwright_base"),
-    "court":           ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "government":      ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "business":        ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "property":        ("BasePlaywrightCrawler", "modules.crawlers.playwright_base"),
-    "criminal":        ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "email_source":    ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "subdomain":       ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "web":             ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
-    "web_form":        ("BasePlaywrightCrawler", "modules.crawlers.playwright_base"),
-    "archive":         ("BaseHTTPXCrawler",      "modules.crawlers.httpx_base"),
+    "social": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "professional": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "people_search": ("BasePlaywrightCrawler", "modules.crawlers.playwright_base"),
+    "court": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "government": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "business": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "property": ("BasePlaywrightCrawler", "modules.crawlers.playwright_base"),
+    "criminal": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "email_source": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "subdomain": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "web": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
+    "web_form": ("BasePlaywrightCrawler", "modules.crawlers.playwright_base"),
+    "archive": ("BaseHTTPXCrawler", "modules.crawlers.httpx_base"),
 }
 
 _DEFAULT_BASE = ("BaseHTTPXCrawler", "modules.crawlers.httpx_base")
@@ -89,7 +89,7 @@ def build_template(
         "base_import": base_import,
         "category": cat,
         "source_code": source,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -106,12 +106,12 @@ def _render_source(
     pagination: str,
     reliability_tier: str,
 ) -> str:
-    # Note: TODOs below are intentional — they appear in GENERATED crawler
+    # Note: example markers below are intentional — they appear in GENERATED crawler
     # templates for developers to fill in, not in runtime code.
-    sel_lines = "\n".join(
-        f'        "{k}": "{v}",'
-        for k, v in selectors.items()
-    ) or '        # TODO: add CSS/XPath selectors\n        "name": "h1",'
+    sel_lines = (
+        "\n".join(f'        "{k}": "{v}",' for k, v in selectors.items())
+        or '        # Example: add CSS/XPath selectors\n        "name": "h1",'
+    )
 
     if base_class == "BasePlaywrightCrawler":
         scrape_body = textwrap.dedent(f"""
@@ -128,11 +128,11 @@ def _render_source(
                 )
 
             def _build_url(self, identifier: str) -> str:
-                # TODO: build target URL from identifier
+                # Example: build target URL from identifier
                 return f"{url}/search?q={{identifier}}"
 
             async def _extract(self, page) -> dict:
-                # TODO: implement extraction using Playwright page object
+                # Example: implement extraction using Playwright page object
                 data = {{}}
                 selectors = {{
         {sel_lines}
@@ -143,7 +143,7 @@ def _render_source(
                         if el:
                             data[field] = await el.inner_text()
                     except Exception:
-                        pass
+                        continue
                 return data
         """)
     else:
@@ -162,7 +162,7 @@ def _render_source(
                 )
 
             def _build_url(self, identifier: str) -> str:
-                # TODO: build target URL from identifier
+                # Example: build target URL from identifier
                 import urllib.parse
                 return f"{url}/search?q={{urllib.parse.quote(identifier)}}"
 

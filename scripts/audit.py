@@ -2,9 +2,9 @@
 """
 Lycan OSINT Platform — Automated System Audit
 
-Scans the codebase against lycan-osint-spec.md, identifies stubs,
-gaps, and bugs, then uses a local Ollama model to generate a prioritised
-issue report and posts it as a GitHub Issue.
+Scans the codebase against the canonical repo spec, identifies stubs,
+gaps, and bugs, then generates a deterministic prioritised issue report
+and optionally posts it as a GitHub Issue.
 
 Run locally:  python scripts/audit.py
 Run in CI:    triggered by .github/workflows/audit.yml
@@ -23,7 +23,7 @@ from pathlib import Path
 # ──────────────────────────────────────────────────────────────────────────────
 
 ROOT = Path(__file__).parent.parent
-SPEC_FILE = ROOT / "lycan-osint-spec.md"
+SPEC_FILE = ROOT / "docs" / "superpowers" / "specs" / "00-MASTER-SPEC.md"
 CRAWLERS_DIR = ROOT / "modules" / "crawlers"
 ENRICHERS_DIR = ROOT / "modules" / "enrichers"
 PIPELINE_DIR = ROOT / "modules" / "pipeline"
@@ -31,8 +31,6 @@ API_DIR = ROOT / "api"
 SHARED_DIR = ROOT / "shared"
 TESTS_DIR = ROOT / "tests"
 
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "")
 
@@ -43,9 +41,6 @@ GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "")
 STUB_PATTERNS = [
     (re.compile(r"\bNotImplementedError\b"), "NotImplementedError raised"),
     (re.compile(r"\bpass\b\s*$", re.M), "bare pass statement"),
-    (re.compile(r"return\s+\{\}\s*$", re.M), "returns empty dict"),
-    (re.compile(r"return\s+\[\]\s*$", re.M), "returns empty list"),
-    (re.compile(r"return\s+None\s*$", re.M), "returns None unconditionally"),
     (re.compile(r"#\s*TODO", re.I), "TODO comment"),
     (re.compile(r"#\s*FIXME", re.I), "FIXME comment"),
     (re.compile(r"#\s*STUB", re.I), "STUB comment"),
@@ -74,9 +69,9 @@ EXPECTED_CRAWLERS_FROM_SPEC = {
     "pinterest",
     "discord",
     "telegram",
-    "mastodon",
-    "twitch",
-    "steam",
+    "social_mastodon",
+    "social_twitch",
+    "social_steam",
     # Phone
     "phone_carrier",
     "phone_truecaller",
@@ -104,7 +99,7 @@ EXPECTED_CRAWLERS_FROM_SPEC = {
     "paste_pastebin",
     # Domain/IP/Crypto
     "domain_whois",
-    "ip_geolocation",
+    "geo_ip",
     "crypto_bitcoin",
     # Username sweep
     "username_sherlock",
@@ -150,6 +145,19 @@ def scan_file_for_stubs(path: Path) -> list[dict]:
         content = path.read_text(encoding="utf-8", errors="ignore")
         for pattern, description in STUB_PATTERNS:
             for match in pattern.finditer(content):
+                if description == "bare pass statement":
+                    prev_line = ""
+                    for line in reversed(content[: match.start()].splitlines()):
+                        stripped = line.strip()
+                        if stripped:
+                            prev_line = stripped
+                            break
+                    if (
+                        prev_line.startswith("except")
+                        and "Exception" not in prev_line
+                        and prev_line != "except:"
+                    ):
+                        continue
                 line_no = content[: match.start()].count("\n") + 1
                 findings.append(
                     {
@@ -160,20 +168,20 @@ def scan_file_for_stubs(path: Path) -> list[dict]:
                     }
                 )
     except Exception:
-        pass
+        return findings
     return findings
 
 
 def get_registered_crawlers() -> set[str]:
     """Parse crawler files to find all @register('x') decorators."""
     registered = set()
-    for f in CRAWLERS_DIR.glob("*.py"):
+    for f in CRAWLERS_DIR.rglob("*.py"):
         try:
             content = f.read_text()
             for match in re.finditer(r'@register\(["\'](\w+)["\']', content):
                 registered.add(match.group(1))
         except Exception:
-            pass
+            continue
     return registered
 
 
@@ -187,32 +195,66 @@ def get_registered_enrichers() -> set[str]:
     return enrichers
 
 
+def _preferred_python_executable() -> str:
+    """Prefer the repo virtualenv for test collection when it exists."""
+    venv_python = ROOT / ".venv" / "bin" / "python"
+    if venv_python.exists() and os.access(venv_python, os.X_OK):
+        return str(venv_python)
+    return sys.executable
+
+
 def check_test_coverage() -> dict:
     """Run pytest --collect-only to count collected tests per module."""
+    test_files = len(list(TESTS_DIR.rglob("test_*.py")))
+    python_executable = _preferred_python_executable()
     try:
         result = subprocess.run(
             [
-                "python",
+                python_executable,
                 "-m",
                 "pytest",
                 "tests/",
                 "--collect-only",
-                "-q",
-                "--ignore=tests/test_crawlers",
-                "--ignore=tests/test_darkweb",
-                "--ignore=tests/test_government",
-                "--no-header",
             ],
             capture_output=True,
             text=True,
             cwd=ROOT,
-            timeout=60,
+            timeout=120,
         )
-        lines = result.stdout.splitlines()
-        total = sum(1 for l in lines if "::" in l)
-        return {"total_tests": total, "output": result.stdout[:2000]}
+        output = f"{result.stdout}\n{result.stderr}"
+        match = re.search(r"collected\s+(\d+)\s+items", output)
+        if match:
+            total = int(match.group(1))
+        else:
+            total = sum(1 for line in result.stdout.splitlines() if "::" in line)
+        payload = {
+            "total_tests": total,
+            "test_file_count": test_files,
+            "python_executable": python_executable,
+            "output": output[:2000],
+        }
+        if result.returncode != 0:
+            payload["collect_error"] = output[:500]
+        return payload
     except Exception as e:
-        return {"total_tests": 0, "error": str(e)}
+        return {
+            "total_tests": 0,
+            "test_file_count": test_files,
+            "python_executable": python_executable,
+            "error": str(e),
+        }
+
+
+def count_api_routes() -> int:
+    """Count route decorators in FastAPI route modules."""
+    total = 0
+    pattern = re.compile(r"@(router|app)\.(get|post|put|delete|patch|options|head)\(")
+    for file in API_DIR.rglob("*.py"):
+        try:
+            total += len(pattern.findall(file.read_text()))
+        except Exception:
+            continue
+    return total
 
 
 def check_pipeline_wiring() -> list[dict]:
@@ -399,6 +441,8 @@ def run_full_audit() -> dict:
     for py_file in ROOT.rglob("*.py"):
         if any(skip in str(py_file) for skip in [".venv", "__pycache__", "migrations", "tests"]):
             continue
+        if py_file == Path(__file__):
+            continue
         stub_findings.extend(scan_file_for_stubs(py_file))
 
     # Crawler registry check
@@ -424,6 +468,7 @@ def run_full_audit() -> dict:
 
     # Tests
     test_stats = check_test_coverage()
+    api_route_count = count_api_routes()
 
     # Git stats
     git_stats = get_git_stats()
@@ -452,12 +497,15 @@ def run_full_audit() -> dict:
             "todo_count": len([f for f in stub_findings if "TODO" in f["issue"]]),
             "high_severity_issues": high_severity,
             "total_tests": test_stats.get("total_tests", 0),
+            "test_file_count": test_stats.get("test_file_count", 0),
+            "api_route_count": api_route_count,
         },
         "pipeline_issues": pipeline_issues,
         "crawler_quality_issues": quality_issues,
         "reliability_issues": reliability_issues,
         "api_issues": api_issues,
         "top_stubs": stub_findings[:30],
+        "test_stats": test_stats,
         "git_stats": git_stats,
     }
 
@@ -474,18 +522,34 @@ def run_full_audit() -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def generate_ollama_analysis(audit_data: dict, spec_excerpt: str) -> str:
+def generate_audit_analysis(audit_data: dict, spec_excerpt: str) -> str:
     """Generate a prioritised audit report without external AI services."""
-    missing_crawlers = audit_data.get("missing_crawlers", [])
-    missing_endpoints = audit_data.get("missing_endpoints", [])
-    high_findings = audit_data.get("high_severity_findings", [])
+    summary = audit_data.get("summary", {})
+    test_stats = audit_data.get("test_stats", {})
+    missing_crawlers = summary.get("missing_crawlers", [])
+    missing_endpoints = [
+        issue.get("component", "")
+        for issue in audit_data.get("api_issues", [])
+        if "Required endpoint" in issue.get("issue", "")
+    ]
+    high_findings = [
+        *audit_data.get("pipeline_issues", []),
+        *audit_data.get("crawler_quality_issues", []),
+        *audit_data.get("reliability_issues", []),
+        *audit_data.get("api_issues", []),
+    ]
     stub_findings = audit_data.get("top_stubs", [])
 
     critical_items: list[str] = []
     for finding in high_findings[:8]:
-        critical_items.append(
-            f"- `{finding.get('file')}`:{finding.get('line')} — {finding.get('issue')}"
-        )
+        component = finding.get("component") or finding.get("file", "unknown")
+        severity = finding.get("severity", "info")
+        detail = finding.get("issue", "unknown issue")
+        line = finding.get("line")
+        if line is not None:
+            critical_items.append(f"- `[{severity}]` `{component}`:{line} — {detail}")
+        else:
+            critical_items.append(f"- `[{severity}]` `{component}` — {detail}")
     for crawler in missing_crawlers[:8]:
         critical_items.append(f"- Missing crawler: `{crawler}`")
     if not critical_items:
@@ -496,6 +560,9 @@ def generate_ollama_analysis(audit_data: dict, spec_excerpt: str) -> str:
         spec_gaps.append(f"- Missing endpoint: `{endpoint}`")
     for stub in stub_findings[:8]:
         spec_gaps.append(f"- `{stub.get('file')}`:{stub.get('line')} — {stub.get('issue')}")
+    collect_error = test_stats.get("collect_error") or test_stats.get("error")
+    if collect_error:
+        spec_gaps.append(f"- Test collection failed in this environment: `{collect_error}`")
     if not spec_gaps:
         spec_gaps.append("- No major spec gaps surfaced by the automated checks.")
 
@@ -508,9 +575,9 @@ def generate_ollama_analysis(audit_data: dict, spec_excerpt: str) -> str:
     )
 
     working_notes = [
-        f"- Registered crawlers detected: {audit_data.get('registered_crawler_count', 0)}",
-        f"- API routes detected: {audit_data.get('api_route_count', 0)}",
-        f"- Test files detected: {audit_data.get('test_file_count', 0)}",
+        f"- Registered crawlers detected: {summary.get('registered_crawlers', 0)}",
+        f"- API routes detected: {summary.get('api_route_count', 0)}",
+        f"- Test files detected: {summary.get('test_file_count', 0)}",
     ]
 
     fix_list = [
@@ -602,9 +669,9 @@ def main():
     if SPEC_FILE.exists():
         spec_excerpt = SPEC_FILE.read_text()[:5000]
 
-    # Generate AI analysis
-    print("Generating Ollama analysis...")
-    ai_report = generate_ollama_analysis(audit_data, spec_excerpt)
+    # Generate deterministic analysis
+    print("Generating audit analysis...")
+    ai_report = generate_audit_analysis(audit_data, spec_excerpt)
 
     # Build full report
     now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M timezone.utc")

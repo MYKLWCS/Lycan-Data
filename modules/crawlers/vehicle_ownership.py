@@ -22,11 +22,11 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +253,11 @@ class VehicleOwnershipCrawler(PlaywrightCrawler):
                     await vehicles_section.click(timeout=3000)
                     await page.wait_for_timeout(1500)
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Vehicle section expand skipped for %s",
+                        identifier,
+                        exc_info=True,
+                    )
                 html = await page.content()
             return _parse_vehicle_cards_html(html)
         except Exception as exc:

@@ -16,10 +16,10 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def _is_latlon(value: str) -> tuple[float, float] | None:
         try:
             return float(match.group(1)), float(match.group(2))
         except ValueError:
-            pass
+            logger.debug("Invalid lat/lon input: %s", value)
     return None
 
 

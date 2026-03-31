@@ -5,10 +5,10 @@ import re
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class PinterestCrawler(CurlCrawler):
                     try:
                         data["follower_count"] = int(raw)
                     except ValueError:  # pragma: no cover
-                        pass
+                        logger.debug("Unable to parse Pinterest follower count %r", raw)
 
         except Exception as exc:
             logger.debug("Pinterest parse error: %s", exc)

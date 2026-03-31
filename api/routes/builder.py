@@ -110,9 +110,7 @@ async def job_results(
     job_uuid = uuid.UUID(job_id)
 
     # Get job
-    job_result = await session.execute(
-        select(BuilderJob).where(BuilderJob.id == job_uuid)
-    )
+    job_result = await session.execute(select(BuilderJob).where(BuilderJob.id == job_uuid))
     job = job_result.scalar_one_or_none()
     if not job:
         raise HTTPException(404, "Job not found")
@@ -134,18 +132,20 @@ async def job_results(
 
     persons = []
     for link, person in rows:
-        persons.append({
-            "person_id": str(person.id),
-            "full_name": person.full_name,
-            "date_of_birth": person.date_of_birth.isoformat() if person.date_of_birth else None,
-            "gender": person.gender,
-            "enrichment_score": person.enrichment_score or 0,
-            "risk_score": person.default_risk_score or 0,
-            "alt_credit_score": person.alt_credit_score,
-            "marketing_tags": person.marketing_tags_list or [],
-            "phase": link.phase,
-            "match_score": link.match_score,
-        })
+        persons.append(
+            {
+                "person_id": str(person.id),
+                "full_name": person.full_name,
+                "date_of_birth": person.date_of_birth.isoformat() if person.date_of_birth else None,
+                "gender": person.gender,
+                "enrichment_score": person.enrichment_score or 0,
+                "risk_score": person.default_risk_score or 0,
+                "alt_credit_score": person.alt_credit_score,
+                "marketing_tags": person.marketing_tags_list or [],
+                "phase": link.phase,
+                "match_score": link.match_score,
+            }
+        )
 
     return {
         "job_id": job_id,
@@ -160,9 +160,7 @@ async def job_results(
 @router.get("/{job_id}/stats")
 async def job_stats(job_id: str, session: AsyncSession = DbDep):
     """Stats for a builder job."""
-    job_result = await session.execute(
-        select(BuilderJob).where(BuilderJob.id == uuid.UUID(job_id))
-    )
+    job_result = await session.execute(select(BuilderJob).where(BuilderJob.id == uuid.UUID(job_id)))
     job = job_result.scalar_one_or_none()
     if not job:
         raise HTTPException(404, "Job not found")
@@ -221,9 +219,7 @@ async def list_jobs(
 @router.post("/{job_id}/expand")
 async def expand_results(job_id: str, session: AsyncSession = DbDep):
     """Manually trigger deeper expansion on job results."""
-    job_result = await session.execute(
-        select(BuilderJob).where(BuilderJob.id == uuid.UUID(job_id))
-    )
+    job_result = await session.execute(select(BuilderJob).where(BuilderJob.id == uuid.UUID(job_id)))
     job = job_result.scalar_one_or_none()
     if not job:
         raise HTTPException(404, "Job not found")
@@ -242,15 +238,18 @@ async def expand_results(job_id: str, session: AsyncSession = DbDep):
     expanded = 0
     for pid in person_ids:
         try:
-            await event_bus.publish("graph", {
-                "event": "expand_relationships",
-                "person_id": pid,
-                "depth": 3,
-                "source": "builder_manual_expand",
-            })
+            await event_bus.publish(
+                "graph",
+                {
+                    "event": "expand_relationships",
+                    "person_id": pid,
+                    "depth": 3,
+                    "source": "builder_manual_expand",
+                },
+            )
             expanded += 1
         except Exception:
-            pass
+            logger.debug("Relationship expansion publish failed for %s", pid, exc_info=True)
 
     return {"expanded": expanded, "message": f"Queued expansion for {expanded} persons"}
 

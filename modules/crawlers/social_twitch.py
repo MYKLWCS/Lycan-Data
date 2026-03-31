@@ -16,11 +16,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.config import settings
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +170,9 @@ class TwitchCrawler(HttpxCrawler):
                     }
                     is_live = True
             except Exception:
-                pass
+                logger.debug(
+                    "Failed to parse Twitch stream payload for %s", identifier, exc_info=True
+                )
 
         # Fetch channel metadata
         channel: dict[str, Any] | None = None
@@ -189,7 +191,9 @@ class TwitchCrawler(HttpxCrawler):
                             "tags": c.get("tags", []),
                         }
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Failed to parse Twitch channel metadata for %s", identifier, exc_info=True
+                    )
 
         return self._result(
             identifier,

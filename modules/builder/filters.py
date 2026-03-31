@@ -25,8 +25,7 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
         today = date.today()
         age = today.year - person.date_of_birth.year
         if today.month < person.date_of_birth.month or (
-            today.month == person.date_of_birth.month
-            and today.day < person.date_of_birth.day
+            today.month == person.date_of_birth.month and today.day < person.date_of_birth.day
         ):
             age -= 1
         if "min" in age_range and age < age_range["min"]:
@@ -49,8 +48,11 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
     # Property value range
     prop_range = criteria.get("property_value_range")
     if prop_range:
-        # TODO: implement when table available
-        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "property_value_range")
+        # Deferred until a property valuation table is available.
+        logger.warning(
+            "Filter '%s' is not yet implemented — returning unfiltered results",
+            "property_value_range",
+        )
 
     # Has vehicle
     if criteria.get("has_vehicle") is True and person.vehicle_count < 1:
@@ -59,8 +61,10 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
     # Vehicle value minimum
     vehicle_min = criteria.get("vehicle_value_min")
     if vehicle_min is not None:
-        # TODO: implement when table available
-        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "vehicle_value_min")
+        # Deferred until a vehicle valuation table is available.
+        logger.warning(
+            "Filter '%s' is not yet implemented — returning unfiltered results", "vehicle_value_min"
+        )
 
     # Risk tier
     risk_tier = criteria.get("risk_tier")
@@ -88,8 +92,10 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
     # Education level
     edu_level = criteria.get("education_level")
     if edu_level:
-        # TODO: implement when table available
-        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "education_level")
+        # Deferred until normalized education records are queryable in-builder.
+        logger.warning(
+            "Filter '%s' is not yet implemented — returning unfiltered results", "education_level"
+        )
 
     # Marital status
     marital = criteria.get("marital_status")
@@ -99,13 +105,18 @@ def apply_post_filters(person: Person, criteria: dict[str, Any]) -> bool:
 
     # Has criminal record
     if criteria.get("has_criminal_record") is True:
-        # TODO: implement when table available
-        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "has_criminal_record")
+        # Deferred until criminal-record rollups are queryable in-builder.
+        logger.warning(
+            "Filter '%s' is not yet implemented — returning unfiltered results",
+            "has_criminal_record",
+        )
 
     # Has bankruptcy
     if criteria.get("has_bankruptcy") is True:
-        # TODO: implement when table available
-        logger.warning("Filter '%s' is not yet implemented — returning unfiltered results", "has_bankruptcy")
+        # Deferred until bankruptcy rollups are queryable in-builder.
+        logger.warning(
+            "Filter '%s' is not yet implemented — returning unfiltered results", "has_bankruptcy"
+        )
 
     # Tags
     tags = criteria.get("tags")

@@ -16,7 +16,7 @@ import asyncio
 import logging
 import uuid
 from collections import deque
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -128,7 +128,12 @@ class GenealogyEnricher:
                         results.append(r.data)
                         source_count += 1
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Genealogy crawler %s failed for %s",
+                        getattr(crawler, "platform", type(crawler).__name__),
+                        identifier,
+                        exc_info=True,
+                    )
 
             relatives = self._parse_relatives(results)
             for rel in relatives:
@@ -148,20 +153,24 @@ class GenealogyEnricher:
         # Build edges from relationships between visited nodes
         await session.flush()
         from shared.models.relationship import Relationship
+
         edges = []
         if visited:
             rel_result = await session.execute(
                 select(Relationship).where(
-                    (Relationship.person_a_id.in_(visited)) | (Relationship.person_b_id.in_(visited))
+                    (Relationship.person_a_id.in_(visited))
+                    | (Relationship.person_b_id.in_(visited))
                 )
             )
             for r in rel_result.scalars().all():
-                edges.append({
-                    "source": str(r.person_a_id),
-                    "target": str(r.person_b_id),
-                    "rel_type": r.relationship_type,
-                    "confidence": r.confidence_score,
-                })
+                edges.append(
+                    {
+                        "source": str(r.person_a_id),
+                        "target": str(r.person_b_id),
+                        "rel_type": r.relationship_type,
+                        "confidence": r.confidence_score,
+                    }
+                )
 
         snapshot = FamilyTreeSnapshot(
             root_person_id=seed_person_id,
@@ -174,7 +183,7 @@ class GenealogyEnricher:
             depth_ancestors=8,
             depth_descendants=5,
             source_count=source_count,
-            built_at=datetime.now(timezone.utc),
+            built_at=datetime.now(UTC),
             is_stale=False,
         )
         session.add(snapshot)

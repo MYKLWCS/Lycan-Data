@@ -356,7 +356,7 @@ async def run_search(
             if bio:
                 texts.append(str(bio))
         except Exception:
-            pass
+            logger.debug("Skipping failed task result while building psych profile", exc_info=True)
 
     if texts and sum(len(t.split()) for t in texts) >= 20:
         print()

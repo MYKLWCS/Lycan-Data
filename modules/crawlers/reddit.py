@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.constants import SOURCE_RELIABILITY
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class RedditCrawler(HttpxCrawler):
                 posts_j = posts_resp.json()
                 data["recent_posts"] = self._parse_posts(posts_j)
             except Exception:
-                pass
+                logger.debug("Failed to parse Reddit posts payload for %s", handle, exc_info=True)
 
         return CrawlerResult(
             platform=self.platform,
@@ -73,7 +73,7 @@ class RedditCrawler(HttpxCrawler):
         created_utc = raw.get("created_utc")
         created_at = None
         if created_utc:
-            created_at = datetime.fromtimestamp(created_utc, tz=timezone.utc)
+            created_at = datetime.fromtimestamp(created_utc, tz=UTC)
 
         return {
             "handle": handle,

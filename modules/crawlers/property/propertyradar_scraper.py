@@ -31,11 +31,11 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,7 @@ def _parse_search_html(html: str, state: str) -> tuple[list[dict[str, Any]], lis
             if owner_data:  # pragma: no branch
                 owners = _parse_owner_api(owner_data)
     except Exception:
-        pass
+        logger.debug("PropertyRadar owner JSON parse failed for %s", state, exc_info=True)
 
     # HTML table fallback
     if not owners:
@@ -312,7 +312,7 @@ def _parse_property_detail_html(html: str) -> dict[str, Any]:
                 if props:  # pragma: no branch
                     return props[0]
     except Exception:
-        pass
+        logger.debug("PropertyRadar property JSON parse failed", exc_info=True)
 
     # Regex extraction fallback
     patterns = {

@@ -6,11 +6,11 @@ import re
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.constants import SOURCE_RELIABILITY
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class TelegramCrawler(HttpxCrawler):
             try:
                 data["follower_count"] = int(count_str)
             except ValueError:
-                pass
+                logger.debug("Unable to parse Telegram follower count %r", count_str)
 
         return CrawlerResult(
             platform=self.platform,
@@ -133,7 +133,7 @@ class TelegramCrawler(HttpxCrawler):
             finally:
                 await client.disconnect()
         except ImportError:
-            pass
+            logger.debug("Telethon not installed; Telegram phone probe unavailable")
 
         return CrawlerResult(
             platform=self.platform,

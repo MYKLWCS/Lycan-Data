@@ -69,6 +69,7 @@ def extract_pair_features(a: dict[str, Any], b: dict[str, Any]) -> list[float]:
     addrs_b = b.get("addresses", [])
     addr_sim = 0.0
     if addrs_a and addrs_b:
+
         def _flat(addr: Any) -> str:
             if isinstance(addr, dict):
                 parts = [str(addr.get(k, "")) for k in ("street", "city", "state", "zip")]
@@ -97,13 +98,15 @@ def extract_pair_features(a: dict[str, Any], b: dict[str, Any]) -> list[float]:
     features.append(dob_match)
 
     # 7. Count of matching attributes (normalized)
-    match_count = sum([
-        1 if name_a and name_b and jw > 0.90 else 0,
-        1 if phone_match else 0,
-        1 if email_match else 0,
-        1 if addr_sim > 0.85 else 0,
-        1 if dob_match else 0,
-    ])
+    match_count = sum(
+        [
+            1 if name_a and name_b and jw > 0.90 else 0,
+            1 if phone_match else 0,
+            1 if email_match else 0,
+            1 if addr_sim > 0.85 else 0,
+            1 if dob_match else 0,
+        ]
+    )
     features.append(match_count / 5.0)
 
     # 8. Sources different
@@ -120,7 +123,7 @@ def extract_pair_features(a: dict[str, Any], b: dict[str, Any]) -> list[float]:
         age_diff = abs((d1 - d2).days) / 365.25
         age_diff_norm = min(age_diff / 10.0, 1.0)
     except (ValueError, TypeError):
-        pass
+        logger.debug("Invalid DOB pair for ML dedup age feature: %r vs %r", dob_a, dob_b)
     features.append(age_diff_norm)
 
     return features
@@ -282,8 +285,7 @@ class MLDedup:
                 "in_sample_accuracy": round(accuracy, 4),
                 "feature_names": FEATURE_NAMES,
                 "coefficients": {
-                    name: round(float(coef), 4)
-                    for name, coef in zip(FEATURE_NAMES, model.coef_[0])
+                    name: round(float(coef), 4) for name, coef in zip(FEATURE_NAMES, model.coef_[0])
                 },
             }
             logger.info("MLDedup: trained model — %s", stats)

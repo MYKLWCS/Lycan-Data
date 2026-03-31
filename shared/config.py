@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     enable_company_intel_crawl: bool = True
 
     # Third-party API overrides (optional — crawlers fall back to public sources without these)
-    attom_api_key: str = ""  # ATTOM property data API override
+    attom_api_key: str = ""  # deprecated; ignored to enforce free-only ATTOM scraping
     opensanctions_api_key: str = ""  # OpenSanctions API override
     opencorporates_api_key: str = ""  # OpenCorporates API override
     marinetraffic_api_key: str = ""  # MarineTraffic AIS API override

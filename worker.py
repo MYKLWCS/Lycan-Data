@@ -215,7 +215,7 @@ async def main(
         try:
             await daemon.stop()
         except Exception:
-            pass
+            logger.exception("Daemon stop failed for %s", type(daemon).__name__)
 
     for task in tasks:
         task.cancel()

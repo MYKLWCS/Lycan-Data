@@ -191,7 +191,7 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "truepeoplesearch": 0.62,
     "people": 0.60,
     "phone": 0.65,  # phone_carrier, phone_truecaller etc.
-    "email": 0.60,  # email_hibp, email_holehe etc.
+    "email": 0.60,  # email_breach, email_holehe etc.
     "domain": 0.60,
     "ip": 0.55,
     "crypto": 0.55,

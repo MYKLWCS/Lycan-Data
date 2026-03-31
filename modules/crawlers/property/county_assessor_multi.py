@@ -35,10 +35,10 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ async def _scrape_la_ca(crawler: CountyAssessorMultiCrawler, query: str) -> list
             )
         return parcels
     except Exception:
-        pass
+        logger.debug("Los Angeles county JSON parse failed for query %s", query, exc_info=True)
     # HTML fallback
     soup = BeautifulSoup(resp.text, "html.parser")
     return _generic_table_parse(soup, "CA", "Los Angeles")
@@ -359,7 +359,7 @@ async def _scrape_cook_il(crawler: CountyAssessorMultiCrawler, query: str) -> li
         if parcels:
             return parcels
     except Exception:
-        pass
+        logger.debug("Cook county JSON parse failed for query %s", query, exc_info=True)
     soup = BeautifulSoup(resp.text, "html.parser")
     return _generic_table_parse(soup, "IL", "Cook")
 
@@ -472,7 +472,7 @@ async def _scrape_mecklenburg_nc(
         if parcels:
             return parcels
     except Exception:
-        pass
+        logger.debug("Mecklenburg county JSON parse failed for query %s", query, exc_info=True)
     soup = BeautifulSoup(resp.text, "html.parser")
     return _generic_table_parse(soup, "NC", "Mecklenburg")
 

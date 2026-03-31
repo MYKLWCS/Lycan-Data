@@ -158,7 +158,7 @@ class TorManager:
                 try:
                     ep.controller.close()
                 except Exception:
-                    pass
+                    logger.debug("Failed to close Tor controller for %s", ep.name, exc_info=True)
                 ep.is_connected = False
                 logger.info("Disconnected from %s", ep.name)
 

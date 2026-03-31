@@ -12,12 +12,13 @@ import asyncio
 import json
 import logging
 import os
+import tempfile
 import uuid
 
 from modules.crawlers.base import BaseCrawler
-from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import register
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ HARVESTER_TIMEOUT = 120  # seconds
 async def _run_harvester(domain: str) -> dict:
     """Run theHarvester subprocess and return parsed JSON output dict."""
     run_id = str(uuid.uuid4())[:8]
-    outfile = f"/tmp/harvest_{run_id}"
+    outfile = os.path.join(tempfile.gettempdir(), f"harvest_{run_id}")
     try:
         proc = await asyncio.create_subprocess_exec(
             "theHarvester",
@@ -50,7 +51,7 @@ async def _run_harvester(domain: str) -> dict:
             os.unlink(json_path)
             return data
     except (TimeoutError, FileNotFoundError):
-        pass
+        logger.debug("theHarvester run failed or timed out for %s", domain, exc_info=True)
     return {}
 
 

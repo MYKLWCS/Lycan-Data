@@ -19,13 +19,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from math import exp
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from shared.constants import SOURCE_RELIABILITY
 from shared.freshness import compute_freshness
-
-if TYPE_CHECKING:  # pragma: no cover
-    pass
 
 # Composite score weights
 WEIGHT_FRESHNESS = 0.35

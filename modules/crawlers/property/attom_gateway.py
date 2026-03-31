@@ -1,15 +1,9 @@
 """
-attom_gateway.py — ATTOM Data Solutions gateway crawler.
+attom_gateway.py — ATTOM property-report crawler.
 
-ATTOM provides one of the most comprehensive US property databases:
-AVM (automated valuation), ownership history 30+ years, MLS history,
-foreclosure data, distressed property flags, and more.
-
-Mode selection:
-    1. REST API — used when settings.attom_api_key is set.
-       Endpoint: https://api.gateway.attomdata.com/propertyapi/v1.0.0/
-    2. Public portal scrape — fallback when no API key.
-       Endpoint: https://www.attomdata.com/property-report/
+Lycan runs this crawler in free-only mode. The live scrape path uses the
+public ATTOM property-report portal and ignores any configured commercial
+ATTOM API key so the repo does not depend on paid data access.
 
 Registered as "attom_gateway".
 
@@ -27,11 +21,11 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.config import settings
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +241,7 @@ def _parse_public_portal_html(html: str) -> dict[str, Any]:
             try:
                 prop[dest_key] = int(m.group(1).replace(",", ""))
             except ValueError:
-                pass
+                prop[dest_key] = None
 
     return prop
 
@@ -260,8 +254,7 @@ def _parse_public_portal_html(html: str) -> dict[str, Any]:
 @register("attom_gateway")
 class AttomGatewayCrawler(HttpxCrawler):
     """
-    ATTOM Data gateway. Uses REST API when key is available; falls back
-    to public portal scraping.
+    ATTOM gateway in free-only mode.
 
     Provides: AVM, 30+ year ownership history, MLS history, foreclosure
     data, distressed property flags.
@@ -291,69 +284,21 @@ class AttomGatewayCrawler(HttpxCrawler):
         clean_query = re.sub(r"^(?:APN|Parcel)[:\s]+", "", query, flags=re.I).strip()
 
         if self._api_key:
-            result = await self._scrape_via_api(identifier, clean_query)
-        else:
-            result = await self._scrape_public_portal(identifier, clean_query)
+            logger.info("Ignoring ATTOM API key; using free public portal mode only")
 
-        return result
+        return await self._scrape_public_portal(identifier, clean_query)
 
     # ------------------------------------------------------------------
     # API mode
     # ------------------------------------------------------------------
 
     async def _scrape_via_api(self, identifier: str, query: str) -> CrawlerResult:
-        headers = {**_API_HEADERS, "apikey": self._api_key or ""}
-        encoded = quote_plus(query)
-
-        # Step 1: property detail
-        detail_url = f"{_API_PROPERTY_DETAIL}?address={encoded}&postalcode=&attomId="
-        resp = await self.get(detail_url, headers=headers)
-        if resp is None or resp.status_code not in (200, 206):
-            return self._result(
-                identifier,
-                found=False,
-                error=f"attom_api_http_{resp.status_code if resp else 'timeout'}",
-            )
-
-        try:
-            detail_data = resp.json()
-        except Exception:
-            return self._result(identifier, found=False, error="attom_api_json_parse_error")
-
-        prop = _parse_api_property(detail_data)
-        if not prop:
-            return self._result(identifier, found=False)
-
-        attom_id = prop.get("attom_id")
-        if attom_id:
-            # Step 2: sale history
-            hist_resp = await self.get(
-                f"{_API_SALE_HISTORY}?attomId={attom_id}",
-                headers=headers,
-            )
-            if hist_resp and hist_resp.status_code == 200:
-                try:
-                    prop = _parse_api_sale_history(hist_resp.json(), prop)
-                except Exception:
-                    pass
-
-            # Step 3: AVM
-            avm_resp = await self.get(
-                f"{_API_AVM}?attomId={attom_id}",
-                headers=headers,
-            )
-            if avm_resp and avm_resp.status_code == 200:
-                try:
-                    prop = _parse_api_avm(avm_resp.json(), prop)
-                except Exception:
-                    pass
-
+        logger.info("ATTOM API mode is disabled in the free-only runtime")
         return self._result(
             identifier,
-            found=True,
-            properties=[prop],
+            found=False,
+            error="attom_api_disabled_free_only_runtime",
             query=query,
-            source="attom_api",
         )
 
     # ------------------------------------------------------------------

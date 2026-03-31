@@ -29,7 +29,7 @@ def _apply_column_defaults(target: Any, args: tuple, kwargs: dict) -> None:
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base for all ORM models."""
 
 
 event.listen(Base, "init", _apply_column_defaults, propagate=True)

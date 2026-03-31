@@ -261,7 +261,7 @@ class TestAggregatorEmailBreach:
 
         session = _mock_session()
         result = _make_crawler_result(
-            platform="email_hibp",
+            platform="email_breach",
             identifier="test@example.com",
             data={"breaches": [{"name": "BadDate", "date": "not-a-date"}]},
         )
@@ -654,7 +654,7 @@ class TestAggregatorIdentifierHistory:
 
         session = _mock_session()
         result = _make_crawler_result(
-            platform="email_hibp",
+            platform="email_breach",
             identifier="user@example.com",
             data={},
         )

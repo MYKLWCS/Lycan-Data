@@ -26,5 +26,5 @@ Government/enterprise grade. 100% free open-source tools.
 - SSE for progress, WebSocket optional
 
 ## Spec Docs
-All specs are in docs/specs/. Read 00-MASTER-SPEC.md first.
-The audit of current bugs is in docs/specs/14-deep-code-audit.md.
+All specs are in `docs/superpowers/specs/`. Read `00-MASTER-SPEC.md` first.
+The audit of current bugs is in `docs/superpowers/specs/14-deep-code-audit.md`.

@@ -108,7 +108,11 @@ class TypesenseIndexer:
                     if r.status_code == 200:
                         continue  # already exists
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Typesense collection existence check failed for %s",
+                        schema["name"],
+                        exc_info=True,
+                    )
 
                 try:
                     r = await client.post(
@@ -123,7 +127,9 @@ class TypesenseIndexer:
                     else:
                         logger.warning(
                             "Failed to create collection %s: %s %s",
-                            schema["name"], r.status_code, r.text[:200],
+                            schema["name"],
+                            r.status_code,
+                            r.text[:200],
                         )
                         success = False
                 except Exception as exc:
@@ -146,6 +152,7 @@ class TypesenseIndexer:
         if not docs:
             return True
         import json
+
         jsonl = "\n".join(json.dumps(d) for d in docs)
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(

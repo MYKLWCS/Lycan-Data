@@ -13,17 +13,17 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
-_PHONE_RE = re.compile(r'[\+]?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}')
-_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
+_PHONE_RE = re.compile(r"[\+]?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _SOCIAL_RE = re.compile(
-    r'https?://(?:www\.)?(twitter|x|instagram|facebook|linkedin|github)\.com/([a-zA-Z0-9_.]+)',
+    r"https?://(?:www\.)?(twitter|x|instagram|facebook|linkedin|github)\.com/([a-zA-Z0-9_.]+)",
     re.IGNORECASE,
 )
 
@@ -67,9 +67,11 @@ class GooglePeopleSearchCrawler(HttpxCrawler):
                             emails.add(em.lower())
                         first_url = topic.get("FirstURL", "")
                         for m in _SOCIAL_RE.finditer(first_url):
-                            social_links.append({"platform": m.group(1), "handle": m.group(2), "url": m.group(0)})
+                            social_links.append(
+                                {"platform": m.group(1), "handle": m.group(2), "url": m.group(0)}
+                            )
         except Exception:
-            pass
+            logger.debug("DuckDuckGo people-search probe failed for %s", name, exc_info=True)
 
         # Source 2: Bing search (often not blocked)
         try:
@@ -80,19 +82,21 @@ class GooglePeopleSearchCrawler(HttpxCrawler):
                 for elem in soup.select("li.b_algo, .b_caption"):
                     text = elem.get_text(" ", strip=True)
                     for ph in _PHONE_RE.findall(text):
-                        digits = re.sub(r'[^\d]', '', ph)
+                        digits = re.sub(r"[^\d]", "", ph)
                         if 7 <= len(digits) <= 11:
                             phones.add(ph.strip())
                     for em in _EMAIL_RE.findall(text):
-                        if not any(s in em for s in ['example.', 'test.', 'email.']):
+                        if not any(s in em for s in ["example.", "test.", "email."]):
                             emails.add(em.lower())
                 # Extract social links from Bing results
                 for a in soup.select("a[href]"):
                     href = a.get("href", "")
                     for m in _SOCIAL_RE.finditer(href):
-                        social_links.append({"platform": m.group(1), "handle": m.group(2), "url": m.group(0)})
+                        social_links.append(
+                            {"platform": m.group(1), "handle": m.group(2), "url": m.group(0)}
+                        )
         except Exception:
-            pass
+            logger.debug("Bing people-search probe failed for %s", name, exc_info=True)
 
         has_data = bool(phones or emails or social_links or abstract)
 

@@ -4,10 +4,10 @@ import logging
 import re
 from datetime import datetime, timedelta
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,8 @@ class DiscordCrawler(CurlCrawler):
         try:
             data["created_at"] = snowflake_to_datetime(int(snowflake))
         except Exception:
-            pass
+            logger.debug(
+                "Failed to parse Discord snowflake timestamp: %s", snowflake, exc_info=True
+            )
 
         return data

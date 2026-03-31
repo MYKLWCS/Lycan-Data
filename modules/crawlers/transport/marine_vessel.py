@@ -19,10 +19,10 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,11 @@ def _parse_marinetraffic_html(html: str) -> list[dict[str, Any]]:
                             if isinstance(item, dict):
                                 vessels.append(_normalise_mt_item(item))
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Failed to parse MarineTraffic inline JSON for %s",
+                        identifier,
+                        exc_info=True,
+                    )
                 break
 
         # Fallback: table rows

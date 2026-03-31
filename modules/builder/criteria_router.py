@@ -8,6 +8,7 @@ can fulfil the discovery phase and what parameters to pass them.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class CriteriaRouter:
                             "params": {"email": seed_str},
                         }
                     )
-                elif seed_str.replace("+", "").replace("-", "").replace(" ", "").isdigit():
+                elif len(re.sub(r"\D", "", seed_str)) >= 7:
                     sources.append(
                         {
                             "name": f"phone:{seed_str}",

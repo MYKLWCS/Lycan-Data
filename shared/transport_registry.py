@@ -49,7 +49,7 @@ class TransportRegistry:
                 val = await r.get(f"{_PREFIX}{domain}")
                 return val.decode() if val else "httpx"
             except Exception:
-                pass
+                logger.debug("Transport registry Redis read failed for %s", domain, exc_info=True)
         return self._memory.get(domain, "httpx")
 
     async def set_transport(self, domain: str, transport: str) -> None:
@@ -59,7 +59,7 @@ class TransportRegistry:
                 await r.set(f"{_PREFIX}{domain}", transport)
                 return
             except Exception:
-                pass
+                logger.debug("Transport registry Redis write failed for %s", domain, exc_info=True)
         self._memory[domain] = transport
 
     async def record_blocked(self, domain: str) -> None:
@@ -85,7 +85,11 @@ class TransportRegistry:
                     try:
                         await r.delete(f"{_BLOCK_PREFIX}{domain}")
                     except Exception:
-                        pass
+                        logger.debug(
+                            "Transport registry Redis block reset failed for %s",
+                            domain,
+                            exc_info=True,
+                        )
                 self._blocks[domain] = 0
                 logger.info(
                     "Domain %s promoted from %s to %s after %d blocks",

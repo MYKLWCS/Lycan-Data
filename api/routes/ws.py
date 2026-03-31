@@ -88,7 +88,7 @@ async def scrape_progress(websocket: WebSocket, person_id: str):
             try:
                 await websocket.send_json(message)
             except Exception:
-                pass
+                logger.debug("WebSocket send failed for person %s", person_id, exc_info=True)
 
     sub_task = asyncio.create_task(
         event_bus.subscribe("enrichment", _forward),

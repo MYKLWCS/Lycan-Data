@@ -35,6 +35,13 @@ MONTH_MAP = {
 }
 
 
+def _safe_date(year: int, month: int, day: int) -> date | None:
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
 @dataclass
 class BiographicalProfile:
     dob: date | None = None
@@ -92,10 +99,9 @@ def _extract_single_dob(text: str) -> date | None:
     # ISO date
     m = re.search(r"\b(\d{4})-(\d{2})-(\d{2})\b", text)
     if m:
-        try:
-            return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        except ValueError:
-            pass
+        dob = _safe_date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if dob:
+            return dob
 
     # "Month DD, YYYY"
     m = re.search(
@@ -104,28 +110,25 @@ def _extract_single_dob(text: str) -> date | None:
         text_lower,
     )
     if m:
-        try:
-            return date(int(m.group(3)), MONTH_MAP[m.group(1)], int(m.group(2)))
-        except ValueError:
-            pass
+        dob = _safe_date(int(m.group(3)), MONTH_MAP[m.group(1)], int(m.group(2)))
+        if dob:
+            return dob
 
     # MM/DD/YYYY or MM-DD-YYYY
     m = re.search(r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\b", text)
     if m:
-        try:
-            return date(int(m.group(3)), int(m.group(1)), int(m.group(2)))
-        except ValueError:
-            pass
+        dob = _safe_date(int(m.group(3)), int(m.group(1)), int(m.group(2)))
+        if dob:
+            return dob
 
     # "DOB: MM/DD/YY"
     m = re.search(r"dob:?\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{2})\b", text_lower)
     if m:
         year = int(m.group(3))
         year = year + 1900 if year > 30 else year + 2000
-        try:
-            return date(year, int(m.group(1)), int(m.group(2)))
-        except ValueError:
-            pass
+        dob = _safe_date(year, int(m.group(1)), int(m.group(2)))
+        if dob:
+            return dob
 
     return None
 

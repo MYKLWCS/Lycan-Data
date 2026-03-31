@@ -121,11 +121,9 @@ _PHONE_PLATFORMS = {
 
 # Email breach platform keys
 _EMAIL_BREACH_PLATFORMS = {
-    "email_hibp",
     "email_holehe",
     "email_leakcheck",
     "email_breach",
-    "email_dehashed",
     "email_disposable",
     "email_emailrep",
     "email_socialscan",
@@ -566,7 +564,7 @@ async def aggregate_result(
                     dob_str = dob_raw.lstrip("+").split("T")[0]
                     person_obj.date_of_birth = _dp.parse(dob_str).date()
                 except Exception:
-                    pass
+                    logger.debug("Failed to parse Wikidata DOB %r", dob_raw, exc_info=True)
 
             # Profile image from Wikidata
             img = data.get("profile_image_url")
@@ -587,7 +585,12 @@ async def aggregate_result(
                     try:
                         await _safe_upsert_identifier(session, person.id, id_type, val, val.lower())
                     except Exception:
-                        pass
+                        logger.debug(
+                            "Failed to upsert %s identifier from %s",
+                            field,
+                            platform,
+                            exc_info=True,
+                        )
 
             # Store spouse/child/sibling QIDs as relationships
             try:
@@ -614,7 +617,7 @@ async def aggregate_result(
                         wikidata_rels.append({"qid": qid, "rel_type": rel_type, "field": field})
                         person_obj.meta["wikidata_relationships"] = wikidata_rels
             except Exception:
-                pass
+                logger.debug("Failed to persist Wikidata relationship hints", exc_info=True)
 
         _handled = True
 
@@ -688,7 +691,7 @@ async def _get_or_create_person(
             if p:
                 return p
         except (ValueError, Exception):
-            pass
+            logger.debug("Person lookup by explicit person_id failed: %r", person_id, exc_info=True)
 
     data = result.data or {}
 
@@ -892,7 +895,7 @@ async def _upsert_social_profile(
                 norm = f"+1{digits}" if len(digits) == 10 else f"+{digits}"
                 await _safe_upsert_identifier(session, person_id, "phone", social_phone, norm)
     except Exception:
-        pass
+        logger.debug("Failed to store social identifiers for profile %s", platform, exc_info=True)
 
     return profile
 
@@ -984,7 +987,7 @@ async def _handle_breach_data(
         try:
             await _safe_upsert_identifier(session, person_id, "email", email, email.strip().lower())
         except Exception:
-            pass
+            logger.debug("Failed to upsert email identifier during breach handling", exc_info=True)
 
     # HIBP-style: list of breach dicts
     for breach in data.get("breaches") or []:
@@ -1219,7 +1222,7 @@ async def _handle_people_search(
                             person.meta = {}
                         person.meta["dob_approximate"] = True
             except (ValueError, TypeError):
-                pass
+                logger.debug("Invalid approximate age value from people-search result: %r", age)
 
         # Also extract phone numbers from per-result card
         card_phones = r.get("phone_numbers") or r.get("phones") or []
@@ -1340,7 +1343,11 @@ async def _handle_people_search(
                                     p.meta = {}
                                 p.meta["needs_genealogy"] = "true"
                         except Exception:
-                            pass
+                            logger.debug(
+                                "Failed to flag person %s for genealogy follow-up",
+                                person_id,
+                                exc_info=True,
+                            )
             except Exception as exc:
                 logger.debug("Relative extraction failed for %s: %s", rel_name, exc)
 
@@ -1367,7 +1374,7 @@ async def _handle_court_records(
 
                 arrest_date = _date.fromisoformat(str(raw_arrest)[:10])
             except (ValueError, TypeError):
-                pass
+                logger.debug("Invalid arrest date in court record: %r", raw_arrest)
 
         raw_disp = case.get("disposition_date") or case.get("closed_date")
         disposition_date = None
@@ -1377,7 +1384,7 @@ async def _handle_court_records(
 
                 disposition_date = _date.fromisoformat(str(raw_disp)[:10])
             except (ValueError, TypeError):
-                pass
+                logger.debug("Invalid disposition date in court record: %r", raw_disp)
 
         import hashlib
 
@@ -1648,7 +1655,7 @@ def _parse_date_field(item: dict, *keys: str):
             try:
                 return _dp.parse(v)
             except (ValueError, OverflowError):
-                pass
+                logger.debug("Unable to parse date field %s=%r", k, v)
     return None
 
 
@@ -1921,7 +1928,7 @@ async def _handle_news(
 
                 pub_date = _date.fromisoformat(str(raw_date)[:10])
             except (ValueError, TypeError):
-                pass
+                logger.debug("Invalid adverse-media publication date: %r", raw_date)
 
         obj = AdverseMedia(
             id=uuid.uuid4(),

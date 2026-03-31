@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import logging
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,9 @@ class CryptoEthereumCrawler(CurlCrawler):
                 if tx_data.get("status") == "1":
                     txlist = tx_data.get("result", [])
             except Exception:
-                pass
+                logger.debug(
+                    "Failed to parse Etherscan transaction list for %s", address, exc_info=True
+                )
 
         recent_txs = _parse_recent_txs(txlist)
 

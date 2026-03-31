@@ -9,10 +9,10 @@ from __future__ import annotations
 import logging
 from urllib.parse import quote_plus
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -67,13 +67,19 @@ class OpenLibraryCrawler(HttpxCrawler):
                 try:
                     entries = resp2.json().get("entries", [])
                     for w in entries[:10]:
-                        works.append({
-                            "title": w.get("title", ""),
-                            "first_publish_year": w.get("first_publish_date", ""),
-                            "subjects": [s for s in w.get("subjects", [])[:5] if isinstance(s, str)],
-                        })
+                        works.append(
+                            {
+                                "title": w.get("title", ""),
+                                "first_publish_year": w.get("first_publish_date", ""),
+                                "subjects": [
+                                    s for s in w.get("subjects", [])[:5] if isinstance(s, str)
+                                ],
+                            }
+                        )
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Open Library works lookup failed for %s", identifier, exc_info=True
+                    )
 
         return CrawlerResult(
             platform=self.platform,

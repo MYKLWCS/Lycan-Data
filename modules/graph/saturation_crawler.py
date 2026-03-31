@@ -440,9 +440,10 @@ class SaturationCrawler:
 
         # Apply relationship filter if set
         if self.controls.relationship_filter:
-            # Only keep connections whose type is in the filter
-            # (for now, all discovered connections pass through)
-            pass
+            logger.debug(
+                "relationship_filter=%s requested, but discovered connections are currently untyped",
+                sorted(self.controls.relationship_filter),
+            )
 
         # Cap per-entity fan-out to prevent explosion
         return connections[:15]
@@ -643,7 +644,7 @@ class SaturationCrawler:
                     session=session,
                 )
             except Exception:
-                pass
+                logger.debug("Failed to sync address node %s to graph", addr_eid, exc_info=True)
 
         # Identifier edges (phone, email)
         ident_stmt = select(Identifier).where(
@@ -669,7 +670,7 @@ class SaturationCrawler:
                     session=session,
                 )
             except Exception:
-                pass
+                logger.debug("Failed to sync identifier node %s to graph", i_eid, exc_info=True)
 
         # Social profile edges
         sp_stmt = select(SocialProfile).where(SocialProfile.person_id == person.id)
@@ -698,7 +699,9 @@ class SaturationCrawler:
                     session=session,
                 )
             except Exception:
-                pass
+                logger.debug(
+                    "Failed to sync social profile node %s to graph", sp_eid, exc_info=True
+                )
 
     async def _sync_company_to_graph(
         self,
@@ -759,7 +762,12 @@ class SaturationCrawler:
                     session=session,
                 )
             except Exception:
-                pass
+                logger.debug(
+                    "Failed to sync employment edge for person %s and company %s",
+                    person_eid,
+                    company_eid,
+                    exc_info=True,
+                )
 
     # ── Helpers ────────────────────────────────────────────────────────────────
 

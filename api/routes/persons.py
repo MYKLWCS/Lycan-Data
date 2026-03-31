@@ -2,6 +2,7 @@
 Persons API — CRUD, reporting, deduplication, and merge endpoints.
 """
 
+import logging
 import uuid
 
 
@@ -29,6 +30,7 @@ from shared.models.person import Alias, Person
 from shared.models.social_profile import SocialProfile
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # ── Serialization helpers ──────────────────────────────────────────────────────
 
@@ -759,8 +761,11 @@ async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
                 update(model).where(model.person_id == dup_uid).values(person_id=can_uid)
             )
         except Exception:
-            # Model may not have person_id — skip
-            pass
+            logger.debug(
+                "Skipping reassignment for model %s without compatible person_id column",
+                model.__name__,
+                exc_info=True,
+            )
 
     # Merge quality scores (take better values)
     canonical.corroboration_count += duplicate.corroboration_count
@@ -779,7 +784,7 @@ async def merge_persons(req: MergeRequest, session: AsyncSession = DbDep):
 
         await event_bus.enqueue({"person_id": str(can_uid)}, priority="index")
     except Exception:
-        pass
+        logger.debug("Re-index enqueue failed after person merge for %s", can_uid, exc_info=True)
 
     return {
         "message": "Merge complete",
@@ -1319,7 +1324,7 @@ async def get_family_tree_gedcom(person_id: str, session: AsyncSession = DbDep):
                     }
                 )
         except Exception:
-            pass
+            logger.debug("Failed to serialize relationship-linked rows for %s", uid, exc_info=True)
 
     from sqlalchemy import or_
 

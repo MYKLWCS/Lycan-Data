@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import logging
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +40,10 @@ def _parse_breaches(json_data: list[dict]) -> list[dict]:
 @register("email_hibp")
 class EmailHIBPCrawler(CurlCrawler):
     """
-    Checks an email address against the Have I Been Pwned breach database.
+    Legacy compatibility stub for the retired Have I Been Pwned integration.
 
-    Uses the v2 public endpoint — no API key required.
-    source_reliability is high (0.80) because HIBP is an authoritative breach index.
+    The live runtime no longer uses HIBP because it requires a paid API key.
+    Callers should use email_breach instead.
     """
 
     platform = "email_hibp"

@@ -80,7 +80,7 @@ class TestAggregateResultDispatch:
         from modules.pipeline.aggregator import aggregate_result
 
         session = _make_session()
-        result = _make_result("email_hibp", data={}, found=False)
+        result = _make_result("email_breach", data={}, found=False)
 
         outcome = await aggregate_result(session, result, person_id=None)
         assert outcome["written"] is False
@@ -92,7 +92,7 @@ class TestAggregateResultDispatch:
         session = _make_session()
         person_id = str(uuid.uuid4())
         result = _make_result(
-            "email_hibp",
+            "email_breach",
             identifier="hack@example.com",
             data={
                 "breaches": [{"name": "TestSite", "date": "2022-01-01", "data_classes": ["email"]}]

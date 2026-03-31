@@ -14,10 +14,10 @@ import re
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +31,9 @@ def _validate_phone(raw: str) -> str | None:
 
         parsed = phonenumbers.parse(raw, "US")
         if phonenumbers.is_valid_number(parsed):
-            return phonenumbers.format_number(
-                parsed, phonenumbers.PhoneNumberFormat.E164
-            )
+            return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     except Exception:
-        pass
+        logger.debug("Failed to normalize phone number %r", raw, exc_info=True)
     return None
 
 
@@ -105,9 +103,7 @@ def _parse_results(html: str) -> list[dict]:
                 person["age"] = int(age_match.group(1))
 
             # Address
-            addr_el = card.find(
-                class_=lambda c: c and "address" in c.lower() if c else False
-            )
+            addr_el = card.find(class_=lambda c: c and "address" in c.lower() if c else False)
             if addr_el:
                 person["address"] = addr_el.get_text(strip=True)
 
@@ -122,13 +118,9 @@ def _parse_results(html: str) -> list[dict]:
                 person["phones"] = list(dict.fromkeys(validated))
 
             # Relatives
-            rel_el = card.find(
-                class_=lambda c: c and "relative" in c.lower() if c else False
-            )
+            rel_el = card.find(class_=lambda c: c and "relative" in c.lower() if c else False)
             if rel_el:
-                person["relatives"] = [
-                    a.get_text(strip=True) for a in rel_el.find_all("a")
-                ]
+                person["relatives"] = [a.get_text(strip=True) for a in rel_el.find_all("a")]
 
             if person.get("name"):
                 persons.append(person)

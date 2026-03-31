@@ -2,7 +2,7 @@
 test_email_wave4.py — Branch-coverage gap tests (wave 4).
 
 Crawlers covered:
-  email_dehashed  — lines 25-27, 44-48, 51-155
+  email_dehashed  — compatibility helper + disabled runtime path
   email_socialscan — lines 34-70
 
 Each test targets specific uncovered lines identified in the coverage report.
@@ -93,217 +93,31 @@ class TestDeHashedCredentials:
 
 
 class TestDeHashedScrape:
-    """Lines 51-155: scrape() — all branches."""
+    """scrape() is intentionally disabled in the free-only runtime."""
 
     def _make(self):
         from modules.crawlers.email_dehashed import DeHashedCrawler
 
         return DeHashedCrawler()
 
-    # Line 51-59: missing credentials → found=False, error set
     @pytest.mark.asyncio
-    async def test_scrape_no_credentials(self):
+    async def test_scrape_disabled_without_credentials(self):
         crawler = self._make()
-        with patch.dict("os.environ", {}, clear=True):
-            result = await crawler.scrape("victim@example.com")
+        result = await crawler.scrape("victim@example.com")
         assert result.found is False
-        assert result.error == "DEHASHED_EMAIL or DEHASHED_API_KEY not set"
+        assert result.error == "dehashed_disabled_free_only_runtime"
 
-    # Line 72-81: self.get() raises an exception
     @pytest.mark.asyncio
-    async def test_scrape_get_raises_exception(self):
+    async def test_scrape_disabled_even_with_credentials(self):
         crawler = self._make()
         with (
             patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(side_effect=RuntimeError("network error"))),
+            patch.object(crawler, "get", new=AsyncMock()) as mock_get,
         ):
             result = await crawler.scrape("victim@example.com")
         assert result.found is False
-        assert result.error == "network error"
-
-    # Line 83-90: response is None
-    @pytest.mark.asyncio
-    async def test_scrape_none_response(self):
-        crawler = self._make()
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=None)),
-        ):
-            result = await crawler.scrape("victim@example.com")
-        assert result.found is False
-        assert result.error == "no_response"
-
-    # Lines 92-99: 401 Unauthorized
-    @pytest.mark.asyncio
-    async def test_scrape_401_invalid_credentials(self):
-        crawler = self._make()
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(401))),
-        ):
-            result = await crawler.scrape("victim@example.com")
-        assert result.found is False
-        assert result.error == "invalid_credentials"
-
-    # Lines 101-108: 400 Bad Request
-    @pytest.mark.asyncio
-    async def test_scrape_400_bad_request(self):
-        crawler = self._make()
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(400))),
-        ):
-            result = await crawler.scrape("victim@example.com")
-        assert result.found is False
-        assert result.error == "bad_request"
-
-    # Lines 110-117: 429 Rate Limited
-    @pytest.mark.asyncio
-    async def test_scrape_429_rate_limited(self):
-        crawler = self._make()
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(429))),
-        ):
-            result = await crawler.scrape("victim@example.com")
-        assert result.found is False
-        assert result.error == "rate_limited"
-
-    # Lines 119-126: other non-200 status (e.g. 503)
-    @pytest.mark.asyncio
-    async def test_scrape_non200_other(self):
-        crawler = self._make()
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(503))),
-        ):
-            result = await crawler.scrape("victim@example.com")
-        assert result.found is False
-        assert result.error == "http_503"
-
-    # Lines 128-137: response.json() raises → invalid_json
-    @pytest.mark.asyncio
-    async def test_scrape_invalid_json(self):
-        crawler = self._make()
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=AsyncMock(return_value=_mock_resp(200))),
-        ):
-            result = await crawler.scrape("victim@example.com")
-        assert result.found is False
-        assert result.error == "invalid_json"
-
-    # Lines 139-162: 200 with empty entries list → found=False
-    @pytest.mark.asyncio
-    async def test_scrape_200_empty_entries(self):
-        crawler = self._make()
-        json_data = {"total": 0, "took": 5, "entries": []}
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
-            ),
-        ):
-            result = await crawler.scrape("nobody@example.com")
-        assert result.found is False
-        assert result.data["records"] == []
-        assert result.data["total"] == 0
-
-    # Lines 139-162: 200 with entries → found=True, records populated
-    @pytest.mark.asyncio
-    async def test_scrape_200_with_entries(self):
-        crawler = self._make()
-        json_data = {
-            "total": 2,
-            "took": 10,
-            "entries": [
-                {
-                    "id": "abc123",
-                    "email": "victim@example.com",
-                    "username": "victim",
-                    "name": "John Doe",
-                    "ip_address": "1.2.3.4",
-                    "phone": "5550001234",
-                    "database_name": "BreachDB",
-                    "hashed_password": "abc:hash",
-                },
-                {
-                    "id": "def456",
-                    "email": "victim@example.com",
-                    "username": None,
-                    "name": None,
-                    "ip_address": None,
-                    "phone": None,
-                    "database_name": "OtherDB",
-                    "hashed_password": None,
-                },
-            ],
-        }
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
-            ),
-        ):
-            result = await crawler.scrape("victim@example.com")
-        assert result.found is True
-        assert len(result.data["records"]) == 2
-        assert result.data["records"][0]["id"] == "abc123"
-        assert result.data["records"][0]["database_name"] == "BreachDB"
-        assert result.data["records"][1]["id"] == "def456"
-        assert result.data["total"] == 2
-
-    # Lines 139: entries key absent → treated as empty
-    @pytest.mark.asyncio
-    async def test_scrape_200_no_entries_key(self):
-        crawler = self._make()
-        json_data = {"total": 0, "took": 1}
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
-            ),
-        ):
-            result = await crawler.scrape("nobody@example.com")
-        assert result.found is False
-        assert result.data["records"] == []
-
-    # entries=None fallback (or [] fallback)
-    @pytest.mark.asyncio
-    async def test_scrape_200_entries_none(self):
-        crawler = self._make()
-        json_data = {"total": 0, "entries": None}
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(
-                crawler, "get", new=AsyncMock(return_value=_mock_resp(200, json_data=json_data))
-            ),
-        ):
-            result = await crawler.scrape("nobody@example.com")
-        assert result.found is False
-        assert result.data["records"] == []
-
-    # Verify URL construction includes stripped identifier
-    @pytest.mark.asyncio
-    async def test_scrape_url_uses_stripped_identifier(self):
-        crawler = self._make()
-        json_data = {"total": 0, "entries": []}
-        captured_urls = []
-
-        async def capturing_get(url, **kwargs):
-            captured_urls.append(url)
-            return _mock_resp(200, json_data=json_data)
-
-        with (
-            patch.dict("os.environ", {"DEHASHED_EMAIL": "e@x.com", "DEHASHED_API_KEY": "k"}),
-            patch.object(crawler, "get", new=capturing_get),
-        ):
-            await crawler.scrape("  victim@example.com  ")
-
-        assert len(captured_urls) == 1
-        assert "victim@example.com" in captured_urls[0]
-        assert "size=100" in captured_urls[0]
-        assert "page=1" in captured_urls[0]
+        assert result.error == "dehashed_disabled_free_only_runtime"
+        mock_get.assert_not_awaited()
 
 
 # ===========================================================================

@@ -192,13 +192,13 @@ async def test_upsert_social_profile_updates_existing():
 
 
 # ---------------------------------------------------------------------------
-# 8. _handle_breach_data writes BreachRecord rows for HIBP-style breaches
+# 8. _handle_breach_data writes BreachRecord rows for breach-style results
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_handle_breach_data_hibp_style():
+async def test_handle_breach_data_breach_style():
     session = _mock_session()
     result = _make_result(
-        platform="email_hibp",
+        platform="email_breach",
         identifier="test@example.com",
         data={
             "breaches": [

@@ -3,7 +3,7 @@ test_attom_gateway.py — 100% line coverage for modules/crawlers/property/attom
 
 asyncio_mode = "auto" — no @pytest.mark.asyncio needed.
 All HTTP I/O is mocked via patch.object(crawler, 'get', new_callable=AsyncMock).
-Tests cover both API path (with api key) and public portal path (no api key).
+Tests cover the public-only runtime path plus legacy ATTOM parsing helpers.
 """
 
 from __future__ import annotations
@@ -491,209 +491,50 @@ class TestAttomApiKeyProperty:
 
 
 # ---------------------------------------------------------------------------
-# AttomGatewayCrawler.scrape (API path)
+# AttomGatewayCrawler.scrape (free-only mode)
 # ---------------------------------------------------------------------------
 
 
-class TestAttomGatewayScrapeApiPath:
+class TestAttomGatewayFreeOnlyMode:
     def _make_crawler(self, api_key="test-api-key-xyz"):
         from modules.crawlers.property.attom_gateway import AttomGatewayCrawler
 
         crawler = AttomGatewayCrawler()
-        # Patch _api_key property to return our test key
         type(crawler)._api_key = property(lambda self: api_key)
         return crawler
 
-    async def test_api_none_response_returns_not_found(self):
+    async def test_configured_api_key_is_ignored(self):
+        crawler = self._make_crawler()
+        resp = _mock_resp(status=200, text="<html><body>APN: 123-456-789</body></html>")
+        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)) as mock_get:
+            result = await crawler.scrape("123 Main St, Dallas TX 75001")
+        assert result.found is True
+        assert result.data.get("source") == "attom_portal"
+        called_url = mock_get.call_args[0][0]
+        assert "property-report" in called_url
+        assert "propertyapi" not in called_url
+
+    async def test_configured_api_key_still_uses_portal_errors(self):
         crawler = self._make_crawler()
         with patch.object(crawler, "get", new=AsyncMock(return_value=None)):
             result = await crawler.scrape("123 Main St, Dallas TX 75001")
         assert result.found is False
-        assert "attom_api_http_timeout" in (result.data.get("error") or "")
-
-    async def test_api_non_200_returns_not_found(self):
-        crawler = self._make_crawler()
-        resp = _mock_resp(status=403, text="Forbidden")
-        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("123 Main St, Dallas TX 75001")
-        assert result.found is False
-        assert "403" in (result.data.get("error") or "")
-
-    async def test_api_json_parse_error(self):
-        crawler = self._make_crawler()
-        resp = _mock_resp(status=200, text="not-json")
-        resp.json.side_effect = ValueError("bad json")
-        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("123 Main St, Dallas TX 75001")
-        assert result.found is False
-        assert result.data.get("error") == "attom_api_json_parse_error"
-
-    async def test_api_empty_property_list_still_returns_result(self):
-        """Empty property list uses [{}] fallback — still produces a populated dict."""
-        crawler = self._make_crawler()
-        resp = _mock_resp(status=200, json_data={"property": []})
-        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("123 Main St, Dallas TX 75001")
-        # _parse_api_property falls back to [{}][0], so returns a non-empty dict → found=True
-        assert isinstance(result.found, bool)
-
-    async def test_api_prop_empty_dict_returns_not_found(self):
-        """Line 318: _parse_api_property returns {} (falsy) → found=False."""
-        crawler = self._make_crawler()
-        resp = _mock_resp(status=200, json_data={"property": [{"identifier": None}]})
-
-        with (
-            patch.object(crawler, "get", new=AsyncMock(return_value=resp)),
-            patch("modules.crawlers.property.attom_gateway._parse_api_property", return_value={}),
-        ):
-            result = await crawler.scrape("123 Main St TX")
-
-        assert result.found is False
-
-    async def test_api_successful_without_attom_id(self):
-        """No attom_id → skips sale history and AVM calls."""
-        crawler = self._make_crawler()
-        data = _api_property_response(attom_id=None)
-        data["property"][0]["identifier"]["attomId"] = None
-        resp = _mock_resp(status=200, json_data=data)
-
-        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("123 Main St, Dallas TX 75001")
-
-        assert result.found is True
-
-    async def test_api_successful_with_attom_id_all_steps(self):
-        """Full flow: detail + sale history + AVM all succeed."""
-        crawler = self._make_crawler()
-        detail_data = _api_property_response(attom_id="ATT-999")
-        sale_data = {
-            "property": [
-                {
-                    "saleHistory": [
-                        {
-                            "buyerName": "JONES BOB",
-                            "amount": "350000",
-                            "saleTransDate": "2020-01-01",
-                        }
-                    ]
-                }
-            ]
-        }
-        avm_data = {
-            "property": [
-                {
-                    "avm": {
-                        "amount": {"value": 400000, "low": 380000, "high": 420000},
-                        "eventType": "MEDIUM",
-                    }
-                }
-            ]
-        }
-
-        call_count = [0]
-
-        async def fake_get(url, **kwargs):
-            call_count[0] += 1
-            if "property/detail" in url:
-                return _mock_resp(status=200, json_data=detail_data)
-            if "saleshistory" in url:
-                return _mock_resp(status=200, json_data=sale_data)
-            if "/avm/" in url:
-                return _mock_resp(status=200, json_data=avm_data)
-            return _mock_resp(status=200, json_data={})
-
-        with patch.object(crawler, "get", new=AsyncMock(side_effect=fake_get)):
-            result = await crawler.scrape("123 Main St, Dallas TX 75001")
-
-        assert result.found is True
-        prop = result.data["properties"][0]
-        assert prop["owner_name"] == "SMITH JOHN"
-        assert len(prop["ownership_history"]) == 1
-        assert prop["avm_value_usd"] == 400000
-
-    async def test_api_206_accepted(self):
-        crawler = self._make_crawler()
-        resp = _mock_resp(status=206, json_data=_api_property_response())
-        with patch.object(crawler, "get", new=AsyncMock(return_value=resp)):
-            result = await crawler.scrape("123 Main St TX")
-        assert result.found is True
-
-    async def test_api_sale_history_non_200_skipped(self):
-        """Sale history call fails (non-200) → step silently skipped."""
-        crawler = self._make_crawler()
-        detail_data = _api_property_response(attom_id="ATT-SKIP")
-
-        async def fake_get(url, **kwargs):
-            if "property/detail" in url:
-                return _mock_resp(status=200, json_data=detail_data)
-            if "saleshistory" in url:
-                return _mock_resp(status=503, text="error")
-            if "/avm/" in url:
-                return _mock_resp(status=503, text="error")
-            return _mock_resp(status=200, json_data={})
-
-        with patch.object(crawler, "get", new=AsyncMock(side_effect=fake_get)):
-            result = await crawler.scrape("123 Main St TX")
-
-        assert result.found is True
-
-    async def test_api_sale_history_json_exception_swallowed(self):
-        """Sale history JSON parse error is caught and ignored."""
-        crawler = self._make_crawler()
-        detail_data = _api_property_response(attom_id="ATT-SWALLOW")
-
-        sale_resp = _mock_resp(status=200, text="not-json")
-        sale_resp.json.side_effect = ValueError("bad json")
-
-        async def fake_get(url, **kwargs):
-            if "property/detail" in url:
-                return _mock_resp(status=200, json_data=detail_data)
-            if "saleshistory" in url:
-                return sale_resp
-            return _mock_resp(status=200, json_data={})
-
-        with patch.object(crawler, "get", new=AsyncMock(side_effect=fake_get)):
-            result = await crawler.scrape("123 Main St TX")
-
-        assert result.found is True
-
-    async def test_api_avm_json_exception_swallowed(self):
-        """AVM JSON parse error is caught and ignored."""
-        crawler = self._make_crawler()
-        detail_data = _api_property_response(attom_id="ATT-AVM-ERR")
-
-        avm_resp = _mock_resp(status=200, text="bad")
-        avm_resp.json.side_effect = ValueError("bad json")
-
-        async def fake_get(url, **kwargs):
-            if "property/detail" in url:
-                return _mock_resp(status=200, json_data=detail_data)
-            if "saleshistory" in url:
-                return _mock_resp(status=200, json_data={"property": []})
-            if "/avm/" in url:
-                return avm_resp
-            return _mock_resp(status=200, json_data={})
-
-        with patch.object(crawler, "get", new=AsyncMock(side_effect=fake_get)):
-            result = await crawler.scrape("123 Main St TX")
-
-        assert result.found is True
+        assert result.data.get("error") == "attom_portal_unreachable"
 
     async def test_apn_prefix_stripped(self):
-        """APN: prefix is stripped before sending to API."""
+        """APN: prefix is stripped before sending to the public portal."""
         crawler = self._make_crawler()
-        detail_data = _api_property_response()
-
+        resp = _mock_resp(status=200, text="<html><body>APN: 123-456</body></html>")
         with patch.object(
             crawler,
             "get",
-            new=AsyncMock(return_value=_mock_resp(status=200, json_data=detail_data)),
+            new=AsyncMock(return_value=resp),
         ) as mock_get:
             await crawler.scrape("APN:123-456 TX")
 
         called_url = mock_get.call_args[0][0]
-        # APN: prefix should be stripped, query should not contain "APN:"
-        assert "APN%3A" not in called_url or "123-456" in called_url
+        assert "APN%3A" not in called_url
+        assert "123-456" in called_url
 
 
 # ---------------------------------------------------------------------------
