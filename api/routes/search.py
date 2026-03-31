@@ -719,6 +719,7 @@ async def _process_single(req: SearchRequest, session: AsyncSession) -> SearchRe
 
 
 @router.post("", response_model=SearchResponse)
+@router.post("/persons", response_model=SearchResponse, include_in_schema=False)
 async def search(req: SearchRequest, session: AsyncSession = DbDep):
     """Submit a single identifier search. Auto-detects seed type if not provided."""
     return await _process_single(req, session)

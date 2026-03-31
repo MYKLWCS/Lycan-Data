@@ -47,7 +47,7 @@ class PlaywrightCrawler(BaseCrawler):
     @asynccontextmanager
     async def page(self, url: str | None = None) -> AsyncGenerator[Page, None]:
         """Context manager that yields a stealth Patchright page."""
-        proxy = self.get_proxy()
+        proxy = await self.get_proxy_async()
         proxy_config = {"server": proxy} if proxy else None
 
         async with async_playwright() as pw:
@@ -83,8 +83,27 @@ class PlaywrightCrawler(BaseCrawler):
     async def is_blocked(self, page: Page) -> bool:
         """Heuristic: detect common block pages."""
         title = await page.title()
-        blocked_signals = ["captcha", "blocked", "403", "access denied", "unusual traffic"]
-        return any(s in title.lower() for s in blocked_signals)
+        html = await page.content()
+        return self.html_has_block_signals(html, title=title)
+
+    @staticmethod
+    def html_has_block_signals(html: str, title: str = "") -> bool:
+        """Detect common anti-bot challenge pages in rendered HTML."""
+        text = f"{title}\n{html}".lower()
+        blocked_signals = (
+            "access denied",
+            "attention required",
+            "blocked",
+            "captcha",
+            "cf-challenge",
+            "cloudflare",
+            "forbidden",
+            "ray id",
+            "unusual traffic",
+            "verify you are human",
+            "why do i have to complete a captcha",
+        )
+        return any(signal in text for signal in blocked_signals)
 
 
 # Alias for callers expecting the plan-spec name

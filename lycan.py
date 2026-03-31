@@ -17,6 +17,7 @@ import argparse
 import asyncio
 import importlib
 import json
+import logging
 import sys
 import time
 from datetime import datetime
@@ -24,6 +25,7 @@ from pathlib import Path
 
 # Ensure project root is in path
 sys.path.insert(0, str(Path(__file__).parent))
+logger = logging.getLogger("lycan.cli")
 
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
@@ -78,7 +80,7 @@ def _import_all_crawlers() -> list[str]:
                 importlib.import_module(module_name)
                 loaded.append(module_name.split(".")[-1])
             except Exception:
-                pass
+                logger.exception("Crawler import failed: %s", module_name)
     return loaded
 
 

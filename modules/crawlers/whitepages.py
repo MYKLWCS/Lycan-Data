@@ -6,10 +6,10 @@ from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 from shared.cf_cookie_cache import get_cf_cookies, set_cf_cookies
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,7 @@ class WhitepagesCrawler(PlaywrightCrawler):
     rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     source_reliability = 0.65
     requires_tor = False
+    proxy_tier = "residential"
 
     async def scrape(self, identifier: str) -> CrawlerResult:
         first, last, city, state = _parse_name_identifier(identifier)
@@ -71,42 +72,50 @@ class WhitepagesCrawler(PlaywrightCrawler):
             cookies = await get_cf_cookies("whitepages.com")
             if cookies:
                 from modules.crawlers.curl_base import CurlCrawler
+
                 curl = CurlCrawler()
+                curl.requires_tor = self.requires_tor
+                curl.proxy_tier = self.proxy_tier
                 resp = await curl.get(url, cookies=cookies)
-                if resp and hasattr(resp, 'text') and len(resp.text) > 1000:
-                    text_lower = resp.text[:500].lower()
-                    if "access denied" not in text_lower and "blocked" not in text_lower:
+                if resp and hasattr(resp, "text") and len(resp.text) > 1000:
+                    if not self.html_has_block_signals(resp.text):
                         content = resp.text
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Cached cookie fetch failed for %s: %s", url, exc)
 
         # 2. Try Byparr (FlareSolverr-compatible API)
         if not content:
             try:
                 from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
+
                 fs = FlareSolverrCrawler()
+                fs.requires_tor = self.requires_tor
+                fs.proxy_tier = self.proxy_tier
                 if await fs._probe_flaresolverr():
                     resp = await fs.fs_get(url)
-                    if resp and hasattr(resp, 'text') and len(resp.text) > 1000:
-                        content = resp.text
+                    if resp and hasattr(resp, "text") and len(resp.text) > 1000:
+                        if self.html_has_block_signals(resp.text):
+                            logger.debug("Byparr returned challenge page for %s", url)
+                        else:
+                            content = resp.text
                         # Cache the CF cookies for future requests
-                        if hasattr(resp, 'cookies') and resp.cookies:
+                        if content and hasattr(resp, "cookies") and resp.cookies:
                             await set_cf_cookies("whitepages.com", resp.cookies)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Byparr fetch failed for %s: %s", url, exc)
 
         if not content:
             async with self.page(url) as page:
                 await page.wait_for_timeout(random.randint(2000, 4000))
 
                 title = await page.title()
-                if any(s in title.lower() for s in ("access denied", "blocked", "403")):
+                if await self.is_blocked(page):
                     await self.rotate_circuit()
                     return CrawlerResult(
                         platform=self.platform,
                         identifier=identifier,
                         found=False,
-                        error="bot_block: page title indicates block",
+                        error=f"bot_block: challenge page for {title or url}",
                         source_reliability=self.source_reliability,
                     )
 
@@ -137,9 +146,18 @@ class WhitepagesCrawler(PlaywrightCrawler):
             if person:  # pragma: no branch
                 results.append(person)
 
+        if not results:
+            return CrawlerResult(
+                platform=self.platform,
+                identifier=identifier,
+                found=False,
+                error="parse_failed: no result cards extracted",
+                source_reliability=self.source_reliability,
+            )
+
         return self._result(
             identifier,
-            found=True,
+            found=bool(results),
             results=results,
             result_count=len(results),
         )

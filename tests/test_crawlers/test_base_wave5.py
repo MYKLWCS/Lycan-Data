@@ -95,16 +95,28 @@ async def test_rotate_circuit_uses_crawler_tor_instance():
 
 
 @pytest.mark.asyncio
-async def test_get_proxy_async_opts_out_when_no_tor_and_tier_is_tor():
+async def test_get_proxy_async_honours_explicit_tor_tier_when_tor_not_required():
     """
-    Line 90-91: requires_tor=False and proxy_tier="tor" → return None immediately.
+    Explicit proxy_tier should win over requires_tor=False so blocked crawlers
+    can still opt into Tor or the wider proxy fallback chain.
     """
     crawler = _DummyCrawler()
     crawler.requires_tor = False
     crawler.proxy_tier = "tor"
 
-    result = await crawler.get_proxy_async()
-    assert result is None
+    mock_pool = MagicMock()
+    mock_pool.next_with_fallback = AsyncMock(return_value=("socks5://tor.explicit:9050", "tor"))
+
+    mock_settings = MagicMock()
+    mock_settings.proxy_override = ""
+    mock_settings.tor_enabled = True
+
+    with patch("shared.proxy_pool.proxy_pool", mock_pool, create=True):
+        with patch("modules.crawlers.base.settings", mock_settings):
+            result = await crawler.get_proxy_async()
+
+    mock_pool.next_with_fallback.assert_awaited_once_with("tor")
+    assert result == "socks5://tor.explicit:9050"
 
 
 @pytest.mark.asyncio
@@ -120,13 +132,10 @@ async def test_get_proxy_async_downgrades_tor_tier_when_tor_disabled():
     mock_pool.next_with_fallback = AsyncMock(return_value=("socks5://127.0.0.1:9050", "datacenter"))
 
     mock_settings = MagicMock()
+    mock_settings.proxy_override = ""
     mock_settings.tor_enabled = False
 
-    import unittest.mock as _mock
-
-    import shared.proxy_pool as _pp_mod
-
-    with _mock.patch.object(_pp_mod, "proxy_pool", mock_pool):
+    with patch("shared.proxy_pool.proxy_pool", mock_pool, create=True):
         with patch("modules.crawlers.base.settings", mock_settings):
             result = await crawler.get_proxy_async()
 
@@ -149,6 +158,7 @@ async def test_get_proxy_async_uses_preferred_tier_when_tor_enabled():
     )
 
     mock_settings = MagicMock()
+    mock_settings.proxy_override = ""
     mock_settings.tor_enabled = True
 
     with patch("shared.proxy_pool.proxy_pool", mock_pool, create=True):
@@ -172,6 +182,7 @@ async def test_get_proxy_async_returns_none_proxy_from_pool():
     mock_pool.next_with_fallback = AsyncMock(return_value=(None, "datacenter"))
 
     mock_settings = MagicMock()
+    mock_settings.proxy_override = ""
     mock_settings.tor_enabled = True
 
     with patch("shared.proxy_pool.proxy_pool", mock_pool, create=True):

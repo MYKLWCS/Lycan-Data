@@ -13,7 +13,7 @@ import asyncio
 import json
 import logging
 import os
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -132,7 +132,7 @@ class CrawlDispatcher:
             return
 
         await self._update_job_status(session, job_id, CrawlStatus.RUNNING)
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
 
         # Emit scraper_running progress event
         await self._emit_progress(person_id, EventType.SCRAPER_RUNNING, platform)
@@ -143,7 +143,7 @@ class CrawlDispatcher:
             crawler = crawler_cls()
             result = await asyncio.wait_for(crawler.run(identifier), timeout=_CRAWLER_TIMEOUT)
 
-            duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
+            duration_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
 
             if result.found:
                 # ── DECOUPLED: Push to Ingest Queue ──
@@ -178,7 +178,15 @@ class CrawlDispatcher:
                 )
                 # Emit scraper_done with result count and discovered accounts
                 data = ingest_payload.get("data") or {}
-                results_found = len(data) if isinstance(data, list) else (sum(1 for v in data.values() if v is not None and v != "" and v != []) if isinstance(data, dict) else (1 if data else 0))
+                results_found = (
+                    len(data)
+                    if isinstance(data, list)
+                    else (
+                        sum(1 for v in data.values() if v is not None and v != "" and v != [])
+                        if isinstance(data, dict)
+                        else (1 if data else 0)
+                    )
+                )
 
                 # Extract discovered account links from crawler results
                 discovered_accounts: list[dict] = []
@@ -187,7 +195,9 @@ class CrawlDispatcher:
                     handle = data.get("handle") or data.get("username")
                     acct_platform = data.get("platform") or platform
                     if url:
-                        discovered_accounts.append({"url": url, "handle": handle, "platform": acct_platform})
+                        discovered_accounts.append(
+                            {"url": url, "handle": handle, "platform": acct_platform}
+                        )
                 elif isinstance(data, list):
                     for item in data:
                         if isinstance(item, dict):
@@ -195,10 +205,14 @@ class CrawlDispatcher:
                             handle = item.get("handle") or item.get("username")
                             acct_platform = item.get("platform") or platform
                             if url:
-                                discovered_accounts.append({"url": url, "handle": handle, "platform": acct_platform})
+                                discovered_accounts.append(
+                                    {"url": url, "handle": handle, "platform": acct_platform}
+                                )
 
                 await self._emit_progress(
-                    person_id, EventType.SCRAPER_DONE, platform,
+                    person_id,
+                    EventType.SCRAPER_DONE,
+                    platform,
                     results_found=results_found,
                     discovered_accounts=discovered_accounts,
                 )
@@ -218,11 +232,18 @@ class CrawlDispatcher:
             # Check if all jobs for this person are complete
             await self._check_search_complete(session, person_id, started_at)
 
-        except asyncio.TimeoutError:
-            logger.warning("Crawler %s timed out after %ds for %s", platform, _CRAWLER_TIMEOUT, identifier)
-            await self._update_job_status(session, job_id, CrawlStatus.FAILED, f"Timeout after {_CRAWLER_TIMEOUT}s")
+        except TimeoutError:
+            logger.warning(
+                "Crawler %s timed out after %ds for %s", platform, _CRAWLER_TIMEOUT, identifier
+            )
+            await self._update_job_status(
+                session, job_id, CrawlStatus.FAILED, f"Timeout after {_CRAWLER_TIMEOUT}s"
+            )
             await self._emit_progress(
-                person_id, EventType.SCRAPER_FAILED, platform, error=f"Timeout after {_CRAWLER_TIMEOUT}s"
+                person_id,
+                EventType.SCRAPER_FAILED,
+                platform,
+                error=f"Timeout after {_CRAWLER_TIMEOUT}s",
             )
             await self._check_search_complete(session, person_id, started_at)
 
@@ -231,9 +252,7 @@ class CrawlDispatcher:
             if retry_count < MAX_RETRIES:
                 await self._requeue_with_backoff(job_dict, retry_count)
             await self._update_job_status(session, job_id, CrawlStatus.FAILED, str(exc))
-            await self._emit_progress(
-                person_id, EventType.SCRAPER_FAILED, platform, error=str(exc)
-            )
+            await self._emit_progress(person_id, EventType.SCRAPER_FAILED, platform, error=str(exc))
             await self._check_search_complete(session, person_id, started_at)
 
     async def _emit_progress(
@@ -268,7 +287,7 @@ class CrawlDispatcher:
         person_id: str | None,
         search_started_at: datetime,
     ) -> None:
-        """Check if all crawl jobs for a person are terminal. If so, emit SEARCH_COMPLETE."""
+        """Check if all crawl jobs are terminal. If so, emit dedup/finalization progress."""
         if not person_id or not event_bus.is_connected:
             return
         try:
@@ -281,10 +300,12 @@ class CrawlDispatcher:
                     .select_from(CrawlJob)
                     .where(
                         CrawlJob.person_id == person_id,
-                        CrawlJob.status.in_([
-                            CrawlStatus.PENDING.value,
-                            CrawlStatus.RUNNING.value,
-                        ]),
+                        CrawlJob.status.in_(
+                            [
+                                CrawlStatus.PENDING.value,
+                                CrawlStatus.RUNNING.value,
+                            ]
+                        ),
                     )
                 )
             ).scalar() or 0
@@ -296,26 +317,36 @@ class CrawlDispatcher:
             from sqlalchemy import case, literal_column
 
             stats = (
-                await session.execute(
-                    select(
-                        func.count().label("total"),
-                        func.count(
-                            case(
-                                (CrawlJob.status == CrawlStatus.DONE.value, literal_column("1")),
-                            )
-                        ).label("succeeded"),
-                        func.count(
-                            case(
-                                (CrawlJob.status == CrawlStatus.FAILED.value, literal_column("1")),
-                            )
-                        ).label("failed"),
+                (
+                    await session.execute(
+                        select(
+                            func.count().label("total"),
+                            func.count(
+                                case(
+                                    (
+                                        CrawlJob.status == CrawlStatus.DONE.value,
+                                        literal_column("1"),
+                                    ),
+                                )
+                            ).label("succeeded"),
+                            func.count(
+                                case(
+                                    (
+                                        CrawlJob.status == CrawlStatus.FAILED.value,
+                                        literal_column("1"),
+                                    ),
+                                )
+                            ).label("failed"),
+                        )
+                        .select_from(CrawlJob)
+                        .where(CrawlJob.person_id == person_id)
                     )
-                    .select_from(CrawlJob)
-                    .where(CrawlJob.person_id == person_id)
                 )
-            ).mappings().one()
+                .mappings()
+                .one()
+            )
 
-            duration = (datetime.now(timezone.utc) - search_started_at).total_seconds()
+            duration = (datetime.now(UTC) - search_started_at).total_seconds()
 
             await event_bus.publish(
                 "progress",
@@ -330,7 +361,7 @@ class CrawlDispatcher:
                     "duration_seconds": round(duration, 1),
                 },
             )
-            logger.info("SEARCH_COMPLETE emitted for person_id=%s", person_id)
+            logger.info("Dedup phase emitted for completed crawl set person_id=%s", person_id)
         except Exception:
             logger.exception("Failed to check/emit search_complete for %s", person_id)
 
@@ -348,7 +379,7 @@ class CrawlDispatcher:
         await session.execute(
             update(CrawlJob)
             .where(CrawlJob.id == job_id)
-            .values(status=status.value, error_message=error, updated_at=datetime.now(timezone.utc))
+            .values(status=status.value, error_message=error, updated_at=datetime.now(UTC))
         )
         await session.commit()
 
@@ -381,7 +412,7 @@ class CrawlDispatcher:
     async def _requeue_with_backoff(self, job_dict: dict, retry_count: int) -> None:
         delay = RETRY_DELAYS[min(retry_count, len(RETRY_DELAYS) - 1)]
         job_dict["retry_count"] = retry_count + 1
-        job_dict["run_after"] = datetime.now(timezone.utc).timestamp() + delay
+        job_dict["run_after"] = datetime.now(UTC).timestamp() + delay
         priority = "low" if retry_count >= 1 else "normal"
         await event_bus.enqueue(job_dict, priority=priority)
         logger.info("Requeued job with %ds backoff (retry %d)", delay, retry_count + 1)
@@ -391,7 +422,9 @@ async def check_search_depth(person_id: str, max_depth: int = 2) -> bool:
     """Returns True if recursion is still allowed, False if max depth hit."""
     try:
         import redis.asyncio as aioredis
+
         from shared.config import settings
+
         r = aioredis.from_url(settings.cache_url, socket_connect_timeout=2)
         key = f"lycan:search_depth:{person_id}"
         depth = await r.incr(key)
@@ -399,7 +432,9 @@ async def check_search_depth(person_id: str, max_depth: int = 2) -> bool:
             await r.expire(key, 3600)
         await r.aclose()
         if depth > max_depth:
-            logger.info("Recursion depth %d reached for person %s — stopping pivot chain", depth, person_id)
+            logger.info(
+                "Recursion depth %d reached for person %s — stopping pivot chain", depth, person_id
+            )
             return False
         return True
     except Exception:

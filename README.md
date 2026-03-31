@@ -30,16 +30,19 @@ cp .env.example .env
 # 3. Start all infrastructure services
 make up
 
-# 4. Wait for services to be healthy (~30 seconds)
+# 4. Install Python dependencies locally
+make install
+
+# 5. Wait for services to be healthy (~30 seconds)
 docker compose ps
 
-# 5. Run database migrations
+# 6. Run database migrations
 make migrate
 
-# 6. Start the API server (in one terminal)
+# 7. Start the API server (in one terminal)
 make api
 
-# 7. Start background workers (in another terminal)
+# 8. Start background workers (in another terminal)
 make worker
 ```
 
@@ -113,13 +116,13 @@ make selfheal       # Run selfheal auto-fix script
 make search QUERY="John Doe"
 
 # Via curl
-curl -X POST http://localhost:8000/search/persons \
+curl -X POST http://localhost:8000/search \
   -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{"query": "John Doe", "max_results": 20}'
 
 # Stream progress in real time
-curl -N http://localhost:8000/ws/search-id-here \
+curl -N http://localhost:8000/ws/search/<person-id>/progress \
   -H "Authorization: Bearer your-api-key"
 ```
 
@@ -136,7 +139,7 @@ make test-fast
 make test-load
 
 # Specific test file
-.venv/bin/python -m pytest tests/test_integration_search_pipeline.py -v
+python3 -m pytest tests/test_integration_search_pipeline.py -v
 
 # With coverage
 make test-ci
@@ -151,9 +154,9 @@ Client
   │
   ▼
 FastAPI (port 8000)
-  │  POST /search/{seed_type}
+  │  POST /search
   │  GET  /persons/{id}/full
-  │  WS   /ws/{search_id}    ← real-time SSE progress
+  │  SSE  /ws/search/{search_id}/progress
   │
   ▼
 Garnet (Redis)  ──────────────────────────────────────┐

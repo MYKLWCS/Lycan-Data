@@ -18,7 +18,6 @@ import argparse
 import asyncio
 import importlib
 import logging
-import pkgutil
 import signal
 import sys
 from pathlib import Path
@@ -35,6 +34,7 @@ logger = logging.getLogger("lycan.worker")
 
 def _import_all_crawlers():
     import os
+
     import modules.crawlers as pkg
 
     base_path = pkg.__path__[0]
@@ -48,7 +48,7 @@ def _import_all_crawlers():
             try:
                 importlib.import_module(module_name)
             except Exception:
-                pass
+                logger.exception("Crawler import failed: %s", module_name)
 
 
 async def main(

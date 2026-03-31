@@ -13,10 +13,10 @@ import logging
 import re
 from typing import Any
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.flaresolverr_base import FlareSolverrCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,7 @@ class PeopleZabaSearchCrawler(FlareSolverrCrawler):
     rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
     source_reliability = 0.70
     requires_tor = False
+    proxy_tier = "residential"
 
     async def scrape(self, identifier: str) -> CrawlerResult:
         name = identifier.strip()
@@ -143,7 +144,7 @@ class PeopleZabaSearchCrawler(FlareSolverrCrawler):
 
         url = _BASE_URL.format(first=first, last=last)
 
-        response = await self.get(url, headers=_HEADERS)
+        response = await self.fs_get(url, headers=_HEADERS)
 
         if response is None:
             return CrawlerResult(

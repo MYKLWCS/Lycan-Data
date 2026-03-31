@@ -434,7 +434,7 @@ class TestFastPeopleSearchCrawler:
         html = "<html><body><p>No results found.</p></body></html>"
         with patch.object(crawler, "page", make_page_cm(html)):
             result = await crawler.scrape("Madonna")
-        assert result.found is True
+        assert result.found is False
         assert result.data["results"] == []
 
     # line 114 — phone_els found (class containing "phone")

@@ -1,6 +1,5 @@
 import importlib
 import logging
-import pkgutil
 from contextlib import asynccontextmanager
 
 import httpx
@@ -46,6 +45,7 @@ _auth = [Depends(verify_api_key)]
 def _import_all_crawlers() -> None:
     """Auto-import every module under modules.crawlers (recursively) so they self-register."""
     import os
+
     import modules.crawlers as pkg
 
     base_path = pkg.__path__[0]
@@ -62,7 +62,7 @@ def _import_all_crawlers() -> None:
             try:
                 importlib.import_module(module_name)
             except Exception:
-                pass
+                _log.exception("Crawler import failed: %s", module_name)
 
 
 @asynccontextmanager
@@ -92,12 +92,19 @@ async def lifespan(app: FastAPI):
     try:
         import socksio  # noqa: F401
     except ImportError:
-        _log.critical("socksio not installed — Tor crawlers will fail. Install: pip install httpx[socks]")
+        _log.critical(
+            "socksio not installed — Tor crawlers will fail. Install: pip install httpx[socks]"
+        )
 
     # Warn if secret_key is default in non-dev environment
     import os
+
     from shared.config import settings
-    if settings.secret_key == "changeme-32-chars-minimum-please" and os.environ.get("ENVIRONMENT") != "dev":
+
+    if (
+        settings.secret_key == "changeme-32-chars-minimum-please"
+        and os.environ.get("ENVIRONMENT") != "dev"
+    ):
         _log.warning("SECRET_KEY is still the default — change it for production")
 
     # Initialize rate limiter and circuit breaker with shared Redis client
@@ -119,6 +126,7 @@ async def lifespan(app: FastAPI):
     try:
         from sqlalchemy import text
         from sqlalchemy.ext.asyncio import create_async_engine
+
         engine = create_async_engine(_settings.database_url)
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -130,6 +138,7 @@ async def lifespan(app: FastAPI):
     # Check cache
     try:
         import redis.asyncio as _aioredis
+
         _r = _aioredis.from_url(_settings.cache_url, socket_connect_timeout=3)
         await _r.ping()
         await _r.aclose()
@@ -252,8 +261,6 @@ async def ui_index():
     return FileResponse("static/index.html")
 
 
-
-
 # ── API Routes ────────────────────────────────────────────────────────────────
 
 app.include_router(audit.router, prefix="/audit", tags=["audit"], dependencies=_auth)
@@ -267,15 +274,21 @@ app.include_router(ws.router, tags=["websocket"])
 app.include_router(financial.router, prefix="/financial", tags=["financial"], dependencies=_auth)
 app.include_router(marketing.router, prefix="/marketing", tags=["marketing"], dependencies=_auth)
 app.include_router(graph.router, prefix="/graph", tags=["graph"], dependencies=_auth)
-app.include_router(knowledge_graph.router, prefix="/kg", tags=["knowledge-graph"], dependencies=_auth)
+app.include_router(
+    knowledge_graph.router, prefix="/kg", tags=["knowledge-graph"], dependencies=_auth
+)
 app.include_router(dedup.router, prefix="/dedup", tags=["dedup"], dependencies=_auth)
 app.include_router(enrichment.router, prefix="/enrich", tags=["enrichment"], dependencies=_auth)
 app.include_router(patterns.router, prefix="/patterns", tags=["patterns"], dependencies=_auth)
-app.include_router(behavioural.router, prefix="/behavioural", tags=["behavioural"], dependencies=_auth)
+app.include_router(
+    behavioural.router, prefix="/behavioural", tags=["behavioural"], dependencies=_auth
+)
 app.include_router(watchlist.router, prefix="/watchlist", tags=["watchlist"], dependencies=_auth)
 app.include_router(alerts.router, prefix="/alerts", tags=["alerts"], dependencies=_auth)
 app.include_router(compliance.router, prefix="/compliance", tags=["compliance"], dependencies=_auth)
 app.include_router(export.router, prefix="/export", tags=["export"], dependencies=_auth)
 app.include_router(discovery.router, prefix="/discovery", tags=["discovery"], dependencies=_auth)
 app.include_router(builder.router, prefix="/builder", tags=["builder"], dependencies=_auth)
-app.include_router(relationships.router, prefix="/relationships", tags=["relationships"], dependencies=_auth)
+app.include_router(
+    relationships.router, prefix="/relationships", tags=["relationships"], dependencies=_auth
+)

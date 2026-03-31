@@ -16,6 +16,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _platform_from_meta(meta: object) -> str | None:
+    if isinstance(meta, dict):
+        platform = meta.get("platform")
+        if platform:
+            return str(platform)
+    return None
+
+
 def _valid_keys() -> set[str]:
     """Parse API keys from config."""
     raw = settings.api_keys.strip()
@@ -158,7 +166,9 @@ async def sse_progress(person_id: str, request: Request, token: str | None = Que
 
 
 @router.get("/search/{person_id}/progress")
-async def search_progress(person_id: str, request: Request, token: str | None = Query(default=None)):
+async def search_progress(
+    person_id: str, request: Request, token: str | None = Query(default=None)
+):
     """
     SSE stream of rich phase-based progress for a running search.
 
@@ -183,26 +193,28 @@ async def search_progress(person_id: str, request: Request, token: str | None = 
         scraper_count = 1
         scraper_names = []
         try:
+            import uuid as _uuid
+
+            from sqlalchemy import func, select
+
             from shared.db import AsyncSessionLocal
             from shared.models.crawl import CrawlJob
-            from sqlalchemy import select, func
-            import uuid as _uuid
 
             async with AsyncSessionLocal() as _session:
                 _cnt = await _session.execute(
-                    select(func.count()).select_from(CrawlJob).where(
-                        CrawlJob.person_id == _uuid.UUID(person_id)
-                    )
+                    select(func.count())
+                    .select_from(CrawlJob)
+                    .where(CrawlJob.person_id == _uuid.UUID(person_id))
                 )
                 scraper_count = max(_cnt.scalar() or 1, 1)
                 _names = await _session.execute(
-                    select(CrawlJob.platform).where(
-                        CrawlJob.person_id == _uuid.UUID(person_id)
-                    )
+                    select(CrawlJob.meta).where(CrawlJob.person_id == _uuid.UUID(person_id))
                 )
-                scraper_names = [r[0] for r in _names.all()]
+                scraper_names = [
+                    platform for row in _names.all() if (platform := _platform_from_meta(row[0]))
+                ]
         except Exception:
-            pass
+            logger.debug("Failed to recover scraper metadata for %s", person_id, exc_info=True)
 
         aggregator = ProgressAggregator(search_id=person_id, scraper_count=scraper_count)
         for _name in scraper_names:
@@ -255,3 +267,13 @@ async def search_progress(person_id: str, request: Request, token: str | None = 
             "Connection": "keep-alive",
         },
     )
+
+
+@router.get("/{person_id}")
+async def search_progress_legacy(
+    person_id: str,
+    request: Request,
+    token: str | None = Query(default=None),
+):
+    """Backward-compatible alias for older `/ws/{person_id}` clients."""
+    return await search_progress(person_id=person_id, request=request, token=token)

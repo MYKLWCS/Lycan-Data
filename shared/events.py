@@ -3,7 +3,7 @@ import json
 import logging
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -111,7 +111,7 @@ class EventBus:
 
     async def enqueue(self, job: dict[str, Any], priority: str = "normal") -> None:
         """Push a job to the appropriate priority queue."""
-        job.setdefault("enqueued_at", datetime.now(timezone.utc).isoformat())
+        job.setdefault("enqueued_at", datetime.now(UTC).isoformat())
         queue = self.QUEUES.get(priority, self.QUEUES["normal"])
         await self.redis.lpush(queue, _serialize(job))
 
@@ -121,6 +121,7 @@ class EventBus:
         try:
             result = await self.redis.brpop([queue], timeout=timeout)
         except Exception:
+            logger.exception("EventBus dequeue failed for queue %s", queue)
             return None
         if result is None:
             return None
@@ -133,6 +134,7 @@ class EventBus:
         try:
             result = await self.redis.brpop(queues, timeout=timeout)
         except Exception:
+            logger.exception("EventBus dequeue_any failed for queues %s", queues)
             return None
         if result is None:
             return None
