@@ -42,81 +42,224 @@ class CriteriaRouter:
                     continue
                 # Infer seed type
                 if "@" in seed_str:
-                    sources.append({"name": f"email:{seed_str}", "crawler": "email_holehe", "params": {"email": seed_str}})
-                    sources.append({"name": f"hibp:{seed_str}", "crawler": "email_hibp", "params": {"email": seed_str}})
+                    sources.append(
+                        {
+                            "name": f"email:{seed_str}",
+                            "crawler": "email_holehe",
+                            "params": {"email": seed_str},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"breach:{seed_str}",
+                            "crawler": "email_breach",
+                            "params": {"email": seed_str},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"emailrep:{seed_str}",
+                            "crawler": "email_emailrep",
+                            "params": {"email": seed_str},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"thatsthem:{seed_str}",
+                            "crawler": "people_thatsthem",
+                            "params": {"email": seed_str},
+                        }
+                    )
                 elif seed_str.replace("+", "").replace("-", "").replace(" ", "").isdigit():
-                    sources.append({"name": f"phone:{seed_str}", "crawler": "phone_phoneinfoga", "params": {"phone": seed_str}})
-                    sources.append({"name": f"truecaller:{seed_str}", "crawler": "phone_truecaller", "params": {"phone": seed_str}})
+                    sources.append(
+                        {
+                            "name": f"phone:{seed_str}",
+                            "crawler": "phone_phoneinfoga",
+                            "params": {"phone": seed_str},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"truecaller:{seed_str}",
+                            "crawler": "phone_truecaller",
+                            "params": {"phone": seed_str},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"numlookup:{seed_str}",
+                            "crawler": "phone_numlookup",
+                            "params": {"phone": seed_str},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"thatsthem_phone:{seed_str}",
+                            "crawler": "people_thatsthem",
+                            "params": {"phone": seed_str},
+                        }
+                    )
                 else:
                     # Assume name
-                    sources.append({"name": f"fps:{seed_str}", "crawler": "fastpeoplesearch", "params": {"name": seed_str, "location": location or ""}})
-                    sources.append({"name": f"tps:{seed_str}", "crawler": "truepeoplesearch", "params": {"name": seed_str}})
-                    sources.append({"name": f"wp:{seed_str}", "crawler": "whitepages", "params": {"name": seed_str, "location": location or ""}})
+                    sources.append(
+                        {
+                            "name": f"fps:{seed_str}",
+                            "crawler": "fastpeoplesearch",
+                            "params": {"name": seed_str, "location": location or ""},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"tps:{seed_str}",
+                            "crawler": "truepeoplesearch",
+                            "params": {"name": seed_str},
+                        }
+                    )
+                    sources.append(
+                        {
+                            "name": f"wp:{seed_str}",
+                            "crawler": "whitepages",
+                            "params": {"name": seed_str, "location": location or ""},
+                        }
+                    )
 
         # ── Location-based discovery ───────────────────────────────────
         if location or state:
             loc_str = location or state or ""
-            sources.extend([
-                {"name": "voter_records", "crawler": "public_voter", "params": {"location": loc_str, "state": state}},
-                {"name": "property_county", "crawler": "property_county", "params": {"location": loc_str}},
-                {"name": "fps_location", "crawler": "fastpeoplesearch", "params": {"location": loc_str}},
-                {"name": "tps_location", "crawler": "truepeoplesearch", "params": {"location": loc_str}},
-            ])
+            sources.extend(
+                [
+                    {
+                        "name": "voter_records",
+                        "crawler": "public_voter",
+                        "params": {"location": loc_str, "state": state},
+                    },
+                    {
+                        "name": "property_county",
+                        "crawler": "property_county",
+                        "params": {"location": loc_str},
+                    },
+                ]
+            )
 
         # ── Employer-based discovery ───────────────────────────────────
         if employer:
-            sources.extend([
-                {"name": f"linkedin:{employer}", "crawler": "linkedin", "params": {"company": employer}},
-                {"name": f"sec:{employer}", "crawler": "company_sec", "params": {"company_name": employer}},
-                {"name": f"opencorp:{employer}", "crawler": "company_opencorporates", "params": {"company_name": employer}},
-            ])
+            sources.extend(
+                [
+                    {
+                        "name": f"linkedin:{employer}",
+                        "crawler": "linkedin",
+                        "params": {"company": employer},
+                    },
+                    {
+                        "name": f"sec:{employer}",
+                        "crawler": "company_sec",
+                        "params": {"company_name": employer},
+                    },
+                    {
+                        "name": f"opencorp:{employer}",
+                        "crawler": "company_opencorporates",
+                        "params": {"company_name": employer},
+                    },
+                ]
+            )
 
         # ── Platform-specific discovery ────────────────────────────────
         if platform:
             platform_lower = platform.lower()
-            if platform_lower in ("instagram", "twitter", "tiktok", "linkedin", "reddit", "github", "youtube"):
-                sources.append({
-                    "name": f"platform:{platform_lower}",
-                    "crawler": platform_lower,
-                    "params": {"search": keywords or location or "", "platform": platform_lower},
-                })
+            if platform_lower in (
+                "instagram",
+                "twitter",
+                "tiktok",
+                "linkedin",
+                "reddit",
+                "github",
+                "youtube",
+            ):
+                sources.append(
+                    {
+                        "name": f"platform:{platform_lower}",
+                        "crawler": platform_lower,
+                        "params": {
+                            "search": keywords or location or "",
+                            "platform": platform_lower,
+                        },
+                    }
+                )
             # Username enumeration for social platforms
             if keywords:
-                sources.append({
-                    "name": "sherlock_username",
-                    "crawler": "username_sherlock",
-                    "params": {"username": keywords},
-                })
+                sources.append(
+                    {
+                        "name": "sherlock_username",
+                        "crawler": "username_sherlock",
+                        "params": {"username": keywords},
+                    }
+                )
 
         # ── Property-based discovery ───────────────────────────────────
         if has_property or property_range:
             loc = location or state or ""
-            sources.extend([
-                {"name": "zillow", "crawler": "property_zillow", "params": {"location": loc}},
-                {"name": "redfin", "crawler": "property_redfin", "params": {"location": loc}},
-                {"name": "county_assessor", "crawler": "property_county", "params": {"location": loc}},
-            ])
+            sources.extend(
+                [
+                    {"name": "zillow", "crawler": "property_zillow", "params": {"location": loc}},
+                    {"name": "redfin", "crawler": "property_redfin", "params": {"location": loc}},
+                    {
+                        "name": "county_assessor",
+                        "crawler": "property_county",
+                        "params": {"location": loc},
+                    },
+                ]
+            )
 
         # ── Vehicle-based discovery ────────────────────────────────────
         if has_vehicle:
-            sources.append({"name": "vehicle_nhtsa", "crawler": "vehicle_nhtsa", "params": {"location": location or ""}})
+            sources.append(
+                {
+                    "name": "vehicle_nhtsa",
+                    "crawler": "vehicle_nhtsa",
+                    "params": {"location": location or ""},
+                }
+            )
 
         # ── Keywords / free-text discovery ─────────────────────────────
         if keywords and not seed_list:
-            sources.extend([
-                {"name": f"news:{keywords}", "crawler": "news_search", "params": {"query": keywords}},
-                {"name": f"google_news:{keywords}", "crawler": "google_news_rss", "params": {"query": keywords}},
-                {"name": f"sherlock:{keywords}", "crawler": "username_sherlock", "params": {"username": keywords}},
-            ])
+            sources.extend(
+                [
+                    {
+                        "name": f"news:{keywords}",
+                        "crawler": "news_search",
+                        "params": {"query": keywords},
+                    },
+                    {
+                        "name": f"google_news:{keywords}",
+                        "crawler": "google_news_rss",
+                        "params": {"query": keywords},
+                    },
+                    {
+                        "name": f"sherlock:{keywords}",
+                        "crawler": "username_sherlock",
+                        "params": {"username": keywords},
+                    },
+                ]
+            )
 
         # ── Fallback: if no specific criteria, use bulk sources ────────
         if not sources:
             loc = location or state or country or ""
             if loc:
-                sources.extend([
-                    {"name": "voter_bulk", "crawler": "public_voter", "params": {"location": loc}},
-                    {"name": "fps_bulk", "crawler": "fastpeoplesearch", "params": {"location": loc}},
-                ])
+                sources.extend(
+                    [
+                        {
+                            "name": "voter_bulk",
+                            "crawler": "public_voter",
+                            "params": {"location": loc},
+                        },
+                        {
+                            "name": "property_bulk",
+                            "crawler": "property_county",
+                            "params": {"location": loc},
+                        },
+                    ]
+                )
             else:
                 # Pure bulk — use whatever has broad access
                 sources.append({"name": "voter_national", "crawler": "public_voter", "params": {}})
@@ -129,6 +272,9 @@ class CriteriaRouter:
                 seen.add(s["name"])
                 unique.append(s)
 
-        logger.info("CriteriaRouter produced %d sources for criteria keys: %s",
-                     len(unique), list(criteria.keys()))
+        logger.info(
+            "CriteriaRouter produced %d sources for criteria keys: %s",
+            len(unique),
+            list(criteria.keys()),
+        )
         return unique

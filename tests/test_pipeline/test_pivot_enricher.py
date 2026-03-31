@@ -27,13 +27,10 @@ from modules.pipeline.pivot_enricher import _extract_pivots, pivot_from_result
 
 
 def test_extract_pivots_valid_email_from_list():
-    # The source expression only triggers when data["emails"] is a list.
-    # Providing a plain "email" key when "emails" is not a list yields None.
     data = {"emails": ["alice@example.com", "secondary@test.org"]}
     result = _extract_pivots(data)
     emails = [v for t, v in result if t == "email"]
-    assert len(emails) == 1
-    assert emails[0] == "alice@example.com"
+    assert emails == ["alice@example.com", "secondary@test.org"]
 
 
 def test_extract_pivots_direct_email_field_extracted():
@@ -50,6 +47,16 @@ def test_extract_pivots_valid_phone():
     phones = [v for t, v in result if t == "phone"]
     assert len(phones) == 1
     assert phones[0] == "+1-555-867-5309"
+
+
+def test_extract_pivots_phone_list_fields():
+    data = {
+        "phone_numbers": ["+1-555-867-5309", "(212) 555-0100"],
+        "associated_phones": ["+1-555-867-5309", "123"],
+    }
+    result = _extract_pivots(data)
+    phones = [v for t, v in result if t == "phone"]
+    assert phones == ["+1-555-867-5309", "(212) 555-0100"]
 
 
 def test_extract_pivots_phone_too_short_rejected():
@@ -108,8 +115,7 @@ def test_email_extraction_operator_precedence():
     data = {"emails": ["test@example.com", "other@example.com"]}
     pivots = _extract_pivots(data)
     emails = [p for p in pivots if p[0] == "email"]
-    assert len(emails) >= 1
-    assert emails[0][1] == "test@example.com"
+    assert emails == [("email", "test@example.com"), ("email", "other@example.com")]
 
 
 def test_email_extraction_direct_field_wins():
@@ -118,6 +124,7 @@ def test_email_extraction_direct_field_wins():
     pivots = _extract_pivots(data)
     emails = [p for p in pivots if p[0] == "email"]
     assert emails[0][1] == "direct@example.com"
+    assert ("email", "list@example.com") in emails
 
 
 def test_extract_pivots_returns_all_types_not_capped():
@@ -213,7 +220,7 @@ async def test_pivot_from_result_skips_existing_identifier():
     import sys
 
     fake_registry = MagicMock()
-    fake_registry.CRAWLER_REGISTRY = {"email_hibp": True}
+    fake_registry.CRAWLER_REGISTRY = {"email_breach": True}
     fake_dispatcher = MagicMock()
     fake_dispatcher.dispatch_job = mock_dispatch
 
@@ -247,7 +254,7 @@ async def test_pivot_from_result_queues_jobs_for_new_identifier():
     mock_session = _make_mock_session(existing=None)  # not in DB
     mock_dispatch = AsyncMock()
 
-    registry = {"email_hibp": True, "email_holehe": True, "email_leakcheck": True}
+    registry = {"email_breach": True, "email_holehe": True, "email_mx_validator": True}
 
     import sys
 

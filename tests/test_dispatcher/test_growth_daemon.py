@@ -100,8 +100,7 @@ async def test_handle_event_stops_at_max_depth(daemon):
 
 
 # ---------------------------------------------------------------------------
-# 4. phone identifier → enqueues phone_carrier, phone_fonefinder, phone_truecaller,
-#    whatsapp, telegram
+# 4. phone identifier → enqueues phone enrichment, messaging, and reverse lookup
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_fan_out_phone_enqueues_phone_platforms(daemon):
@@ -117,6 +116,7 @@ async def test_fan_out_phone_enqueues_phone_platforms(daemon):
 
     with (
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
+        patch("modules.crawlers.registry.get_crawler", return_value=object()),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
         await daemon._fan_out(phone_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
@@ -133,6 +133,8 @@ async def test_fan_out_phone_enqueues_phone_platforms(daemon):
         "phone_carrier",
         "phone_fonefinder",
         "phone_truecaller",
+        "phone_numlookup",
+        "people_thatsthem",
         "whatsapp",
         "telegram",
     ]:
@@ -140,11 +142,11 @@ async def test_fan_out_phone_enqueues_phone_platforms(daemon):
 
 
 # ---------------------------------------------------------------------------
-# 5. email identifier → enqueues email_holehe, email_hibp
+# 5. email identifier → enqueues free email enrichers
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_fan_out_email_enqueues_email_platforms(daemon):
-    """An email-type identifier fans out to email_holehe and email_hibp."""
+    """An email-type identifier fans out to the free email enrichers."""
     email_ident = _make_identifier("email", "test@example.com", "person-abc")
     person_id = "person-abc"
     depth = 0
@@ -156,12 +158,13 @@ async def test_fan_out_email_enqueues_email_platforms(daemon):
 
     with (
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
+        patch("modules.crawlers.registry.get_crawler", return_value=object()),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
         await daemon._fan_out(email_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
 
-    assert "email_holehe" in dispatched_platforms
-    assert "email_hibp" in dispatched_platforms
+    for expected in ["email_holehe", "email_breach", "email_emailrep", "email_mx_validator"]:
+        assert expected in dispatched_platforms
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +184,7 @@ async def test_fan_out_username_enqueues_username_platforms(daemon):
 
     with (
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
+        patch("modules.crawlers.registry.get_crawler", return_value=object()),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
         await daemon._fan_out(username_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
@@ -222,6 +226,7 @@ async def test_fan_out_kill_switch_disables_platform(daemon):
     with (
         patch("modules.dispatcher.growth_daemon.settings", fake_settings),
         patch("modules.dispatcher.growth_daemon.dispatch_job", side_effect=fake_dispatch),
+        patch("modules.crawlers.registry.get_crawler", return_value=object()),
         patch.object(daemon, "_job_exists", return_value=False),
     ):
         await daemon._fan_out(username_ident, person_id, depth, MAX_FANOUT_PER_PERSON)
@@ -328,7 +333,15 @@ async def test_fan_out_priority_varies_by_depth(daemon):
 def test_platform_accepts_phone_maps_correctly():
     """PLATFORM_ACCEPTS correctly maps phone-accepting platforms."""
     phone_platforms = {p for p, types in PLATFORM_ACCEPTS.items() if "phone" in types}
-    expected = {"telegram", "whatsapp", "phone_carrier", "phone_fonefinder", "phone_truecaller"}
+    expected = {
+        "telegram",
+        "whatsapp",
+        "phone_carrier",
+        "phone_fonefinder",
+        "phone_truecaller",
+        "phone_numlookup",
+        "people_thatsthem",
+    }
     assert expected == phone_platforms
 
 

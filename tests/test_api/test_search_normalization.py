@@ -18,7 +18,8 @@ def test_seed_platform_map_has_new_crawlers():
         "phone_phoneinfoga",
         "people_phonebook",
         "people_intelx",
-        "email_dehashed",
+        "email_breach",
+        "people_thatsthem",
     }
     all_values = {v for vals in SEED_PLATFORM_MAP.values() for v in vals}
     assert required.issubset(all_values)

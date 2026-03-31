@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _resolve_legacy_aliases(self) -> "Settings":
         import os
+
         # Only use DRAGONFLY_URL if CACHE_URL wasn't explicitly set via env
         if self.dragonfly_url and not os.environ.get("CACHE_URL"):
             self.cache_url = self.dragonfly_url
@@ -67,11 +68,11 @@ class Settings(BaseSettings):
     enable_ubo_discovery: bool = True
     enable_company_intel_crawl: bool = True
 
-    # Third-party API keys (optional — crawlers fall back to scraping without these)
-    attom_api_key: str = ""  # ATTOM property data API
-    opensanctions_api_key: str = ""  # OpenSanctions premium
-    opencorporates_api_key: str = ""  # OpenCorporates
-    marinetraffic_api_key: str = ""  # MarineTraffic AIS
+    # Third-party API overrides (optional — crawlers fall back to public sources without these)
+    attom_api_key: str = ""  # ATTOM property data API override
+    opensanctions_api_key: str = ""  # OpenSanctions API override
+    opencorporates_api_key: str = ""  # OpenCorporates API override
+    marinetraffic_api_key: str = ""  # MarineTraffic AIS API override
 
     # Budget
     daily_api_budget_usd: float = 0.0

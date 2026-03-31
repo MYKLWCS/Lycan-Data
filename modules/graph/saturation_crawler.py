@@ -22,15 +22,15 @@ import logging
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.crawlers.registry import CRAWLER_REGISTRY, get_crawler
 from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import CRAWLER_REGISTRY, get_crawler
 from modules.graph.knowledge_graph import KnowledgeGraphBuilder, _entity_id
 from shared.models.address import Address
 from shared.models.employment import EmploymentHistory
@@ -60,7 +60,7 @@ class CrawlStats:
     depth_distribution: dict[int, int] = field(default_factory=dict)
     source_contribution: dict[str, int] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
-    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     elapsed_seconds: float = 0.0
 
 
@@ -86,18 +86,30 @@ class GrowthControls:
 
 # Crawler categories that make sense for person vs company searches
 _PERSON_CRAWLERS = [
-    "fastpeoplesearch", "truepeoplesearch", "whitepages", "spokeo",
-    "peekyou", "radaris", "familytreenow",
-    "linkedin", "twitter", "facebook", "instagram",
-    "email_holehe", "email_emailrep",
-    "phone_truecaller", "phone_numlookup",
+    "fastpeoplesearch",
+    "truepeoplesearch",
+    "whitepages",
+    "spokeo",
+    "peekyou",
+    "radaris",
+    "familytreenow",
+    "people_thatsthem",
+    "linkedin",
+    "twitter",
+    "facebook",
+    "instagram",
     "court_courtlistener",
 ]
 
 _COMPANY_CRAWLERS = [
-    "company_opencorporates", "company_companies_house", "company_sec",
-    "gov_gleif", "gov_sam", "gov_usaspending",
-    "domain_whois", "financial_crunchbase",
+    "company_opencorporates",
+    "company_companies_house",
+    "company_sec",
+    "gov_gleif",
+    "gov_sam",
+    "gov_usaspending",
+    "domain_whois",
+    "financial_crunchbase",
 ]
 
 
@@ -138,15 +150,20 @@ class SaturationCrawler:
         self._processed.clear()
 
         queue: deque[QueueItem] = deque()
-        queue.append(QueueItem(
-            identifier=seed_identifier,
-            entity_type=seed_type,
-            depth=0,
-        ))
+        queue.append(
+            QueueItem(
+                identifier=seed_identifier,
+                entity_type=seed_type,
+                depth=0,
+            )
+        )
 
         logger.info(
             "Saturation crawl started: seed=%r type=%s max_depth=%d max_entities=%d",
-            seed_identifier, seed_type, self.controls.max_depth, self.controls.max_entities,
+            seed_identifier,
+            seed_type,
+            self.controls.max_depth,
+            self.controls.max_entities,
         )
 
         # ── Phase 1: Collection ───────────────────────────────────────────────
@@ -162,13 +179,9 @@ class SaturationCrawler:
 
         # ── Done ──────────────────────────────────────────────────────────────
         self.stats.phase = CrawlPhase.COMPLETE
-        self.stats.elapsed_seconds = (
-            datetime.now(timezone.utc) - self.stats.started_at
-        ).total_seconds()
+        self.stats.elapsed_seconds = (datetime.now(UTC) - self.stats.started_at).total_seconds()
 
-        overall_novelty = (
-            self.stats.novel_results / max(self.stats.total_results, 1)
-        )
+        overall_novelty = self.stats.novel_results / max(self.stats.total_results, 1)
         saturation_reached = (
             self.stats.total_results >= self.controls.min_results_before_check
             and overall_novelty < self.controls.novelty_threshold
@@ -221,8 +234,11 @@ class SaturationCrawler:
 
             logger.debug(
                 "Processing: %s %r depth=%d (%d/%d)",
-                item.entity_type, item.identifier, item.depth,
-                self.stats.entities_processed, self.controls.max_entities,
+                item.entity_type,
+                item.identifier,
+                item.depth,
+                self.stats.entities_processed,
+                self.controls.max_entities,
             )
 
             # Run crawlers for this entity
@@ -255,7 +271,9 @@ class SaturationCrawler:
             # Discover connected entities and enqueue them
             if item.depth < self.controls.max_depth:
                 connections = await self._discover_connections(
-                    item, results, session,
+                    item,
+                    results,
+                    session,
                 )
                 for conn in connections:
                     conn_key = f"{conn.entity_type}:{conn.identifier.lower().strip()}"
@@ -274,7 +292,8 @@ class SaturationCrawler:
                 if overall < self.controls.novelty_threshold:
                     logger.info(
                         "Saturation reached: novelty=%.2f%% after %d results",
-                        overall * 100, self.stats.total_results,
+                        overall * 100,
+                        self.stats.total_results,
                     )
                     break
 
@@ -284,15 +303,10 @@ class SaturationCrawler:
 
     async def _crawl_entity(self, item: QueueItem) -> list[CrawlerResult]:
         """Run all relevant crawlers for an entity. Never raises."""
-        crawler_names = (
-            _PERSON_CRAWLERS if item.entity_type == "person" else _COMPANY_CRAWLERS
-        )
+        crawler_names = _PERSON_CRAWLERS if item.entity_type == "person" else _COMPANY_CRAWLERS
 
         # Only run crawlers that are actually registered
-        available = [
-            name for name in crawler_names
-            if name in CRAWLER_REGISTRY
-        ]
+        available = [name for name in crawler_names if name in CRAWLER_REGISTRY]
 
         results: list[CrawlerResult] = []
         tasks = []
@@ -321,7 +335,9 @@ class SaturationCrawler:
         return results
 
     async def _run_single_crawler(
-        self, platform: str, identifier: str,
+        self,
+        platform: str,
+        identifier: str,
     ) -> CrawlerResult | None:
         """Instantiate and run one crawler. Returns None on failure."""
         try:
@@ -360,13 +376,15 @@ class SaturationCrawler:
                 name = (officer.get("name") or "").strip()
                 if name and name.lower() not in seen_names:
                     seen_names.add(name.lower())
-                    connections.append(QueueItem(
-                        identifier=name,
-                        entity_type="person",
-                        depth=next_depth,
-                        source_entity=parent.identifier,
-                        confidence=officer.get("confidence", 0.7),
-                    ))
+                    connections.append(
+                        QueueItem(
+                            identifier=name,
+                            entity_type="person",
+                            depth=next_depth,
+                            source_entity=parent.identifier,
+                            confidence=officer.get("confidence", 0.7),
+                        )
+                    )
 
             # Companies found in person crawls
             for company in data.get("companies", []) + data.get("employers", []):
@@ -374,13 +392,15 @@ class SaturationCrawler:
                 name = name.strip()
                 if name and name.lower() not in seen_names:
                     seen_names.add(name.lower())
-                    connections.append(QueueItem(
-                        identifier=name,
-                        entity_type="company",
-                        depth=next_depth,
-                        source_entity=parent.identifier,
-                        confidence=0.7,
-                    ))
+                    connections.append(
+                        QueueItem(
+                            identifier=name,
+                            entity_type="company",
+                            depth=next_depth,
+                            source_entity=parent.identifier,
+                            confidence=0.7,
+                        )
+                    )
 
             # Relatives / associates
             for relative in data.get("relatives", []) + data.get("associates", []):
@@ -388,22 +408,26 @@ class SaturationCrawler:
                 name = name.strip()
                 if name and name.lower() not in seen_names:
                     seen_names.add(name.lower())
-                    connections.append(QueueItem(
-                        identifier=name,
-                        entity_type="person",
-                        depth=next_depth,
-                        source_entity=parent.identifier,
-                        confidence=0.65,
-                    ))
+                    connections.append(
+                        QueueItem(
+                            identifier=name,
+                            entity_type="person",
+                            depth=next_depth,
+                            source_entity=parent.identifier,
+                            confidence=0.65,
+                        )
+                    )
 
         # 2. Cross-reference the relational DB for existing connections
         if parent.entity_type == "person":
             db_connections = await self._db_person_connections(
-                parent.identifier, session,
+                parent.identifier,
+                session,
             )
         else:
             db_connections = await self._db_company_connections(
-                parent.identifier, session,
+                parent.identifier,
+                session,
             )
 
         for conn in db_connections:
@@ -424,16 +448,16 @@ class SaturationCrawler:
         return connections[:15]
 
     async def _db_person_connections(
-        self, name: str, session: AsyncSession,
+        self,
+        name: str,
+        session: AsyncSession,
     ) -> list[QueueItem]:
         """Find connections for a person name from the relational DB."""
         items: list[QueueItem] = []
         name_lower = name.lower().strip()
 
         # Find person by name
-        stmt = select(Person).where(
-            func.lower(Person.full_name) == name_lower
-        ).limit(1)
+        stmt = select(Person).where(func.lower(Person.full_name) == name_lower).limit(1)
         result = await session.execute(stmt)
         person = result.scalar_one_or_none()
         if not person:
@@ -448,12 +472,14 @@ class SaturationCrawler:
         )
         emp_rows = (await session.execute(emp_stmt)).scalars().all()
         for emp in emp_rows:
-            items.append(QueueItem(
-                identifier=emp.employer_name,
-                entity_type="company",
-                depth=0,
-                confidence=0.85 if emp.is_current else 0.6,
-            ))
+            items.append(
+                QueueItem(
+                    identifier=emp.employer_name,
+                    entity_type="company",
+                    depth=0,
+                    confidence=0.85 if emp.is_current else 0.6,
+                )
+            )
 
         # Relationships (other persons)
         rel_stmt = select(Relationship).where(
@@ -471,17 +497,21 @@ class SaturationCrawler:
             p_rows = (await session.execute(p_stmt)).scalars().all()
             for p in p_rows:
                 if p.full_name:
-                    items.append(QueueItem(
-                        identifier=p.full_name,
-                        entity_type="person",
-                        depth=0,
-                        confidence=0.7,
-                    ))
+                    items.append(
+                        QueueItem(
+                            identifier=p.full_name,
+                            entity_type="person",
+                            depth=0,
+                            confidence=0.7,
+                        )
+                    )
 
         return items
 
     async def _db_company_connections(
-        self, name: str, session: AsyncSession,
+        self,
+        name: str,
+        session: AsyncSession,
     ) -> list[QueueItem]:
         """Find persons connected to a company name from the relational DB."""
         items: list[QueueItem] = []
@@ -502,12 +532,14 @@ class SaturationCrawler:
             p_rows = (await session.execute(p_stmt)).scalars().all()
             for p in p_rows:
                 if p.full_name:
-                    items.append(QueueItem(
-                        identifier=p.full_name,
-                        entity_type="person",
-                        depth=0,
-                        confidence=0.8,
-                    ))
+                    items.append(
+                        QueueItem(
+                            identifier=p.full_name,
+                            entity_type="person",
+                            depth=0,
+                            confidence=0.8,
+                        )
+                    )
 
         return items
 
@@ -531,23 +563,28 @@ class SaturationCrawler:
                 logger.debug("Graph sync failed for %s", cache_key, exc_info=True)
 
     async def _sync_person_to_graph(
-        self, name: str, session: AsyncSession,
+        self,
+        name: str,
+        session: AsyncSession,
     ) -> None:
         """Sync a person and their edges into the knowledge graph."""
         name_lower = name.lower().strip()
-        stmt = select(Person).where(
-            func.lower(Person.full_name) == name_lower
-        ).limit(1)
+        stmt = select(Person).where(func.lower(Person.full_name) == name_lower).limit(1)
         result = await session.execute(stmt)
         person = result.scalar_one_or_none()
         if not person:
             return
 
         eid = _entity_id("Person", str(person.id))
-        await self.graph.add_entity("Person", eid, {
-            "name": person.full_name or "",
-            "risk_score": person.default_risk_score or 0.0,
-        }, session)
+        await self.graph.add_entity(
+            "Person",
+            eid,
+            {
+                "name": person.full_name or "",
+                "risk_score": person.default_risk_score or 0.0,
+            },
+            session,
+        )
 
         # Employment edges
         emp_stmt = select(EmploymentHistory).where(
@@ -558,12 +595,21 @@ class SaturationCrawler:
         for emp in emps:
             company_eid = _entity_id("Company", emp.employer_name)
             try:
-                await self.graph.add_entity("Company", company_eid, {
-                    "legal_name": emp.employer_name,
-                }, session)
+                await self.graph.add_entity(
+                    "Company",
+                    company_eid,
+                    {
+                        "legal_name": emp.employer_name,
+                    },
+                    session,
+                )
                 rel_type = "OFFICER_OF" if emp.job_title else "EMPLOYED_BY"
                 await self.graph.add_relationship(
-                    "Person", eid, rel_type, "Company", company_eid,
+                    "Person",
+                    eid,
+                    rel_type,
+                    "Company",
+                    company_eid,
                     properties={"title": emp.job_title or "employee"},
                     session=session,
                 )
@@ -577,14 +623,23 @@ class SaturationCrawler:
             addr_eid = _entity_id("Address", str(addr.id))
             label = ", ".join(filter(None, [addr.street, addr.city, addr.state_province]))
             try:
-                await self.graph.add_entity("Address", addr_eid, {
-                    "name": label,
-                    "street": addr.street or "",
-                    "city": addr.city or "",
-                    "state": addr.state_province or "",
-                }, session)
+                await self.graph.add_entity(
+                    "Address",
+                    addr_eid,
+                    {
+                        "name": label,
+                        "street": addr.street or "",
+                        "city": addr.city or "",
+                        "state": addr.state_province or "",
+                    },
+                    session,
+                )
                 await self.graph.add_relationship(
-                    "Person", eid, "LIVES_AT", "Address", addr_eid,
+                    "Person",
+                    eid,
+                    "LIVES_AT",
+                    "Address",
+                    addr_eid,
                     session=session,
                 )
             except Exception:
@@ -606,7 +661,11 @@ class SaturationCrawler:
                 props["name"] = ident.value
                 await self.graph.add_entity(graph_label, i_eid, props, session)
                 await self.graph.add_relationship(
-                    "Person", eid, edge_type, graph_label, i_eid,
+                    "Person",
+                    eid,
+                    edge_type,
+                    graph_label,
+                    i_eid,
                     session=session,
                 )
             except Exception:
@@ -616,31 +675,49 @@ class SaturationCrawler:
         sp_stmt = select(SocialProfile).where(SocialProfile.person_id == person.id)
         sps = (await session.execute(sp_stmt)).scalars().all()
         for sp in sps:
-            sp_eid = _entity_id("Social_Profile", f"{sp.platform}:{sp.handle or sp.platform_user_id}")
+            sp_eid = _entity_id(
+                "Social_Profile", f"{sp.platform}:{sp.handle or sp.platform_user_id}"
+            )
             try:
-                await self.graph.add_entity("Social_Profile", sp_eid, {
-                    "name": f"{sp.platform}:{sp.handle or ''}",
-                    "platform": sp.platform,
-                    "username": sp.handle or sp.platform_user_id or "",
-                }, session)
+                await self.graph.add_entity(
+                    "Social_Profile",
+                    sp_eid,
+                    {
+                        "name": f"{sp.platform}:{sp.handle or ''}",
+                        "platform": sp.platform,
+                        "username": sp.handle or sp.platform_user_id or "",
+                    },
+                    session,
+                )
                 await self.graph.add_relationship(
-                    "Person", eid, "HAS_PROFILE", "Social_Profile", sp_eid,
+                    "Person",
+                    eid,
+                    "HAS_PROFILE",
+                    "Social_Profile",
+                    sp_eid,
                     session=session,
                 )
             except Exception:
                 pass
 
     async def _sync_company_to_graph(
-        self, name: str, session: AsyncSession,
+        self,
+        name: str,
+        session: AsyncSession,
     ) -> None:
         """Sync a company and its people into the knowledge graph."""
         name_lower = name.lower().strip()
         company_eid = _entity_id("Company", name_lower)
 
-        await self.graph.add_entity("Company", company_eid, {
-            "legal_name": name,
-            "name": name,
-        }, session)
+        await self.graph.add_entity(
+            "Company",
+            company_eid,
+            {
+                "legal_name": name,
+                "name": name,
+            },
+            session,
+        )
 
         # Find all people employed there
         emp_stmt = select(EmploymentHistory).where(
@@ -662,13 +739,22 @@ class SaturationCrawler:
                 continue
             person_eid = _entity_id("Person", str(person.id))
             try:
-                await self.graph.add_entity("Person", person_eid, {
-                    "name": person.full_name or "",
-                    "risk_score": person.default_risk_score or 0.0,
-                }, session)
+                await self.graph.add_entity(
+                    "Person",
+                    person_eid,
+                    {
+                        "name": person.full_name or "",
+                        "risk_score": person.default_risk_score or 0.0,
+                    },
+                    session,
+                )
                 rel_type = "OFFICER_OF" if emp.job_title else "EMPLOYED_BY"
                 await self.graph.add_relationship(
-                    "Person", person_eid, rel_type, "Company", company_eid,
+                    "Person",
+                    person_eid,
+                    rel_type,
+                    "Company",
+                    company_eid,
                     properties={"title": emp.job_title or "employee"},
                     session=session,
                 )
@@ -687,7 +773,7 @@ class SaturationCrawler:
             "novelty_rate": round(overall, 4),
             "depth_distribution": self.stats.depth_distribution,
             "elapsed_seconds": round(
-                (datetime.now(timezone.utc) - self.stats.started_at).total_seconds(), 2
+                (datetime.now(UTC) - self.stats.started_at).total_seconds(), 2
             ),
         }
 

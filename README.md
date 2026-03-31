@@ -61,9 +61,9 @@ Copy `.env.example` to `.env` and fill in:
 | `SECRET_KEY` | Yes | JWT signing key (32+ characters) |
 | `POSTGRES_USER` | No | Defaults to `lycan` |
 | `POSTGRES_DB` | No | Defaults to `lycan` |
-| `ATTOM_API_KEY` | No | ATTOM property data (enhances property results) |
-| `OPENSANCTIONS_API_KEY` | No | OpenSanctions premium (more AML data) |
-| `OPENCORPORATES_API_KEY` | No | OpenCorporates (company data) |
+| `ATTOM_API_KEY` | No | Optional ATTOM API override; core property scraping works without it |
+| `OPENSANCTIONS_API_KEY` | No | Optional OpenSanctions API override; public search works without it |
+| `OPENCORPORATES_API_KEY` | No | Optional OpenCorporates API override; website fallback works without it |
 | `RESIDENTIAL_PROXIES` | No | Comma-separated residential proxy list |
 | `DATACENTER_PROXIES` | No | Comma-separated datacenter proxy list |
 

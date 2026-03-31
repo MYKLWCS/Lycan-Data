@@ -15,7 +15,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -83,9 +83,8 @@ EXPECTED_CRAWLERS_FROM_SPEC = {
     "phone_numlookup",
     "whatsapp",
     # Email
-    "email_hibp",
+    "email_breach",
     "email_holehe",
-    "email_leakcheck",
     "email_emailrep",
     # People search
     "whitepages",
@@ -444,7 +443,7 @@ def run_full_audit() -> dict:
     )
 
     audit_result = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "summary": {
             "registered_crawlers": len(registered_crawlers),
             "missing_crawlers": sorted(missing_crawlers),
@@ -471,59 +470,75 @@ def run_full_audit() -> dict:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. Ollama Analysis
+# 3. Deterministic Analysis
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 def generate_ollama_analysis(audit_data: dict, spec_excerpt: str) -> str:
-    """Use a local Ollama model to generate a prioritised, actionable audit report."""
-    import urllib.error
-    import urllib.request
+    """Generate a prioritised audit report without external AI services."""
+    missing_crawlers = audit_data.get("missing_crawlers", [])
+    missing_endpoints = audit_data.get("missing_endpoints", [])
+    high_findings = audit_data.get("high_severity_findings", [])
+    stub_findings = audit_data.get("top_stubs", [])
 
-    prompt = f"""You are auditing the Lycan OSINT platform codebase against its spec.
+    critical_items: list[str] = []
+    for finding in high_findings[:8]:
+        critical_items.append(
+            f"- `{finding.get('file')}`:{finding.get('line')} — {finding.get('issue')}"
+        )
+    for crawler in missing_crawlers[:8]:
+        critical_items.append(f"- Missing crawler: `{crawler}`")
+    if not critical_items:
+        critical_items.append("- No critical blockers detected by the static audit pass.")
 
-Here is the spec summary (first 3000 chars):
-{spec_excerpt[:3000]}
+    spec_gaps: list[str] = []
+    for endpoint in missing_endpoints[:8]:
+        spec_gaps.append(f"- Missing endpoint: `{endpoint}`")
+    for stub in stub_findings[:8]:
+        spec_gaps.append(f"- `{stub.get('file')}`:{stub.get('line')} — {stub.get('issue')}")
+    if not spec_gaps:
+        spec_gaps.append("- No major spec gaps surfaced by the automated checks.")
 
-Here is the automated audit data:
-{json.dumps(audit_data, indent=2, default=str)[:8000]}
-
-Write a comprehensive GitHub Issue report with these sections:
-
-## 🔴 Critical Issues (blocking real data flow)
-List what is ACTUALLY broken right now that prevents the system from working.
-For each issue: what is broken, why it matters, the exact fix needed.
-
-## 🟡 Spec Gaps (built vs required)
-What does the spec require that is not yet built or is a stub?
-Be specific: "Section X.Y requires Z — current implementation does Y instead."
-
-## 🟢 What Is Working
-What actually works correctly? Give credit where due.
-
-## 📊 Build Completeness
-Estimate overall completion: X% of spec implemented, with breakdown by section.
-
-## 🛠 Prioritised Fix List
-Ordered list of what to fix first for maximum impact.
-
-Use markdown. Be direct. No filler text. Focus on actionable findings.
-"""
-
-    payload = json.dumps({"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}).encode()
-    req = urllib.request.Request(
-        f"{OLLAMA_URL}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
+    completion = max(
+        5,
+        100
+        - min(len(missing_crawlers) * 3, 30)
+        - min(len(missing_endpoints) * 4, 24)
+        - min(len(stub_findings), 20),
     )
-    try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            result = json.loads(resp.read())
-            return result.get("response", "")
-    except urllib.error.URLError as exc:
-        return f"Ollama unavailable ({exc}) — skipping AI analysis."
-    except Exception as exc:  # noqa: BLE001
-        return f"Ollama error ({exc}) — skipping AI analysis."
+
+    working_notes = [
+        f"- Registered crawlers detected: {audit_data.get('registered_crawler_count', 0)}",
+        f"- API routes detected: {audit_data.get('api_route_count', 0)}",
+        f"- Test files detected: {audit_data.get('test_file_count', 0)}",
+    ]
+
+    fix_list = [
+        "- Fix high-severity findings that block live data collection or queue execution.",
+        "- Implement or retire missing crawlers that are still referenced by the spec.",
+        "- Close missing API endpoints or update the spec to match the shipped surface.",
+        "- Replace stubbed code paths with verified implementations and tests.",
+    ]
+
+    return "\n".join(
+        [
+            "## Critical Issues",
+            *critical_items,
+            "",
+            "## Spec Gaps",
+            *spec_gaps,
+            "",
+            "## What Is Working",
+            *working_notes,
+            "",
+            "## Build Completeness",
+            f"- Estimated completeness: {completion}%",
+            f"- Spec excerpt sampled: {min(len(spec_excerpt), 3000)} characters",
+            "",
+            "## Prioritised Fix List",
+            *fix_list,
+        ]
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -592,7 +607,7 @@ def main():
     ai_report = generate_ollama_analysis(audit_data, spec_excerpt)
 
     # Build full report
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M timezone.utc")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M timezone.utc")
     s = audit_data["summary"]
 
     header = f"""# 🔍 Lycan OSINT — Automated System Audit
@@ -646,7 +661,7 @@ def main():
     print(f"Report saved to {report_path}")
 
     # Post to GitHub
-    title = f"System Audit — {datetime.now(timezone.utc).strftime('%Y-%m-%d')} | {s['high_severity_issues']} critical issues"
+    title = f"System Audit — {datetime.now(UTC).strftime('%Y-%m-%d')} | {s['high_severity_issues']} critical issues"
     url = post_github_issue(title, full_report[:65000])
 
     if url:

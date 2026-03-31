@@ -3,13 +3,12 @@
 from modules.builder.criteria_router import CriteriaRouter
 
 
-def test_location_routes_to_voter_and_people_search():
+def test_location_routes_to_voter_and_property_sources():
     router = CriteriaRouter()
     sources = router.route({"location": "Miami, FL"})
     names = [s["name"] for s in sources]
     assert "voter_records" in names
-    assert "fps_location" in names
-    assert "tps_location" in names
+    assert "property_county" in names
 
 
 def test_employer_routes_to_linkedin_and_sec():
@@ -26,7 +25,7 @@ def test_seed_list_email_routes_to_email_crawlers():
     sources = router.route({"seed_list": ["john@example.com"]})
     names = [s["name"] for s in sources]
     assert any("email" in n for n in names)
-    assert any("hibp" in n for n in names)
+    assert any("breach" in n for n in names)
 
 
 def test_seed_list_phone_routes_to_phone_crawlers():
@@ -34,6 +33,7 @@ def test_seed_list_phone_routes_to_phone_crawlers():
     sources = router.route({"seed_list": ["+15551234567"]})
     names = [s["name"] for s in sources]
     assert any("phone" in n for n in names)
+    assert any("numlookup" in n for n in names)
 
 
 def test_seed_list_name_routes_to_people_search():
@@ -76,23 +76,27 @@ def test_empty_criteria_fallback():
 
 def test_combined_criteria():
     router = CriteriaRouter()
-    sources = router.route({
-        "location": "Austin, TX",
-        "employer": "Tesla",
-        "has_vehicle": True,
-        "age_range": {"min": 25, "max": 45},
-    })
+    sources = router.route(
+        {
+            "location": "Austin, TX",
+            "employer": "Tesla",
+            "has_vehicle": True,
+            "age_range": {"min": 25, "max": 45},
+        }
+    )
     names = [s["name"] for s in sources]
     # Should have sources for both location and employer
-    assert any("voter" in n or "fps" in n for n in names)
+    assert any("voter" in n or "property" in n for n in names)
     assert any("tesla" in n.lower() for n in names)
 
 
 def test_no_duplicate_sources():
     router = CriteriaRouter()
-    sources = router.route({
-        "location": "Miami",
-        "property_owner": True,
-    })
+    sources = router.route(
+        {
+            "location": "Miami",
+            "property_owner": True,
+        }
+    )
     names = [s["name"] for s in sources]
     assert len(names) == len(set(names)), "Duplicate source names found"

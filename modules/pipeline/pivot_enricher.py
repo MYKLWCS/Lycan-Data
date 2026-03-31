@@ -29,16 +29,19 @@ _MAX_JOBS_PER_CALL = 30
 # Platforms to run per pivot type — ordered by signal value
 _PIVOT_PLATFORMS: dict[str, list[str]] = {
     "email": [
-        "email_hibp",
+        "email_breach",
         "email_holehe",
-        "email_leakcheck",
         "email_emailrep",
+        "email_mx_validator",
         "darkweb_ahmia",
         "paste_pastebin",
     ],
     "phone": [
         "phone_carrier",
+        "phone_fonefinder",
         "phone_truecaller",
+        "phone_numlookup",
+        "people_thatsthem",
         "whatsapp",
         "telegram",
     ],
@@ -65,21 +68,59 @@ _PIVOT_PLATFORMS: dict[str, list[str]] = {
 def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
     """Pull email, phone, full_name out of raw crawler data dict."""
     found: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def _append_unique(kind: str, value: str) -> None:
+        key = (kind, value)
+        if key not in seen:
+            seen.add(key)
+            found.append(key)
+
+    def _iter_values(*values: Any) -> list[str]:
+        out: list[str] = []
+        for value in values:
+            if isinstance(value, str):
+                out.append(value)
+                continue
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str):
+                        out.append(item)
+                    elif isinstance(item, dict):
+                        for key in ("value", "number", "phone"):
+                            nested = item.get(key)
+                            if isinstance(nested, str):
+                                out.append(nested)
+                                break
+        return out
 
     # Email
-    email = data.get("email") or data.get("email_address") or data.get("contact_email")
-    if not email and isinstance(data.get("emails"), list) and data.get("emails"):
-        email = data.get("emails")[0]
-
-    if email and isinstance(email, str) and "@" in email and len(email) > 5:
-        found.append(("email", email.strip().lower()))
+    email_candidates = _iter_values(
+        data.get("email"),
+        data.get("email_address"),
+        data.get("contact_email"),
+        data.get("emails"),
+    )
+    for email in email_candidates:
+        cleaned = email.strip().lower()
+        if "@" in cleaned and len(cleaned) > 5:
+            _append_unique("email", cleaned)
 
     # Phone
-    phone = data.get("phone") or data.get("phone_number") or data.get("mobile")
-    if phone and isinstance(phone, str):
-        digits = re.sub(r"\D", "", phone)
+    phone_candidates = _iter_values(
+        data.get("phone"),
+        data.get("phone_number"),
+        data.get("mobile"),
+        data.get("phones"),
+        data.get("phone_numbers"),
+        data.get("associated_phones"),
+        data.get("related_phones"),
+    )
+    for phone in phone_candidates:
+        cleaned = phone.strip()
+        digits = re.sub(r"\D", "", cleaned)
         if 7 <= len(digits) <= 15:
-            found.append(("phone", phone.strip()))
+            _append_unique("phone", cleaned)
 
     # Full name (must be multi-word, not just a handle)
     name = (
@@ -129,27 +170,27 @@ def _extract_pivots(data: dict[str, Any]) -> list[tuple[str, str]]:
             and re.match(r"^[A-Za-zÀ-ÖØ-öø-ÿ' \-\.]+$", clean)
             and not any(w in _REJECT_WORDS for w in words)
         ):
-            found.append(("full_name", clean))
+            _append_unique("full_name", clean)
 
     # Instagram handle
     ig = data.get("instagram") or data.get("instagram_handle") or data.get("instagram_username")
     if ig:
-        found.append(("instagram_handle", ig.lstrip("@").lower()))
+        _append_unique("instagram_handle", ig.lstrip("@").lower())
 
     # Twitter handle
     tw = data.get("twitter") or data.get("twitter_handle") or data.get("twitter_username")
     if tw:
-        found.append(("twitter_handle", tw.lstrip("@").lower()))
+        _append_unique("twitter_handle", tw.lstrip("@").lower())
 
     # LinkedIn URL
     li = data.get("linkedin") or data.get("linkedin_url") or data.get("linkedin_profile")
     if li:
-        found.append(("linkedin_url", li))
+        _append_unique("linkedin_url", li)
 
     # Domain
     domain = data.get("domain") or data.get("website") or data.get("url")
     if domain and "." in str(domain):
-        found.append(("domain", domain.lower()))
+        _append_unique("domain", str(domain).lower())
 
     return found
 
@@ -170,6 +211,7 @@ async def pivot_from_result(
     # Check recursion depth before pivoting (fail open if Redis unavailable)
     try:
         from modules.dispatcher.dispatcher import check_search_depth
+
         if not await check_search_depth(person_id):
             logger.info("Skipping pivots for person %s — max depth reached", person_id)
             return 0
@@ -261,25 +303,23 @@ async def pivot_from_result(
             for (other_id,) in existing.all():
                 # Check if review already exists for this pair
                 review_exists = await session.execute(
-                    select(DedupReview.id).where(
-                        (
-                            (DedupReview.person_a_id == pid)
-                            & (DedupReview.person_b_id == other_id)
-                        )
-                        | (
-                            (DedupReview.person_a_id == other_id)
-                            & (DedupReview.person_b_id == pid)
-                        )
-                    ).limit(1)
+                    select(DedupReview.id)
+                    .where(
+                        ((DedupReview.person_a_id == pid) & (DedupReview.person_b_id == other_id))
+                        | ((DedupReview.person_a_id == other_id) & (DedupReview.person_b_id == pid))
+                    )
+                    .limit(1)
                 )
                 if not review_exists.scalar_one_or_none():
                     # Compute actual similarity from name comparison
-                    from shared.models.person import Person as _Person
                     from rapidfuzz import fuzz as _fuzz_mod
+
+                    from shared.models.person import Person as _Person
+
                     _person_a = await session.get(_Person, pid)
                     _person_b = await session.get(_Person, other_id)
-                    _name_a = getattr(_person_a, 'full_name', '') or ''
-                    _name_b = getattr(_person_b, 'full_name', '') or ''
+                    _name_a = getattr(_person_a, "full_name", "") or ""
+                    _name_b = getattr(_person_b, "full_name", "") or ""
                     _name_sim = _fuzz_mod.token_sort_ratio(_name_a, _name_b) / 100.0
                     _similarity_score = min(1.0, 0.4 + _name_sim * 0.6)
                     session.add(

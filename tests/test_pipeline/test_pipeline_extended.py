@@ -1786,18 +1786,21 @@ class TestGrowthDaemonUncovered:
             patch(
                 "modules.dispatcher.growth_daemon.dispatch_job", new=AsyncMock()
             ) as mock_dispatch,
+            patch("modules.crawlers.registry.get_crawler", return_value=object()),
             patch.object(gd, "_job_exists", new=AsyncMock(return_value=False)),
         ):
             # Disable burner check kill switch
             mock_settings.enable_burner_check = False
             await gd._fan_out(ident, "p1", depth=0, remaining_budget=50)
 
-        # No phone_carrier/phone_fonefinder/phone_truecaller jobs dispatched
+        # No burner-check jobs dispatched when burner checks are disabled
         dispatched_platforms = [
             c.kwargs.get("platform") or c.args[0] for c in mock_dispatch.await_args_list
         ]
         assert "phone_carrier" not in dispatched_platforms
         assert "phone_fonefinder" not in dispatched_platforms
+        assert "phone_truecaller" not in dispatched_platforms
+        assert "phone_numlookup" not in dispatched_platforms
 
     @pytest.mark.asyncio
     async def test_fan_out_skips_existing_job(self):

@@ -68,15 +68,10 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         # Phone OSINT
         "phone_phoneinfoga",
         # Reverse phone lookup
-        "whitepages",
-        "fastpeoplesearch",
-        "truepeoplesearch",
         "people_thatsthem",
-        "spokeo",
     ],
     SeedType.EMAIL: [
         # Breach & leak databases
-        "email_hibp",
         "email_holehe",
         "email_breach",
         # Reputation & validation
@@ -90,13 +85,8 @@ SEED_PLATFORM_MAP: dict[SeedType, list[str]] = {
         "paste_psbdmp",
         # Email OSINT
         "email_socialscan",
-        "email_dehashed",
         # Reverse email lookup
-        "whitepages",
-        "truepeoplesearch",
         "people_thatsthem",
-        "spokeo",
-        "peekyou",
         # Profile photo + linked accounts
         "gravatar",
     ],

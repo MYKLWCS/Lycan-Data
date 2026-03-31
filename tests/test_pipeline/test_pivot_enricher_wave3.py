@@ -244,7 +244,7 @@ async def test_pivot_existing_identifier_skipped():
         patch("modules.pipeline.pivot_enricher.AsyncSessionLocal", return_value=session),
         patch.dict(
             "sys.modules",
-            _sys_modules_patch({"email_hibp": True}, mock_dispatch),
+            _sys_modules_patch({"email_breach": True}, mock_dispatch),
         ),
     ):
         count = await pivot_from_result(
@@ -258,8 +258,8 @@ async def test_pivot_existing_identifier_skipped():
 @pytest.mark.asyncio
 async def test_pivot_platform_not_in_registry_skipped():
     """Lines 203-204: platform not in CRAWLER_REGISTRY → continue."""
-    # email platforms list includes email_hibp, email_holehe, etc.
-    # We only put email_hibp in registry — rest are skipped
+    # email platforms list includes email_breach, email_holehe, etc.
+    # We only put email_breach in registry — rest are skipped
     data = {"email": "new@example.com"}
     mock_dispatch = AsyncMock()
     session = _make_session(existing=None)
@@ -268,14 +268,14 @@ async def test_pivot_platform_not_in_registry_skipped():
         patch("modules.pipeline.pivot_enricher.AsyncSessionLocal", return_value=session),
         patch.dict(
             "sys.modules",
-            _sys_modules_patch({"email_hibp": True}, mock_dispatch),
+            _sys_modules_patch({"email_breach": True}, mock_dispatch),
         ),
     ):
         count = await pivot_from_result(
             "00000000-0000-0000-0000-000000000004", "test_platform", data
         )
 
-    # Only email_hibp is in registry; email_holehe, etc. are skipped
+    # Only email_breach is in registry; email_holehe, etc. are skipped
     assert count == 1
     mock_dispatch.assert_awaited_once()
 
@@ -288,10 +288,10 @@ async def test_pivot_queues_all_registered_platforms():
     session = _make_session(existing=None)
 
     registry = {
-        "email_hibp": True,
+        "email_breach": True,
         "email_holehe": True,
-        "email_leakcheck": True,
         "email_emailrep": True,
+        "email_mx_validator": True,
         "darkweb_ahmia": True,
         "paste_pastebin": True,
     }
@@ -321,7 +321,7 @@ async def test_pivot_logs_info_when_jobs_queued(caplog):
         patch("modules.pipeline.pivot_enricher.AsyncSessionLocal", return_value=session),
         patch.dict(
             "sys.modules",
-            _sys_modules_patch({"email_hibp": True}, mock_dispatch),
+            _sys_modules_patch({"email_breach": True}, mock_dispatch),
         ),
         caplog.at_level(logging.INFO, logger="modules.pipeline.pivot_enricher"),
     ):
@@ -351,7 +351,7 @@ async def test_pivot_no_platforms_for_type_queues_zero():
         patch("modules.pipeline.pivot_enricher._extract_pivots", return_value=fake_pivots),
         patch.dict(
             "sys.modules",
-            _sys_modules_patch({"email_hibp": True}, mock_dispatch),
+            _sys_modules_patch({"email_breach": True}, mock_dispatch),
         ),
     ):
         count = await pivot_from_result(
@@ -407,7 +407,7 @@ async def test_pivot_multiple_pivot_types_each_logged(caplog):
     session = _make_session(existing=None)
 
     registry = {
-        "email_hibp": True,
+        "email_breach": True,
         "phone_carrier": True,
     }
 
