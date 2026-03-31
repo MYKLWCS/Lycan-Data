@@ -3,7 +3,7 @@
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import timezone, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 
 from sqlalchemy import delete, select
@@ -172,7 +172,7 @@ class TagResult:
     tag: str
     confidence: float
     reasoning: list[str]
-    scored_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    scored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -379,7 +379,7 @@ def _score_recent_mover(
 ) -> tuple[float, list[str]]:
     reasons: list[str] = []
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+    cutoff = datetime.now(UTC) - timedelta(days=90)
 
     recent_addrs = [a for a in addresses if a.updated_at and a.updated_at >= cutoff]
     addr_score = 0.7 if recent_addrs else 0.0
@@ -499,7 +499,7 @@ def _score_new_parent(
         reasons.append(f"age {age} in new-parent range (25-40)")
 
     # Recent address change as proxy for getting more space
-    cutoff = datetime.now(timezone.utc) - timedelta(days=180)
+    cutoff = datetime.now(UTC) - timedelta(days=180)
     recent = [a for a in addresses if a.updated_at and a.updated_at >= cutoff]
     if recent:
         score += 0.2
@@ -951,9 +951,7 @@ class MarketingTagsEngine:
 
         # ── Additional data: vehicles + property ──────────────────────────────
         vehicles = list(
-            (await session.execute(select(Vehicle).where(Vehicle.person_id == pid)))
-            .scalars()
-            .all()
+            (await session.execute(select(Vehicle).where(Vehicle.person_id == pid))).scalars().all()
         )
 
         properties = list(
@@ -965,7 +963,7 @@ class MarketingTagsEngine:
         # ── Derived values ────────────────────────────────────────────────────
         dob = person.date_of_birth if person else None
         age = _compute_age(dob)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         has_vehicle = len(vehicles) > 0
         has_property = len(properties) > 0
@@ -1000,7 +998,9 @@ class MarketingTagsEngine:
             except (TypeError, ValueError):
                 _prop_count = 0
         s, r = _score_title_loan(
-            addresses, criminals, wealth,
+            addresses,
+            criminals,
+            wealth,
             credit_score=_credit,
             has_vehicle=has_vehicle,
             property_count=_prop_count,
@@ -1055,9 +1055,11 @@ class MarketingTagsEngine:
         s, r = _score_real_estate_investor(addresses, employment, wealth)
         scoring_map.append((InvestmentTag.REAL_ESTATE_INVESTOR, s, r))
 
-        s, r = (0.65, ["retirement planning age range"]) if (
-            age is not None and 45 <= age <= 64
-        ) else (0.0, [])
+        s, r = (
+            (0.65, ["retirement planning age range"])
+            if (age is not None and 45 <= age <= 64)
+            else (0.0, [])
+        )
         scoring_map.append((InvestmentTag.RETIREMENT_PLANNING, s, r))
 
         # Behavioural tags
@@ -1065,10 +1067,16 @@ class MarketingTagsEngine:
         scoring_map.append((BehaviouralTag.ACTIVE_GAMBLER, s, r))
 
         # Compute property/vehicle value estimates for luxury buyer
-        _property_value = max((getattr(p, "assessed_value", 0) or 0) for p in properties) if properties else None
-        _vehicle_value = max((getattr(v, "estimated_value", 0) or 0) for v in vehicles) if vehicles else None
+        _property_value = (
+            max((getattr(p, "assessed_value", 0) or 0) for p in properties) if properties else None
+        )
+        _vehicle_value = (
+            max((getattr(v, "estimated_value", 0) or 0) for v in vehicles) if vehicles else None
+        )
         s, r = _score_luxury_buyer(
-            wealth, employment, addresses,
+            wealth,
+            employment,
+            addresses,
             income_estimate=income_estimate,
             property_value=_property_value,
             vehicle_value=_vehicle_value,
@@ -1112,9 +1120,7 @@ class MarketingTagsEngine:
 
         # ── Persist tags to marketing_tags table (upsert) ─────────────────────
         # Delete stale tags first so removed signals don't persist forever
-        await session.execute(
-            delete(MarketingTag).where(MarketingTag.person_id == pid)
-        )
+        await session.execute(delete(MarketingTag).where(MarketingTag.person_id == pid))
         for tr in results:
             session.add(
                 MarketingTag(

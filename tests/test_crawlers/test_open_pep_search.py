@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.pep.open_pep_search import (
     OpenPepSearchCrawler,
     _classify_categories,
@@ -26,7 +27,6 @@ from modules.crawlers.pep.open_pep_search import (
     _parse_interpol,
     _parse_opensanctions,
 )
-from modules.crawlers.core.result import CrawlerResult
 
 # ---------------------------------------------------------------------------
 # Helpers

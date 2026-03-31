@@ -10,8 +10,8 @@ from modules.crawlers.core.models import (
     CrawlerHealth,
     RateLimit,
 )
-from modules.crawlers.core.result import CrawlerResult as StandardCrawlerResult
 from modules.crawlers.core.orchestrator import ScraperOrchestrator
+from modules.crawlers.core.result import CrawlerResult as StandardCrawlerResult
 
 __all__ = [
     "CrawlerCategory",

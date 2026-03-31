@@ -9,7 +9,7 @@ Targets:
 from __future__ import annotations
 
 import uuid
-from datetime import timezone, date, datetime
+from datetime import UTC, date, datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -65,7 +65,7 @@ def test_model_to_dict_all_none_values():
 
 def test_model_to_dict_datetime_value_serialized_via_isoformat():
     """When val has .isoformat(), _model_to_dict calls it (line 17)."""
-    dt = datetime(2025, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    dt = datetime(2025, 6, 15, 10, 30, 0, tzinfo=UTC)
     obj = _make_model({"created_at": dt, "name": "Alice"})
     result = _model_to_dict(obj)
     assert isinstance(result["created_at"], str)
@@ -92,7 +92,7 @@ def test_model_to_dict_uuid_serialized_as_str():
 def test_model_to_dict_mixed_columns():
     """Combined: None col + datetime col + UUID col + plain string col."""
     uid = uuid.uuid4()
-    dt = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    dt = datetime(2025, 1, 1, tzinfo=UTC)
     obj = _make_model(
         {
             "id": uid,

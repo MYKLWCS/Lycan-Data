@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import timezone, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import DateTime, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,7 +62,7 @@ class PepEnricher:
     # ── Batch selection ───────────────────────────────────────────────────────
 
     async def _process_pending(self) -> None:
-        stale_cutoff = datetime.now(timezone.utc) - timedelta(days=_STALE_THRESHOLD_DAYS)
+        stale_cutoff = datetime.now(UTC) - timedelta(days=_STALE_THRESHOLD_DAYS)
 
         async with AsyncSessionLocal() as session:
             result = await session.execute(
@@ -133,7 +133,7 @@ class PepEnricher:
         meta = dict(person.meta or {})
         meta["pep_status"] = is_pep
         meta["pep_level"] = highest_level
-        meta["pep_checked_at"] = datetime.now(timezone.utc).isoformat()
+        meta["pep_checked_at"] = datetime.now(UTC).isoformat()
         meta["pep_match_count"] = len(pep_matches)
         person.meta = meta
 

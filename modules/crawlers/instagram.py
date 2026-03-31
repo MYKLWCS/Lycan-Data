@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 import re
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.constants import SOURCE_RELIABILITY
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 

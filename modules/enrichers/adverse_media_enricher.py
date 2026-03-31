@@ -23,7 +23,7 @@ import asyncio
 import hashlib
 import logging
 import uuid
-from datetime import timezone, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import DateTime, Float, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +71,7 @@ class AdverseMediaEnricher:
     # ── Batch selection ───────────────────────────────────────────────────────
 
     async def _process_pending(self) -> None:
-        stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=_STALE_THRESHOLD_HOURS)
+        stale_cutoff = datetime.now(UTC) - timedelta(hours=_STALE_THRESHOLD_HOURS)
 
         async with AsyncSessionLocal() as session:
             result = await session.execute(
@@ -139,7 +139,7 @@ class AdverseMediaEnricher:
         meta = dict(person.meta or {})
         meta["adverse_media_score"] = round(score, 4)
         meta["adverse_media_count"] = len(all_media)
-        meta["adverse_media_checked_at"] = datetime.now(timezone.utc).isoformat()
+        meta["adverse_media_checked_at"] = datetime.now(UTC).isoformat()
         person.meta = meta
 
         logger.info(
@@ -198,7 +198,7 @@ class AdverseMediaEnricher:
             is_verified=bool(item.get("is_verified", False)),
             is_retracted=bool(item.get("is_retracted", False)),
             entities_mentioned=item.get("entities_mentioned", []),
-            last_scraped_at=datetime.now(timezone.utc),
+            last_scraped_at=datetime.now(UTC),
             meta=item.get("meta", {}),
         )
         session.add(record)

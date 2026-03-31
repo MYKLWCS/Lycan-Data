@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timezone, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from sqlalchemy import select, text
@@ -160,7 +160,7 @@ async def audit_persons_stale(
     session=DbDep,
 ):
     """Return persons not scraped in the last 30 days (excluding merged)."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    cutoff = datetime.now(UTC) - timedelta(days=30)
     result = await session.execute(
         select(Person)
         .where(

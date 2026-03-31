@@ -14,7 +14,7 @@ Targets:
 from __future__ import annotations
 
 import uuid
-from datetime import timezone, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

@@ -26,7 +26,7 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -241,9 +241,16 @@ class TestEnrichPerson:
         vessel_crawler.scrape = AsyncMock(return_value=vessel_result)
 
         with (
-            patch("modules.crawlers.property.zillow_deep.ZillowDeepCrawler", return_value=mock_crawler),
-            patch("modules.crawlers.property.redfin_deep.RedfinDeepCrawler", return_value=mock_crawler),
-            patch("modules.crawlers.property.deed_recorder.DeedRecorderCrawler", return_value=mock_crawler),
+            patch(
+                "modules.crawlers.property.zillow_deep.ZillowDeepCrawler", return_value=mock_crawler
+            ),
+            patch(
+                "modules.crawlers.property.redfin_deep.RedfinDeepCrawler", return_value=mock_crawler
+            ),
+            patch(
+                "modules.crawlers.property.deed_recorder.DeedRecorderCrawler",
+                return_value=mock_crawler,
+            ),
             patch(
                 "modules.crawlers.property.county_assessor_multi.CountyAssessorMultiCrawler",
                 return_value=mock_crawler,
@@ -382,7 +389,9 @@ class TestEnrichPerson:
         with (
             patch("modules.crawlers.property.zillow_deep.ZillowDeepCrawler", return_value=crawler),
             patch("modules.crawlers.property.redfin_deep.RedfinDeepCrawler", return_value=crawler),
-            patch("modules.crawlers.property.deed_recorder.DeedRecorderCrawler", return_value=crawler),
+            patch(
+                "modules.crawlers.property.deed_recorder.DeedRecorderCrawler", return_value=crawler
+            ),
             patch(
                 "modules.crawlers.property.county_assessor_multi.CountyAssessorMultiCrawler",
                 return_value=crawler,

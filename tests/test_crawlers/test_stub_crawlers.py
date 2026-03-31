@@ -13,7 +13,6 @@ from modules.crawlers.media.adverse_media_search import AdverseMediaSearchCrawle
 from modules.crawlers.transport.faa_aircraft_registry import FaaAircraftRegistryCrawler
 from modules.crawlers.transport.marine_vessel import MarineVesselCrawler
 
-
 # ---------------------------------------------------------------------------
 # AdverseMediaSearchCrawler
 # ---------------------------------------------------------------------------
@@ -38,7 +37,9 @@ def test_adverse_media_attributes():
 
 
 def test_faa_is_real_implementation():
-    assert FaaAircraftRegistryCrawler.__module__ == "modules.crawlers.transport.faa_aircraft_registry"
+    assert (
+        FaaAircraftRegistryCrawler.__module__ == "modules.crawlers.transport.faa_aircraft_registry"
+    )
 
 
 def test_faa_attributes():

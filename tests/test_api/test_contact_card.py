@@ -183,7 +183,7 @@ class TestReportCommercialTags:
         tag_row.tag_category = "lending"
         tag_row.confidence = 0.78
         tag_row.reasoning = ["Vehicle record found", "Financial distress 62%"]
-        tag_row.scored_at = _dt.datetime(2026, 3, 24, 10, 0, 0, tzinfo=_dt.timezone.utc)
+        tag_row.scored_at = _dt.datetime(2026, 3, 24, 10, 0, 0, tzinfo=_dt.UTC)
 
         empty_exec = MagicMock()
         empty_exec.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
@@ -386,7 +386,7 @@ class TestReportCoverage:
 
         job = MagicMock(spec=CrawlJob)
         job.meta = {"platform": "twitter"}
-        job.completed_at = _dt.datetime(2026, 3, 20, 8, 0, 0, tzinfo=_dt.timezone.utc)
+        job.completed_at = _dt.datetime(2026, 3, 20, 8, 0, 0, tzinfo=_dt.UTC)
         job.status = "done"
         job.source_id = None
         job.result_count = 1

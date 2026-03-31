@@ -16,7 +16,6 @@ from shared.models.address import Address
 from shared.models.credit_risk import CreditRiskAssessment
 from shared.models.criminal import CriminalRecord
 from shared.models.employment import EmploymentHistory
-from shared.models.watchlist import WatchlistMatch
 from shared.models.wealth import WealthAssessment
 
 router = APIRouter()

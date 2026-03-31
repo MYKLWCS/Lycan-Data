@@ -9,7 +9,6 @@ from modules.enrichers.ml_dedup import (
     rule_based_score,
 )
 
-
 # ── Feature extraction ───────────────────────────────────────────────────────
 
 
@@ -124,12 +123,27 @@ class TestMLDedup:
     def test_score_candidates(self):
         ml = MLDedup(match_threshold=0.50)
         persons = [
-            {"id": "1", "full_name": "John Smith", "dob": "1985-03-15",
-             "phones": ["5551234567"], "emails": ["john@example.com"]},
-            {"id": "2", "full_name": "John Smith", "dob": "1985-03-15",
-             "phones": ["5551234567"], "emails": ["john@example.com"]},
-            {"id": "3", "full_name": "Jane Doe", "dob": "1990-07-22",
-             "phones": ["9998887777"], "emails": ["jane@example.com"]},
+            {
+                "id": "1",
+                "full_name": "John Smith",
+                "dob": "1985-03-15",
+                "phones": ["5551234567"],
+                "emails": ["john@example.com"],
+            },
+            {
+                "id": "2",
+                "full_name": "John Smith",
+                "dob": "1985-03-15",
+                "phones": ["5551234567"],
+                "emails": ["john@example.com"],
+            },
+            {
+                "id": "3",
+                "full_name": "Jane Doe",
+                "dob": "1990-07-22",
+                "phones": ["9998887777"],
+                "emails": ["jane@example.com"],
+            },
         ]
         pairs = [
             {"id_a": "1", "id_b": "2"},

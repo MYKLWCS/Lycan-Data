@@ -1,8 +1,7 @@
 """Progress event models for real-time search tracking via SSE."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -32,7 +31,7 @@ class ProgressEvent(BaseModel):
 
     search_id: str
     event_type: EventType
-    scraper_name: Optional[str] = None
+    scraper_name: str | None = None
     progress_pct: float = Field(default=0.0, ge=0.0, le=100.0)
     results_found: int = 0
     total_scrapers: int = 0
@@ -40,9 +39,9 @@ class ProgressEvent(BaseModel):
     failed_scrapers: int = 0
     current_phase: Phase = Phase.COLLECTING
     estimated_seconds_remaining: float = 0.0
-    partial_results: Optional[list[dict]] = None
-    error: Optional[str] = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    partial_results: list[dict] | None = None
+    error: str | None = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class DiscoveredAccount(BaseModel):

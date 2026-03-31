@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from modules.crawlers.registry import is_registered
 from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import is_registered
 from modules.crawlers.social.vk_profile import (
     VkProfileCrawler,
     _extract_username,

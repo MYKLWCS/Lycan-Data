@@ -497,6 +497,7 @@ async def test_daemon_run_batch_calls_engine(monkeypatch):
 
 
 import uuid as _uuid_mod
+from datetime import UTC
 
 import pytest
 
@@ -537,7 +538,7 @@ async def test_assemble_person_signals_all_none():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_new_row():
     """_upsert_commercial_tags inserts a new MarketingTag when no existing row (line 346-356)."""
-    from datetime import timezone, datetime
+    from datetime import datetime, timezone
 
     from modules.enrichers.commercial_tagger import _upsert_commercial_tags
     from modules.enrichers.marketing_tags import TagResult
@@ -547,7 +548,7 @@ async def test_upsert_commercial_tags_new_row():
         tag="insurance_auto",
         confidence=0.9,
         reasoning=["has vehicle"],
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
 
     session = AsyncMock()
@@ -567,7 +568,7 @@ async def test_upsert_commercial_tags_new_row():
 @pytest.mark.asyncio
 async def test_upsert_commercial_tags_existing_row():
     """_upsert_commercial_tags updates confidence on existing MarketingTag (line 341-345)."""
-    from datetime import timezone, datetime
+    from datetime import datetime, timezone
 
     from modules.enrichers.commercial_tagger import _upsert_commercial_tags
     from modules.enrichers.marketing_tags import TagResult
@@ -577,7 +578,7 @@ async def test_upsert_commercial_tags_existing_row():
         tag="insurance_auto",
         confidence=0.85,
         reasoning=["has vehicle"],
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
 
     existing_row = MagicMock()

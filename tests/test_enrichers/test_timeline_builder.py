@@ -33,7 +33,7 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from datetime import timezone, date, datetime
+from datetime import UTC, date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -48,7 +48,7 @@ class TestToDate:
         assert _to_date(None) is None
 
     def test_datetime_returns_date(self):
-        dt = datetime(2023, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+        dt = datetime(2023, 6, 15, 10, 30, 0, tzinfo=UTC)
         result = _to_date(dt)
         assert result == date(2023, 6, 15)
 

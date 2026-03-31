@@ -2,7 +2,7 @@
 
 import asyncio
 import uuid
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest

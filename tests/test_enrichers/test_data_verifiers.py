@@ -11,7 +11,6 @@ from modules.enrichers.data_verifiers import (
     VerificationLevel,
 )
 
-
 # ── PhoneVerifier ────────────────────────────────────────────────────────────
 
 
@@ -165,8 +164,7 @@ class TestDataVerifier:
 
     def test_verify_address(self):
         result = self.verifier.verify(
-            "address", "123 Main St",
-            city="Springfield", state="IL", zip_code="62704"
+            "address", "123 Main St", city="Springfield", state="IL", zip_code="62704"
         )
         assert result.field_type == "address"
         assert result.level >= VerificationLevel.FORMAT_VALID

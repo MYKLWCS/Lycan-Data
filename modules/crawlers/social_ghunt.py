@@ -22,9 +22,9 @@ import shutil
 import subprocess
 
 from modules.crawlers.base import BaseCrawler
-from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import register
 
 logger = logging.getLogger(__name__)
 
@@ -144,9 +144,7 @@ class GHuntCrawler(BaseCrawler):
             )
 
         try:
-            returncode, stdout, stderr = await asyncio.to_thread(
-                _run_ghunt_sync, email
-            )
+            returncode, stdout, stderr = await asyncio.to_thread(_run_ghunt_sync, email)
         except subprocess.TimeoutExpired:
             return CrawlerResult(
                 platform=self.platform,

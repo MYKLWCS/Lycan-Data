@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from modules.crawlers.base import BaseCrawler, MAX_SCRAPER_RETRIES
+from modules.crawlers.base import MAX_SCRAPER_RETRIES, BaseCrawler
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.registry import (
     CRAWLER_REGISTRY,
     get_crawler,
@@ -11,7 +12,6 @@ from modules.crawlers.registry import (
     list_platforms,
     register,
 )
-from modules.crawlers.core.result import CrawlerResult
 
 # --- Registry tests ---
 

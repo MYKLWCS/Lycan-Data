@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import logging
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -82,14 +82,18 @@ class WikidataLookupCrawler(HttpxCrawler):
         entity_url = _WIKIDATA_ENTITY.format(qid=qid)
         resp2 = await self.get(entity_url)
         if not resp2 or resp2.status_code != 200:
-            return self._result(identifier, found=True, qid=qid, label=label, description=description)
+            return self._result(
+                identifier, found=True, qid=qid, label=label, description=description
+            )
 
         try:
             entities = resp2.json().get("entities", {})
             entity = entities.get(qid, {})
             claims = entity.get("claims", {})
         except Exception:
-            return self._result(identifier, found=True, qid=qid, label=label, description=description)
+            return self._result(
+                identifier, found=True, qid=qid, label=label, description=description
+            )
 
         # Step 3: Extract structured data
         extracted = {}

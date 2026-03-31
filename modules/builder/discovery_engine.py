@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select, update
@@ -29,8 +29,13 @@ logger = logging.getLogger(__name__)
 
 # Relationship types to discover per person during expansion
 EXPANSION_REL_TYPES = [
-    "family", "associate", "employer", "employee", "cohabitant",
-    "business_partner", "co_signatory",
+    "family",
+    "associate",
+    "employer",
+    "employee",
+    "cohabitant",
+    "business_partner",
+    "co_signatory",
 ]
 
 
@@ -72,7 +77,7 @@ class PeopleBuilder:
                 await session.execute(
                     update(BuilderJob)
                     .where(BuilderJob.id == uuid.UUID(job_id))
-                    .values(status="cancelled", completed_at=datetime.now(timezone.utc))
+                    .values(status="cancelled", completed_at=datetime.now(UTC))
                 )
                 await session.commit()
             return True
@@ -90,7 +95,7 @@ class PeopleBuilder:
         max_results: int,
     ) -> None:
         try:
-            await self._update_status(job_id, "discovering", started_at=datetime.now(timezone.utc))
+            await self._update_status(job_id, "discovering", started_at=datetime.now(UTC))
             await self._emit(job_id, "discovering", "Starting discovery...")
 
             # Phase 1: DISCOVER
@@ -115,9 +120,7 @@ class PeopleBuilder:
             await self._phase_expand(job_id, filtered)
 
             # Mark complete
-            await self._update_status(
-                job_id, "complete", completed_at=datetime.now(timezone.utc)
-            )
+            await self._update_status(job_id, "complete", completed_at=datetime.now(UTC))
             await self._emit(
                 job_id,
                 "complete",
@@ -133,7 +136,7 @@ class PeopleBuilder:
                     .values(
                         status="failed",
                         error_message=str(exc)[:2000],
-                        completed_at=datetime.now(timezone.utc),
+                        completed_at=datetime.now(UTC),
                     )
                 )
                 await session.commit()
@@ -182,10 +185,8 @@ class PeopleBuilder:
                 unique.append(p)
 
         await self._update_counters(job_id, discovered_count=len(unique))
-        await self._emit(
-            job_id, "discovering", f"Found {len(unique)} potential matches."
-        )
-        return unique[:max_results * 2]
+        await self._emit(job_id, "discovering", f"Found {len(unique)} potential matches.")
+        return unique[: max_results * 2]
 
     async def _run_source(
         self,
@@ -208,9 +209,7 @@ class PeopleBuilder:
         query = search_params.get("name") or search_params.get("location") or ""
         crawl_params = {k: v for k, v in search_params.items() if k != "name"}
         try:
-            result = await asyncio.wait_for(
-                crawler.crawl(query, crawl_params), timeout=120
-            )
+            result = await asyncio.wait_for(crawler.crawl(query, crawl_params), timeout=120)
             if isinstance(result, dict):
                 persons = result.get("persons", result.get("results", []))
                 if isinstance(persons, list):
@@ -221,15 +220,17 @@ class PeopleBuilder:
                 for item in result:
                     if hasattr(item, "data") and hasattr(item, "found"):
                         if item.found and item.data:
-                            person_dicts.append({
-                                **item.data,
-                                "_source": item.platform,
-                                "_source_reliability": item.source_reliability,
-                            })
+                            person_dicts.append(
+                                {
+                                    **item.data,
+                                    "_source": item.platform,
+                                    "_source_reliability": item.source_reliability,
+                                }
+                            )
                     elif isinstance(item, dict):
                         person_dicts.append(item)
                 return person_dicts[:max_results]
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Timeout on crawler %s", crawler_name)
         except Exception:
             logger.warning("Crawler %s failed", crawler_name, exc_info=True)
@@ -272,23 +273,26 @@ class PeopleBuilder:
 
             # Queue enrichment via event bus
             try:
-                await event_bus.publish("enrichment", {
-                    "event": "crawl_complete",
-                    "person_id": person_id,
-                    "depth": 0,
-                    "source": "builder",
-                })
+                await event_bus.publish(
+                    "enrichment",
+                    {
+                        "event": "crawl_complete",
+                        "person_id": person_id,
+                        "depth": 0,
+                        "source": "builder",
+                    },
+                )
             except Exception:
                 logger.debug("Could not publish enrichment event for %s", person_id)
 
-            built.append({**raw, "_person_id": person_id, "_enrichment": person.enrichment_score or 0.0})
+            built.append(
+                {**raw, "_person_id": person_id, "_enrichment": person.enrichment_score or 0.0}
+            )
 
         await self._update_counters(job_id, built_count=len(built))
         return built
 
-    async def _upsert_person(
-        self, session: AsyncSession, raw: dict[str, Any]
-    ) -> Person:
+    async def _upsert_person(self, session: AsyncSession, raw: dict[str, Any]) -> Person:
         """Create or find existing person from raw discovery data."""
         full_name = raw.get("full_name", raw.get("name"))
         dob_str = raw.get("date_of_birth", raw.get("dob"))
@@ -298,6 +302,7 @@ class PeopleBuilder:
             stmt = select(Person).where(Person.full_name == full_name)
             if dob_str:
                 from datetime import date as date_type
+
                 try:
                     if isinstance(dob_str, str):
                         dob = date_type.fromisoformat(dob_str)
@@ -322,6 +327,7 @@ class PeopleBuilder:
         if dob_str:
             try:
                 from datetime import date as date_type
+
                 person.date_of_birth = (
                     date_type.fromisoformat(dob_str) if isinstance(dob_str, str) else dob_str
                 )
@@ -429,24 +435,31 @@ class PeopleBuilder:
                 await session.execute(
                     update(Person)
                     .where(Person.id == uuid.UUID(person_id))
-                    .values(meta=Person.meta + {"builder_favourited": True, "builder_job_id": job_id})
+                    .values(
+                        meta=Person.meta + {"builder_favourited": True, "builder_job_id": job_id}
+                    )
                 )
                 await session.commit()
 
             # Publish expansion event
             try:
-                await event_bus.publish("graph", {
-                    "event": "expand_relationships",
-                    "person_id": person_id,
-                    "depth": 2,
-                    "source": "builder",
-                })
+                await event_bus.publish(
+                    "graph",
+                    {
+                        "event": "expand_relationships",
+                        "person_id": person_id,
+                        "depth": 2,
+                        "source": "builder",
+                    },
+                )
             except Exception:
                 logger.debug("Could not publish expansion event for %s", person_id)
 
             expanded += 1
 
-        await self._update_counters(job_id, expanded_count=expanded, relationships_mapped=rels_mapped)
+        await self._update_counters(
+            job_id, expanded_count=expanded, relationships_mapped=rels_mapped
+        )
         await self._emit(
             job_id,
             "expanding",
@@ -469,31 +482,30 @@ class PeopleBuilder:
             if completed_at:
                 values["completed_at"] = completed_at
             await session.execute(
-                update(BuilderJob)
-                .where(BuilderJob.id == uuid.UUID(job_id))
-                .values(**values)
+                update(BuilderJob).where(BuilderJob.id == uuid.UUID(job_id)).values(**values)
             )
             await session.commit()
 
     async def _update_counters(self, job_id: str, **kwargs: int) -> None:
         async with AsyncSessionLocal() as session:
             await session.execute(
-                update(BuilderJob)
-                .where(BuilderJob.id == uuid.UUID(job_id))
-                .values(**kwargs)
+                update(BuilderJob).where(BuilderJob.id == uuid.UUID(job_id)).values(**kwargs)
             )
             await session.commit()
 
     async def _emit(self, job_id: str, phase: str, message: str) -> None:
         """Publish SSE progress event."""
         try:
-            await event_bus.publish("progress", {
-                "event": "builder_progress",
-                "job_id": job_id,
-                "phase": phase,
-                "message": message,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            await event_bus.publish(
+                "progress",
+                {
+                    "event": "builder_progress",
+                    "job_id": job_id,
+                    "phase": phase,
+                    "message": message,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+            )
         except Exception:
             pass  # SSE is best-effort
 

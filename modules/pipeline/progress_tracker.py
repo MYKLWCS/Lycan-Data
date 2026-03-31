@@ -5,8 +5,7 @@ ProgressCalculator  — pure math: phase % → overall %
 ProgressAggregator  — stateful: processes events, tracks scraper statuses
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from shared.schemas.progress import DiscoveredAccount, EventType, Phase, ProgressState
 
@@ -51,8 +50,8 @@ class ProgressCalculator:
         phase_start_time: datetime,
         current_phase: str,
     ) -> float:
-        elapsed_total = (datetime.now(timezone.utc) - self.start_time).total_seconds()
-        elapsed_phase = (datetime.now(timezone.utc) - phase_start_time).total_seconds()
+        elapsed_total = (datetime.now(UTC) - self.start_time).total_seconds()
+        elapsed_phase = (datetime.now(UTC) - phase_start_time).total_seconds()
 
         # Linear extrapolation from overall progress
         if current_pct > 0:
@@ -84,8 +83,8 @@ class ProgressAggregator:
 
     def __init__(self, search_id: str, scraper_count: int = 1) -> None:
         self.search_id = search_id
-        self.start_time = datetime.now(timezone.utc)
-        self.phase_start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
+        self.phase_start_time = datetime.now(UTC)
         self.calc = ProgressCalculator(self.start_time, scraper_count)
 
         self.current_phase: str = Phase.COLLECTING
@@ -104,7 +103,7 @@ class ProgressAggregator:
         self._enrich_total = 0
 
     # ------------------------------------------------------------------
-    def process(self, event: dict) -> Optional[ProgressState]:
+    def process(self, event: dict) -> ProgressState | None:
         """
         Update internal state from a raw event dict.
         Returns the new ProgressState (always, for immediate SSE emit).
@@ -162,14 +161,14 @@ class ProgressAggregator:
         elif etype == EventType.DEDUP_RUNNING:
             if self.current_phase != Phase.DEDUPLICATING:
                 self.current_phase = Phase.DEDUPLICATING
-                self.phase_start_time = datetime.now(timezone.utc)
+                self.phase_start_time = datetime.now(UTC)
             self._dedup_processed = event.get("records_processed", self._dedup_processed)
             self._dedup_total = event.get("total_records", self._dedup_total)
 
         elif etype == EventType.ENRICHMENT_RUNNING:
             if self.current_phase != Phase.ENRICHING:
                 self.current_phase = Phase.ENRICHING
-                self.phase_start_time = datetime.now(timezone.utc)
+                self.phase_start_time = datetime.now(UTC)
             self._enrich_completed = event.get("records_processed", self._enrich_completed)
             self._enrich_total = event.get("total_records", self._enrich_total)
 
@@ -195,7 +194,7 @@ class ProgressAggregator:
             pct = 95.0  # finalizing
 
         eta = self.calc.estimate_remaining(pct, self.phase_start_time, phase)
-        elapsed = (datetime.now(timezone.utc) - self.start_time).total_seconds()
+        elapsed = (datetime.now(UTC) - self.start_time).total_seconds()
         running = sum(1 for s in self.scraper_statuses.values() if s == "running")
 
         return ProgressState(
@@ -211,5 +210,5 @@ class ProgressAggregator:
             elapsed_seconds=round(elapsed, 1),
             scraper_statuses=dict(self.scraper_statuses),
             all_discovered_accounts=list(self.all_discovered_accounts),
-            last_update=datetime.now(timezone.utc),
+            last_update=datetime.now(UTC),
         )

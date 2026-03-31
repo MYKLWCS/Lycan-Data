@@ -4,7 +4,7 @@ Requires: postgres (localhost:5432) and dragonfly (localhost:6379) running.
 """
 
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime, timezone
 
 import pytest
 from sqlalchemy import select, text
@@ -168,7 +168,7 @@ async def test_credit_risk_assessment(db: AsyncSession, test_person: Person):
         default_risk_score=0.65,
         risk_tier=DefaultRiskTier.HIGH_RISK.value,
         gambling_weight=0.25,
-        assessed_at=datetime.now(timezone.utc),
+        assessed_at=datetime.now(UTC),
     )
     db.add(assessment)
     await db.flush()
@@ -189,7 +189,7 @@ async def test_wealth_assessment(db: AsyncSession, test_person: Person):
         wealth_band=WealthBand.MIDDLE.value,
         income_estimate_usd=75000.0,
         confidence=0.6,
-        assessed_at=datetime.now(timezone.utc),
+        assessed_at=datetime.now(UTC),
     )
     db.add(wa)
     await db.flush()
@@ -266,7 +266,7 @@ async def test_data_quality_applied_to_model(db: AsyncSession, test_person: Pers
 
     apply_quality_to_model(
         identifier,
-        last_scraped_at=datetime.now(timezone.utc),
+        last_scraped_at=datetime.now(UTC),
         source_type="social_media_profile",
         source_name="truecaller",
         corroboration_count=2,

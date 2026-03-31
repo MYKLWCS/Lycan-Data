@@ -23,13 +23,14 @@ from modules.enrichers.deduplication import ExactMatchDeduplicator
 from modules.pipeline.progress_tracker import ProgressAggregator
 from shared.schemas.progress import EventType, Phase
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _make_result(platform: str, identifier: str = "John Doe", found: bool = True, **data) -> CrawlerResult:
+def _make_result(
+    platform: str, identifier: str = "John Doe", found: bool = True, **data
+) -> CrawlerResult:
     return CrawlerResult(
         platform=platform,
         identifier=identifier,
@@ -335,11 +336,13 @@ def test_progress_starts_in_collecting_phase():
 
 def test_progress_search_started_pre_populates_statuses():
     agg = ProgressAggregator("search-001", scraper_count=3)
-    state = agg.process({
-        "event_type": EventType.SEARCH_STARTED,
-        "total_scrapers": 3,
-        "scrapers": ["whitepages", "linkedin", "twitter"],
-    })
+    state = agg.process(
+        {
+            "event_type": EventType.SEARCH_STARTED,
+            "total_scrapers": 3,
+            "scrapers": ["whitepages", "linkedin", "twitter"],
+        }
+    )
     assert set(state.scraper_statuses.keys()) == {"whitepages", "linkedin", "twitter"}
     assert all(v == "queued" for v in state.scraper_statuses.values())
 
@@ -355,11 +358,13 @@ def test_progress_scraper_running_increments_running_count():
 def test_progress_scraper_done_increments_completed_and_results():
     agg = ProgressAggregator("search-001", scraper_count=2)
     agg.process({"event_type": EventType.SCRAPER_QUEUED, "scraper_name": "whitepages"})
-    state = agg.process({
-        "event_type": EventType.SCRAPER_DONE,
-        "scraper_name": "whitepages",
-        "results_found": 3,
-    })
+    state = agg.process(
+        {
+            "event_type": EventType.SCRAPER_DONE,
+            "scraper_name": "whitepages",
+            "results_found": 3,
+        }
+    )
     assert state.scraper_statuses["whitepages"] == "done"
     assert state.scrapers_completed == 1
     assert state.results_found == 3
@@ -375,32 +380,38 @@ def test_progress_scraper_failed_increments_failed_count():
 
 def test_progress_advances_to_deduplicating_on_dedup_event():
     agg = ProgressAggregator("search-001", scraper_count=1)
-    state = agg.process({
-        "event_type": EventType.DEDUP_RUNNING,
-        "records_processed": 5,
-        "total_records": 10,
-    })
+    state = agg.process(
+        {
+            "event_type": EventType.DEDUP_RUNNING,
+            "records_processed": 5,
+            "total_records": 10,
+        }
+    )
     assert state.current_phase == Phase.DEDUPLICATING
     assert state.progress_pct >= 60.0
 
 
 def test_progress_advances_to_enriching_on_enrichment_event():
     agg = ProgressAggregator("search-001", scraper_count=1)
-    state = agg.process({
-        "event_type": EventType.ENRICHMENT_RUNNING,
-        "records_processed": 3,
-        "total_records": 5,
-    })
+    state = agg.process(
+        {
+            "event_type": EventType.ENRICHMENT_RUNNING,
+            "records_processed": 3,
+            "total_records": 5,
+        }
+    )
     assert state.current_phase == Phase.ENRICHING
     assert state.progress_pct >= 75.0
 
 
 def test_progress_completes_at_100_pct():
     agg = ProgressAggregator("search-001", scraper_count=1)
-    state = agg.process({
-        "event_type": EventType.SEARCH_COMPLETE,
-        "results_found": 42,
-    })
+    state = agg.process(
+        {
+            "event_type": EventType.SEARCH_COMPLETE,
+            "results_found": 42,
+        }
+    )
     assert state.current_phase == Phase.COMPLETE
     assert state.progress_pct == 100.0
     assert state.results_found == 42
@@ -411,11 +422,13 @@ def test_progress_collection_reaches_60_pct_when_all_scrapers_finish():
     agg = ProgressAggregator("search-001", scraper_count=4)
     state = None
     for name in ["a", "b", "c", "d"]:
-        state = agg.process({
-            "event_type": EventType.SCRAPER_DONE,
-            "scraper_name": name,
-            "results_found": 0,
-        })
+        state = agg.process(
+            {
+                "event_type": EventType.SCRAPER_DONE,
+                "scraper_name": name,
+                "results_found": 0,
+            }
+        )
     assert state is not None
     assert state.progress_pct == pytest.approx(60.0)
 
@@ -424,11 +437,13 @@ def test_progress_multiple_results_found_accumulate():
     """results_found accumulates across multiple SCRAPER_DONE events."""
     agg = ProgressAggregator("search-001", scraper_count=3)
     for name, count in [("a", 2), ("b", 5), ("c", 1)]:
-        state = agg.process({
-            "event_type": EventType.SCRAPER_DONE,
-            "scraper_name": name,
-            "results_found": count,
-        })
+        state = agg.process(
+            {
+                "event_type": EventType.SCRAPER_DONE,
+                "scraper_name": name,
+                "results_found": count,
+            }
+        )
     assert state.results_found == 8
 
 

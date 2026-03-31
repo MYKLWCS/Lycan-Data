@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 # ── Serialiser ─────────────────────────────────────────────────────────────────
+
 
 def _source_dict(s: DiscoveredSource) -> dict:
     return {
@@ -70,6 +71,7 @@ def _get_or_404(session, source_id: str):
 
 
 # ── List review queue ──────────────────────────────────────────────────────────
+
 
 @router.get("/sources")
 async def list_sources(
@@ -114,6 +116,7 @@ async def list_sources(
 
 # ── Get single source ──────────────────────────────────────────────────────────
 
+
 @router.get("/sources/{source_id}")
 async def get_source(source_id: str, session=DbDep):
     uid = _get_or_404(session, source_id)
@@ -124,6 +127,7 @@ async def get_source(source_id: str, session=DbDep):
 
 
 # ── Trigger discovery run ──────────────────────────────────────────────────────
+
 
 class RunDiscoveryRequest(BaseModel):
     query: str
@@ -141,6 +145,7 @@ async def trigger_discovery(
 
     async def _bg():
         from shared.db import AsyncSessionLocal
+
         async with AsyncSessionLocal() as bg_session:
             try:
                 summary = await run_discovery(
@@ -162,6 +167,7 @@ async def trigger_discovery(
 
 # ── Approve source ─────────────────────────────────────────────────────────────
 
+
 class ApproveRequest(BaseModel):
     notes: str = ""
     reliability_tier: str = "C"
@@ -178,7 +184,7 @@ async def approve_source(source_id: str, body: ApproveRequest, session=DbDep):
     if row.status == "approved":
         raise HTTPException(409, "Source already approved")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row.status = "approved"
     row.approval_notes = body.notes or None
     row.reliability_tier = body.reliability_tier.upper()[:2]
@@ -193,6 +199,7 @@ async def approve_source(source_id: str, body: ApproveRequest, session=DbDep):
 
 
 # ── Reject source ──────────────────────────────────────────────────────────────
+
 
 class RejectRequest(BaseModel):
     notes: str = ""
@@ -209,7 +216,7 @@ async def reject_source(source_id: str, body: RejectRequest, session=DbDep):
 
     row.status = "rejected"
     row.approval_notes = body.notes or None
-    row.rejected_at = datetime.now(timezone.utc)
+    row.rejected_at = datetime.now(UTC)
 
     await session.commit()
     await session.refresh(row)
@@ -217,6 +224,7 @@ async def reject_source(source_id: str, body: RejectRequest, session=DbDep):
 
 
 # ── Build crawler template ─────────────────────────────────────────────────────
+
 
 @router.post("/sources/{source_id}/build-crawler", status_code=200)
 async def build_crawler(source_id: str, session=DbDep):
@@ -243,14 +251,12 @@ async def build_crawler(source_id: str, session=DbDep):
     return {
         "source_id": str(row.id),
         "template": template,
-        "message": (
-            f"Crawler template generated. Write to {template['file_path']} "
-            "to deploy it."
-        ),
+        "message": (f"Crawler template generated. Write to {template['file_path']} to deploy it."),
     }
 
 
 # ── Bulk approve / reject ──────────────────────────────────────────────────────
+
 
 class BulkActionRequest(BaseModel):
     source_ids: list[str]
@@ -273,7 +279,7 @@ async def bulk_action(body: BulkActionRequest, session=DbDep):
         except ValueError:
             raise HTTPException(400, f"Invalid UUID: {sid!r}")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if body.action == "approve":
         await session.execute(
             update(DiscoveredSource)
@@ -306,42 +312,33 @@ async def bulk_action(body: BulkActionRequest, session=DbDep):
 
 # ── Self-improvement stats ─────────────────────────────────────────────────────
 
+
 @router.get("/stats")
 async def discovery_stats(session=DbDep):
-    total = (
-        await session.execute(select(func.count()).select_from(DiscoveredSource))
-    ).scalar_one()
+    total = (await session.execute(select(func.count()).select_from(DiscoveredSource))).scalar_one()
 
     by_status = {}
     for status_val in ("pending", "approved", "rejected"):
         count = (
-            await session.execute(
-                select(func.count()).where(DiscoveredSource.status == status_val)
-            )
+            await session.execute(select(func.count()).where(DiscoveredSource.status == status_val))
         ).scalar_one()
         by_status[status_val] = count
 
     high_value = (
-        await session.execute(
-            select(func.count()).where(DiscoveredSource.is_high_value.is_(True))
-        )
+        await session.execute(select(func.count()).where(DiscoveredSource.is_high_value.is_(True)))
     ).scalar_one()
 
-    by_tool_q = (
-        await session.execute(
-            select(DiscoveredSource.discovered_by, func.count())
-            .group_by(DiscoveredSource.discovered_by)
-            .order_by(desc(func.count()))
-        )
+    by_tool_q = await session.execute(
+        select(DiscoveredSource.discovered_by, func.count())
+        .group_by(DiscoveredSource.discovered_by)
+        .order_by(desc(func.count()))
     )
     by_tool = {row[0]: row[1] for row in by_tool_q}
 
-    by_category_q = (
-        await session.execute(
-            select(DiscoveredSource.category, func.count())
-            .group_by(DiscoveredSource.category)
-            .order_by(desc(func.count()))
-        )
+    by_category_q = await session.execute(
+        select(DiscoveredSource.category, func.count())
+        .group_by(DiscoveredSource.category)
+        .order_by(desc(func.count()))
     )
     by_category = {(row[0] or "unknown"): row[1] for row in by_category_q}
 

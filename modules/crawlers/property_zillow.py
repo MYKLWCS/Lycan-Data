@@ -14,11 +14,11 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 

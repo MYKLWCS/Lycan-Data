@@ -8,10 +8,10 @@ from shared.models.builder_job import BuilderJob, BuilderJobPerson
 from shared.models.burner import BurnerAssessment
 from shared.models.compliance_ext import AdverseMedia, PepClassification, ShellCompanyLink
 from shared.models.crawl import CrawlJob, CrawlLog, DataSource
-from shared.models.discovery import DiscoveredSource
 from shared.models.credit_risk import CreditRiskAssessment
 from shared.models.criminal import CriminalRecord
 from shared.models.darkweb import CryptoTransaction, CryptoWallet, DarkwebMention
+from shared.models.discovery import DiscoveredSource
 from shared.models.education import Education
 from shared.models.employment import EmploymentHistory
 from shared.models.family_tree import FamilyTreeSnapshot

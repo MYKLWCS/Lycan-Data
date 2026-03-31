@@ -5,7 +5,7 @@ Tests for Result Ranking & Sorting Engine — Task 30.
 
 from __future__ import annotations
 
-from datetime import timezone, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -28,11 +28,11 @@ from modules.enrichers.ranking import (
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _days_ago_iso(days: float) -> str:
-    dt = datetime.now(timezone.utc) - timedelta(days=days)
+    dt = datetime.now(UTC) - timedelta(days=days)
     return dt.isoformat()
 
 

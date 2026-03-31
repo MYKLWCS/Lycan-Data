@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -180,7 +180,7 @@ class GoldenRecordBuilder:
             return GoldenRecord(
                 canonical_id=canonical_id,
                 merged_ids=[],
-                merged_at=datetime.now(timezone.utc).isoformat(),
+                merged_at=datetime.now(UTC).isoformat(),
                 fields={},
                 provenance={},
             )
@@ -192,9 +192,7 @@ class GoldenRecordBuilder:
         # Collect all fields across all records
         all_field_names: set[str] = set()
         for r in records:
-            all_field_names.update(
-                k for k in r if not k.startswith("_") and k not in ("id",)
-            )
+            all_field_names.update(k for k in r if not k.startswith("_") and k not in ("id",))
 
         for field_name in all_field_names:
             candidates = self._collect_candidates(records, field_name)
@@ -220,7 +218,7 @@ class GoldenRecordBuilder:
         golden = GoldenRecord(
             canonical_id=canonical_id,
             merged_ids=merged_ids,
-            merged_at=datetime.now(timezone.utc).isoformat(),
+            merged_at=datetime.now(UTC).isoformat(),
             fields=merged_fields,
             provenance=provenance,
         )
@@ -237,12 +235,14 @@ class GoldenRecordBuilder:
             val = r.get(field_name)
             if val is None:
                 continue
-            candidates.append({
-                "value": val,
-                "source": r.get("_source", "unknown"),
-                "timestamp": r.get("_timestamp", ""),
-                "priority": source_rank(r.get("_source")),
-            })
+            candidates.append(
+                {
+                    "value": val,
+                    "source": r.get("_source", "unknown"),
+                    "timestamp": r.get("_timestamp", ""),
+                    "priority": source_rank(r.get("_source")),
+                }
+            )
         return candidates
 
     def _merge_single_value(
@@ -304,7 +304,7 @@ class GoldenRecordBuilder:
         candidates: list[dict[str, Any]],
     ) -> tuple[Any, FieldProvenance]:
         """Take the maximum numeric value."""
-        best = max(candidates, key=lambda c: (c["value"] or 0))
+        best = max(candidates, key=lambda c: c["value"] or 0)
         return best["value"], FieldProvenance(
             field=field_name,
             value=best["value"],
@@ -429,6 +429,7 @@ async def build_golden_record_from_cluster(
 
     # Choose canonical: most populated fields
     if canonical_id is None:
+
         def _field_count(d: dict) -> int:
             return sum(1 for k, v in d.items() if not k.startswith("_") and v is not None)
 

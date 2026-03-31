@@ -20,9 +20,9 @@ import tempfile
 from pathlib import Path
 
 from modules.crawlers.base import BaseCrawler
-from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import register
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +52,10 @@ def _parse_profile_json(profile_path: Path) -> dict:
                 "biography": node.get("biography"),
                 "follower_count": (node.get("edge_followed_by") or {}).get("count"),
                 "following_count": (node.get("edge_follow") or {}).get("count"),
-                "post_count": (
-                    node.get("edge_owner_to_timeline_media") or {}
-                ).get("count"),
+                "post_count": (node.get("edge_owner_to_timeline_media") or {}).get("count"),
                 "is_private": node.get("is_private", False),
                 "is_verified": node.get("is_verified", False),
-                "profile_pic_url": node.get("profile_pic_url_hd")
-                or node.get("profile_pic_url"),
+                "profile_pic_url": node.get("profile_pic_url_hd") or node.get("profile_pic_url"),
                 "external_url": node.get("external_url"),
                 "business_category": node.get("business_category_name"),
             }
@@ -81,8 +78,8 @@ async def _fetch_instaloader(username: str, output_dir: str) -> None:
         "--no-geotags",
         "--fast-update",
         "--dirname-pattern={profile}",
-        "--",        # end of options — username follows as positional
-        username,    # passed as separate arg, not shell-interpolated
+        "--",  # end of options — username follows as positional
+        username,  # passed as separate arg, not shell-interpolated
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=output_dir,

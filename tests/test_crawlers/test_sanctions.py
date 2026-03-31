@@ -25,16 +25,16 @@ from modules.crawlers.registry import is_registered
 from modules.crawlers.sanctions_fbi import (
     SanctionsFBICrawler,
 )
-from modules.crawlers.utils import word_overlap as fbi_name_matches
 from modules.crawlers.sanctions_ofac import (
     SanctionsOFACCrawler,
 )
-from modules.crawlers.utils import cache_valid as ofac_cache_valid
-from modules.crawlers.utils import word_overlap as ofac_name_matches
 from modules.crawlers.sanctions_un import (
     SanctionsUNCrawler,
 )
+from modules.crawlers.utils import cache_valid as ofac_cache_valid
 from modules.crawlers.utils import cache_valid as un_cache_valid
+from modules.crawlers.utils import word_overlap as fbi_name_matches
+from modules.crawlers.utils import word_overlap as ofac_name_matches
 from modules.crawlers.utils import word_overlap as un_name_matches
 
 # ===========================================================================

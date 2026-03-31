@@ -28,13 +28,19 @@ async def _all_jobs_terminal(person_id: str, session) -> bool:
     """Return True if all crawl jobs for this person are in terminal state."""
     try:
         from sqlalchemy import func, select
+
         from shared.models.crawl import CrawlJob
-        pending = (await session.execute(
-            select(func.count()).select_from(CrawlJob).where(
-                CrawlJob.person_id == person_id,
-                CrawlJob.status.in_(["pending", "running"]),
+
+        pending = (
+            await session.execute(
+                select(func.count())
+                .select_from(CrawlJob)
+                .where(
+                    CrawlJob.person_id == person_id,
+                    CrawlJob.status.in_(["pending", "running"]),
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
         return pending == 0
     except Exception:
         return True  # Fail open — allow enrichment if check fails
@@ -104,12 +110,16 @@ class IngestionDaemon:
                 try:
                     if event_bus.is_connected and person_id:
                         from shared.schemas.progress import EventType
-                        await event_bus.publish("progress", {
-                            "event_type": EventType.DEDUP_RUNNING.value,
-                            "search_id": str(person_id),
-                            "records_processed": 1,
-                            "total_records": 1,
-                        })
+
+                        await event_bus.publish(
+                            "progress",
+                            {
+                                "event_type": EventType.DEDUP_RUNNING.value,
+                                "search_id": str(person_id),
+                                "records_processed": 1,
+                                "total_records": 1,
+                            },
+                        )
                 except Exception as e:
                     logger.debug("Event publish failed: %s", e)
 

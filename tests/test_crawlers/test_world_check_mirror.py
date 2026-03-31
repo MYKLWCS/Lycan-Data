@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.pep.world_check_mirror import (
     WorldCheckMirrorCrawler,
     _classify_tier,
@@ -25,7 +26,6 @@ from modules.crawlers.pep.world_check_mirror import (
     _parse_dob_identifier,
     _parse_generic_kyc_html,
 )
-from modules.crawlers.core.result import CrawlerResult
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -10,7 +10,7 @@ Targets:
 from __future__ import annotations
 
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -322,7 +322,7 @@ async def test_run_batch_processes_persons_and_upserts():
 def _fake_person_obj():
     p = MagicMock()
     p.id = uuid.uuid4()
-    p.last_scraped_at = datetime.now(timezone.utc)
+    p.last_scraped_at = datetime.now(UTC)
     return p
 
 
@@ -430,7 +430,7 @@ async def test_upsert_commercial_tags_inserts_new_tag():
         tag=LendingTag.PERSONAL_LOAN_CANDIDATE,
         confidence=0.75,
         reasoning=["employed"],
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
 
     session = _make_session()
@@ -455,7 +455,7 @@ async def test_upsert_commercial_tags_updates_existing_tag():
         tag=LendingTag.PERSONAL_LOAN_CANDIDATE,
         confidence=0.80,
         reasoning=["employed", "distress"],
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
 
     existing_tag = MagicMock()

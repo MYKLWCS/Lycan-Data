@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -92,53 +92,110 @@ RELATIONSHIP_LABEL_MAP: dict[str, tuple[str, str]] = {
 
 # Strength defaults by type (0-100)
 DEFAULT_STRENGTH: dict[str, int] = {
-    "spouse": 95, "ex_spouse": 60, "parent": 95, "child": 95, "sibling": 90,
-    "grandparent": 85, "grandchild": 85, "aunt_uncle": 70, "cousin": 60,
-    "in_law": 65, "girlfriend": 70, "boyfriend": 70, "partner": 80,
-    "ex_partner": 40, "friend": 50, "best_friend": 75, "acquaintance": 20,
-    "neighbor": 30, "roommate": 60, "classmate": 35, "colleague": 40,
-    "employer": 55, "employee": 55, "business_partner": 70, "co_founder": 80,
-    "client": 35, "mentor": 45, "lawyer": 50, "co_defendant": 55,
-    "plaintiff": 40, "witness": 30, "co_signer": 65, "beneficiary": 60,
-    "trustee": 55, "power_of_attorney": 70, "family": 60, "associate": 30,
+    "spouse": 95,
+    "ex_spouse": 60,
+    "parent": 95,
+    "child": 95,
+    "sibling": 90,
+    "grandparent": 85,
+    "grandchild": 85,
+    "aunt_uncle": 70,
+    "cousin": 60,
+    "in_law": 65,
+    "girlfriend": 70,
+    "boyfriend": 70,
+    "partner": 80,
+    "ex_partner": 40,
+    "friend": 50,
+    "best_friend": 75,
+    "acquaintance": 20,
+    "neighbor": 30,
+    "roommate": 60,
+    "classmate": 35,
+    "colleague": 40,
+    "employer": 55,
+    "employee": 55,
+    "business_partner": 70,
+    "co_founder": 80,
+    "client": 35,
+    "mentor": 45,
+    "lawyer": 50,
+    "co_defendant": 55,
+    "plaintiff": 40,
+    "witness": 30,
+    "co_signer": 65,
+    "beneficiary": 60,
+    "trustee": 55,
+    "power_of_attorney": 70,
+    "family": 60,
+    "associate": 30,
 }
 
 # Confidence by source type (0.0-1.0)
 SOURCE_CONFIDENCE: dict[str, float] = {
-    "voter_records": 0.90, "property_records": 0.88, "court_records": 0.92,
-    "corporate_filings": 0.85, "obituary": 0.80, "familysearch": 0.75,
-    "social_media": 0.55, "people_search": 0.65, "truepeoplesearch": 0.62,
-    "fastpeoplesearch": 0.62, "whitepages": 0.65, "spokeo": 0.60,
-    "linkedin": 0.70, "facebook": 0.55, "instagram": 0.50,
-    "phone_shared": 0.70, "email_shared": 0.65, "address_shared": 0.75,
-    "breach_data": 0.40, "inference": 0.35, "unknown": 0.30,
+    "voter_records": 0.90,
+    "property_records": 0.88,
+    "court_records": 0.92,
+    "corporate_filings": 0.85,
+    "obituary": 0.80,
+    "familysearch": 0.75,
+    "social_media": 0.55,
+    "people_search": 0.65,
+    "truepeoplesearch": 0.62,
+    "fastpeoplesearch": 0.62,
+    "whitepages": 0.65,
+    "spokeo": 0.60,
+    "linkedin": 0.70,
+    "facebook": 0.55,
+    "instagram": 0.50,
+    "phone_shared": 0.70,
+    "email_shared": 0.65,
+    "address_shared": 0.75,
+    "breach_data": 0.40,
+    "inference": 0.35,
+    "unknown": 0.30,
 }
 
 # ── Relationship color map for visualization ───────────────────────────────
 
 RELATIONSHIP_COLORS: dict[str, str] = {
-    "spouse": "#DC2626", "partner": "#DC2626",
-    "ex_spouse": "#FCA5A5", "ex_partner": "#FCA5A5",
-    "girlfriend": "#EC4899", "boyfriend": "#EC4899",
-    "parent": "#2563EB", "child": "#2563EB",
+    "spouse": "#DC2626",
+    "partner": "#DC2626",
+    "ex_spouse": "#FCA5A5",
+    "ex_partner": "#FCA5A5",
+    "girlfriend": "#EC4899",
+    "boyfriend": "#EC4899",
+    "parent": "#2563EB",
+    "child": "#2563EB",
     "sibling": "#60A5FA",
-    "grandparent": "#1E3A8A", "grandchild": "#1E3A8A",
-    "aunt_uncle": "#0D9488", "cousin": "#0D9488",
+    "grandparent": "#1E3A8A",
+    "grandchild": "#1E3A8A",
+    "aunt_uncle": "#0D9488",
+    "cousin": "#0D9488",
     "in_law": "#7C3AED",
     "best_friend": "#16A34A",
     "friend": "#4ADE80",
     "acquaintance": "#BBF7D0",
-    "neighbor": "#EAB308", "roommate": "#EAB308",
+    "neighbor": "#EAB308",
+    "roommate": "#EAB308",
     "classmate": "#F59E0B",
     "colleague": "#EA580C",
-    "employer": "#C2410C", "employee": "#C2410C",
-    "business_partner": "#92400E", "co_founder": "#92400E",
-    "client": "#78716C", "mentor": "#78716C",
-    "lawyer": "#991B1B", "co_defendant": "#991B1B",
-    "plaintiff": "#991B1B", "witness": "#991B1B",
-    "co_signer": "#CA8A04", "beneficiary": "#CA8A04",
-    "trustee": "#CA8A04", "power_of_attorney": "#CA8A04",
-    "family": "#2563EB", "associate": "#6B7280",
+    "employer": "#C2410C",
+    "employee": "#C2410C",
+    "business_partner": "#92400E",
+    "co_founder": "#92400E",
+    "client": "#78716C",
+    "mentor": "#78716C",
+    "lawyer": "#991B1B",
+    "co_defendant": "#991B1B",
+    "plaintiff": "#991B1B",
+    "witness": "#991B1B",
+    "co_signer": "#CA8A04",
+    "beneficiary": "#CA8A04",
+    "trustee": "#CA8A04",
+    "power_of_attorney": "#CA8A04",
+    "family": "#2563EB",
+    "associate": "#6B7280",
 }
 
 
@@ -205,7 +262,7 @@ class RelationshipExpansionEngine:
         if rel:
             # Update score if this source is more confident
             rel.score = max(rel.score or 0.0, confidence)
-            rel.last_seen_at = datetime.now(timezone.utc)
+            rel.last_seen_at = datetime.now(UTC)
             if evidence:
                 current_evidence = rel.evidence or {}
                 current_evidence[source] = evidence
@@ -217,17 +274,15 @@ class RelationshipExpansionEngine:
                 rel_type=broad_type,
                 score=confidence,
                 evidence={source: evidence} if evidence else {},
-                first_seen_at=datetime.now(timezone.utc),
-                last_seen_at=datetime.now(timezone.utc),
+                first_seen_at=datetime.now(UTC),
+                last_seen_at=datetime.now(UTC),
             )
             session.add(rel)
             await session.flush()
 
         # Upsert RelationshipDetail
         detail_existing = await session.execute(
-            select(RelationshipDetail).where(
-                RelationshipDetail.relationship_id == rel.id
-            )
+            select(RelationshipDetail).where(RelationshipDetail.relationship_id == rel.id)
         )
         detail = detail_existing.scalar_one_or_none()
 
@@ -243,7 +298,7 @@ class RelationshipExpansionEngine:
                 sources.append(source)
                 detail.discovery_sources = sources
                 detail.source_count = len(sources)
-            detail.last_confirmed_at = datetime.now(timezone.utc)
+            detail.last_confirmed_at = datetime.now(UTC)
             # Upgrade verification level based on source count
             detail.verification_level = self._verification_level(detail.source_count)
         else:
@@ -260,7 +315,7 @@ class RelationshipExpansionEngine:
                 verification_level="single_source",
                 relationship_start=relationship_start,
                 relationship_end=relationship_end,
-                last_confirmed_at=datetime.now(timezone.utc),
+                last_confirmed_at=datetime.now(UTC),
             )
             session.add(detail)
 
@@ -293,10 +348,10 @@ class RelationshipExpansionEngine:
     ) -> list[dict[str, Any]]:
         """Get all relationships for a person with detailed scoring."""
         pid = uuid.UUID(person_id)
-        stmt = select(Relationship, RelationshipDetail).outerjoin(
-            RelationshipDetail, RelationshipDetail.relationship_id == Relationship.id
-        ).where(
-            (Relationship.person_a_id == pid) | (Relationship.person_b_id == pid)
+        stmt = (
+            select(Relationship, RelationshipDetail)
+            .outerjoin(RelationshipDetail, RelationshipDetail.relationship_id == Relationship.id)
+            .where((Relationship.person_a_id == pid) | (Relationship.person_b_id == pid))
         )
         result = await session.execute(stmt)
         rows = result.all()
@@ -306,8 +361,12 @@ class RelationshipExpansionEngine:
             other_id = str(rel.person_b_id) if rel.person_a_id == pid else str(rel.person_a_id)
             # Load other person's name
             other_result = await session.execute(
-                select(Person.full_name, Person.enrichment_score, Person.default_risk_score, Person.profile_image_url)
-                .where(Person.id == uuid.UUID(other_id))
+                select(
+                    Person.full_name,
+                    Person.enrichment_score,
+                    Person.default_risk_score,
+                    Person.profile_image_url,
+                ).where(Person.id == uuid.UUID(other_id))
             )
             other_row = other_result.first()
 
@@ -325,25 +384,31 @@ class RelationshipExpansionEngine:
             }
 
             if detail:
-                entry.update({
-                    "detailed_type": detail.detailed_type,
-                    "strength": detail.strength,
-                    "confidence": detail.confidence,
-                    "freshness_score": detail.freshness_score,
-                    "composite_score": detail.composite_score,
-                    "discovered_via": detail.discovered_via,
-                    "source_count": detail.source_count,
-                    "verification_level": detail.verification_level,
-                    "last_confirmed": detail.last_confirmed_at.isoformat() if detail.last_confirmed_at else None,
-                    "color": RELATIONSHIP_COLORS.get(detail.detailed_type, "#6B7280"),
-                })
+                entry.update(
+                    {
+                        "detailed_type": detail.detailed_type,
+                        "strength": detail.strength,
+                        "confidence": detail.confidence,
+                        "freshness_score": detail.freshness_score,
+                        "composite_score": detail.composite_score,
+                        "discovered_via": detail.discovered_via,
+                        "source_count": detail.source_count,
+                        "verification_level": detail.verification_level,
+                        "last_confirmed": detail.last_confirmed_at.isoformat()
+                        if detail.last_confirmed_at
+                        else None,
+                        "color": RELATIONSHIP_COLORS.get(detail.detailed_type, "#6B7280"),
+                    }
+                )
             else:
-                entry.update({
-                    "detailed_type": rel.rel_type,
-                    "strength": DEFAULT_STRENGTH.get(rel.rel_type, 30),
-                    "confidence": rel.score or 0.5,
-                    "color": RELATIONSHIP_COLORS.get(rel.rel_type, "#6B7280"),
-                })
+                entry.update(
+                    {
+                        "detailed_type": rel.rel_type,
+                        "strength": DEFAULT_STRENGTH.get(rel.rel_type, 30),
+                        "confidence": rel.score or 0.5,
+                        "color": RELATIONSHIP_COLORS.get(rel.rel_type, "#6B7280"),
+                    }
+                )
 
             relationships.append(entry)
 
@@ -356,24 +421,32 @@ class RelationshipExpansionEngine:
     ) -> dict[str, Any]:
         """Build hierarchical family structure for a person."""
         family_types = {
-            "spouse", "ex_spouse", "parent", "child", "sibling",
-            "grandparent", "grandchild", "aunt_uncle", "cousin", "in_law",
+            "spouse",
+            "ex_spouse",
+            "parent",
+            "child",
+            "sibling",
+            "grandparent",
+            "grandchild",
+            "aunt_uncle",
+            "cousin",
+            "in_law",
             "family",
         }
         all_rels = await self.get_relationships(session, person_id)
         family_rels = [r for r in all_rels if r.get("detailed_type") in family_types]
 
         # Get root person
-        root_result = await session.execute(
-            select(Person).where(Person.id == uuid.UUID(person_id))
-        )
+        root_result = await session.execute(select(Person).where(Person.id == uuid.UUID(person_id)))
         root = root_result.scalar_one_or_none()
 
         tree: dict[str, Any] = {
             "root": {
                 "id": person_id,
                 "name": root.full_name if root else None,
-                "date_of_birth": root.date_of_birth.isoformat() if root and root.date_of_birth else None,
+                "date_of_birth": root.date_of_birth.isoformat()
+                if root and root.date_of_birth
+                else None,
                 "gender": root.gender if root else None,
             },
             "parents": [],
@@ -413,20 +486,25 @@ class RelationshipExpansionEngine:
         children_ids = [c["id"] for c in tree["children"]]
         if len(children_ids) >= 2:
             for i, c1 in enumerate(children_ids):
-                for c2 in children_ids[i + 1:]:
+                for c2 in children_ids[i + 1 :]:
                     # Check if sibling relationship already exists
                     existing = await session.execute(
-                        select(Relationship).where(
+                        select(Relationship)
+                        .where(
                             and_(
                                 Relationship.person_a_id.in_([uuid.UUID(c1), uuid.UUID(c2)]),
                                 Relationship.person_b_id.in_([uuid.UUID(c1), uuid.UUID(c2)]),
                                 Relationship.rel_type == "family",
                             )
-                        ).limit(1)
+                        )
+                        .limit(1)
                     )
                     if not existing.scalar_one_or_none():
                         await self.add_relationship(
-                            session, c1, c2, "sibling",
+                            session,
+                            c1,
+                            c2,
+                            "sibling",
                             source="inference",
                             evidence={"inferred_from": f"shared_parent:{person_id}"},
                         )
@@ -443,11 +521,13 @@ class RelationshipExpansionEngine:
         a_uuid = uuid.UUID(person_a_id)
         b_uuid = uuid.UUID(person_b_id)
 
-        stmt = select(Relationship, RelationshipDetail).outerjoin(
-            RelationshipDetail, RelationshipDetail.relationship_id == Relationship.id
-        ).where(
-            ((Relationship.person_a_id == a_uuid) & (Relationship.person_b_id == b_uuid))
-            | ((Relationship.person_a_id == b_uuid) & (Relationship.person_b_id == a_uuid))
+        stmt = (
+            select(Relationship, RelationshipDetail)
+            .outerjoin(RelationshipDetail, RelationshipDetail.relationship_id == Relationship.id)
+            .where(
+                ((Relationship.person_a_id == a_uuid) & (Relationship.person_b_id == b_uuid))
+                | ((Relationship.person_a_id == b_uuid) & (Relationship.person_b_id == a_uuid))
+            )
         )
         result = await session.execute(stmt)
         rows = result.all()
@@ -462,13 +542,15 @@ class RelationshipExpansionEngine:
                 "score": rel.score,
             }
             if detail:
-                entry.update({
-                    "detailed_type": detail.detailed_type,
-                    "strength": detail.strength,
-                    "confidence": detail.confidence,
-                    "composite_score": detail.composite_score,
-                    "verification_level": detail.verification_level,
-                })
+                entry.update(
+                    {
+                        "detailed_type": detail.detailed_type,
+                        "strength": detail.strength,
+                        "confidence": detail.confidence,
+                        "composite_score": detail.composite_score,
+                        "verification_level": detail.verification_level,
+                    }
+                )
             rels.append(entry)
 
         return {"connected": True, "relationships": rels}
@@ -520,7 +602,8 @@ class RelationshipExpansionEngine:
                         # Still add the edge
                         edge = self._make_edge(current_id, other_id, rel, depth)
                         if not any(
-                            e["source"] == edge["source"] and e["target"] == edge["target"]
+                            e["source"] == edge["source"]
+                            and e["target"] == edge["target"]
                             and e["relationship_type"] == edge["relationship_type"]
                             for e in edges
                         ):
@@ -561,7 +644,9 @@ class RelationshipExpansionEngine:
             "distance": distance,
         }
 
-    def _make_edge(self, source_id: str, target_id: str, rel: dict[str, Any], depth: int) -> dict[str, Any]:
+    def _make_edge(
+        self, source_id: str, target_id: str, rel: dict[str, Any], depth: int
+    ) -> dict[str, Any]:
         detailed_type = rel.get("detailed_type", "associate")
         confidence = rel.get("confidence", 0.5)
         strength = rel.get("strength", 50)
@@ -591,6 +676,7 @@ class RelationshipExpansionEngine:
         if not dob:
             return None
         from datetime import date
+
         today = date.today()
         age = today.year - dob.year
         if today.month < dob.month or (today.month == dob.month and today.day < dob.day):

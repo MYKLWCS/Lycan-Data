@@ -14,7 +14,7 @@ Tests:
 """
 
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -153,7 +153,7 @@ def test_get_family_tree_with_snapshot():
     snapshot.depth_ancestors = 4
     snapshot.depth_descendants = 3
     snapshot.source_count = 12
-    snapshot.built_at = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+    snapshot.built_at = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
     snapshot.is_stale = False
 
     session = _make_session()
@@ -182,7 +182,7 @@ def test_family_tree_status_complete():
     """Returns complete status when snapshot is not stale (line 1026)."""
     snapshot = MagicMock()
     snapshot.is_stale = False
-    snapshot.built_at = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+    snapshot.built_at = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
     snapshot.source_count = 5
 
     session = _make_session()
@@ -207,7 +207,7 @@ def test_family_tree_status_stale():
     """Returns stale status when snapshot.is_stale is True."""
     snapshot = MagicMock()
     snapshot.is_stale = True
-    snapshot.built_at = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+    snapshot.built_at = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
     snapshot.source_count = 3
 
     session = _make_session()

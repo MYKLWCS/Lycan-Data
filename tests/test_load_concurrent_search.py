@@ -26,7 +26,6 @@ from modules.crawlers.core.result import CrawlerResult
 from modules.pipeline.progress_tracker import ProgressAggregator
 from shared.schemas.progress import EventType
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -57,10 +56,7 @@ class _CountingCrawler:
 
 async def _single_search(search_id: str, query: str) -> list[CrawlerResult]:
     """Run one search using three fake crawlers and return results."""
-    crawlers = [
-        _CountingCrawler(f"platform_{i}", search_id)
-        for i in range(3)
-    ]
+    crawlers = [_CountingCrawler(f"platform_{i}", search_id) for i in range(3)]
     orchestrator = ScraperOrchestrator(concurrency=10, timeout=10.0)
     with patch.object(orchestrator, "_get_crawlers", return_value=crawlers):
         return await orchestrator.run_all(query)
@@ -79,8 +75,7 @@ async def test_50_concurrent_searches_all_complete():
     """
     search_ids = [str(uuid.uuid4()) for _ in range(CONCURRENT_SEARCHES)]
     tasks = [
-        asyncio.create_task(_single_search(sid, f"Person {i}"))
-        for i, sid in enumerate(search_ids)
+        asyncio.create_task(_single_search(sid, f"Person {i}")) for i, sid in enumerate(search_ids)
     ]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -95,8 +90,7 @@ async def test_50_concurrent_searches_return_correct_result_counts():
     """Each search returns exactly 3 results (one per fake crawler)."""
     search_ids = [str(uuid.uuid4()) for _ in range(CONCURRENT_SEARCHES)]
     tasks = [
-        asyncio.create_task(_single_search(sid, f"Person {i}"))
-        for i, sid in enumerate(search_ids)
+        asyncio.create_task(_single_search(sid, f"Person {i}")) for i, sid in enumerate(search_ids)
     ]
 
     all_results = await asyncio.gather(*tasks)
@@ -110,8 +104,7 @@ async def test_50_concurrent_searches_no_result_cross_contamination():
     """Results from one search must not bleed into another search."""
     search_ids = [str(uuid.uuid4()) for _ in range(CONCURRENT_SEARCHES)]
     tasks = [
-        asyncio.create_task(_single_search(sid, f"Person {i}"))
-        for i, sid in enumerate(search_ids)
+        asyncio.create_task(_single_search(sid, f"Person {i}")) for i, sid in enumerate(search_ids)
     ]
 
     all_results = await asyncio.gather(*tasks)
@@ -131,8 +124,7 @@ async def test_50_concurrent_searches_complete_within_time_limit():
 
     t0 = time.monotonic()
     tasks = [
-        asyncio.create_task(_single_search(sid, f"Person {i}"))
-        for i, sid in enumerate(search_ids)
+        asyncio.create_task(_single_search(sid, f"Person {i}")) for i, sid in enumerate(search_ids)
     ]
     await asyncio.gather(*tasks)
     elapsed = time.monotonic() - t0
@@ -248,11 +240,13 @@ async def test_concurrent_progress_aggregators_are_isolated():
         agg = ProgressAggregator(search_id, scraper_count=SCRAPER_COUNT)
         for i in range(SCRAPER_COUNT):
             await asyncio.sleep(0)  # yield
-            agg.process({
-                "event_type": EventType.SCRAPER_DONE,
-                "scraper_name": f"scraper_{i}",
-                "results_found": 1,
-            })
+            agg.process(
+                {
+                    "event_type": EventType.SCRAPER_DONE,
+                    "scraper_name": f"scraper_{i}",
+                    "results_found": 1,
+                }
+            )
         return agg
 
     search_ids = [str(uuid.uuid4()) for _ in range(CONCURRENT_SEARCHES)]
@@ -294,7 +288,9 @@ async def test_concurrent_searches_with_mixed_found_not_found():
         with patch.object(orchestrator, "_get_crawlers", return_value=crawlers):
             return await orchestrator.run_all("John Doe")
 
-    tasks = [asyncio.create_task(_mixed_search(str(uuid.uuid4()))) for _ in range(CONCURRENT_SEARCHES)]
+    tasks = [
+        asyncio.create_task(_mixed_search(str(uuid.uuid4()))) for _ in range(CONCURRENT_SEARCHES)
+    ]
     all_results = await asyncio.gather(*tasks)
 
     for results in all_results:

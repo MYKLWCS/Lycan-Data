@@ -184,8 +184,8 @@ class TestHttpxBase:
     """Lines 18-19, 35-42, 101-102, 109-112."""
 
     def _make_crawler(self):
-        from modules.crawlers.httpx_base import HttpxCrawler
         from modules.crawlers.core.result import CrawlerResult
+        from modules.crawlers.httpx_base import HttpxCrawler
 
         class _Http(HttpxCrawler):
             platform = "http_stub"

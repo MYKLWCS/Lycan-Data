@@ -14,7 +14,7 @@ SLA intervals per spec:
 
 import asyncio
 import logging
-from datetime import timezone, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -128,7 +128,7 @@ class FreshnessScheduler:
 
     async def _find_stale_profiles(self, session) -> list[SocialProfile]:
         """Find SocialProfile records that have exceeded their source-type SLA."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Get all profiles that have been scraped and check each against its SLA
         # We use the most aggressive SLA (7 days) as a DB filter, then check per-platform
         min_sla_cutoff = now - timedelta(days=7)
@@ -174,12 +174,13 @@ class FreshnessScheduler:
             record_id=str(profile.id),
             current_freshness=profile.freshness_score or 0.0,
             source_type=profile.platform,
-            scheduled_at=datetime.now(timezone.utc),
+            scheduled_at=datetime.now(UTC),
         )
         session.add(fq)
 
         # Dispatch low-priority crawl job
         from modules.crawlers.registry import get_crawler
+
         if settings.rescrape_on_staleness and profile.handle:
             if not get_crawler(profile.platform):
                 return True  # Queued in freshness table but skip unregistered crawler

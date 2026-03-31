@@ -17,7 +17,7 @@ import hashlib
 import json
 import logging
 import re
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -26,23 +26,49 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 # Valid node labels in the osint_graph
-VERTEX_LABELS = frozenset({
-    "Person", "Company", "Address", "Phone", "Email",
-    "Property", "Vehicle", "Court_Case", "Social_Profile",
-    "Domain", "Crypto_Wallet",
-})
+VERTEX_LABELS = frozenset(
+    {
+        "Person",
+        "Company",
+        "Address",
+        "Phone",
+        "Email",
+        "Property",
+        "Vehicle",
+        "Court_Case",
+        "Social_Profile",
+        "Domain",
+        "Crypto_Wallet",
+    }
+)
 
 # Valid edge labels
-EDGE_LABELS = frozenset({
-    "OFFICER_OF", "DIRECTOR_OF", "OWNS", "SHAREHOLDER_OF",
-    "RELATIVE_OF", "ASSOCIATE_OF", "SPOUSE_OF",
-    "LIVES_AT", "LOCATED_AT", "REGISTERED_AT",
-    "HAS_PHONE", "HAS_EMAIL", "HAS_DOMAIN",
-    "OWNS_PROPERTY", "OWNS_VEHICLE", "OWNS_WALLET",
-    "PARTY_TO", "FILED_AGAINST",
-    "HAS_PROFILE", "EMPLOYED_BY", "SUBSIDIARY_OF",
-    "LINKED_TO",
-})
+EDGE_LABELS = frozenset(
+    {
+        "OFFICER_OF",
+        "DIRECTOR_OF",
+        "OWNS",
+        "SHAREHOLDER_OF",
+        "RELATIVE_OF",
+        "ASSOCIATE_OF",
+        "SPOUSE_OF",
+        "LIVES_AT",
+        "LOCATED_AT",
+        "REGISTERED_AT",
+        "HAS_PHONE",
+        "HAS_EMAIL",
+        "HAS_DOMAIN",
+        "OWNS_PROPERTY",
+        "OWNS_VEHICLE",
+        "OWNS_WALLET",
+        "PARTY_TO",
+        "FILED_AGAINST",
+        "HAS_PROFILE",
+        "EMPLOYED_BY",
+        "SUBSIDIARY_OF",
+        "LINKED_TO",
+    }
+)
 
 _SAFE_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -189,7 +215,7 @@ class KnowledgeGraphBuilder:
         _validate_label(label, VERTEX_LABELS)
         eid = entity_id or _entity_id(label, json.dumps(properties, sort_keys=True))
         eid = _validate_entity_id(eid)
-        props = {**properties, "entity_id": eid, "updated_at": datetime.now(timezone.utc).isoformat()}
+        props = {**properties, "entity_id": eid, "updated_at": datetime.now(UTC).isoformat()}
         query = f"MERGE (n:{label} {{entity_id: $eid}}) SET n += $props RETURN n"
         try:
             await _cypher(session, query, {"eid": eid, "props": props})
@@ -246,7 +272,7 @@ class KnowledgeGraphBuilder:
         fid = _validate_entity_id(from_id)
         tid = _validate_entity_id(to_id)
 
-        props = {**(properties or {}), "updated_at": datetime.now(timezone.utc).isoformat()}
+        props = {**(properties or {}), "updated_at": datetime.now(UTC).isoformat()}
 
         query = (
             f"MATCH (a:{from_label} {{entity_id: $fid}}), "
@@ -258,9 +284,7 @@ class KnowledgeGraphBuilder:
         try:
             await _cypher(session, query, {"fid": fid, "tid": tid, "props": props})
         except Exception:
-            logger.exception(
-                "add_relationship failed %s->%s->%s", from_label, rel_type, to_label
-            )
+            logger.exception("add_relationship failed %s->%s->%s", from_label, rel_type, to_label)
             raise
 
     async def remove_relationship(
@@ -313,10 +337,7 @@ class KnowledgeGraphBuilder:
             return {"nodes": [], "edges": []}
 
         # Step 2: variable-length path expansion (max_depth is int-clamped above)
-        query = (
-            f"MATCH (start {{entity_id: $eid}})-[r*1..{max_depth}]-(connected) "
-            f"RETURN connected"
-        )
+        query = f"MATCH (start {{entity_id: $eid}})-[r*1..{max_depth}]-(connected) RETURN connected"
         rows = await _cypher(session, query, {"eid": eid})
 
         # Deduplicate
@@ -406,8 +427,7 @@ class KnowledgeGraphBuilder:
         # These are static queries with no user input — safe as-is
         queries = {
             "circular_ownership": (
-                "MATCH (c1:Company)-[:OWNS*2..4]->(c2:Company)-[:OWNS*1..]->(c1) "
-                "RETURN c1, c2"
+                "MATCH (c1:Company)-[:OWNS*2..4]->(c2:Company)-[:OWNS*1..]->(c1) RETURN c1, c2"
             ),
             "shell_company": (
                 "MATCH (c1:Company)-[:LOCATED_AT]->(a:Address)<-[:LOCATED_AT]-(c2:Company) "
@@ -451,9 +471,7 @@ class KnowledgeGraphBuilder:
         return {
             "centre": centre,
             "neighbours": [
-                {"node": nb, "edge_type": "connected"}
-                for nb in neighbours
-                if isinstance(nb, dict)
+                {"node": nb, "edge_type": "connected"} for nb in neighbours if isinstance(nb, dict)
             ],
         }
 
@@ -475,12 +493,7 @@ class KnowledgeGraphBuilder:
 
         name_field = "legal_name" if label == "Company" else "name"
         safe_limit = min(max(1, limit), 100)
-        query = (
-            f"MATCH (n:{label}) "
-            f"WHERE n.{name_field} =~ $pattern "
-            f"RETURN n "
-            f"LIMIT {safe_limit}"
-        )
+        query = f"MATCH (n:{label}) WHERE n.{name_field} =~ $pattern RETURN n LIMIT {safe_limit}"
         return await _cypher(session, query, {"pattern": pattern})
 
     # -- Graph statistics ------------------------------------------------------

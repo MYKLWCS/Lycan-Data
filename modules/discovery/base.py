@@ -41,9 +41,7 @@ class BaseDiscoveryTool(ABC):
     async def run(self, query: str) -> list[DiscoveryHit]:
         """Run the tool against *query* and return hits."""
 
-    async def _exec(
-        self, args: list[str], *, timeout: int | None = None
-    ) -> tuple[str, str]:
+    async def _exec(self, args: list[str], *, timeout: int | None = None) -> tuple[str, str]:
         """
         Run an external binary with a fixed arg list (no shell expansion).
 
@@ -59,7 +57,7 @@ class BaseDiscoveryTool(ABC):
             )
             stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=t)
             return stdout_b.decode(errors="replace"), stderr_b.decode(errors="replace")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("%s timed out after %ds", self.tool_name, t)
             return "", f"timeout after {t}s"
         except FileNotFoundError:

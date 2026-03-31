@@ -42,6 +42,7 @@ import modules.crawlers.news_search  # noqa: F401
 import modules.crawlers.news_wikipedia  # noqa: F401
 import modules.crawlers.obituary_search  # noqa: F401
 import modules.crawlers.reddit  # noqa: F401
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.crypto_bscscan import (
     CryptoBscscanCrawler,
     _wei_to_bnb,
@@ -93,7 +94,6 @@ from modules.crawlers.obituary_search import (
 )
 from modules.crawlers.reddit import RedditCrawler
 from modules.crawlers.registry import is_registered
-from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
 
 # ===========================================================================

@@ -14,10 +14,10 @@ import re
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.curl_base import CurlCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +76,7 @@ def _parse_idcrawl(html: str) -> list[dict]:
     try:
         soup = BeautifulSoup(html, "html.parser")
         cards = soup.select(
-            "div.result, div.person, div[class*='result'], "
-            "div[class*='person'], article.result"
+            "div.result, div.person, div[class*='result'], div[class*='person'], article.result"
         )
         for card in cards[:10]:
             person = {}
@@ -126,8 +125,8 @@ def _extract_emails(html: str) -> list[str]:
 def _extract_social_links(html: str) -> list[dict]:
     """Extract social media profile links from page."""
     social_re = re.compile(
-        r'https?://(?:www\.)?(twitter|x|instagram|facebook|linkedin|github|'
-        r'youtube|tiktok|pinterest|reddit)\.com/([a-zA-Z0-9_.]+)',
+        r"https?://(?:www\.)?(twitter|x|instagram|facebook|linkedin|github|"
+        r"youtube|tiktok|pinterest|reddit)\.com/([a-zA-Z0-9_.]+)",
         re.IGNORECASE,
     )
     links = []
@@ -136,9 +135,11 @@ def _extract_social_links(html: str) -> list[dict]:
         key = (m.group(1).lower(), m.group(2).lower())
         if key not in seen:
             seen.add(key)
-            links.append({
-                "platform": m.group(1).lower(),
-                "handle": m.group(2),
-                "url": m.group(0),
-            })
+            links.append(
+                {
+                    "platform": m.group(1).lower(),
+                    "handle": m.group(2),
+                    "url": m.group(0),
+                }
+            )
     return links

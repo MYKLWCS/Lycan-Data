@@ -17,13 +17,13 @@ import re
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.crawlers.registry import get_crawler
 from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import get_crawler
 from modules.graph.company_intel import CompanyIntelligenceEngine
 from shared.models.employment import EmploymentHistory
 from shared.models.person import Person
@@ -289,7 +289,7 @@ class UBODiscoveryEngine:
             ubo_candidates=ubo_candidates,
             risk_flags=risk_flags,
             crawl_errors=all_crawl_errors,
-            discovered_at=datetime.now(timezone.utc),
+            discovered_at=datetime.now(UTC),
             partial=partial,
         )
 

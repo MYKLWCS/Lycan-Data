@@ -1,25 +1,28 @@
 """Generic web scraper — extracts emails, phones, social links from any URL."""
-import re
-import logging
 
-from modules.crawlers.httpx_base import HttpxCrawler
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.registry import register
+import logging
+import re
+
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.httpx_base import HttpxCrawler
+from modules.crawlers.registry import register
 
 logger = logging.getLogger(__name__)
 
-_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
-_PHONE_RE = re.compile(r'[\+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{7,15}')
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+_PHONE_RE = re.compile(r"[\+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{7,15}")
 _SOCIAL_RE = re.compile(
-    r'https?://(?:www\.)?(twitter|x|instagram|facebook|linkedin|github|tiktok|youtube)'
-    r'\.com/([a-zA-Z0-9_.]+)', re.IGNORECASE,
+    r"https?://(?:www\.)?(twitter|x|instagram|facebook|linkedin|github|tiktok|youtube)"
+    r"\.com/([a-zA-Z0-9_.]+)",
+    re.IGNORECASE,
 )
 
 
 @register("generic_web_scraper")
 class GenericWebScraper(HttpxCrawler):
     """Scrapes any URL for contact info and social links."""
+
     platform = "generic_web_scraper"
     category = CrawlerCategory.OTHER
     rate_limit = RateLimit(requests_per_second=0.5, burst_size=3, cooldown_seconds=2.0)
@@ -49,4 +52,6 @@ class GenericWebScraper(HttpxCrawler):
             )
         except Exception as exc:
             logger.warning("Generic scraper failed for %s: %s", url, exc)
-            return CrawlerResult(platform="generic_web_scraper", identifier=url, found=False, data={})
+            return CrawlerResult(
+                platform="generic_web_scraper", identifier=url, found=False, data={}
+            )

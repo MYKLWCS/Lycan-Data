@@ -16,10 +16,10 @@ from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.playwright_base import PlaywrightCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 from shared.tor import TorInstance
 
 logger = logging.getLogger(__name__)
@@ -46,9 +46,7 @@ def _parse_profiles(html: str) -> list[dict[str, Any]]:
         soup = BeautifulSoup(html, "html.parser")
 
         # Each person result is in a .person_cell or article block
-        cards = soup.select(
-            "li.person_cell, div.person_cell, article.person, div[class*='person']"
-        )
+        cards = soup.select("li.person_cell, div.person_cell, article.person, div[class*='person']")
         if not cards:
             # Fallback: look for any structured name + link block
             cards = soup.select("div.result, li.result")
@@ -57,9 +55,7 @@ def _parse_profiles(html: str) -> list[dict[str, Any]]:
             person: dict[str, Any] = {}
 
             # Name
-            name_tag = card.select_one(
-                "h2, h3, .name, [class*='name'], [itemprop='name']"
-            )
+            name_tag = card.select_one("h2, h3, .name, [class*='name'], [itemprop='name']")
             if name_tag:
                 person["name"] = name_tag.get_text(strip=True)
 
@@ -85,8 +81,14 @@ def _parse_profiles(html: str) -> list[dict[str, Any]]:
                 label = a.get_text(strip=True) or a.get("aria-label", "")
                 # Detect social platforms by domain
                 for platform in (
-                    "twitter", "facebook", "instagram", "linkedin",
-                    "youtube", "pinterest", "tiktok", "reddit",
+                    "twitter",
+                    "facebook",
+                    "instagram",
+                    "linkedin",
+                    "youtube",
+                    "pinterest",
+                    "tiktok",
+                    "reddit",
                 ):
                     if platform in href.lower():
                         social_links.append({"platform": platform, "url": href, "label": label})

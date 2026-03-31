@@ -37,6 +37,7 @@ from modules.crawlers.public_nsopw import (
     _parse_offenders,
 )
 from modules.crawlers.utils import split_name as npi_split_name
+
 nsopw_split_name = npi_split_name
 from modules.crawlers.public_voter import (
     PublicVoterCrawler,

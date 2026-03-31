@@ -20,9 +20,9 @@ import shutil
 from typing import Any
 
 from modules.crawlers.base import BaseCrawler
-from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import register
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +57,7 @@ async def _run_snscrape(*args: str) -> bytes:
         stderr=asyncio.subprocess.DEVNULL,
     )
     try:
-        stdout, _ = await asyncio.wait_for(
-            proc.communicate(), timeout=SNSCRAPE_TIMEOUT
-        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=SNSCRAPE_TIMEOUT)
         return stdout
     except TimeoutError:
         proc.kill()
@@ -137,9 +135,7 @@ class SnscrapeCrawler(BaseCrawler):
 
         # Fetch profile — max 1 result from twitter-user scraper
         try:
-            raw = await _run_snscrape(
-                "--jsonl", "--max-results", "1", "twitter-user", username
-            )
+            raw = await _run_snscrape("--jsonl", "--max-results", "1", "twitter-user", username)
         except TimeoutError:
             return CrawlerResult(
                 platform=self.platform,
@@ -165,11 +161,12 @@ class SnscrapeCrawler(BaseCrawler):
 
         # Fetch recent tweets — search query "from:username" is passed as a
         # single validated string argument; no shell expansion occurs.
-        from_query = "from:" + username   # username validated to [A-Za-z0-9_]
+        from_query = "from:" + username  # username validated to [A-Za-z0-9_]
         try:
             tweet_raw = await _run_snscrape(
                 "--jsonl",
-                "--max-results", str(SNSCRAPE_MAX_TWEETS),
+                "--max-results",
+                str(SNSCRAPE_MAX_TWEETS),
                 "twitter-search",
                 from_query,
             )

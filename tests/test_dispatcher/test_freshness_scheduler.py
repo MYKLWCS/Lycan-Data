@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
@@ -51,7 +51,8 @@ def _make_profile(
     profile.freshness_score = freshness_score
     # Use a stale timestamp (30 days ago) so SLA-based checks consider it stale
     from datetime import timedelta
-    profile.last_scraped_at = datetime.now(timezone.utc) - timedelta(days=30)
+
+    profile.last_scraped_at = datetime.now(UTC) - timedelta(days=30)
     profile.source_reliability = 0.5
     profile.corroboration_count = 1
     profile.corroboration_score = 0.5

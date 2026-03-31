@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -41,4 +40,4 @@ class CrawlerHealth(BaseModel):
     last_check: datetime
     avg_latency_ms: float = 0.0
     success_rate: float = 1.0
-    last_error: Optional[str] = None
+    last_error: str | None = None

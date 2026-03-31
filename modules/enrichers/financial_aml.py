@@ -3,7 +3,7 @@
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import timezone, date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from rapidfuzz.distance import JaroWinkler
@@ -59,7 +59,7 @@ class FinancialProfile:
     credit: CreditScoreResult
     aml: AMLResult
     fraud: FraudRiskResult
-    assessed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    assessed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,8 +78,8 @@ _AML_TIERS = [(0.75, "critical"), (0.50, "high"), (0.25, "medium"), (0.0, "low")
 _FRAUD_TIERS = [(0.75, "critical"), (0.50, "high"), (0.25, "medium"), (0.0, "low")]
 
 # AML fuzzy matching thresholds
-_FUZZY_HIGH = 0.92   # treat as potential hit — add to sanctions_hits
-_FUZZY_LOW  = 0.85   # count as fuzzy signal but don't list as confirmed hit
+_FUZZY_HIGH = 0.92  # treat as potential hit — add to sanctions_hits
+_FUZZY_LOW = 0.85  # count as fuzzy signal but don't list as confirmed hit
 
 
 def _tier(value: float, tiers: list[tuple[float, str]]) -> str:
@@ -96,7 +96,6 @@ def _years_since(dt: date | datetime | None) -> float:
 
 
 from shared.utils import normalize_name as _normalize_name
-
 
 # ─── Alternative Credit Scorer ────────────────────────────────────────────────
 
@@ -213,7 +212,9 @@ class AlternativeCreditScorer:
         vehicle_boost = min(0.05, vehicle_val / 80_000 * 0.05)
         # Crypto mixer penalty
         mixer_penalty = 0.15 if s.get("crypto_mixer_exposure") else 0.0
-        return max(0.0, min(1.0, band_score + equity_boost + income_boost + vehicle_boost - mixer_penalty))
+        return max(
+            0.0, min(1.0, band_score + equity_boost + income_boost + vehicle_boost - mixer_penalty)
+        )
 
     def _utilization(self, s: dict) -> float:
         """15% — debt-to-income from public records (mortgages + liens)."""
@@ -302,9 +303,7 @@ class AMLScreener:
 
             # Fuzzy name check against the matched_name on the watchlist row
             if norm_name and row.match_name:
-                sim = JaroWinkler.normalized_similarity(
-                    norm_name, _normalize_name(row.match_name)
-                )
+                sim = JaroWinkler.normalized_similarity(norm_name, _normalize_name(row.match_name))
                 if sim >= _FUZZY_HIGH and row.list_type not in ("pep",):
                     fuzzy_match_count += 1
                     if not any(h.get("match_name") == row.match_name for h in sanctions_hits):
@@ -569,14 +568,10 @@ class FinancialIntelligenceEngine:
             r for r in criminals if any(kw in (r.charge or "").lower() for kw in _LIEN_KEYWORDS)
         ]
         judgment_charges = [
-            r
-            for r in criminals
-            if any(kw in (r.charge or "").lower() for kw in _JUDGMENT_KEYWORDS)
+            r for r in criminals if any(kw in (r.charge or "").lower() for kw in _JUDGMENT_KEYWORDS)
         ]
         eviction_charges = [
-            r
-            for r in criminals
-            if any(kw in (r.charge or "").lower() for kw in _EVICTION_KEYWORDS)
+            r for r in criminals if any(kw in (r.charge or "").lower() for kw in _EVICTION_KEYWORDS)
         ]
         bankruptcy_charges = [
             r
@@ -642,17 +637,31 @@ class FinancialIntelligenceEngine:
         # Jurisdiction risk: penalise if person has addresses in FATF grey/black list countries
         # (simple heuristic — full FATF list lookup is in dedicated crawler)
         _HIGH_RISK_COUNTRIES = {
-            "AF", "MM", "KP", "IR", "SY", "YE", "LY", "SO", "SS", "CF",
-            "CD", "ML", "NI", "PK", "PH", "UA", "RU",
+            "AF",
+            "MM",
+            "KP",
+            "IR",
+            "SY",
+            "YE",
+            "LY",
+            "SO",
+            "SS",
+            "CF",
+            "CD",
+            "ML",
+            "NI",
+            "PK",
+            "PH",
+            "UA",
+            "RU",
         }
         country_codes = {a.country_code for a in addresses if a.country_code}
         jurisdiction_risk = 0.30 if country_codes & _HIGH_RISK_COUNTRIES else 0.0
 
         # Entity complexity: multiple nationalities, multiple countries, multiple properties
-        entity_complexity = min(1.0, (
-            max(0, len(country_codes) - 2) * 0.10
-            + max(0, len(properties) - 2) * 0.05
-        ))
+        entity_complexity = min(
+            1.0, (max(0, len(country_codes) - 2) * 0.10 + max(0, len(properties) - 2) * 0.05)
+        )
 
         # ── Build signals dict for credit scorer ──────────────────────────────
         signals: dict[str, Any] = {
@@ -690,14 +699,17 @@ class FinancialIntelligenceEngine:
             "darkweb_mention_count": len(darkweb),
             # Trajectory (10%)
             "recent_lien_count": sum(
-                1 for r in lien_charges
-                if r.offense_date and _years_since(r.offense_date) <= 2.0
+                1 for r in lien_charges if r.offense_date and _years_since(r.offense_date) <= 2.0
             ),
             # Meta
             "identifier_count": len(identifiers),
             "data_point_count": (
-                len(addresses) + len(identifiers) + len(criminals) + len(properties)
-                + len(employment) + len(crypto)
+                len(addresses)
+                + len(identifiers)
+                + len(criminals)
+                + len(properties)
+                + len(employment)
+                + len(crypto)
             ),
             "pep_flag": False,  # updated after AML screening below
         }
@@ -721,7 +733,7 @@ class FinancialIntelligenceEngine:
             list(addresses), list(identifiers), list(darkweb), list(criminals), list(crypto)
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # ── Persist CreditRiskAssessment ──────────────────────────────────────
         session.add(

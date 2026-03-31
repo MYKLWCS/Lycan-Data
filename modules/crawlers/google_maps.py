@@ -13,11 +13,11 @@ from urllib.parse import quote, quote_plus
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.tor import TorInstance
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 

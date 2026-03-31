@@ -4,7 +4,7 @@ All DB interaction is mocked via AsyncMock; no live PostgreSQL required.
 """
 
 import uuid
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

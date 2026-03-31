@@ -10,7 +10,7 @@ Targets:
 from __future__ import annotations
 
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -101,7 +101,7 @@ def _empty_ubo_result(name: str = "Acme Corp") -> UBOResult:
         ],
         risk_flags=[],
         crawl_errors=[],
-        discovered_at=datetime.now(timezone.utc),
+        discovered_at=datetime.now(UTC),
         partial=False,
     )
 

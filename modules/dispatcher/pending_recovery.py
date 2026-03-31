@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import timezone, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -22,8 +22,8 @@ from shared.models.crawl import CrawlJob
 
 logger = logging.getLogger(__name__)
 
-SCAN_INTERVAL = 300       # seconds between scans
-STALE_THRESHOLD = 180     # jobs pending > 3 minutes are considered dropped
+SCAN_INTERVAL = 300  # seconds between scans
+STALE_THRESHOLD = 180  # jobs pending > 3 minutes are considered dropped
 MAX_RECOVER_PER_SCAN = 50
 
 
@@ -47,7 +47,7 @@ class PendingJobRecovery:
         self._running = False
 
     async def _recover_stale(self) -> None:
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=STALE_THRESHOLD)
+        cutoff = datetime.now(UTC) - timedelta(seconds=STALE_THRESHOLD)
 
         async with AsyncSessionLocal() as session:
             result = await session.execute(

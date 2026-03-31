@@ -5,8 +5,8 @@ Revises: h8i9j0k1l2m3
 Create Date: 2026-03-26
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 # revision identifiers

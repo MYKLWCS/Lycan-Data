@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import timezone, datetime
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -146,9 +146,7 @@ async def test_found_result_triggers_ingest_and_done(dispatcher, mock_session):
 
         await dispatcher._process_one(job_dict)
 
-    ingest_calls = [
-        c for c in mock_bus.enqueue.call_args_list if c[1].get("priority") == "ingest"
-    ]
+    ingest_calls = [c for c in mock_bus.enqueue.call_args_list if c[1].get("priority") == "ingest"]
     assert len(ingest_calls) == 1
 
 
@@ -330,7 +328,7 @@ async def test_requeue_backoff_first_retry():
     enqueued_job = mock_bus.enqueue.call_args[0][0]
     assert enqueued_job["retry_count"] == 1
     assert enqueued_job["run_after"] == pytest.approx(
-        datetime.now(timezone.utc).timestamp() + RETRY_DELAYS[0], abs=2
+        datetime.now(UTC).timestamp() + RETRY_DELAYS[0], abs=2
     )
     assert mock_bus.enqueue.call_args[1]["priority"] == "normal"
 
@@ -353,7 +351,7 @@ async def test_requeue_backoff_second_retry_uses_low_priority():
     enqueued_job = mock_bus.enqueue.call_args[0][0]
     assert enqueued_job["retry_count"] == 2
     assert enqueued_job["run_after"] == pytest.approx(
-        datetime.now(timezone.utc).timestamp() + RETRY_DELAYS[1], abs=2
+        datetime.now(UTC).timestamp() + RETRY_DELAYS[1], abs=2
     )
 
 
@@ -398,8 +396,7 @@ async def test_found_result_publishes_enrichment_event(dispatcher, mock_session)
     # Dispatcher now also publishes progress events (SCRAPER_RUNNING, SCRAPER_DONE),
     # so assert that the enrichment event was published among all calls.
     enrichment_calls = [
-        call for call in mock_bus.publish.call_args_list
-        if call[0][0] == "enrichment"
+        call for call in mock_bus.publish.call_args_list if call[0][0] == "enrichment"
     ]
     assert len(enrichment_calls) == 1
     channel, event = enrichment_calls[0][0]
@@ -437,8 +434,7 @@ async def test_not_found_no_error_sets_done(dispatcher, mock_session):
     mock_bus.enqueue.assert_not_called()
     # Dispatcher publishes progress events even on not-found, but no enrichment event
     enrichment_calls = [
-        call for call in mock_bus.publish.call_args_list
-        if call[0][0] == "enrichment"
+        call for call in mock_bus.publish.call_args_list if call[0][0] == "enrichment"
     ]
     assert len(enrichment_calls) == 0
 
@@ -464,9 +460,7 @@ async def test_concurrent_execution_with_semaphore():
         await asyncio.sleep(0.05)  # simulate work
         async with lock:
             active_count -= 1
-        return CrawlerResult(
-            platform="testplat", identifier=identifier, found=True, data={}
-        )
+        return CrawlerResult(platform="testplat", identifier=identifier, found=True, data={})
 
     mock_crawler_cls = MagicMock()
     mock_crawler_inst = MagicMock()

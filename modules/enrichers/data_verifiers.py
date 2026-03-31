@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from enum import IntEnum
 from typing import Any
 
@@ -62,7 +62,7 @@ class TypeVerificationResult:
 
     def __post_init__(self) -> None:
         if not self.verified_at:
-            self.verified_at = datetime.now(timezone.utc).isoformat()
+            self.verified_at = datetime.now(UTC).isoformat()
 
     @property
     def level_name(self) -> str:
@@ -83,10 +83,19 @@ class TypeVerificationResult:
 # ── Phone Verifier ───────────────────────────────────────────────────────────
 
 
-_VOIP_CARRIERS = frozenset({
-    "google voice", "skype", "textfree", "textnow", "burner",
-    "hushed", "sideline", "grasshopper", "ringcentral",
-})
+_VOIP_CARRIERS = frozenset(
+    {
+        "google voice",
+        "skype",
+        "textfree",
+        "textnow",
+        "burner",
+        "hushed",
+        "sideline",
+        "grasshopper",
+        "ringcentral",
+    }
+)
 
 
 class PhoneVerifier:
@@ -105,9 +114,7 @@ class PhoneVerifier:
 
             parsed = phonenumbers.parse(phone, "US")
             is_valid = phonenumbers.is_valid_number(parsed)
-            formatted = phonenumbers.format_number(
-                parsed, phonenumbers.PhoneNumberFormat.E164
-            )
+            formatted = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
             country = phonenumbers.region_code_for_number(parsed)
             number_type = phonenumbers.number_type(parsed)
 
@@ -187,7 +194,8 @@ class PhoneVerifier:
         """Determine carrier and line type via phonenumbers."""
         try:
             import phonenumbers
-            from phonenumbers import carrier as pn_carrier, geocoder
+            from phonenumbers import carrier as pn_carrier
+            from phonenumbers import geocoder
 
             parsed = phonenumbers.parse(phone, "US")
             carrier_name = pn_carrier.name_for_number(parsed, "en")
@@ -212,7 +220,10 @@ class PhoneVerifier:
         carrier_info = self.carrier_lookup(result.value)
         result.details.update(carrier_info)
 
-        if carrier_info.get("lookup_available") and carrier_info.get("carrier", "unknown") != "unknown":
+        if (
+            carrier_info.get("lookup_available")
+            and carrier_info.get("carrier", "unknown") != "unknown"
+        ):
             result.level = VerificationLevel.CONFIRMED
             result.method = "carrier_lookup"
 
@@ -222,20 +233,47 @@ class PhoneVerifier:
 # ── Email Verifier ───────────────────────────────────────────────────────────
 
 
-_DISPOSABLE_DOMAINS = frozenset({
-    "tempmail.com", "guerrillamail.com", "10minutemail.com",
-    "mailinator.com", "throwaway.email", "yopmail.com",
-    "guerrillamail.info", "grr.la", "dispostable.com",
-    "trashmail.com", "temp-mail.org", "fakeinbox.com",
-    "sharklasers.com", "guerrillamailblock.com", "maildrop.cc",
-})
+_DISPOSABLE_DOMAINS = frozenset(
+    {
+        "tempmail.com",
+        "guerrillamail.com",
+        "10minutemail.com",
+        "mailinator.com",
+        "throwaway.email",
+        "yopmail.com",
+        "guerrillamail.info",
+        "grr.la",
+        "dispostable.com",
+        "trashmail.com",
+        "temp-mail.org",
+        "fakeinbox.com",
+        "sharklasers.com",
+        "guerrillamailblock.com",
+        "maildrop.cc",
+    }
+)
 
-_ROLE_PREFIXES = frozenset({
-    "info", "support", "contact", "hello", "admin",
-    "webmaster", "noreply", "donotreply", "sales",
-    "service", "billing", "hr", "recruitment", "postmaster",
-    "abuse", "security", "hostmaster",
-})
+_ROLE_PREFIXES = frozenset(
+    {
+        "info",
+        "support",
+        "contact",
+        "hello",
+        "admin",
+        "webmaster",
+        "noreply",
+        "donotreply",
+        "sales",
+        "service",
+        "billing",
+        "hr",
+        "recruitment",
+        "postmaster",
+        "abuse",
+        "security",
+        "hostmaster",
+    }
+)
 
 from shared.utils.email import _EMAIL_RE
 

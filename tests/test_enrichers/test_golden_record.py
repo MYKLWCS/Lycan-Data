@@ -8,7 +8,6 @@ from modules.enrichers.golden_record import (
     source_rank,
 )
 
-
 # ── Source ranking ───────────────────────────────────────────────────────────
 
 

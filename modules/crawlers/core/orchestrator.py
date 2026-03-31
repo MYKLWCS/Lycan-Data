@@ -16,8 +16,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
+from typing import Any
 
 from modules.crawlers.core.models import CrawlerCategory, CrawlerHealth
 
@@ -39,8 +40,8 @@ class ScraperOrchestrator:
         self,
         concurrency: int = 20,
         timeout: float = 120.0,
-        categories: Optional[List[CrawlerCategory]] = None,
-        platforms: Optional[List[str]] = None,
+        categories: list[CrawlerCategory] | None = None,
+        platforms: list[str] | None = None,
     ):
         self.concurrency = concurrency
         self.timeout = timeout
@@ -64,9 +65,7 @@ class ScraperOrchestrator:
             instances.append(crawler)
         return instances
 
-    async def run_all(
-        self, query: str, params: Optional[Dict[str, Any]] = None
-    ) -> list:
+    async def run_all(self, query: str, params: dict[str, Any] | None = None) -> list:
         """
         Run all matching scrapers concurrently via asyncio.gather().
         Returns flat list of results from all scrapers.
@@ -86,9 +85,7 @@ class ScraperOrchestrator:
             async with self._semaphore:
                 t0 = time.monotonic()
                 try:
-                    result = await asyncio.wait_for(
-                        crawler.run(query), timeout=self.timeout
-                    )
+                    result = await asyncio.wait_for(crawler.run(query), timeout=self.timeout)
                     elapsed = int((time.monotonic() - t0) * 1000)
                     logger.info(
                         "orchestrator_done | scraper=%s elapsed_ms=%d found=%s",
@@ -97,7 +94,7 @@ class ScraperOrchestrator:
                         getattr(result, "found", "?"),
                     )
                     return result
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.warning(
                         "orchestrator_timeout | scraper=%s timeout=%.0fs",
                         crawler.platform,
@@ -112,14 +109,10 @@ class ScraperOrchestrator:
                     )
                     return None
 
-        results = await asyncio.gather(
-            *[_run_one(c) for c in crawlers], return_exceptions=False
-        )
+        results = await asyncio.gather(*[_run_one(c) for c in crawlers], return_exceptions=False)
         return [r for r in results if r is not None]
 
-    async def stream(
-        self, query: str, params: Optional[Dict[str, Any]] = None
-    ) -> AsyncGenerator:
+    async def stream(self, query: str, params: dict[str, Any] | None = None) -> AsyncGenerator:
         """
         Stream results as each scraper finishes.
         Yields individual CrawlerResult objects.
@@ -134,9 +127,7 @@ class ScraperOrchestrator:
         async def _run_and_enqueue(crawler):
             async with self._semaphore:
                 try:
-                    result = await asyncio.wait_for(
-                        crawler.run(query), timeout=self.timeout
-                    )
+                    result = await asyncio.wait_for(crawler.run(query), timeout=self.timeout)
                     if result is not None:
                         await queue.put(result)
                 except Exception as exc:
@@ -148,9 +139,7 @@ class ScraperOrchestrator:
                 finally:
                     await queue.put(None)  # sentinel
 
-        tasks = [
-            asyncio.create_task(_run_and_enqueue(c)) for c in crawlers
-        ]
+        tasks = [asyncio.create_task(_run_and_enqueue(c)) for c in crawlers]
 
         done_count = 0
         while done_count < pending:
@@ -163,7 +152,7 @@ class ScraperOrchestrator:
         # Ensure all tasks are cleaned up
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def health_check_all(self) -> Dict[str, CrawlerHealth]:
+    async def health_check_all(self) -> dict[str, CrawlerHealth]:
         """Run health checks on all registered scrapers."""
         crawlers = self._get_crawlers()
         results = {}
@@ -174,7 +163,7 @@ class ScraperOrchestrator:
             except Exception as exc:
                 results[crawler.platform] = CrawlerHealth(
                     healthy=False,
-                    last_check=datetime.now(timezone.utc),
+                    last_check=datetime.now(UTC),
                     avg_latency_ms=0,
                     success_rate=0,
                     last_error=str(exc),

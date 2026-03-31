@@ -1,8 +1,8 @@
 """Self-heal: check and repair common environment issues."""
 
 import asyncio
-import sys
 import logging
+import sys
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger("selfheal")
@@ -10,9 +10,11 @@ log = logging.getLogger("selfheal")
 
 async def check_database():
     try:
-        from shared.config import settings
-        from sqlalchemy.ext.asyncio import create_async_engine
         from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        from shared.config import settings
+
         engine = create_async_engine(settings.database_url)
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -26,8 +28,10 @@ async def check_database():
 
 async def check_cache():
     try:
-        from shared.config import settings
         import redis.asyncio as aioredis
+
+        from shared.config import settings
+
         r = aioredis.from_url(settings.cache_url, socket_connect_timeout=3)
         await r.ping()
         await r.aclose()
@@ -40,8 +44,10 @@ async def check_cache():
 
 async def check_typesense():
     try:
-        from shared.config import settings
         import httpx
+
+        from shared.config import settings
+
         async with httpx.AsyncClient(timeout=5) as c:
             r = await c.get(f"{settings.typesense_url}/health")
             if r.status_code == 200:
@@ -57,8 +63,10 @@ async def check_typesense():
 async def check_crawlers():
     try:
         from api.main import _import_all_crawlers
+
         _import_all_crawlers()
         from modules.crawlers.registry import CRAWLER_REGISTRY
+
         count = len(CRAWLER_REGISTRY)
         log.info("Crawlers: %d registered", count)
         return count > 150

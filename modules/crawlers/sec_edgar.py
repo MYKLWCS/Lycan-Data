@@ -18,10 +18,10 @@ import logging
 from typing import Any
 from urllib.parse import quote_plus
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -57,23 +57,25 @@ def _parse_efts_hits(payload: dict[str, Any]) -> list[dict[str, Any]]:
     try:
         for hit in (payload.get("hits") or {}).get("hits") or []:
             src = hit.get("_source") or {}
-            hits.append({
-                "accession_no": src.get("file_num") or hit.get("_id"),
-                "form_type": src.get("form_type"),
-                "filed_at": src.get("period_of_report") or src.get("file_date"),
-                "entity_name": src.get("entity_name") or src.get("display_names"),
-                "cik": src.get("entity_id"),
-                "description": src.get("file_description"),
-                "url": (
-                    "https://www.sec.gov/Archives/edgar/data/"
-                    + str(src.get("entity_id", ""))
-                    + "/"
-                    + str(hit.get("_id", "")).replace("-", "")
-                    + "/"
-                )
-                if src.get("entity_id") and hit.get("_id")
-                else None,
-            })
+            hits.append(
+                {
+                    "accession_no": src.get("file_num") or hit.get("_id"),
+                    "form_type": src.get("form_type"),
+                    "filed_at": src.get("period_of_report") or src.get("file_date"),
+                    "entity_name": src.get("entity_name") or src.get("display_names"),
+                    "cik": src.get("entity_id"),
+                    "description": src.get("file_description"),
+                    "url": (
+                        "https://www.sec.gov/Archives/edgar/data/"
+                        + str(src.get("entity_id", ""))
+                        + "/"
+                        + str(hit.get("_id", "")).replace("-", "")
+                        + "/"
+                    )
+                    if src.get("entity_id") and hit.get("_id")
+                    else None,
+                }
+            )
     except Exception as exc:
         logger.debug("EFTS parse error: %s", exc)
     return hits
@@ -93,13 +95,17 @@ def _parse_company_atom(xml_text: str) -> list[dict[str, Any]]:
             sic_el = entry.find(f"{{{ns}}}assigned-sic-desc")
             state_el = entry.find(f"{{{ns}}}state-of-incorporation")
             link_el = entry.find(f"{{{ns}}}link")
-            companies.append({
-                "cik": (cik_el.text or "").split("/")[-1].lstrip("0") if cik_el is not None else None,
-                "company_name": name_el.text if name_el is not None else None,
-                "industry": sic_el.text if sic_el is not None else None,
-                "state_of_incorporation": state_el.text if state_el is not None else None,
-                "filing_page": link_el.get("href") if link_el is not None else None,
-            })
+            companies.append(
+                {
+                    "cik": (cik_el.text or "").split("/")[-1].lstrip("0")
+                    if cik_el is not None
+                    else None,
+                    "company_name": name_el.text if name_el is not None else None,
+                    "industry": sic_el.text if sic_el is not None else None,
+                    "state_of_incorporation": state_el.text if state_el is not None else None,
+                    "filing_page": link_el.get("href") if link_el is not None else None,
+                }
+            )
     except Exception as exc:
         logger.debug("EDGAR Atom parse error: %s", exc)
     return companies
@@ -141,21 +147,20 @@ class SecEdgarCrawler(HttpxCrawler):
             try:
                 payload = efts_resp.json()
                 results["filings"] = _parse_efts_hits(payload)
-                total = (
-                    (payload.get("hits") or {})
-                    .get("total", {})
-                    .get("value", 0)
-                )
+                total = (payload.get("hits") or {}).get("total", {}).get("value", 0)
                 results["total_filing_count"] = total
             except Exception as exc:
                 logger.debug("EFTS JSON error for %s: %s", query, exc)
 
         # ── 2. Company search (Atom) ─────────────────────────────────────────
         company_url = _COMPANY_SEARCH_URL.format(name=encoded)
-        co_resp = await self.get(company_url, headers={
-            "User-Agent": "LycanOSINT research@wolfcorporation.com",
-            "Accept": "application/atom+xml,text/xml,*/*",
-        })
+        co_resp = await self.get(
+            company_url,
+            headers={
+                "User-Agent": "LycanOSINT research@wolfcorporation.com",
+                "Accept": "application/atom+xml,text/xml,*/*",
+            },
+        )
         if co_resp and co_resp.status_code == 200:
             companies = _parse_company_atom(co_resp.text)
             results["companies"] = companies

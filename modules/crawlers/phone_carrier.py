@@ -5,12 +5,12 @@ import re
 
 from bs4 import BeautifulSoup
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from shared.constants import BURNER_CARRIERS, LineType
 from shared.tor import TorInstance
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 

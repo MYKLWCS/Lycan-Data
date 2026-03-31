@@ -10,7 +10,7 @@ import logging
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -196,6 +196,7 @@ def name_similarity(name_a: str, name_b: str) -> float:
 def _normalize_phone_for_dedup(phone: str) -> str:
     """Best-effort E.164 for dedup comparison (never returns None)."""
     from shared.utils import normalize_phone as _validate
+
     result = _validate(phone)
     if result:
         return result
@@ -389,7 +390,7 @@ def merge_persons(canonical_id: str, duplicate_id: str) -> dict[str, Any]:
             "identifier_history",
         ],
         "delete_duplicate": True,
-        "merged_at": datetime.now(timezone.utc).isoformat(),
+        "merged_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -937,7 +938,9 @@ class AsyncMergeExecutor:
                         )
                         tables_updated.append(table)
                     else:
-                        stmt = sa_text(f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup")
+                        stmt = sa_text(
+                            f"UPDATE {table} SET person_id = :canonical WHERE person_id = :dup"
+                        )
                         result = await session.execute(
                             stmt, {"canonical": canonical_id, "dup": duplicate_id}
                         )
@@ -962,7 +965,7 @@ class AsyncMergeExecutor:
                 "canonical_id": canonical_id,
                 "duplicate_id": duplicate_id,
                 "tables_updated": tables_updated,
-                "merged_at": datetime.now(timezone.utc).isoformat(),
+                "merged_at": datetime.now(UTC).isoformat(),
             }
 
         except Exception as exc:

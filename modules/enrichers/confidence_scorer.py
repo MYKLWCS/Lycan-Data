@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -116,7 +116,7 @@ def score_freshness(field: str, last_verified: str | datetime | None) -> float:
         if last_dt.tzinfo is None:
             now = datetime.now()
         else:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
         days_old = max(0, (now - last_dt).days)
     except (ValueError, TypeError):
@@ -128,7 +128,7 @@ def score_freshness(field: str, last_verified: str | datetime | None) -> float:
         return 0.20  # very stale
 
     ratio = 1.0 - (days_old / ttl)
-    return max(ratio ** 2, 0.20)
+    return max(ratio**2, 0.20)
 
 
 def score_conflict_penalty(values_and_sources: list[tuple[Any, str]]) -> float:
@@ -279,8 +279,7 @@ async def compute_person_confidence(
     for ident_type, idents in by_type.items():
         sources = [i.scraped_from or "unknown" for i in idents]
         values_and_sources = [
-            (i.normalized_value or i.value, i.scraped_from or "unknown")
-            for i in idents
+            (i.normalized_value or i.value, i.scraped_from or "unknown") for i in idents
         ]
 
         # Find most recent scrape timestamp

@@ -9,10 +9,10 @@ from __future__ import annotations
 import hashlib
 import logging
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 
 logger = logging.getLogger(__name__)
 
@@ -60,12 +60,14 @@ class GravatarCrawler(HttpxCrawler):
         # Extract accounts (linked social profiles)
         accounts = []
         for acct in entry.get("accounts", []):
-            accounts.append({
-                "domain": acct.get("domain", ""),
-                "display": acct.get("display", ""),
-                "url": acct.get("url", ""),
-                "username": acct.get("username", ""),
-            })
+            accounts.append(
+                {
+                    "domain": acct.get("domain", ""),
+                    "display": acct.get("display", ""),
+                    "url": acct.get("url", ""),
+                    "username": acct.get("username", ""),
+                }
+            )
 
         return CrawlerResult(
             platform=self.platform,

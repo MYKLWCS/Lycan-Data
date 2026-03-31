@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import timezone, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select, text
 
@@ -40,7 +40,7 @@ class AuditDaemon:
     async def _run_audit(self) -> None:
         """Execute all four audit categories and persist a SystemAudit row."""
         logger.info("AuditDaemon: starting audit run")
-        run_at = datetime.now(timezone.utc)
+        run_at = datetime.now(UTC)
 
         try:
             async with AsyncSessionLocal() as session:

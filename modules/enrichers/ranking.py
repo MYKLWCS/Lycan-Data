@@ -11,7 +11,7 @@ Every algorithm is auditable: scores are returned alongside results.
 """
 
 from dataclasses import dataclass
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 AUTHORITY_WEIGHTS: dict[str, float] = {
@@ -173,9 +173,9 @@ def _compute_recency(item: dict[str, Any]) -> float:
         except ValueError:
             return 0.5
     if scraped_at.tzinfo is None:
-        scraped_at = scraped_at.replace(tzinfo=timezone.utc)
+        scraped_at = scraped_at.replace(tzinfo=UTC)
 
-    age_days = (datetime.now(timezone.utc) - scraped_at).total_seconds() / 86400
+    age_days = (datetime.now(UTC) - scraped_at).total_seconds() / 86400
     return max(0.0, 1.0 - age_days / 30)
 
 

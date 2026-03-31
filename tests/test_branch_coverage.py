@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import timezone, date
+from datetime import UTC, date, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -65,7 +65,10 @@ class TestWSForwardMismatch:
             await callback({"event": "progress", "person_id": "OTHER-person"})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
+        with (
+            patch("api.routes.ws.event_bus") as mock_bus,
+            patch("api.routes.ws.settings") as mock_s,
+        ):
             mock_bus.subscribe = _subscribe
             mock_s.api_auth_enabled = False
             await scrape_progress(mock_ws, person_id)
@@ -105,7 +108,10 @@ class TestSSEForwardMismatch:
             await callback({"event": "x", "person_id": "COMPLETELY-DIFFERENT"})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
+        with (
+            patch("api.routes.ws.event_bus") as mock_bus,
+            patch("api.routes.ws.settings") as mock_s,
+        ):
             mock_bus.is_connected = True
             mock_bus.subscribe = _subscribe
             mock_s.api_auth_enabled = False
@@ -148,7 +154,10 @@ class TestSSEDoneEvent:
             await callback({"event": "done", "person_id": person_id})
             await asyncio.sleep(9999)
 
-        with patch("api.routes.ws.event_bus") as mock_bus, patch("api.routes.ws.settings") as mock_s:
+        with (
+            patch("api.routes.ws.event_bus") as mock_bus,
+            patch("api.routes.ws.settings") as mock_s,
+        ):
             mock_bus.is_connected = True
             mock_bus.subscribe = _subscribe
             mock_s.api_auth_enabled = False
@@ -375,7 +384,7 @@ class TestApplyQualityToModelMissingField:
             # intentionally omits source_reliability, etc.
 
         model = MinimalModel()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Should not raise even though model is missing many fields
         apply_quality_to_model(
             model,
@@ -600,7 +609,9 @@ class TestIndexDaemonEmptyAddressParts:
             captured.append(doc)
             return True
 
-        with patch("modules.search.typesense_indexer.meili_indexer.index_person", side_effect=_capture):
+        with patch(
+            "modules.search.typesense_indexer.meili_indexer.index_person", side_effect=_capture
+        ):
             await d._index_person(mock_session, uid)
 
         assert len(captured) == 1

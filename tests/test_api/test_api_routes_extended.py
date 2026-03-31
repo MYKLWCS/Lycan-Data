@@ -18,7 +18,7 @@ URL structure (from api/main.py):
 """
 
 import uuid
-from datetime import timezone, datetime
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -524,8 +524,8 @@ class TestEnrichmentSync:
     def _mock_report(self):
         report = MagicMock()
         report.person_id = VALID_UUID
-        report.started_at = datetime.now(timezone.utc)
-        report.finished_at = datetime.now(timezone.utc)
+        report.started_at = datetime.now(UTC)
+        report.finished_at = datetime.now(UTC)
         report.total_duration_ms = 120
         report.ok_count = 3
         report.error_count = 0
@@ -669,7 +669,7 @@ class TestFinancialScore:
     def _mock_profile(self):
         profile = MagicMock()
         profile.person_id = VALID_UUID
-        profile.assessed_at = datetime.now(timezone.utc)
+        profile.assessed_at = datetime.now(UTC)
         profile.credit = MagicMock(
             score=720,
             risk_category="medium",
@@ -1081,7 +1081,7 @@ class TestMarketingTagPerson:
         tag_result.tag = "high_income"
         tag_result.confidence = 0.9
         tag_result.reasoning = "Multiple income signals"
-        tag_result.scored_at = datetime.now(timezone.utc)
+        tag_result.scored_at = datetime.now(UTC)
 
         session = _make_session()
         # First execute call returns no existing tag (so we add a new one)
@@ -1109,7 +1109,7 @@ class TestMarketingTagPerson:
         tag_result.tag = "debt_prone"
         tag_result.confidence = 0.85
         tag_result.reasoning = "Credit signals"
-        tag_result.scored_at = datetime.now(timezone.utc)
+        tag_result.scored_at = datetime.now(UTC)
 
         existing_tag = MagicMock()
         existing_tag.confidence = 0.70

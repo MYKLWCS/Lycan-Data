@@ -21,7 +21,8 @@ from modules.crawlers.gov.bis_entity_list import (
     BisEntityListCrawler,
     _search_csv,
 )
-from modules.crawlers.utils import cache_valid as _cache_valid, word_overlap as _word_overlap
+from modules.crawlers.utils import cache_valid as _cache_valid
+from modules.crawlers.utils import word_overlap as _word_overlap
 
 # ---------------------------------------------------------------------------
 # Shared helpers

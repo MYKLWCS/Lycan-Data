@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from datetime import UTC
 from typing import Any
 
 from sqlalchemy import select
@@ -248,11 +249,11 @@ async def cluster_persons(
 
     # If no explicit IDs, grab recent persons
     if person_ids is None:
-        from datetime import timezone, datetime, timedelta
+        from datetime import datetime, timedelta
 
         from shared.models.person import Person
 
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
         stmt = (
             select(Person.id)
             .where(Person.updated_at >= cutoff)

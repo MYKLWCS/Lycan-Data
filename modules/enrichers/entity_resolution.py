@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,7 +75,7 @@ class EntityResolutionPipeline:
         session: AsyncSession,
     ) -> EntityResolutionReport:
         """Run the full 4-pass pipeline for a single person."""
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
         steps: list[ResolutionStepResult] = []
         total_dupes = 0
         total_merges = 0
@@ -126,7 +126,7 @@ class EntityResolutionPipeline:
         )
         steps.append(step_confidence)
 
-        finished_at = datetime.now(timezone.utc)
+        finished_at = datetime.now(UTC)
         total_ms = (finished_at - started_at).total_seconds() * 1000
 
         return EntityResolutionReport(
@@ -188,18 +188,17 @@ class EntityResolutionPipeline:
             val = ident.normalized_value or ident.value
             if not val:
                 continue
-            others_stmt = (
-                select(Identifier)
-                .where(
-                    Identifier.person_id != person_id,
-                    Identifier.type == ident.type,
-                    Identifier.normalized_value == val,
-                )
+            others_stmt = select(Identifier).where(
+                Identifier.person_id != person_id,
+                Identifier.type == ident.type,
+                Identifier.normalized_value == val,
             )
             others_result = await session.execute(others_stmt)
             for other_ident in others_result.scalars().all():
                 oid = str(other_ident.person_id)
-                candidate_scores[oid] = candidate_scores.get(oid, 0.0) + ident_weights.get(ident.type, 0.25)
+                candidate_scores[oid] = candidate_scores.get(oid, 0.0) + ident_weights.get(
+                    ident.type, 0.25
+                )
 
         if not candidate_scores:
             return ResolutionStepResult(
@@ -248,15 +247,16 @@ class EntityResolutionPipeline:
                     if merge_result.get("merged"):
                         merges += 1
                 except Exception:
-                    logger.exception(
-                        "Cross-person merge failed: %s -> %s", person_id, oid
-                    )
+                    logger.exception("Cross-person merge failed: %s -> %s", person_id, oid)
             elif confidence >= 0.60:
                 # Queue for manual review if not already queued
                 existing = await session.execute(
                     select(DedupReview).where(
                         ((DedupReview.person_a_id == person_id) & (DedupReview.person_b_id == oid))
-                        | ((DedupReview.person_a_id == oid) & (DedupReview.person_b_id == person_id))
+                        | (
+                            (DedupReview.person_a_id == oid)
+                            & (DedupReview.person_b_id == person_id)
+                        )
                     )
                 )
                 if existing.scalar_one_or_none() is None:
@@ -287,18 +287,16 @@ class EntityResolutionPipeline:
         name: str,
         coro,
     ) -> ResolutionStepResult:
-        t0 = datetime.now(timezone.utc)
+        t0 = datetime.now(UTC)
         try:
             result = await coro
-            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
             if isinstance(result, ResolutionStepResult):
                 result.duration_ms = round(duration, 2)
                 return result
-            return ResolutionStepResult(
-                step=name, status="ok", duration_ms=round(duration, 2)
-            )
+            return ResolutionStepResult(step=name, status="ok", duration_ms=round(duration, 2))
         except Exception as exc:
-            duration = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
+            duration = (datetime.now(UTC) - t0).total_seconds() * 1000
             logger.exception("EntityResolution step %r failed for person", name)
             return ResolutionStepResult(
                 step=name,
@@ -318,11 +316,10 @@ class EntityResolutionPipeline:
         Check if this person's identifiers match any existing bloom filter
         or Dragonfly cache entries via ExactMatchDeduplicator.
         """
-        from shared.models.identifier import Identifier
-        from shared.models.person import Person
-
         from modules.enrichers.deduplication import ExactMatchDeduplicator
         from shared.events import event_bus
+        from shared.models.identifier import Identifier
+        from shared.models.person import Person
 
         person = await session.get(Person, person_id)
         if person is None:
@@ -450,9 +447,7 @@ class EntityResolutionPipeline:
         for cluster in relevant:
             if cluster.avg_confidence >= self.AUTO_MERGE_THRESHOLD and cluster.size <= 5:
                 try:
-                    golden = await build_golden_record_from_cluster(
-                        session, cluster.record_ids
-                    )
+                    golden = await build_golden_record_from_cluster(session, cluster.record_ids)
                     # Merge non-canonical records into canonical
                     executor = AsyncMergeExecutor()
                     for rid in cluster.record_ids:
@@ -465,9 +460,7 @@ class EntityResolutionPipeline:
                             if result.get("merged"):
                                 merges_done += 1
                 except Exception:
-                    logger.exception(
-                        "Pass 3 merge failed for cluster %s", cluster.cluster_id
-                    )
+                    logger.exception("Pass 3 merge failed for cluster %s", cluster.cluster_id)
 
         return ResolutionStepResult(
             step="pass3_graph_clustering",
@@ -487,15 +480,13 @@ class EntityResolutionPipeline:
         """
         Re-score borderline candidates using ML model or rule-based fallback.
         """
-        from shared.models.dedup_review import DedupReview
-
         from modules.enrichers.ml_dedup import MLDedup
+        from shared.models.dedup_review import DedupReview
 
         # Get unreviewed candidates in the review queue for this person
         stmt = select(DedupReview).where(
             DedupReview.reviewed == False,  # noqa: E712
-            (DedupReview.person_a_id == person_id)
-            | (DedupReview.person_b_id == person_id),
+            (DedupReview.person_a_id == person_id) | (DedupReview.person_b_id == person_id),
         )
         result = await session.execute(stmt)
         reviews = result.scalars().all()
@@ -522,9 +513,7 @@ class EntityResolutionPipeline:
         persons_result = await session.execute(persons_stmt)
         persons = {str(p.id): p for p in persons_result.scalars().all()}
 
-        idents_stmt = select(Identifier).where(
-            Identifier.person_id.in_(list(all_person_ids))
-        )
+        idents_stmt = select(Identifier).where(Identifier.person_id.in_(list(all_person_ids)))
         idents_result = await session.execute(idents_stmt)
         all_idents = idents_result.scalars().all()
 

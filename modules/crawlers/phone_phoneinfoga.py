@@ -15,9 +15,9 @@ import shutil
 import subprocess
 
 from modules.crawlers.base import BaseCrawler
-from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.registry import register
 
 logger = logging.getLogger(__name__)
 

@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.media.adverse_media_search import (
     AdverseMediaSearchCrawler,
     _parse_courtlistener,
@@ -30,7 +31,6 @@ from modules.crawlers.media.adverse_media_search import (
     _score_severity,
     _url_hash,
 )
-from modules.crawlers.core.result import CrawlerResult
 
 # ---------------------------------------------------------------------------
 # Helpers

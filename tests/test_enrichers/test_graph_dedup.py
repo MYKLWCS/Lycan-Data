@@ -4,7 +4,6 @@ import pytest
 
 from modules.enrichers.graph_dedup import EntityCluster, GraphDedup, MatchEdge
 
-
 # ── GraphDedup — basic operations ────────────────────────────────────────────
 
 
@@ -121,9 +120,11 @@ class TestBulkEdges:
 
     def test_add_edges_preserves_pass_info(self):
         g = GraphDedup(confidence_threshold=0.50)
-        g.add_edges_from_candidates([
-            {"id_a": "a", "id_b": "b", "similarity_score": 0.90, "pass": 1},
-        ])
+        g.add_edges_from_candidates(
+            [
+                {"id_a": "a", "id_b": "b", "similarity_score": 0.90, "pass": 1},
+            ]
+        )
         clusters = g.find_clusters()
         assert clusters[0].edges[0].source_pass == 1
 

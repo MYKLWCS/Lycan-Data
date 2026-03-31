@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import urllib.parse
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +47,7 @@ async def run_discovery(
         tool_names:  Optional whitelist of tool names to run
         on_progress: Optional async callable(dict) for live progress events
     """
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
 
     # Instantiate tools
     tools: list[BaseDiscoveryTool] = []
@@ -107,9 +107,7 @@ async def run_discovery(
     for hit in new_hits:
         # Check not already in discovery log
         exists = await session.execute(
-            select(DiscoveredSource).where(
-                DiscoveredSource.url == hit.url
-            ).limit(1)
+            select(DiscoveredSource).where(DiscoveredSource.url == hit.url).limit(1)
         )
         if exists.scalar_one_or_none():
             continue
@@ -134,7 +132,7 @@ async def run_discovery(
     # Auto-queue crawl jobs for discovered URLs that match registered crawlers
     auto_queued = await _auto_queue_discovered(new_hits, session)
 
-    elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
+    elapsed = (datetime.now(UTC) - started_at).total_seconds()
     summary = {
         "query": query,
         "tools_run": len(tools),
@@ -205,13 +203,20 @@ async def _auto_queue_discovered(hits: list[DiscoveryHit], session: AsyncSession
             )
         else:
             # Fallback: queue generic web scraper for unmapped URLs
-            if hit.url and hit.url.startswith("http") and not any(skip in hit.url for skip in [".pdf", ".jpg", ".png", ".mp4"]):
-                await event_bus.enqueue({
-                    "platform": "generic_web_scraper",
-                    "identifier": hit.url,
-                    "person_id": "",
-                    "priority": "low",
-                }, priority="low")
+            if (
+                hit.url
+                and hit.url.startswith("http")
+                and not any(skip in hit.url for skip in [".pdf", ".jpg", ".png", ".mp4"])
+            ):
+                await event_bus.enqueue(
+                    {
+                        "platform": "generic_web_scraper",
+                        "identifier": hit.url,
+                        "person_id": "",
+                        "priority": "low",
+                    },
+                    priority="low",
+                )
                 queued += 1
                 logger.info(
                     "Auto-queued generic_web_scraper for unmapped URL: %s",

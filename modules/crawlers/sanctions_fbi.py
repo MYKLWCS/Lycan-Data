@@ -11,10 +11,10 @@ import logging
 from typing import Any
 from urllib.parse import quote
 
+from modules.crawlers.core.models import CrawlerCategory, RateLimit
+from modules.crawlers.core.result import CrawlerResult
 from modules.crawlers.httpx_base import HttpxCrawler
 from modules.crawlers.registry import register
-from modules.crawlers.core.result import CrawlerResult
-from modules.crawlers.core.models import CrawlerCategory, RateLimit
 from modules.crawlers.utils import word_overlap
 
 logger = logging.getLogger(__name__)

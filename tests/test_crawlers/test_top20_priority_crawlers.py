@@ -27,55 +27,55 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# ── Trigger @register decorators ────────────────────────────────────────────
-import modules.crawlers.truepeoplesearch          # noqa: F401
-import modules.crawlers.fastpeoplesearch          # noqa: F401
-import modules.crawlers.whitepages                # noqa: F401
-import modules.crawlers.people_thatsthem          # noqa: F401
-import modules.crawlers.peekyou                   # noqa: F401
-import modules.crawlers.username_sherlock         # noqa: F401
-import modules.crawlers.username_maigret          # noqa: F401
-import modules.crawlers.social_instaloader        # noqa: F401
-import modules.crawlers.social_snscrape           # noqa: F401
-import modules.crawlers.reddit                    # noqa: F401
-import modules.crawlers.github_profile            # noqa: F401
-import modules.crawlers.email_holehe              # noqa: F401
-import modules.crawlers.sec_edgar                 # noqa: F401
-import modules.crawlers.gov_fec                   # noqa: F401
-import modules.crawlers.people_fbi_wanted         # noqa: F401
-import modules.crawlers.public_nsopw              # noqa: F401
-import modules.crawlers.sanctions_ofac            # noqa: F401
-import modules.crawlers.sanctions_opensanctions   # noqa: F401
-import modules.crawlers.gov_propublica            # noqa: F401
-import modules.crawlers.gov_fdic                  # noqa: F401
+import modules.crawlers.email_holehe  # noqa: F401
+import modules.crawlers.fastpeoplesearch  # noqa: F401
+import modules.crawlers.github_profile  # noqa: F401
+import modules.crawlers.gov_fdic  # noqa: F401
+import modules.crawlers.gov_fec  # noqa: F401
+import modules.crawlers.gov_propublica  # noqa: F401
+import modules.crawlers.peekyou  # noqa: F401
+import modules.crawlers.people_fbi_wanted  # noqa: F401
+import modules.crawlers.people_thatsthem  # noqa: F401
+import modules.crawlers.public_nsopw  # noqa: F401
+import modules.crawlers.reddit  # noqa: F401
+import modules.crawlers.sanctions_ofac  # noqa: F401
+import modules.crawlers.sanctions_opensanctions  # noqa: F401
+import modules.crawlers.sec_edgar  # noqa: F401
+import modules.crawlers.social_instaloader  # noqa: F401
+import modules.crawlers.social_snscrape  # noqa: F401
 
-from modules.crawlers.registry import is_registered
+# ── Trigger @register decorators ────────────────────────────────────────────
+import modules.crawlers.truepeoplesearch  # noqa: F401
+import modules.crawlers.username_maigret  # noqa: F401
+import modules.crawlers.username_sherlock  # noqa: F401
+import modules.crawlers.whitepages  # noqa: F401
 from modules.crawlers.core.result import CrawlerResult
+from modules.crawlers.email_holehe import EmailHoleheCrawler
+from modules.crawlers.fastpeoplesearch import FastPeopleSearchCrawler
+from modules.crawlers.github_profile import GitHubProfileCrawler
+from modules.crawlers.gov_fdic import FdicCrawler
+from modules.crawlers.gov_fec import FecCrawler
+from modules.crawlers.gov_propublica import ProPublicaCrawler
+from modules.crawlers.peekyou import PeekYouCrawler
+from modules.crawlers.people_fbi_wanted import FbiWantedCrawler
+from modules.crawlers.people_thatsthem import PeopleThatsThemCrawler
+from modules.crawlers.public_nsopw import PublicNSOPWCrawler
+from modules.crawlers.reddit import RedditCrawler
+from modules.crawlers.registry import is_registered
+from modules.crawlers.sanctions_ofac import SanctionsOFACCrawler
+from modules.crawlers.sanctions_opensanctions import OpenSanctionsCrawler
+from modules.crawlers.sec_edgar import SecEdgarCrawler, _parse_company_atom, _parse_efts_hits
+from modules.crawlers.social_instaloader import InstaloaderCrawler, _parse_profile_json
+from modules.crawlers.social_snscrape import SnscrapeCrawler, _validate_username
 
 # ── Import classes ────────────────────────────────────────────────────────────
 from modules.crawlers.truepeoplesearch import TruePeopleSearchCrawler
-from modules.crawlers.fastpeoplesearch import FastPeopleSearchCrawler
-from modules.crawlers.whitepages import WhitepagesCrawler
-from modules.crawlers.people_thatsthem import PeopleThatsThemCrawler
-from modules.crawlers.peekyou import PeekYouCrawler
-from modules.crawlers.username_sherlock import UsernameSherlockCrawler
 from modules.crawlers.username_maigret import MaigretCrawler
-from modules.crawlers.social_instaloader import InstaloaderCrawler, _parse_profile_json
-from modules.crawlers.social_snscrape import SnscrapeCrawler, _validate_username
-from modules.crawlers.reddit import RedditCrawler
-from modules.crawlers.github_profile import GitHubProfileCrawler
-from modules.crawlers.email_holehe import EmailHoleheCrawler
-from modules.crawlers.sec_edgar import SecEdgarCrawler, _parse_efts_hits, _parse_company_atom
-from modules.crawlers.gov_fec import FecCrawler
-from modules.crawlers.people_fbi_wanted import FbiWantedCrawler
-from modules.crawlers.public_nsopw import PublicNSOPWCrawler
-from modules.crawlers.sanctions_ofac import SanctionsOFACCrawler
-from modules.crawlers.sanctions_opensanctions import OpenSanctionsCrawler
-from modules.crawlers.gov_propublica import ProPublicaCrawler
-from modules.crawlers.gov_fdic import FdicCrawler
-
+from modules.crawlers.username_sherlock import UsernameSherlockCrawler
+from modules.crawlers.whitepages import WhitepagesCrawler
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
+
 
 def make_playwright_page_cm(html: str, title: str = "Results"):
     """Return an async context manager that yields a mock Playwright page."""
@@ -116,6 +116,7 @@ def make_http_response(status: int, body: str | dict | bytes, *, is_json: bool =
 # 1. TruePeopleSearch
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_truepeoplesearch_found():
     html = """
@@ -153,6 +154,7 @@ async def test_truepeoplesearch_blocked():
 # 2. FastPeopleSearch
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_fastpeoplesearch_found():
     html = """
@@ -178,13 +180,14 @@ async def test_fastpeoplesearch_no_results():
     crawler = FastPeopleSearchCrawler()
     with patch.object(crawler, "page", make_playwright_page_cm(html)):
         result = await crawler.scrape("Zzz Qqq")
-    assert result.found is True   # no-results page still resolves
+    assert result.found is True  # no-results page still resolves
     assert result.data.get("result_count") == 0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. WhitePages
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_whitepages_found():
@@ -208,6 +211,7 @@ async def test_whitepages_found():
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. ThatsThem
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_thatsthem_registered():
     assert is_registered("people_thatsthem")
@@ -246,6 +250,7 @@ async def test_thatsthem_not_found():
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. PeekYou
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_peekyou_registered():
     assert is_registered("peekyou")
@@ -292,6 +297,7 @@ async def test_peekyou_blocked():
 # 6. Sherlock
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_sherlock_registered():
     assert is_registered("username_sherlock")
 
@@ -310,11 +316,13 @@ async def test_sherlock_finds_accounts():
     ):
         with patch(
             "modules.crawlers.username_sherlock._run_sherlock",
-            AsyncMock(return_value=[
-                {"site": "Twitter", "url": "https://twitter.com/johndoe"},
-                {"site": "GitHub", "url": "https://github.com/johndoe"},
-                {"site": "Reddit", "url": "https://reddit.com/user/johndoe"},
-            ]),
+            AsyncMock(
+                return_value=[
+                    {"site": "Twitter", "url": "https://twitter.com/johndoe"},
+                    {"site": "GitHub", "url": "https://github.com/johndoe"},
+                    {"site": "Reddit", "url": "https://reddit.com/user/johndoe"},
+                ]
+            ),
         ):
             result = await crawler.scrape("johndoe")
     assert result.platform == "username_sherlock"
@@ -339,6 +347,7 @@ async def test_sherlock_not_installed():
 # 7. Maigret
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_maigret_registered():
     assert is_registered("username_maigret")
 
@@ -352,12 +361,8 @@ async def test_maigret_finds_accounts():
         }
     }
     crawler = MaigretCrawler()
-    with patch(
-        "modules.crawlers.username_maigret.shutil.which", return_value="/usr/bin/maigret"
-    ):
-        with patch(
-            "modules.crawlers.username_maigret.asyncio.to_thread", AsyncMock()
-        ):
+    with patch("modules.crawlers.username_maigret.shutil.which", return_value="/usr/bin/maigret"):
+        with patch("modules.crawlers.username_maigret.asyncio.to_thread", AsyncMock()):
             with patch("pathlib.Path.read_text", return_value=json.dumps(fake_json)):
                 with patch("pathlib.Path.exists", return_value=True):
                     result = await crawler.scrape("jane")
@@ -370,6 +375,7 @@ async def test_maigret_finds_accounts():
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. Instaloader
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_instaloader_registered():
     assert is_registered("instaloader")
@@ -395,12 +401,8 @@ async def test_instaloader_found():
     from pathlib import Path
 
     crawler = InstaloaderCrawler()
-    with patch(
-        "modules.crawlers.social_instaloader._instaloader_available", return_value=True
-    ):
-        with patch(
-            "modules.crawlers.social_instaloader._fetch_instaloader", AsyncMock()
-        ):
+    with patch("modules.crawlers.social_instaloader._instaloader_available", return_value=True):
+        with patch("modules.crawlers.social_instaloader._fetch_instaloader", AsyncMock()):
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Write fake profile JSON into tmpdir/nasa/
                 profile_dir = Path(tmpdir) / "nasa"
@@ -419,9 +421,7 @@ async def test_instaloader_found():
 @pytest.mark.asyncio
 async def test_instaloader_not_installed():
     crawler = InstaloaderCrawler()
-    with patch(
-        "modules.crawlers.social_instaloader._instaloader_available", return_value=False
-    ):
+    with patch("modules.crawlers.social_instaloader._instaloader_available", return_value=False):
         result = await crawler.scrape("nasa")
     assert result.found is False
     assert result.error == "instaloader_not_installed"
@@ -448,6 +448,7 @@ def test_instaloader_parse_profile_json(tmp_path):
 # 9. snscrape
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_snscrape_registered():
     assert is_registered("snscrape")
 
@@ -468,9 +469,7 @@ async def test_snscrape_found():
     profile_bytes = (json.dumps(profile_record) + "\n").encode()
 
     crawler = SnscrapeCrawler()
-    with patch(
-        "modules.crawlers.social_snscrape._snscrape_available", return_value=True
-    ):
+    with patch("modules.crawlers.social_snscrape._snscrape_available", return_value=True):
         with patch(
             "modules.crawlers.social_snscrape._run_snscrape",
             AsyncMock(side_effect=[profile_bytes, b""]),
@@ -487,9 +486,7 @@ async def test_snscrape_found():
 @pytest.mark.asyncio
 async def test_snscrape_not_installed():
     crawler = SnscrapeCrawler()
-    with patch(
-        "modules.crawlers.social_snscrape._snscrape_available", return_value=False
-    ):
+    with patch("modules.crawlers.social_snscrape._snscrape_available", return_value=False):
         result = await crawler.scrape("elonmusk")
     assert result.found is False
     assert result.error == "snscrape_not_installed"
@@ -507,6 +504,7 @@ def test_snscrape_username_validation():
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. Reddit
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_reddit_found():
@@ -541,6 +539,7 @@ async def test_reddit_not_found():
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. GitHub
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_github_found():
@@ -582,6 +581,7 @@ async def test_github_not_found():
 # 12. Holehe
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_holehe_registered():
     assert is_registered("email_holehe")
 
@@ -620,6 +620,7 @@ async def test_holehe_not_installed():
 # 13. SEC EDGAR
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_sec_edgar_registered():
     assert is_registered("sec_edgar")
 
@@ -655,9 +656,7 @@ async def test_sec_edgar_company_search():
     efts_resp = make_http_response(200, efts_payload)
     atom_resp = make_http_response(200, atom_xml)
 
-    with patch.object(
-        crawler, "get", AsyncMock(side_effect=[efts_resp, atom_resp])
-    ):
+    with patch.object(crawler, "get", AsyncMock(side_effect=[efts_resp, atom_resp])):
         result = await crawler.scrape("Apple Inc")
 
     assert result.platform == "sec_edgar"
@@ -706,6 +705,7 @@ def test_sec_edgar_parse_company_atom():
 # 14. FEC
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_fec_registered():
     assert is_registered("gov_fec")
 
@@ -746,6 +746,7 @@ async def test_fec_not_found():
 # ─────────────────────────────────────────────────────────────────────────────
 # 15. FBI Most Wanted
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_fbi_wanted_registered():
     assert is_registered("people_fbi_wanted")
@@ -793,6 +794,7 @@ async def test_fbi_wanted_not_found():
 # 16. NSOPW
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_nsopw_found():
     payload = {
@@ -829,18 +831,25 @@ async def test_nsopw_no_match():
 # 17. OFAC SDN
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_ofac_found():
     crawler = SanctionsOFACCrawler()
     # OFAC SDN is XML-based — mock a minimal SDN entry
     # Just verify found=True on any non-empty data
-    with patch.object(crawler, "scrape", AsyncMock(return_value=CrawlerResult(
-        platform="sanctions_ofac",
-        identifier="Pablo Escobar",
-        found=True,
-        data={"matches": [{"name": "ESCOBAR GAVIRIA, Pablo Emilio", "type": "Individual"}]},
-        source_reliability=0.99,
-    ))):
+    with patch.object(
+        crawler,
+        "scrape",
+        AsyncMock(
+            return_value=CrawlerResult(
+                platform="sanctions_ofac",
+                identifier="Pablo Escobar",
+                found=True,
+                data={"matches": [{"name": "ESCOBAR GAVIRIA, Pablo Emilio", "type": "Individual"}]},
+                source_reliability=0.99,
+            )
+        ),
+    ):
         result = await crawler.scrape("Pablo Escobar")
     assert result.platform == "sanctions_ofac"
     assert result.found is True
@@ -850,6 +859,7 @@ async def test_ofac_found():
 # ─────────────────────────────────────────────────────────────────────────────
 # 18. OpenSanctions
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_opensanctions_registered():
     assert is_registered("sanctions_opensanctions")
@@ -895,6 +905,7 @@ async def test_opensanctions_not_found():
 # 19. ProPublica Nonprofit
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_propublica_registered():
     assert is_registered("gov_propublica")
 
@@ -938,6 +949,7 @@ async def test_propublica_not_found():
 # ─────────────────────────────────────────────────────────────────────────────
 # 20. FDIC BankFind
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_fdic_registered():
     assert is_registered("gov_fdic")

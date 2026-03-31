@@ -731,8 +731,8 @@ class TestPlaywrightCrawler:
     """Tests for PlaywrightCrawler helpers."""
 
     def _make_crawler(self):
-        from modules.crawlers.playwright_base import PlaywrightCrawler
         from modules.crawlers.core.result import CrawlerResult
+        from modules.crawlers.playwright_base import PlaywrightCrawler
 
         class _Concrete(PlaywrightCrawler):
             platform = "test_playwright"

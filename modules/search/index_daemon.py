@@ -15,7 +15,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.search.typesense_indexer import build_person_doc, typesense_indexer as meili_indexer
+from modules.search.typesense_indexer import build_person_doc
+from modules.search.typesense_indexer import typesense_indexer as meili_indexer
 from shared.db import AsyncSessionLocal
 from shared.events import event_bus
 from shared.models.address import Address
