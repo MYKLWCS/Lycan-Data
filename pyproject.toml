@@ -5,7 +5,7 @@ description = "Recursive people intelligence platform"
 authors = ["Wolf Corporation <dev@wolfcorporation.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.12, <3.15"
 fastapi = "^0.115"
 uvicorn = {extras = ["standard"], version = "^0.32"}
 sqlalchemy = {extras = ["asyncio"], version = "^2.0"}
@@ -17,6 +17,7 @@ redis = "^5.2"
 stem = "^1.8"
 phonenumbers = "^8.13"
 spacy = "^3.8"
+srsly = ">=2.5.2"
 networkx = "^3.4"
 httpx = {extras = ["socks"], version = "^0.28"}
 playwright = "^1.49"
@@ -50,6 +51,7 @@ pytest = "^8.3"
 pytest-asyncio = "^0.24"
 pytest-cov = "^6.0"
 anyio = "^4.7"
+pip-audit = "^2.7.3"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
